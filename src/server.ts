@@ -1,0 +1,119 @@
+import { MCPServer } from "mcp-use";
+import { SandboxInstance } from "@blaxel/core";
+import { z } from "zod";
+import { acceptsBearer } from "../viewer/auth.js";
+import { fixturePresentation, RunPresentationSchema } from "../viewer/presentation.js";
+
+const server = new MCPServer({
+  name: "axlint-platform-ping",
+  title: "AX Lint Platform Ping",
+  version: "0.2.1",
+  description: "AX Lint platform connectivity proof",
+  instructions: "Call preview_run to open the recorded verification viewer. Call ping to check outbound HTTPS, secret configuration and Blaxel connectivity.",
+});
+
+// Guard the MCP transport on every request, including existing-session calls.
+// Widget JS/CSS are public static code; their render data arrives through MCP.
+server.app.use("*", async (context, next) => {
+  const path = context.req.path;
+  // This service uses a fixed header credential, not OAuth discovery.
+  if (path.startsWith("/.well-known/oauth-") || path.startsWith("/.well-known/openid-configuration")) {
+    return context.json({ error: "Not found" }, 404);
+  }
+  if (path !== "/mcp" && path !== "/mcp/") return next();
+  const expected = process.env.AXLINT_API_TOKEN;
+  if (!expected || expected.length < 32) {
+    return context.json({ error: "AX Lint authentication is not configured" }, 401);
+  }
+  if (!acceptsBearer(context.req.header("Authorization"), expected)) {
+    return context.json({ error: "Unauthorized: send Authorization: Bearer <token>" }, 401);
+  }
+  return next();
+});
+
+server.get("/health", context => context.json({ status: "healthy" }));
+
+const check = z.object({ ok: z.boolean(), status: z.string() });
+const outputSchema = z.object({
+  message: z.string(),
+  checkedAt: z.string(),
+  https: check,
+  secrets: z.object({ anthropic: z.boolean(), blaxel: z.boolean(), workspace: z.boolean() }),
+  sandbox: check.extend({ runId: z.string().nullable(), progress: z.unknown().nullable() }),
+});
+
+function safeError(error: unknown): string {
+  const apiError = error as { code?: unknown; error?: unknown } | null;
+  let message = error instanceof Error ? error.message : typeof apiError?.error === "string" ? `${String(apiError.code ?? "API error")}: ${apiError.error}` : String(error);
+  for (const key of ["ANTHROPIC_API_KEY", "BL_API_KEY", "MCP_USE_API_KEY", "AXLINT_API_TOKEN"]) {
+    const secret = process.env[key];
+    if (secret) message = message.replaceAll(secret, "<redacted>");
+  }
+  return message;
+}
+
+export const ping = server.tool({
+  name: "ping",
+  description: "Check AX Lint hosting: outbound HTTPS, configured secrets and access to the configured Blaxel proof sandbox. Returns no secret values.",
+  inputSchema: z.object({}),
+  outputSchema,
+  view: { name: "ping", description: "AX Lint platform connectivity results" },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
+}, async () => {
+  const secrets = {
+    anthropic: Boolean(process.env.ANTHROPIC_API_KEY?.trim()),
+    blaxel: Boolean(process.env.BL_API_KEY?.trim()),
+    workspace: Boolean(process.env.BL_WORKSPACE?.trim()),
+  };
+  let https = { ok: false, status: "not_checked" };
+  try {
+    const response = await fetch("https://example.com", { signal: AbortSignal.timeout(10000) });
+    https = { ok: response.ok, status: `HTTP ${response.status}` };
+    await response.body?.cancel();
+  } catch (error) { https.status = safeError(error); }
+
+  const runId = process.env.AXLINT_SPIKE_RUN_ID || null;
+  let sandbox: z.infer<typeof outputSchema>["sandbox"] = {ok:false, status:"AXLINT_SPIKE_RUN_ID is not configured", runId, progress:null};
+  if (runId && secrets.blaxel && secrets.workspace) {
+    try {
+      const instance = await SandboxInstance.get(runId);
+      const progress = JSON.parse(await instance.fs.read("/app/axlint-spike/progress.json"));
+      sandbox = { ok:true, status:instance.status ?? "reachable", runId, progress };
+    } catch (error) { sandbox.status = safeError(error); }
+  }
+  const ok = https.ok && Object.values(secrets).every(Boolean) && sandbox.ok;
+  const data = {message:ok ? "pong: all platform checks passed" : "pong: platform checks incomplete or failed", checkedAt:new Date().toISOString(), https, secrets, sandbox};
+  // Keep typed render data in structuredContent. Expose the View as an actual
+  // content link too, so clients can discover it without displaying result _meta.
+  // mcp-use stamps the matching ui.resourceUri metadata from the View binding.
+  return {
+    content: [
+      { type: "text" as const, text: data.message },
+      ...(ok ? [{
+        type: "resource_link" as const,
+        uri: "ui://views/ping.html",
+        name: "AX Lint platform ping",
+        description: "Interactive platform connectivity widget",
+        mimeType: "text/html;profile=mcp-app",
+      }] : []),
+    ],
+    structuredContent: data,
+    ...(ok ? {} : { isError: true }),
+  };
+});
+
+// Temporary fixture-only tool. It never starts, polls or mutates a real run.
+export const previewRun = server.tool({
+  name: "preview_run",
+  description: "Preview AX Lint's read-only verification viewer using recorded fixture data. This does not run verification or apply any patch; confirmation gates are illustrative.",
+  inputSchema: z.object({phase:z.enum(["running", "complete"]).default("complete").describe("Choose a complete fixture or an in-progress fixture snapshot")}),
+  outputSchema: RunPresentationSchema,
+  view: {name:"preview-run",description:"Read-only verification fixture with audit, patch, trials, verdict and illustrative confirmation"},
+  annotations:{readOnlyHint:true,destructiveHint:false,openWorldHint:false},
+}, async ({phase}) => ({
+  content:[{type:"text" as const,text:"Recorded fixture preview: trackr improved from 9/12 to 12/12 first-call passes. Provisional, 3 trials per condition. Confirmation is illustrative."},
+    {type:"resource_link" as const,uri:"ui://views/preview-run.html",name:"AX Lint verification preview",mimeType:"text/html;profile=mcp-app"}],
+  structuredContent:fixturePresentation(phase),
+}));
+
+export default server;
