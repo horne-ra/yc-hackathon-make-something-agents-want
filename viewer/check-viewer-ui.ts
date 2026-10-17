@@ -5,6 +5,8 @@ import {mkdtemp,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import path from "node:path";
 const wait=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
+const [phase="complete",width="768",endpoint="http://127.0.0.1:3014/mcp"] = process.argv.slice(2);
+assert(["complete","running"].includes(phase));
 const profile=await mkdtemp(path.join(tmpdir(),"axlint-viewer-chrome-"));
 const chrome=spawn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",["--headless=new","--remote-debugging-port=9237",`--user-data-dir=${profile}`,"--no-first-run","--no-default-browser-check","about:blank"],{stdio:"ignore"});
 let capture:ReturnType<typeof spawn>|undefined;
@@ -13,7 +15,7 @@ try {
   let ws="";
   for(let i=0;i<100;i++){try{const info=await(await fetch("http://127.0.0.1:9237/json/version")).json();ws=info.webSocketDebuggerUrl;break}catch{await wait(50)}}
   assert(ws,"Chrome debugging endpoint did not start");
-  capture=spawn("pnpm",["exec","tsx","viewer/capture-preview.ts","http://127.0.0.1:3014/mcp","/private/tmp/axlint-viewer-interaction.png","complete","768"],{env:{...process.env,AXLINT_QA_CDP_URL:ws,AXLINT_QA_CAPTURE_DELAY_MS:"20000"},stdio:["ignore","pipe","pipe"]});
+  capture=spawn("pnpm",["exec","tsx","viewer/capture-preview.ts",endpoint,`/private/tmp/axlint-viewer-${phase}-${width}.png`,phase,width],{env:{...process.env,AXLINT_QA_CDP_URL:ws,AXLINT_QA_CAPTURE_DELAY_MS:"20000"},stdio:["ignore","pipe","pipe"]});
   let captureLog="";capture.stdout?.on("data",data=>captureLog+=String(data));capture.stderr?.on("data",data=>captureLog+=String(data));
   let target:any;
   for(let i=0;i<200;i++){const targets=await(await fetch("http://127.0.0.1:9237/json/list")).json();target=targets.find((item:any)=>item.type==="page"&&item.url.includes("/inspector/preview/preview-run"));if(target)break;await wait(100)}
@@ -29,17 +31,33 @@ try {
   assert(contextId,"Rendered viewer context was not found");
   const run=(expression:string)=>evaluate(expression,contextId);
   const initial=await run('({cells:document.querySelectorAll(".trial-cell").length,fail:document.querySelectorAll(".trial-cell.fail").length,minFont:Math.min(...[...document.querySelectorAll(".verification *")].filter(el=>getComputedStyle(el).display!=="none"&&el.textContent.trim()).map(el=>parseFloat(getComputedStyle(el).fontSize))),overflow:document.documentElement.scrollWidth>innerWidth})');
-  assert.equal(initial.cells,24);assert.equal(initial.fail,3);assert(initial.minFont>=16);assert.equal(initial.overflow,false);
+  assert.equal(initial.cells,24);assert.equal(initial.fail,phase==="complete"?3:0);assert(initial.minFont>=16);assert.equal(initial.overflow,false);
+  assert((await run('document.querySelectorAll(".removed-word").length'))>0);
+  if(phase==="running"){
+    assert((await run('document.querySelector(".summary-strip div:nth-child(2)").textContent')).includes("Pending"));
+    assert.equal(await run('document.querySelectorAll(".confirm-gate.awaiting").length'),4);
+  }
+  await run(`[...document.querySelectorAll(".trial-cell")].find(el=>el.getAttribute("aria-label").startsWith("t3-payload baseline trial 2:")).click()`);
+  assert((await run('document.querySelector("#section-4 .section-caption").textContent')).includes("trial 2"));
+  assert.equal(await run('document.querySelectorAll(".trial-cell[aria-pressed=true]").length'),2);
   await run('[...document.querySelectorAll(".task-button")].find(el=>el.textContent.includes("Exact issue")).click()');
   assert((await run('document.querySelector("blockquote").textContent')).includes("TRK-117"));
   await run('[...document.querySelectorAll(".task-button")].find(el=>el.textContent.includes("Maria")).click()');
   await run('[...document.querySelectorAll("button")].find(el=>el.textContent.includes("Replay fixture")).click()');
   const reset=await run('Number(document.querySelector("[role=progressbar]").getAttribute("aria-valuenow"))');assert(reset<24);
+  assert((await run('document.querySelector(".summary-strip div:nth-child(2)").textContent')).includes("Pending"));
+  await run('[...document.querySelectorAll("button")].find(el=>el.textContent==="Pause").click()');
+  const paused=await run('Number(document.querySelector("[role=progressbar]").getAttribute("aria-valuenow"))');
+  await wait(700);
+  assert.equal(await run('Number(document.querySelector("[role=progressbar]").getAttribute("aria-valuenow"))'),paused);
+  await run('[...document.querySelectorAll("button")].find(el=>el.textContent==="Resume").click()');
   await wait(1100);
   const advancing=await run('Number(document.querySelector("[role=progressbar]").getAttribute("aria-valuenow"))');assert(advancing>reset&&advancing<24);
   await run('[...document.querySelectorAll("button")].find(el=>el.textContent==="Show all").click()');
   assert.equal(await run('Number(document.querySelector("[role=progressbar]").getAttribute("aria-valuenow"))'),24);
+  assert((await run('document.querySelector(".summary-strip div:nth-child(2)").textContent')).includes("10,408"));
+  assert.equal(await run('document.querySelectorAll(".confirm-gate.awaiting").length'),0);
   const secretInput=await run('document.querySelector("input[type=password]")!==null');assert.equal(secretInput,false);
-  console.log(`PASS real Inspector UI:24cells/3failures,minFont${initial.minFont}px,noinlineoverflow; taskselectionchangesstory; replayresetsandadvanceswithoutreload; Showallrestores24`);
+  console.log(`PASS real Inspector UI:${phase}/${width}px,24cells,minFont${initial.minFont}px,noinlineoverflow; exacttrialselection; removedwordsvisible; futurepayloadhidden; pause/resume; Showallrestores24`);
   const exit=await new Promise<number|null>(resolve=>capture!.on("exit",resolve));assert.equal(exit,0,captureLog);console.log(captureLog.trim());
 } finally {socket?.close();capture?.kill("SIGTERM");chrome.kill("SIGTERM");await wait(200);await rm(profile,{recursive:true,force:true});}
