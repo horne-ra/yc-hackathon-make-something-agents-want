@@ -83,3 +83,20 @@ live=trackr-demo-001@91b048476d764329df779e5662f9ca4952361397
 ```
 
 Actual Inconclusive run `axlint-run-78daa3da-4a36-41d2-a2e6-2d9d1df41247` used the superseded proposal (9/12 → 11/12, retained). Final Improved run `axlint-run-e0aaa3be-cf54-4d77-9b2e-17fe41aed395` used corrected v2 (9/12 → 12/12; result tokens 115,194 → 13,917; static 651 → 955). These Phase 2 numbers differ from the original frozen compact-patch Phase 1 numbers; neither is rewritten. Full negative outputs in `confirm.before-evidence.json`. Root informed the unchanged baseline acceptance window is complete and it may now serialize the exact v2 apply/redeploy.
+
+## Final real apply/redeploy confirmation — S7 complete (2:17 PM Pacific)
+
+Root verified source hashes, applied the exact corrected v2 source edits, committed/pushed Trackr main `ad3eca26118f1c221e3f2ff01865f1e1bc8aa73d`, then verified Railway's initialize version matched that revision. Lane F independently fetched the actual stored Improved result from Blaxel and the actual live Trackr tools/list:
+
+```text
+PASS real apply/redeploy confirm: all four gates true
+match=true
+gates={"run_approved":true,"same_deployment":true,"revision_updated":true,"metadata_match":true}
+diffs=[]
+live=trackr-demo-001@ad3eca26118f1c221e3f2ff01865f1e1bc8aa73d
+live_tools_hash=verified_tools_hash=sha256:a8113efe462da9e92c678cfccfc87ead6aecdfeca5cf0b134a1db0222293ecf8
+```
+
+Full output in `confirm.after-evidence.json`. Equality compares the complete canonicalized tools/list, including validation metadata; no field is stripped. All three S7 acceptance bullets passed. No acceptance checks skipped. No dependency requested. All implementation/tests/evidence are confined to allowed audit*, propose*, confirm* filenames under src/tools; no src/core, server registration, package or lockfile edits. Root owns tool registration after Checkpoint 2 approval.
+
+Final full local checks (after acceptance harness addition): `pnpm typecheck` exit 0; full Vitest `3 passed (3)` files and `57 passed (57)` tests. Lane stops at Checkpoint 2; no Phase 2 branch merge performed by this lane.
