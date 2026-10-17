@@ -2,13 +2,14 @@ import { MCPServer } from "mcp-use";
 import { SandboxInstance } from "@blaxel/core";
 import { z } from "zod";
 import { acceptsBearer } from "../viewer/auth.js";
+import { fixturePresentation, RunPresentationSchema } from "../viewer/presentation.js";
 
 const server = new MCPServer({
   name: "axlint-platform-ping",
   title: "AX Lint Platform Ping",
-  version: "0.1.2",
+  version: "0.2.0",
   description: "AX Lint platform connectivity proof",
-  instructions: "Call ping to check outbound HTTPS, secret configuration and Blaxel connectivity.",
+  instructions: "Call preview_run to open the recorded verification viewer. Call ping to check outbound HTTPS, secret configuration and Blaxel connectivity.",
 });
 
 // Guard the MCP transport on every request, including existing-session calls.
@@ -98,5 +99,19 @@ export const ping = server.tool({
     ...(ok ? {} : { isError: true }),
   };
 });
+
+// Temporary fixture-only tool. It never starts, polls or mutates a real run.
+export const previewRun = server.tool({
+  name: "preview_run",
+  description: "Preview AX Lint's read-only verification viewer using recorded fixture data. This does not run verification or apply any patch; confirmation gates are illustrative.",
+  inputSchema: z.object({phase:z.enum(["running", "complete"]).default("complete").describe("Choose a complete fixture or an in-progress fixture snapshot")}),
+  outputSchema: RunPresentationSchema,
+  view: {name:"preview-run",description:"Read-only verification fixture with audit, patch, trials, verdict and illustrative confirmation"},
+  annotations:{readOnlyHint:true,destructiveHint:false,openWorldHint:false},
+}, async ({phase}) => ({
+  content:[{type:"text" as const,text:"Recorded fixture preview: trackr improved from 9/12 to 12/12 first-call passes. Provisional, 3 trials per condition. Confirmation is illustrative."},
+    {type:"resource_link" as const,uri:"ui://views/preview-run.html",name:"AX Lint verification preview",mimeType:"text/html;profile=mcp-app"}],
+  structuredContent:fixturePresentation(phase),
+}));
 
 export default server;

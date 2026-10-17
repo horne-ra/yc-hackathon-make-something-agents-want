@@ -23,3 +23,15 @@ The equivalent native CLI shape is `claude mcp add --transport http --scope loca
 `pnpm exec tsx viewer/check-auth.ts` starts real production listeners with an ephemeral credential and checks missing/wrong/malformed credentials, valid MCP connection, existing-session bypass rejection, public health/assets and fail-closed missing configuration. Test output contains no credential.
 
 Hosted acceptance and fixture viewer work are recorded below as they complete.
+
+## Auth acceptance and gateway behavior
+
+Manufact now deploys this existing server from production branch `lane/viewer`; `lane/platform` remains accepted and unmerged. Auth deployment `0721fac2-1c3a-41b4-9532-147670d57948` reached running. A real hosted token-bearing MCP client called ping successfully. Both widget assets returned public HTTP 200 and were scanned for every configured API-key/token value, with no matches. Hosted `/health` is intercepted by Manufact's gateway and returns `{"status":"healthy","timestamp":"..."}`; the application route itself returns only status. Neither returns environment details.
+
+Valid unauthenticated MCP POST, GET with a valid Accept header, and DELETE with valid transport headers return 401. Raw GET/DELETE missing required transport headers receive gateway 400 before application middleware, and the gateway answers OPTIONS preflight with 204. Local direct application tests prove all HTTP methods return 401 without credentials. Literal normalization of every malformed request to 401 is not proven on this gateway; that policy exception is awaiting the user's decision. No undocumented routing changes were made.
+
+## Fixture contract and wire acceptance
+
+`viewer/create-fixture.ts` adapted the recorded public-trackr S3 gate result into audit, patch, result, progress and confirm files. All five contracts validate against the actual external `axlint-core` checkout without importing unmerged core into the product. Trial choices, arguments, scores and token counts remain the recorded 24 trials: baseline 9/12, candidate 12/12. Unrecorded latency is zero only in the fixture contract and never displayed. Confirmation gates are visibly illustrative; the preview never applies a patch or claims a real confirmation.
+
+The actual authenticated production MCP endpoint returned both complete and running `preview_run` snapshots with the expected 24 trials and verdict. An invalid phase was rejected. Typecheck and production build passed. Pending, ready and error UI states, interaction and actual rendered layout are checked separately below.
