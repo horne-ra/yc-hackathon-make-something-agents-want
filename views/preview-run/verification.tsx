@@ -27,10 +27,10 @@ export function Verification({data}:{data:RunPresentation}) {
   const count=(condition:"baseline"|"candidate")=>`${visible(condition).filter(trial=>trial.passed).length}/${visible(condition).length}`;
   return <main className="verification">
     <header className="run-header">
-      <div className="eyebrow">AX LINT <span>RECORDED FIXTURE PREVIEW</span></div>
+      <div className="eyebrow">AX LINT <span>RECORDED LIVE RUN</span></div>
       <div className="heading-row"><div><h1>Trackr verification</h1><p>Metadata changes. Measured first-call behavior.</p></div><span className={complete?`verdict-tag ${data.verdict}`:"waiting-tag"}>{complete?verdictLabel:playing?"Replaying fixture":"Playback paused"}</span></div>
       <div className="summary-strip"><div><span>First-call passes</span><strong>{count("baseline")} <b>→</b> {count("candidate")}</strong></div><div><span>Maria’s issue payload</span><strong>{payloadTokens("baseline")} <b>→</b> {payloadTokens("candidate")} <small>tokens</small></strong></div><div><span>Trials per condition</span><strong>{trialsPerCondition} <small>provisional</small></strong></div></div>
-      <p className="fixture-note">Recorded S3 trial data, presented as a fixture. Playback does not start a job or apply a patch.</p>
+      <p className="fixture-note">Recorded live Railway run from October 17. Playback does not start a job or apply a patch.</p>
       <nav aria-label="Verification sections">{["Audit","Patch","Trials","One trial","Verdict","Confirm"].map((name,index)=><a key={name} href={`#section-${index+1}`}>{index+1}. {name}</a>)}</nav>
     </header>
 
