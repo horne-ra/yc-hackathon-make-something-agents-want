@@ -1,5 +1,7 @@
 # S3 real server gate results
 
+**Checkpoint 1 decision:** the user chose trackr as the primary demo target; Memory becomes a read-only example. The recommendation below records the pre-checkpoint assessment. Trial evidence is unchanged.
+
 Recommendation pending the user's gate decision: keep trackr as the primary demo target. The official memory server already passes all nine scored trials in each condition. The new live Railway trackr comparison improves the payload task from 0/3 to 3/3 and keeps every other task at 3/3, including the control. Under the specification's ordered verdict rules, the live trackr result is **Improved**. The routing and status baseline-failure hypotheses were not observed; do not claim those failures in the demo.
 
 Provisional: 3 trials per condition. A demonstration, not a statistical claim.

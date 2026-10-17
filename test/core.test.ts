@@ -132,7 +132,7 @@ describe('trackr source edit generator', () => {
     for (const edit of generated.source_edits) { expect(applied.split(edit.find)).toHaveLength(2); applied = applied.replace(edit.find, () => edit.replace); }
     expect(applied).toContain('status: z.string().optional().describe(');
     // This local schema check covers Zod emission only; S3's real server fidelity is separate.
-    const evaluate = (text: string) => new Function('z', text.replace(/^import .*;\n/m, '').replace(/export const /g, 'const ') + '; return [listIssues, searchIssues, getIssue];')(z) as { name: string; description: string; params: z.ZodRawShape }[];
+    const evaluate = (text: string) => new Function('z', text.replace(/^import .*;\n/m, '').replace(/export const /g, 'const ') + '; return [listIssuesTool, searchIssuesTool, getIssueTool];')(z) as { name: string; description: string; params: z.ZodRawShape }[];
     const emitted = evaluate(applied).map(t => ({ name: t.name, description: t.description, inputSchema: z.toJSONSchema(z.object(t.params)) })) as core.Tool[];
     for (const op of compactOps) {
       const tool = emitted.find(t => t.name === op.tool)!;

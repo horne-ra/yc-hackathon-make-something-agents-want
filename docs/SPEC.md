@@ -454,22 +454,20 @@ The core milestone is met when all seven pass, from Claude Code, against deploye
 
 Not required for the milestone: the `full`-style second patch, public-server audits, and the eval-action exporter. The model-scored rubric is out of the weekend entirely.
 
-## Expected outcomes and how to check them Wednesday
+## Expected outcomes — observed live results at Checkpoint 1
 
-These are hypotheses, not results. The first thing to build is a 50-line script that runs the four tasks against the baseline and the hand-written compact patch, before any AX Lint code exists. If the hypotheses don't hold, fix the target, not the numbers.
+The live Railway comparison is recorded in [docs/gate-results.md](gate-results.md), with all 24 trials retained. Model: `claude-sonnet-5-5`, provider-default sampling, no temperature parameter. These are provisional results at three trials per condition, not a statistical claim. Prompts, tasks and baseline metadata were unchanged.
 
-| Task | Baseline hypothesis | Candidate hypothesis | Why |
+| Task | Baseline observed | Candidate observed | Interpretation |
 | --- | --- | --- | --- |
-| `t1-route` | Mostly fails: picks `list_issues` because the prompt says "List" | Passes: the new descriptions say which tool searches text | Sibling overlap is the study's most common routing failure |
-| `t2-status` | Mostly fails: guesses "in progress", "active" or "open" | Passes: the description lists the allowed values and glosses `in_progress` | Undocumented string parameters force guessing |
-| `t3-payload` | Fails: omits `include_comments`, server returns thousands of tokens | Passes: the parameter description tells it to set `false` for summaries | The model can't use a control it can't see explained |
-| `t4-control` | Passes | Passes | The clean tool shouldn't be affected; if it is, that's a regression signal |
+| `t1-route` | 3/3 passes | 3/3 passes | The baseline-failure hypothesis is rejected. Do not claim a routing improvement. |
+| `t2-status` | 3/3 passes | 3/3 passes | The baseline-failure hypothesis is rejected. Do not claim a status-selection improvement. |
+| `t3-payload` | 0/3 passes; 10,408 returned result tokens per trial | 3/3 passes; 441 returned result tokens per trial | Omitting `include_comments` fails the quick-list matcher; explicitly setting it to `false` passes. This is the demo spotlight trial. |
+| `t4-control` | 3/3 passes | 3/3 passes | Control holds. |
 
-**What to do if a hypothesis fails:**
+Total task passes: **9/12 → 12/12**. Returned result tokens: **115,194 → 13,272 (−88.5%)**. These measure potential returned context; the single-turn model never consumes the result. Static tool-definition tokens increase from **651 → 837**, reported separately. Under the ordered verdict rules the result is **Improved**: t3 gains three passes, every other task holds, and no task has insufficient data.
 
-- **Baseline passes a flaw task 3/3:** don't add misleading text. Check whether the prompt leaks the answer, then pick a realistically worse baseline modeled on a real low-scoring server. If it still passes, drop that flaw from the demo and say so; two strong tasks beat three staged ones.
-- **Candidate still fails:** iterate on the compact descriptions until the hand-written patch reliably passes; that becomes the target `propose_patch` must reproduce.
-- **Control task fails in the baseline:** the harness or tool conversion is broken. Fix it before anything else.
+**Checkpoint 1 target decision:** keep **trackr** as the primary demo target. The official Memory reference server passes all nine scored trials in both conditions and shows no observed behavioral gain; it becomes a **read-only example**, not a verification/execution target. Do not manufacture failures or alter prompts or baseline metadata to rescue rejected hypotheses. The demo highlights `t3-payload`, while the full result still displays every task and trial, including failures.
 
 ## Build sequence
 
