@@ -46,3 +46,13 @@ The proof sandbox disappeared through its original TTL (no delete request was is
 ## Final launch checks
 
 The remote bootstrap now enforces the same absolute fourteen-minute deadline even if the process request is delayed. `pnpm typecheck`, `pnpm build`, and the full suite pass: **9 files, 108 tests**. The launch tests exercise 256 MB / 2h15m configuration, preparation time subtraction, rejecting an exhausted deadline before launch, and executing an already-expired bootstrap to confirm it stops before reading run files. No new sandbox was needed for these checks.
+
+## Hosted acceptance check
+
+`pnpm exec tsx scripts/check-s8-hosted.ts` passed at 22:38:27 UTC. The deployed tool metadata matched the new source guidance; hosted `get_verification_result` returned the preserved attempt-1 result as complete / Regressed. A capacity rejection was tested using `http://127.0.0.1:1/mcp`, never the Trackr URL. No sandbox was created.
+
+```json
+{"isError":true,"error":{"code":"capacity_exhausted","message":"Blaxel sandbox capacity is exhausted (10/10). No completed AX Lint run older than two hours can be safely removed. Wait for expiry, or increase the workspace quota and set AXLINT_SANDBOX_CAPACITY to match; queued, running, recent runs and the proof sandbox are protected."}}
+```
+
+Evidence: `scripts/results/s8-hosted-capacity.json`. The final error sanitizer also replaces the literal object-coercion string if an upstream SDK has already inserted it into an Error.message. Full checks remain green: typecheck, build, **9 files / 108 tests**.

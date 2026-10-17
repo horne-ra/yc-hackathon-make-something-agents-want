@@ -9,7 +9,7 @@ export function errorMessage(error: unknown): string {
     const object=value as Record<string,unknown>;
     return ['code','message','detail','error','errors','body','data'].map(key=>Array.isArray(object[key])?(object[key] as unknown[]).map(visit).filter(Boolean).join('; '):visit(object[key])).filter(Boolean).join(': ');
   }
-  let message=visit(error)||'The sandbox provider request failed without a diagnostic message.';
+  let message=visit(error).replaceAll('[object Object]','unstructured provider error')||'The sandbox provider request failed without a diagnostic message.';
   for(const [key,value] of Object.entries(process.env))if(value&&/KEY|TOKEN|SECRET/.test(key))message=message.replaceAll(value,'<redacted>');
   return message.slice(0,2000);
 }

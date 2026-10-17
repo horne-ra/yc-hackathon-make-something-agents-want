@@ -36,6 +36,6 @@ describe('two-hour completed-run retention',()=>{
 });
 describe('provider errors',()=>{
  it.each([{code:'QUOTA_EXCEEDED',message:'all slots deployed'},{error:{code:'QUOTA_EXCEEDED',message:'maximum 10'}},{body:{error:{code:'QUOTA_EXCEEDED'}}}])('names nested quota failures',error=>expect(runStartError(error)).toMatchObject({code:'capacity_exhausted',message:expect.stringContaining('capacity is exhausted')}));
- it('never emits object coercion, including cyclic diagnostics',()=>{const value:{error?:unknown}={};value.error=value;for(const error of [value,{},null,{error:{message:'offline'}}])expect(errorMessage(error)).not.toContain('[object Object]');expect(errorMessage({error:{message:'offline'}})).toContain('offline');});
+ it('never emits object coercion, including cyclic diagnostics',()=>{const value:{error?:unknown}={};value.error=value;for(const error of [value,{},null,new Error('[object Object]'),{error:{message:'Request failed: [object Object]'}},{error:{message:'offline'}}])expect(errorMessage(error)).not.toContain('[object Object]');expect(errorMessage({error:{message:'offline'}})).toContain('offline');});
  it('redacts environment secrets from diagnostics',()=>{process.env.AXLINT_TEST_TOKEN='test-only-private-value';try{expect(errorMessage({message:'Failed test-only-private-value'})).toBe('Failed <redacted>');}finally{delete process.env.AXLINT_TEST_TOKEN;}});
 });
