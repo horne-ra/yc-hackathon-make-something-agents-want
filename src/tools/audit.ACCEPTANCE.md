@@ -24,7 +24,7 @@ import { auditServer, auditServerTool } from './tools/audit.js';
 import { proposePatch, proposePatchTool } from './tools/propose.js';
 import { createConfirmPatchTool } from './tools/confirm.js';
 import { readRun } from './blaxel/runs.js';
-const jsonResult = (data: object) => ({
+const jsonResult = <T extends object>(data: T) => ({
   content: [{ type: 'text' as const, text: JSON.stringify(data) }],
   structuredContent: data,
 });

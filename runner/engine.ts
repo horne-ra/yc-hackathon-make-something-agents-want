@@ -9,7 +9,7 @@ import { summarizeCondition, representativeTrial, evaluateVerdict, provisionalLa
 export const SYSTEM = 'You are an assistant with access to an issue tracker. Use the available tools to help the user.';
 export type ProgressFile = { status: 'queued'|'running'; updated_at: string; progress: {done:number;total:number}; trials: Array<{task_id:string;trial:Trial}> };
 export type ResultFile = {status:'complete'; result:ReturnType<typeof VerificationResultSchema.parse>} | {status:'failed';error:{code:string;message:string}};
-export interface RunFiles { progress(value:ProgressFile):Promise<void>; result(value:ResultFile):Promise<void> }
+export interface RunFiles { progress(value:ProgressFile):Promise<void>; result(value:ResultFile):Promise<void>; context?(value:unknown):Promise<void> }
 export function cleanError(error:unknown):string {
   let message = error instanceof Error ? error.message : String(error);
   for (const [key, value] of Object.entries(process.env)) if (value && /KEY|TOKEN|SECRET/.test(key)) message=message.replaceAll(value,'<redacted>');
@@ -43,6 +43,7 @@ export async function runVerification(raw:unknown,runId:string,files:RunFiles):P
     const countBase={model,system:SYSTEM,messages:[{role:'user' as const,content:'Count.'}]};
     const without=(await provider.messages.countTokens(countBase)).input_tokens;
     const staticCounts=await Promise.all([baseline,candidate].map(async tools=>(await provider.messages.countTokens({...countBase,tools:providerTools(tools)})).input_tokens-without));
+    await files.context?.({baseline_tools:liveTools,patch:input.patch,tasks:input.tasks,model,trials:input.trials,server_version:serverVersion,static_tool_tokens:{baseline:staticCounts[0],candidate:staticCounts[1]}});
     const jobs=shuffle(input.tasks.tasks.flatMap(task=>Array.from({length:input.trials},(_,n)=>n+1).flatMap(index=>(['baseline','candidate'] as const).map(condition=>({task,index,condition})))));
     let next=0;
     async function execute(task:Task,index:number,condition:'baseline'|'candidate'){

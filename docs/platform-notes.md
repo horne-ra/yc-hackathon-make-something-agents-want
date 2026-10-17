@@ -130,3 +130,7 @@ The subsequently authorized bearer authentication and fixture MCP App viewer are
 The user subsequently confirmed successful Claude app connection using No sign-in plus the Authorization bearer header. This confirms authenticated connector connectivity; a new widget-rendering observation after authentication was not included in that reply. See the Lane G acceptance report for the deployed version 0.2.1 auth correction and wire checks.
 
 The user then explicitly confirmed authenticated ping-widget rendering and `preview_run` viewer rendering in the Claude app, plus axlint connected in Claude Code from the trackr folder. Authenticated client rendering and connectivity acceptance are complete. Further authorized work is fixture-driven viewer polish on `lane/viewer`; `src/core/` remains outside that work.
+
+## Empirical two-hour retention follow-up
+
+During Checkpoint2 integration on October17, a fresh independent process found axlint-spike-1792264922765 by ID and read both progress.json and result.json at130.38 minutes after completion, with sandbox status DEPLOYED. The original launcher was long gone. This closes the earlier full two-hour elapsed-read gap; the configured three-hour creation TTL remains unchanged.

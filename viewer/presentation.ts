@@ -8,14 +8,15 @@ import confirmFile from "./fixtures/confirm.json" with {type:"json"};
 const summary = z.object({passed:z.number(),of:z.number(),result_tokens:z.number()});
 const trial = z.object({condition:z.enum(["baseline","candidate"]),index:z.number(),passed:z.boolean(),failure:z.string().nullable(),tool:z.string().nullable(),args:z.record(z.string(),z.unknown()),explanation:z.string(),resultTokens:z.number(),order:z.number()});
 export const RunPresentationSchema = z.object({
-  fixture:z.literal(true),phase:z.enum(["running","complete"]),progress:z.object({done:z.number(),total:z.number()}),
+  fixture:z.boolean(),phase:z.enum(["running","complete"]),progress:z.object({done:z.number(),total:z.number()}),
   runId:z.string(),model:z.string(),serverVersion:z.string(),provisionalLabel:z.string(),
   audit:z.object({findingCount:z.number(),tools:z.array(z.object({name:z.string(),description:z.string(),findings:z.array(z.object({id:z.string(),severity:z.string(),message:z.string(),param:z.string().nullable()}))}))}),
   patch:z.array(z.object({target:z.string(),before:z.string(),after:z.string(),findingIds:z.array(z.string())})),
   tasks:z.array(z.object({id:z.string(),prompt:z.string(),control:z.boolean(),representative:z.object({baseline_trial:z.number().nullable(),candidate_trial:z.number().nullable()}),trials:z.array(trial)})),
   totals:z.object({baseline:summary,candidate:summary}),staticTokens:z.object({baseline:z.number(),candidate:z.number()}),
   verdict:z.enum(["improved","inconclusive","regressed"]),reasons:z.array(z.string()),
-  confirm:z.array(z.object({name:z.string(),passed:z.boolean()})),
+  auditAvailable:z.boolean().optional(),patchAvailable:z.boolean().optional(),confirmationAvailable:z.boolean().optional(),
+  confirm:z.array(z.object({name:z.string(),passed:z.boolean(),checked:z.boolean().optional()})),
 });
 export type RunPresentation = z.infer<typeof RunPresentationSchema>;
 

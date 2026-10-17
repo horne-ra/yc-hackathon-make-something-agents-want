@@ -7,6 +7,8 @@ const titles:Record<string,string>={"t1-route":"Checkout routing","t2-status":"A
 const conditionName = (condition:string)=>condition==="baseline"?"Baseline":"Candidate";
 
 export function Verification({data}:{data:RunPresentation}) {
+  const live=!data.fixture;
+  const confirmed=live&&data.confirmationAvailable;
   const total=data.progress.total;
   const verdictLabel=data.verdict.charAt(0).toUpperCase()+data.verdict.slice(1);
   const payload=data.tasks.find(task=>task.id==="t3-payload");
@@ -17,7 +19,7 @@ export function Verification({data}:{data:RunPresentation}) {
   const [selectedTrial,setSelectedTrial]=useState<number|null>(null);
   useEffect(()=>{setDone(data.progress.done);setPlaying(false);setSelectedTrial(null)},[data.runId,data.progress.done,total]);
   useEffect(()=>{if(!playing)return;const timer=setInterval(()=>setDone(value=>{if(value>=total){setPlaying(false);return total}return value+1}),450);return()=>clearInterval(timer)},[playing,total]);
-  const complete=done===total;
+  const complete=done===total&&data.phase==="complete";
   const focus=data.tasks.find(task=>task.id===selected)??data.tasks[0];
   const story=(condition:"baseline"|"candidate")=>focus.trials.find(trial=>trial.condition===condition&&trial.index===(selectedTrial??(condition==="baseline"?focus.representative.baseline_trial:focus.representative.candidate_trial)));
   const payloadTokens=(condition:"baseline"|"candidate")=>{const trial=payloadTrial(condition);return trial&&trial.order<done?number(trial.resultTokens):"Pending"};
@@ -27,15 +29,15 @@ export function Verification({data}:{data:RunPresentation}) {
   const count=(condition:"baseline"|"candidate")=>`${visible(condition).filter(trial=>trial.passed).length}/${visible(condition).length}`;
   return <main className="verification">
     <header className="run-header">
-      <div className="eyebrow">AX LINT <span>RECORDED LIVE RUN</span></div>
-      <div className="heading-row"><div><h1>Trackr verification</h1><p>Metadata changes. Measured first-call behavior.</p></div><span className={complete?`verdict-tag ${data.verdict}`:"waiting-tag"}>{complete?verdictLabel:playing?"Replaying fixture":"Playback paused"}</span></div>
+      <div className="eyebrow">AX LINT <span>{live?"LIVE VERIFICATION RUN":"RECORDED LIVE RUN"}</span></div>
+      <div className="heading-row"><div><h1>Trackr verification</h1><p>Metadata changes. Measured first-call behavior.</p></div><span className={complete?`verdict-tag ${data.verdict}`:"waiting-tag"}>{complete?verdictLabel:live?"Trials in progress":playing?"Replaying fixture":"Playback paused"}</span></div>
       <div className="summary-strip"><div><span>First-call passes</span><strong>{count("baseline")} <b>→</b> {count("candidate")}</strong></div><div><span>Maria’s issue payload</span><strong>{payloadTokens("baseline")} <b>→</b> {payloadTokens("candidate")} <small>tokens</small></strong></div><div><span>Trials per condition</span><strong>{trialsPerCondition} <small>provisional</small></strong></div></div>
-      <p className="fixture-note">Recorded live Railway run from October 17. Playback does not start a job or apply a patch.</p>
+      <p className="fixture-note">{live?"Real sandbox run files. This view never applies a patch.":"Recorded live Railway run from October 17. Playback does not start a job or apply a patch."}</p>
       <nav aria-label="Verification sections">{["Audit","Patch","Trials","One trial","Verdict","Confirm"].map((name,index)=><a key={name} href={`#section-${index+1}`}>{index+1}. {name}</a>)}</nav>
     </header>
 
-    <section id="section-1"><div className="section-heading"><span className="step">01</span><h2>Audit</h2><span className="section-caption">{data.audit.tools.length} tools · {data.audit.findingCount} findings</span></div>
-      <div className="tool-grid">{data.audit.tools.map(tool=><article className="tool-card" key={tool.name}><h3>{tool.name}</h3><p>{tool.description}</p>
+    <section id="section-1"><div className="section-heading"><span className="step">01</span><h2>Audit</h2><span className="section-caption">{data.auditAvailable===false?"Unavailable":`${data.audit.tools.length} tools · ${data.audit.findingCount} findings`}</span></div>
+      {data.auditAvailable===false&&<p className="section-intro">Audit metadata was not saved for this earlier run.</p>}<div className="tool-grid">{data.audit.tools.map(tool=><article className="tool-card" key={tool.name}><h3>{tool.name}</h3><p>{tool.description}</p>
         <div className="badge-row">{tool.findings.filter(finding=>["F1","F2","F3"].includes(finding.id)).map(finding=><span className="finding-badge" key={finding.id}>{finding.id} · {finding.param??"Tool overlap"}</span>)}{tool.name==="get_issue"&&<span className="control-badge">Control tool</span>}</div>
         {tool.findings.length>0&&<details><summary>Inspect {tool.findings.length} findings</summary><ul>{tool.findings.map(finding=><li key={finding.id}><strong>{finding.id} · {finding.severity}</strong><p>{finding.message}</p></li>)}</ul></details>}
       </article>)}</div>
@@ -43,11 +45,11 @@ export function Verification({data}:{data:RunPresentation}) {
 
     <section id="section-2"><div className="section-heading"><span className="step">02</span><h2>Patch</h2><span className="section-caption">Descriptions only</span></div>
       <p className="section-intro">The same tools, parameters and runtime behavior. Static tool metadata: {data.staticTokens.baseline} → {data.staticTokens.candidate} tokens.</p>
-      <div className="patch-list">{data.patch.map(operation=><article className="patch-row" key={operation.target}><div className="patch-target"><h3>{operation.target}</h3><span>{operation.findingIds.join(" · ")}</span></div><div className="patch-copy"><p className="before"><span>Before</span>{operation.before==="No parameter description"?<em className="empty-description">No parameter description</em>:diffWords(operation.before,operation.after).filter(part=>!part.added).map((part,index)=><span className={part.removed?"removed-word":"unchanged-word"} key={index}>{part.value}</span>)}</p><p className="after"><span>After</span>{diffWords(operation.before,operation.after).filter(part=>!part.removed).map((part,index)=><span className={part.added?"added-word":"unchanged-word"} key={index}>{part.value}</span>)}</p></div></article>)}</div>
+      {data.patchAvailable===false&&<p className="section-intro">Patch context was not saved for this earlier run.</p>}<div className="patch-list">{data.patch.map(operation=><article className="patch-row" key={operation.target}><div className="patch-target"><h3>{operation.target}</h3><span>{operation.findingIds.join(" · ")}</span></div><div className="patch-copy"><p className="before"><span>Before</span>{operation.before==="No parameter description"?<em className="empty-description">No parameter description</em>:diffWords(operation.before,operation.after).filter(part=>!part.added).map((part,index)=><span className={part.removed?"removed-word":"unchanged-word"} key={index}>{part.value}</span>)}</p><p className="after"><span>After</span>{diffWords(operation.before,operation.after).filter(part=>!part.removed).map((part,index)=><span className={part.added?"added-word":"unchanged-word"} key={index}>{part.value}</span>)}</p></div></article>)}</div>
     </section>
 
-    <section id="section-3"><div className="section-heading"><span className="step">03</span><h2>Trials</h2><span className="section-caption" aria-live="polite">{done} / {total} recorded trials</span></div>
-      <div className="playback-row"><p>Choose a task for its representative pair, or a trial to compare that numbered pair.</p><button onClick={()=>{setDone(0);setPlaying(true)}} disabled={playing}>▶ Replay fixture</button>{done<total&&<button className="quiet-button" onClick={()=>setPlaying(value=>!value)}>{playing?"Pause":"Resume"}</button>}<button className="quiet-button" onClick={()=>{setPlaying(false);setDone(total)}}>Show all</button></div>
+    <section id="section-3"><div className="section-heading"><span className="step">03</span><h2>Trials</h2><span className="section-caption" aria-live="polite">{done} / {total} {live?"trials":"recorded trials"}</span></div>
+      <div className="playback-row"><p>Choose a task for its representative pair, or a trial to compare that numbered pair.</p>{!live&&<><button onClick={()=>{setDone(0);setPlaying(true)}} disabled={playing}>▶ Replay fixture</button>{done<total&&<button className="quiet-button" onClick={()=>setPlaying(value=>!value)}>{playing?"Pause":"Resume"}</button>}<button className="quiet-button" onClick={()=>{setPlaying(false);setDone(total)}}>Show all</button></>}</div>
       <div className="progress-track" role="progressbar" aria-label="Fixture playback progress" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}><div style={{width:`${done/total*100}%`}} /></div>
       <p className="scroll-hint">Scroll the trial grid sideways to compare Baseline and Candidate.</p>
       <div className="trial-table-scroll" tabIndex={0} role="region" aria-label="Trial results; scroll horizontally on narrow screens"><div className="trial-table" role="table" aria-label="Baseline and candidate trial results"><div className="trial-row table-head" role="row"><span role="columnheader">Task</span><span role="columnheader">Baseline</span><span role="columnheader">Candidate</span></div>
@@ -63,8 +65,8 @@ export function Verification({data}:{data:RunPresentation}) {
 
     <section id="section-5"><div className="section-heading"><span className="step">05</span><h2>Verdict</h2><span className="section-caption">Programmatic scoring</span></div><div className={`verdict-panel ${complete?data.verdict:"awaiting"}`}><h3>{complete?verdictLabel:"Waiting for all trials"}</h3><p>{data.provisionalLabel}</p>{complete&&<><div className="verdict-counts"><strong>{data.totals.baseline.passed}/{data.totals.baseline.of}</strong><span>→</span><strong>{data.totals.candidate.passed}/{data.totals.candidate.of}</strong><span>first-call passes</span></div><ul>{data.reasons.map(reason=><li key={reason}>{reason}</li>)}</ul><p>Total result tokens across the {data.totals.baseline.of} baseline and {data.totals.candidate.of} candidate calls: <strong>{number(data.totals.baseline.result_tokens)} → {number(data.totals.candidate.result_tokens)}</strong>.</p></>}</div></section>
 
-    <section id="section-6"><div className="section-heading"><span className="step">06</span><h2>Confirm</h2><span className="section-caption">Illustrative fixture gates</span></div><p className="section-intro">These gates demonstrate the confirmation layout. No patch has been applied or confirmed by this preview.</p><div className="confirm-grid">{data.confirm.map((gate,index)=><div className={!complete?"confirm-gate awaiting":gate.passed?"confirm-gate":"confirm-gate failed"} key={gate.name}><span>{complete?(gate.passed?"✓":"!"):index+1}</span><strong>{gate.name}</strong><small>{complete?(gate.passed?"Fixture pass":"Fixture fail"):"Awaiting verdict"}</small></div>)}</div></section>
-    <footer><span title="Target server deployment and source revision">{data.serverVersion}</span><span>{data.model}</span><span>{data.runId}</span><span>Read-only preview</span></footer>
+    <section id="section-6"><div className="section-heading"><span className="step">06</span><h2>Confirm</h2><span className="section-caption">{live?"Confirmation gates":"Illustrative fixture gates"}</span></div><p className="section-intro">{live?(confirmed?"Recorded confirm_patch checks for this run.":"Not checked. Call confirm_patch after applying an Improved patch and redeploying."):"These gates demonstrate the confirmation layout. No patch has been applied or confirmed by this preview."}</p><div className="confirm-grid">{data.confirm.map((gate,index)=><div className={!complete||(live&&(!confirmed||gate.checked===false))?"confirm-gate awaiting":gate.passed?"confirm-gate":"confirm-gate failed"} key={gate.name}><span>{complete&&(!live||(confirmed&&gate.checked!==false))?(gate.passed?"✓":"!"):index+1}</span><strong>{gate.name}</strong><small>{live?(!confirmed||gate.checked===false?"Not checked":gate.passed?"Pass":"Fail"):complete?(gate.passed?"Fixture pass":"Fixture fail"):"Awaiting verdict"}</small></div>)}</div></section>
+    <footer><span title="Target server deployment and source revision">{data.serverVersion}</span><span>{data.model}</span><span>{data.runId}</span><span>{live?"Read-only run viewer":"Read-only preview"}</span></footer>
   </main>;
 }
 

@@ -2,14 +2,21 @@ import { MCPServer } from "mcp-use";
 import { SandboxInstance } from "@blaxel/core";
 import { z } from "zod";
 import { acceptsBearer } from "../viewer/auth.js";
+import { auditServer, auditServerTool } from "./tools/audit.js";
+import { proposePatch, proposePatchTool } from "./tools/propose.js";
+import { createConfirmPatchTool } from "./tools/confirm.js";
+import { verifyPatchDefinition, verifyPatchHandler } from "./tools/verify-patch.js";
+import { getVerificationResultDefinition, getVerificationResult } from "./tools/get-verification-result.js";
+import { readRun } from "./blaxel/runs.js";
+import { readRunArtifacts, livePresentation, saveRunConfirmation } from "../viewer/live-run.js";
 import { fixturePresentation, RunPresentationSchema } from "../viewer/presentation.js";
 
 const server = new MCPServer({
   name: "axlint-platform-ping",
-  title: "AX Lint Platform Ping",
-  version: "0.2.1",
-  description: "AX Lint platform connectivity proof",
-  instructions: "Call preview_run to open the recorded verification viewer. Call ping to check outbound HTTPS, secret configuration and Blaxel connectivity.",
+  title: "AX Lint",
+  version: "0.3.0",
+  description: "Audit, propose, verify and confirm MCP interface improvements",
+  instructions: "Use audit_server, propose_patch, verify_patch and get_verification_result to evaluate a metadata-only candidate. Apply source edits only after an Improved verdict, then redeploy and call confirm_patch. preview_run replays the recorded fallback; ping checks hosting.",
 });
 
 // Guard the MCP transport on every request, including existing-session calls.
@@ -116,4 +123,20 @@ export const previewRun = server.tool({
   structuredContent:fixturePresentation(phase),
 }));
 
+const jsonResult = <T extends object>(data:T)=>({content:[{type:"text" as const,text:JSON.stringify(data)}],structuredContent:data});
+export const audit = server.tool({...auditServerTool,name:"audit_server"},async input=>jsonResult(await auditServer(input)));
+export const propose = server.tool({...proposePatchTool,name:"propose_patch"},async input=>jsonResult(await proposePatch(input)));
+export const verify = server.tool({...verifyPatchDefinition,name:"verify_patch"},verifyPatchHandler);
+export const result = server.tool({...getVerificationResultDefinition,name:"get_verification_result",view:{name:"verification-result",description:"Live retained verification run files"}},async input=>{
+ const data=await getVerificationResult(input);
+ let viewer;
+ try{viewer=livePresentation(input.run_id,data,await readRunArtifacts(input.run_id))}catch{/* A view failure must not hide the core run result. */}
+ return {...jsonResult(data),...(viewer?{_meta:{axlintViewer:viewer}}:{}),content:[{type:"text" as const,text:JSON.stringify(data)},{type:"resource_link" as const,uri:"ui://views/verification-result.html",name:"AX Lint verification run",mimeType:"text/html;profile=mcp-app"}]};
+});
+const confirmation=createConfirmPatchTool(readRun);
+export const confirm = server.tool({...confirmation.definition,name:"confirm_patch"},async input=>{
+ const data=await confirmation.handler(input);
+ try{await saveRunConfirmation(input.run_id,data)}catch{/* The gate result remains authoritative if auxiliary view persistence fails. */}
+ return jsonResult(data);
+});
 export default server;
