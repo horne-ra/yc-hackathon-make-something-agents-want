@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {readFile,writeFile} from 'node:fs/promises';
+import {AuditSchema,PatchSpecSchema,VerificationResultSchema,ConfirmPatchOutputSchema,hashTools,hashText,auditTools,parameterSummaries} from '../src/core/index.js';
+const directory='scripts/results/blaxel-export-2026-10-17T22-29-32.875Z/axlint-run-f2f5be10-367e-4cd5-8614-cb0658fa3e2d';
+const raw=await readFile(`${directory}/result.json`,'utf8');
+const context=JSON.parse(await readFile(`${directory}/context.json`,'utf8'));
+const progress=JSON.parse(await readFile(`${directory}/progress.json`,'utf8'));
+const result=VerificationResultSchema.parse(JSON.parse(raw).result);
+const patch=PatchSpecSchema.parse(context.patch);
+const confirm=ConfirmPatchOutputSchema.parse(JSON.parse(await readFile(`${directory}/confirm.json`,'utf8')));
+assert.equal(result.run_id,'axlint-run-f2f5be10-367e-4cd5-8614-cb0658fa3e2d');
+assert.equal(result.verdict,'improved');assert.equal(result.totals.candidate.result_tokens,13917);
+assert.deepEqual(result.static_tool_tokens,{baseline:651,candidate:903});
+assert(Object.values(confirm.gates).every(Boolean));
+const audit=AuditSchema.parse({audit_id:`audit-${result.run_id}`,server_url:'https://trackr-production-e1a6.up.railway.app/mcp',server_version:context.server_version,tools_hash:hashTools(context.baseline_tools),static_tool_tokens:651,tools:context.baseline_tools.map((tool:any)=>({name:tool.name,description_chars:(tool.description??'').length,params:parameterSummaries(tool)})),findings:auditTools(context.baseline_tools)});
+const provenance={kind:'recorded-s8-milestone',source:`${directory}/result.json`,source_sha256:hashText(raw),tasks:context.tasks.tasks,baseline_tools:context.baseline_tools,confirmation_recorded:true,source_revision:confirm.live_server_version,example_data:['The running phase is illustrative partial playback of recorded trials; it does not reproduce original timing.'],unavailable:[],note:'Actual S8 result and confirmation, recorded before the baseline reset. All 24 original trials, including every failure, and observed latencies are preserved. Confirmation gates describe that recorded deployment, not the current server.'};
+for(const[name,value]of Object.entries({audit,patch,result,confirm,progress:{status:progress.status,progress:progress.progress},provenance}))await writeFile(`viewer/fixtures/${name}.json`,JSON.stringify(value,null,2)+'\n');
+console.log('PASS S8 fallback: 24 original trials; Improved9/12→12/12; tokens115194→13917; static651→903; four real confirmation gates');

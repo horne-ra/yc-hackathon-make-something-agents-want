@@ -10,7 +10,7 @@ const complete=fixturePresentation("complete");
 const ready=render(complete);
 assert.equal((ready.match(/class="trial-cell fail"/g)??[]).length,3);
 assert(ready.includes("10,408")&&ready.includes("441"));
-assert.equal((ready.match(/Fixture pass/g)??[]).length,4);
+assert.equal((ready.match(/Recorded pass/g)??[]).length,4);
 assert(ready.includes("removed-word")&&ready.includes("added-word"));
 assert.equal((ready.match(/class="empty-description"/g)??[]).length,2);
 assert(!ready.includes('class="removed-word">No parameter description'));
@@ -18,7 +18,7 @@ const running=render(fixturePresentation("running"));
 assert(running.includes('class="verdict-panel awaiting"'));
 assert(running.includes("Waiting for all trials"));
 assert(!running.includes("10,408")&&!running.includes("441"));
-assert(!running.includes("Fixture pass"));
+assert(!running.includes("Recorded pass"));
 assert.equal((running.match(/confirm-gate awaiting/g)??[]).length,4);
 console.log("PASS recorded fixtures: complete24/3fail, both diff sides; running hides future payload/verdict/confirmation");
 for(const verdict of ["improved","inconclusive","regressed"] as const){
@@ -30,8 +30,8 @@ for(const verdict of ["improved","inconclusive","regressed"] as const){
 const failedGate=structuredClone(complete);failedGate.confirm[2].passed=false;
 const gateHtml=render(failedGate);
 assert(gateHtml.includes('class="confirm-gate failed"'));
-assert.equal((gateHtml.match(/Fixture pass/g)??[]).length,3);
-assert.equal((gateHtml.match(/Fixture fail/g)??[]).length,1);
+assert.equal((gateHtml.match(/Recorded pass/g)??[]).length,3);
+assert.equal((gateHtml.match(/Recorded fail/g)??[]).length,1);
 const absentRepresentative=structuredClone(complete);
 const payload=absentRepresentative.tasks.find(task=>task.id==="t3-payload")!;
 payload.representative={baseline_trial:null,candidate_trial:null};
