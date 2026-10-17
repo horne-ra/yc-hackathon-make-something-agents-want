@@ -123,3 +123,17 @@ PASS pending/error renderer: accessible loading and retry guidance
 ```
 
 `pnpm typecheck` exited 0. `pnpm build` built both MCP App views in 518ms. `src/core/`, package.json, lockfile and the original recorded run remain untouched. `get_verification_result` and real run polling are Lane E's work and are intentionally not registered by this lane. Hosted protocol/render checks follow deployment below. Human Claude app retesting is requested separately and is never inferred from Inspector results.
+
+The first hosted equality probe ran while the previous deployment was still active. It passed fixed-token/no-OAuth authentication, then failed the new run-ID/reason equality assertion against the older preview; this was a deployment-readiness mismatch, not a benchmark trial. The probe was made concise and rerun after the new production deployment became active. Nonproduction preview deployments from main/runner/tools appeared failed in the shared deployment list; they were not the production viewer deployment and were not modified by this lane.
+
+Production deployment `69399384-51e4-4b94-bf18-35066687e7c3` is running from `af34059`. `pnpm exec tsx viewer/check-hosted-live.ts` exited 0:
+
+```text
+PASS hosted auth: missing token401, no OAuth challenge
+PASS hosted running: exact converted live data, all24trials, native MCP App metadata
+PASS hosted complete: exact converted live data, all24trials, native MCP App metadata
+PASS hosted schema: invalid playback phase rejected
+PASS hosted widget assets: public200, recorded-live label present, no configured credential values
+```
+
+The lead was told the same MCP URL/header is ready for a fresh `preview_run` Claude app retest. This is a retest request, not a claim of a new human result.
