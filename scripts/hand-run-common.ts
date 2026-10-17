@@ -65,12 +65,11 @@ export function summarizeConsistency(trials: Trial[]) {
 }
 export async function runBenchmark(options: { name: string; tasks: Task[]; connect: () => Promise<Connection>; patch: (tools: Tool[]) => Tool[]; allowlist: ReadonlySet<string>; provenance: unknown }) {
   const { provider, model } = loadEnvironment();
-  // User-approved departure from the frozen temperature-0 requirement for Sonnet 5.5.
-  // Anthropic rejects the field for this pinned model; do not send it at all.
-  const sampling = model === 'claude-sonnet-5-5' ? {} : { temperature: 0 };
+  // Use provider-default sampling for every model, as required by the benchmark protocol.
+  const sampling = {};
   const output = resolve('scripts/results', `${options.name}-${new Date().toISOString().replaceAll(':', '-')}`);
   await mkdir(output, { recursive: true });
-  const report: Record<string, unknown> = { status: 'preflight', label: LABEL, model, system: SYSTEM, temperature: model === 'claude-sonnet-5-5' ? 'omitted; model-default sampling' : 0, sampling_departure: model === 'claude-sonnet-5-5' ? 'User explicitly authorized keeping claude-sonnet-5-5 and omitting the rejected temperature field. This departs from the original temperature-0 specification.' : null, max_tokens: 300, tool_choice: 'auto', shuffle_seed: 173201, concurrency: 4, provenance: options.provenance, tasks: options.tasks.map(({ checkArgs, ...task }) => task), trials: [] };
+  const report: Record<string, unknown> = { status: 'preflight', label: LABEL, model, system: SYSTEM, temperature: 'omitted; model-default sampling', sampling_departure: 'User explicitly requires provider-default sampling with no temperature field for the cross-model check.', max_tokens: 300, tool_choice: 'auto', shuffle_seed: 173201, concurrency: 4, provenance: options.provenance, tasks: options.tasks.map(({ checkArgs, ...task }) => task), trials: [] };
   const trials = report.trials as Trial[];
   let saveQueue = Promise.resolve();
   function save() { const data = JSON.stringify(report, null, 2); saveQueue = saveQueue.then(async () => { await writeFile(`${output}/progress.json.tmp`, data); await rename(`${output}/progress.json.tmp`, `${output}/progress.json`); }); return saveQueue; }
