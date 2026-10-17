@@ -169,6 +169,7 @@ describe('trackr source edit generator', () => {
     expect(() => run(source.replace('status: z.string().optional(),', 'status: z.string().describe(`unsupported`),'))).toThrow('unsupported_layout');
     expect(() => run(source.replace('status: z.string().optional(),', 'status: z.string(),\n    status: z.string(),'))).toThrow('unsupported_layout');
     expect(() => core.generateSourceEdits([files[0]!, files[0]!], compactOps)).toThrow('unsupported_layout');
+    expect(() => run(source.replace('status: z.string().optional(),', 'status: z.string(), another: z.string(),'))).toThrow('unsupported_layout');
   });
   it('warns instead of rejecting excessive descriptions and unmatched declared values', () => {
     expect(core.validateDescriptionWarnings(files, compactOps)).toEqual([]);

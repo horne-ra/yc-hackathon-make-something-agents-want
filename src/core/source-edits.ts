@@ -46,6 +46,24 @@ function targetLine(content: string, op: WireOp): { start: number; end: number; 
   const m = direct[0]!;
   return { start: start + m.index!, end: start + m.index! + m[0].length, line: m[0], objectStart: object![0], objectEnd: object![1] };
 }
+/** A parameter line is one expression, not several object properties on one line. */
+function assertSingleParamExpression(line: string): void {
+  const expression = line.slice(line.indexOf(':') + 1).replace(/,[ \t]*\r?$/, '');
+  const stack: string[] = [];
+  let quote = '';
+  for (let i = 0; i < expression.length; i++) {
+    const char = expression[i]!;
+    if (quote) { if (char === '\\') i++; else if (char === quote) quote = ''; continue; }
+    if (char === '"' || char === "'" || char === '`') { quote = char; continue; }
+    if ('([{'.includes(char)) stack.push(char);
+    else if (')]}'.includes(char)) {
+      const expected = { ')': '(', ']': '[', '}': '{' }[char];
+      if (stack.pop() !== expected) unsupported('unbalanced parameter expression');
+    } else if ((char === ',' || char === ';') && stack.length === 0) unsupported('expected one parameter per line');
+    else if (char === '/' && (expression[i + 1] === '/' || expression[i + 1] === '*')) unsupported('comments inside parameter expressions');
+  }
+  if (quote || stack.length) unsupported('unbalanced parameter expression');
+}
 export function generateSourceEdits(files: readonly SourceFile[], operations: readonly WireOp[]): { source_edits: SourceEdit[]; unified_diff: string; base_source_hashes: Record<string, string> } {
   const sources = files.map(f => SourceFileSchema.parse(f));
   if (new Set(sources.map(f => f.path)).size !== sources.length) unsupported('duplicate source paths');
@@ -59,6 +77,7 @@ export function generateSourceEdits(files: readonly SourceFile[], operations: re
     let replacement: string;
     if (op.op === 'set_tool_description') replacement = line.replace(/(description:[ \t]*)"(?:[^"\\\r\n]|\\.)*"/, (_match, prefix: string) => prefix + JSON.stringify(op.value));
     else {
+      assertSingleParamExpression(line);
       const descriptions = [...line.matchAll(/\.describe\("(?:[^"\\\r\n]|\\.)*"\)/g)];
       if (descriptions.length > 1 || (line.includes('.describe(') && descriptions.length !== 1)) unsupported('describe must be one double-quoted string literal');
       const base = descriptions.length ? line.replace(descriptions[0]![0], '') : line;

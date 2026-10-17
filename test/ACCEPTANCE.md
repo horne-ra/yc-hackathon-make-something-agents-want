@@ -27,3 +27,36 @@ The unit suite applies all four edits to the fixture, evaluates the resulting Zo
 **Skipped:** S3's real mcp-use server fidelity integration. That test must apply the generator's edits to the pinned real trackr source, start the actual server and call `tools/list`. The local Zod emission check does not satisfy that integration gate. Fixture replacement belongs to Checkpoint 1, as required by the lane instructions.
 
 Representative trials exclude infrastructure errors. If infrastructure exclusion leaves an exact pass/fail tie, there is no majority and the representative is null rather than inventing one.
+
+## Actual acceptance output 2026 10 17
+
+`pnpm typecheck` exited 0:
+
+```text
+> axlint@0.0.0 typecheck /Users/ransomhorne/Documents/axlint-core
+> tsc --noEmit
+```
+
+`pnpm test` exited 0 after reviewing the one-parameter-per-line rule and rejecting multiple parameter expressions on one line:
+
+```text
+> axlint@0.0.0 test /Users/ransomhorne/Documents/axlint-core
+> vitest run
+
+ RUN  v4.1.12 /Users/ransomhorne/Documents/axlint-core
+
+ Test Files  1 passed (1)
+      Tests  40 passed (40)
+   Start at  13:10:44
+   Duration  188ms (transform 37ms, setup 0ms, import 86ms, tests 15ms, environment 0ms)
+```
+
+Passing S5 acceptance checks:
+
+- All seven fenced examples validate after explicit placeholder materialization, and inline contract examples validate.
+- The t1-route baseline trial's checks, failure and explanation match the spec exactly.
+- Wire ops change only description fields. Schema differences including `additionalProperties` and `required` are reported with paths.
+- Ordered verdict cases pass: insufficient control data plus gains is Inconclusive; a one-pass non-control drop is Inconclusive; an observed control regression is Regressed.
+- Baseline audit includes F1, F2 and F3; the ID lookup has no overlap finding; patched descriptions remove F1.
+
+The remaining acceptance check is the live S3 fidelity integration, pending Lane A's script and command. Existing tests include local Zod JSON Schema emission, which is explicitly not a substitute for that check. No new dependencies were required.
