@@ -26,11 +26,16 @@ try {
   for (const authorization of [undefined, "Bearer incorrect", "Basic incorrect", `Bearer ${token} extra`]) {
     const response = await fetch(base+"/mcp", {method:"POST", headers:authorization?{Authorization:authorization}:undefined, body:"{}"});
     assert.equal(response.status,401);
-    assert.match(response.headers.get("WWW-Authenticate")??"", /^Bearer/);
+    assert.equal(response.headers.get("WWW-Authenticate"), null);
     assert.doesNotMatch(await response.text(), new RegExp(token));
   }
   for (const method of ["GET", "HEAD", "DELETE", "OPTIONS"]) {
     assert.equal((await fetch(base+"/mcp",{method})).status,401);
+  }
+  for (const route of ["/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp", "/.well-known/oauth-authorization-server", "/.well-known/oauth-authorization-server/mcp", "/.well-known/openid-configuration"]) {
+    const discovery = await fetch(base+route, {headers:{Accept:"application/json"}});
+    assert.equal(discovery.status,404);
+    assert.equal(discovery.headers.get("WWW-Authenticate"),null);
   }
   const client = new Client({name:"auth-acceptance", version:"1"});
   const transport = new StreamableHTTPClientTransport(new URL(base+"/mcp"), {requestInit:{headers:{Authorization:`Bearer ${token}`}}});
@@ -48,5 +53,5 @@ try {
   const unconfigured = await start(3012, undefined);
   assert.equal((await fetch(unconfigured+"/mcp",{headers:{Authorization:`Bearer ${token}`}})).status,401);
   assert.equal((await fetch(unconfigured+"/health")).status,200);
-  console.log("PASS auth: missing/wrong/malformed401, correct bearer MCP access, session reuse cannot bypass, public widget assets/health, missing configuration401");
+  console.log("PASS auth: missing/wrong/malformed401, correct bearer MCP access, session reuse cannot bypass, public widget assets/health, missing configuration401, no OAuth challenge/discovery");
 } finally { for (const child of children) child.kill("SIGTERM"); }

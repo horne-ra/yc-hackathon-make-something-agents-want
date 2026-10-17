@@ -7,7 +7,7 @@ import { fixturePresentation, RunPresentationSchema } from "../viewer/presentati
 const server = new MCPServer({
   name: "axlint-platform-ping",
   title: "AX Lint Platform Ping",
-  version: "0.2.0",
+  version: "0.2.1",
   description: "AX Lint platform connectivity proof",
   instructions: "Call preview_run to open the recorded verification viewer. Call ping to check outbound HTTPS, secret configuration and Blaxel connectivity.",
 });
@@ -16,15 +16,17 @@ const server = new MCPServer({
 // Widget JS/CSS are public static code; their render data arrives through MCP.
 server.app.use("*", async (context, next) => {
   const path = context.req.path;
+  // This service uses a fixed header credential, not OAuth discovery.
+  if (path.startsWith("/.well-known/oauth-") || path.startsWith("/.well-known/openid-configuration")) {
+    return context.json({ error: "Not found" }, 404);
+  }
   if (path !== "/mcp" && path !== "/mcp/") return next();
   const expected = process.env.AXLINT_API_TOKEN;
   if (!expected || expected.length < 32) {
-    context.header("WWW-Authenticate", 'Bearer realm="axlint"');
     return context.json({ error: "AX Lint authentication is not configured" }, 401);
   }
   if (!acceptsBearer(context.req.header("Authorization"), expected)) {
-    context.header("WWW-Authenticate", 'Bearer realm="axlint"');
-    return context.json({ error: "Unauthorized" }, 401);
+    return context.json({ error: "Unauthorized: send Authorization: Bearer <token>" }, 401);
   }
   return next();
 });
