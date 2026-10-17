@@ -105,13 +105,13 @@ export const ping = server.tool({
 // Temporary fixture-only tool. It never starts, polls or mutates a real run.
 export const previewRun = server.tool({
   name: "preview_run",
-  description: "Preview AX Lint's read-only verification viewer using recorded fixture data. This does not run verification or apply any patch; confirmation gates are illustrative.",
-  inputSchema: z.object({phase:z.enum(["running", "complete"]).default("complete").describe("Choose a complete fixture or an in-progress fixture snapshot")}),
+  description: "Preview AX Lint's read-only verification viewer using the recorded live Railway run. This does not run verification or apply any patch; confirmation gates are illustrative.",
+  inputSchema: z.object({phase:z.enum(["running", "complete"]).default("complete").describe("Choose the complete recorded live run or an illustrative partial playback snapshot")}),
   outputSchema: RunPresentationSchema,
-  view: {name:"preview-run",description:"Read-only verification fixture with audit, patch, trials, verdict and illustrative confirmation"},
+  view: {name:"preview-run",description:"Recorded live Railway verification with audit, patch, trials, verdict and illustrative confirmation"},
   annotations:{readOnlyHint:true,destructiveHint:false,openWorldHint:false},
 }, async ({phase}) => ({
-  content:[{type:"text" as const,text:"Recorded fixture preview: trackr improved from 9/12 to 12/12 first-call passes. Provisional, 3 trials per condition. Confirmation is illustrative."},
+  content:[{type:"text" as const,text:"Recorded live Railway run: trackr improved from 9/12 to 12/12 first-call passes; returned result tokens 115,194 → 13,272 (−88.5%); static tool tokens 651 → 837. Spotlight: t3-payload, 10,408 → 441 result tokens. Provisional, 3 trials per condition. Partial playback and confirmation gates are illustrative."},
     {type:"resource_link" as const,uri:"ui://views/preview-run.html",name:"AX Lint verification preview",mimeType:"text/html;profile=mcp-app"}],
   structuredContent:fixturePresentation(phase),
 }));

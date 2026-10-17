@@ -3,6 +3,7 @@ import auditFile from "./fixtures/audit.json" with {type:"json"};
 import patchFile from "./fixtures/patch.json" with {type:"json"};
 import resultFile from "./fixtures/result.json" with {type:"json"};
 import provenance from "./fixtures/provenance.json" with {type:"json"};
+import confirmFile from "./fixtures/confirm.json" with {type:"json"};
 
 const summary = z.object({passed:z.number(),of:z.number(),result_tokens:z.number()});
 const trial = z.object({condition:z.enum(["baseline","candidate"]),index:z.number(),passed:z.boolean(),failure:z.string().nullable(),tool:z.string().nullable(),args:z.record(z.string(),z.unknown()),explanation:z.string(),resultTokens:z.number(),order:z.number()});
@@ -26,7 +27,11 @@ export function fixturePresentation(phase:"running"|"complete"):RunPresentation 
     fixture:true,phase,progress:{done:phase==="complete"?order:Math.min(8,order),total:order},runId:resultFile.run_id,model:resultFile.config.model,serverVersion:resultFile.config.server_version,provisionalLabel:resultFile.label,
     audit:{findingCount:auditFile.findings.length,tools:provenance.baseline_tools.map(tool=>({name:tool.name,description:tool.description??"",findings:auditFile.findings.filter(finding=>finding.tool===tool.name||finding.tools?.includes(tool.name)).map(finding=>({id:finding.id,severity:finding.severity,message:finding.message,param:finding.param??null}))}))},
     patch:patchFile.wire_ops.map(op=>{const tool=provenance.baseline_tools.find(item=>item.name===op.tool)!;const param="param" in op?op.param:null;return {target:param?`${op.tool}.${param}`:op.tool,before:param?((tool.inputSchema.properties as unknown as Record<string,{description?:string}>)[param]?.description??"No parameter description"):tool.description,after:op.value,findingIds:op.finding_ids}}),
-    tasks,totals:resultFile.totals,staticTokens:resultFile.static_tool_tokens,verdict:resultFile.verdict,reasons:resultFile.verdict_reasons,
-    confirm:[{name:"Run approved",passed:true},{name:"Same deployment",passed:true},{name:"Revision updated",passed:true},{name:"Metadata matches",passed:true}],
+    tasks,totals:resultFile.totals,staticTokens:resultFile.static_tool_tokens,verdict:resultFile.verdict,reasons:[...resultFile.verdict_reasons,
+      `Returned result tokens: ${resultFile.totals.baseline.result_tokens.toLocaleString("en-US")} → ${resultFile.totals.candidate.result_tokens.toLocaleString("en-US")} (−${((1-resultFile.totals.candidate.result_tokens/resultFile.totals.baseline.result_tokens)*100).toFixed(1)}%). Potential returned context; the single-turn model did not consume these results.`,
+      `Static tool-definition cost: ${resultFile.static_tool_tokens.baseline} → ${resultFile.static_tool_tokens.candidate} tokens.`,
+      "The t1-route and t2-status baseline-failure hypotheses were rejected: both conditions passed 3/3. Spotlight: t3-payload, 0/3 → 3/3.",
+    ],
+    confirm:[{name:"Run approved",passed:confirmFile.gates.run_approved},{name:"Same deployment",passed:confirmFile.gates.same_deployment},{name:"Revision updated",passed:confirmFile.gates.revision_updated},{name:"Metadata matches",passed:confirmFile.gates.metadata_match}],
   });
 }

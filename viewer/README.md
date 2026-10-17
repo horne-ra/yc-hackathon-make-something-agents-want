@@ -98,3 +98,28 @@ PASS real Inspector UI:complete/768px,24cells,minFont16px,noinlineoverflow; exac
 ```
 
 Local running/390px interaction coverage also passed. Final renderer checks, typecheck and build passed; the final build completed in 524ms. The temporary localhost production listener was stopped. No new product dependency is needed; package.json, lockfile, recorded results and src/core/ are unchanged by viewer polish. The actual real-run polling/verification integration is intentionally outside this fixture-only task. Pending/error lifecycle rendering was checked at the pure renderer boundary, while ready and partial playback were checked in the actual Inspector. No new provider benchmark was run or implied. The 2:15 PM checkpoint report is scheduled as requested.
+
+## Phase 2: recorded live Railway run
+
+The preview now loads the immutable live run `scripts/results/trackr-2026-10-17T20-10-18.320Z/result.json` through the merged `src/core/` contracts. Regenerate with `pnpm exec tsx viewer/create-fixture.ts` (optional arguments: recorded result path, pinned source path). The adapter has no dependency on the external core worktree. `viewer/fixtures/provenance.json` records the full source path and SHA-256, actual benchmark revision, the pinned Checkpoint 1 source revision used to derive edits, measured fields, derived values and example-only fields.
+
+All 24 trials are retained, including all three baseline failures. The spotlight is `t3-payload`: baseline `list_issues` omits `include_comments` and returns 10,408 tokens; candidate explicitly sets it to false and returns 441. The verdict is Improved with 9/12 → 12/12 first-call passes. Returned result tokens total 115,194 → 13,272 (−88.5%); static tool-definition cost rises 651 → 837. The t1-route and t2-status baseline-failure hypotheses were rejected; the preview says so. These are provisional N=3 results; returned tokens represent potential context and were never consumed by the single-turn model.
+
+The complete run is recorded live data, not hypothetical data. Partial progress is an illustrative replay snapshot: the original harness did not record trial timing, so replay uses presentation order and makes no real-speed claim. Confirmation is explicitly example layout data because no source patch was applied or confirmed in this run. The required numeric `latency_ms` slots remain zero placeholders, documented as unavailable and never displayed as measured latency. No new benchmark, provider calls, temperature setting or target mutation occurs during conversion or playback.
+
+Actual local acceptance output:
+
+```text
+PASS live run conversion: 4 tasks, 24 trials retained, 3 baseline failures; five run-file contracts validate against merged src/core
+PASS observed verdict: improved; 9/12 → 12/12; result tokens 115194 → 13272; static tokens 651 → 837
+PASS merged core contracts: audit, patch, result, progress, confirm; original source hash unchanged
+PASS 24/24 original trials preserved exactly: tools, arguments, outcomes, input/output/result tokens; all 3 failures visible
+PASS spotlight t3-payload: list_issues omitted include_comments = 10408; explicit false = 441 result tokens
+PASS verdict Improved: 9/12 → 12/12; 115194 → 13272 (−88.5%); static651 → 837; rejected hypotheses explicit
+PASS provenance: live source/revision retained; example partial progress/confirm identified; latency unavailable; temperature omitted
+PASS recorded fixtures: complete24/3fail, both diff sides; running hides future payload/verdict/confirmation
+PASS in-memory edge cases: all3verdicts; failed confirmation stays failed; missing representative stays unavailable
+PASS pending/error renderer: accessible loading and retry guidance
+```
+
+`pnpm typecheck` exited 0. `pnpm build` built both MCP App views in 518ms. `src/core/`, package.json, lockfile and the original recorded run remain untouched. `get_verification_result` and real run polling are Lane E's work and are intentionally not registered by this lane. Hosted protocol/render checks follow deployment below. Human Claude app retesting is requested separately and is never inferred from Inspector results.
