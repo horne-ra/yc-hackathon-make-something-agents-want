@@ -70,3 +70,7 @@ Created Manufact server `1df33784-bc1a-4b0a-a539-22c8ed18ab05` from the existing
 
 - Assigned MCP URL: `https://fast-pulse-rlqvb.run.mcp-use.com/mcp` (hosted checks pending).
 - Manufact dashboard: `https://manufact.com/cloud/org-41c8b7a1-w8fak/servers/1df33784-bc1a-4b0a-a539-22c8ed18ab05/overview`.
+14. Deployment metadata inspection without selecting an active CLI organization returned `organization_required`; passing `--org` to `deployments get` itself then returned `Unknown option '--org'` (that subcommand does not accept it). Selected the already authorized organization with `mcp-use org use`; subsequent deployment reads work.
+15. Pending hosted MCP initialization returned HTTP 404 `{"error":"Not found"}` while builds were provisioning. Gateway `/health` returned 200, but it is the shared gateway and is not proof of the app's readiness. The local mcp-use production server also lacked `/health`, whereas Manufact deployment metadata configures `healthCheckPath:/health`; added a real application health route using the installed `server.get` API before final readiness verification.
+
+Canceled the two redundant pending device-code login children after API-key authentication succeeded, and verified no pending device-login process remains. No user login action is needed. Actual Inspector screenshot of the rebuilt high-contrast widget is readable and shows all four checks passing. Claude rendering remains unverified.

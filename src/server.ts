@@ -10,6 +10,8 @@ const server = new MCPServer({
   instructions: "Call ping to check outbound HTTPS, secret configuration and Blaxel connectivity.",
 });
 
+server.get("/health", context => context.json({ status: "healthy" }));
+
 const check = z.object({ ok: z.boolean(), status: z.string() });
 const outputSchema = z.object({
   message: z.string(),
