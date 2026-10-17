@@ -2,7 +2,7 @@
 
 ## Current result
 
-Blaxel detached execution and the hosted Manufact platform checks pass. The deployed ping MCP App also renders correctly in the real mcp-use Inspector. The user confirmed Claude Code mounting and the deployed ping call succeeded. Actual widget rendering in the Claude app remains pending. No Phase 2 work or lane merge has occurred.
+Blaxel detached execution and the hosted Manufact platform checks pass. The deployed ping MCP App also renders correctly in the real mcp-use Inspector. The user confirmed Claude Code mounting and the deployed ping call succeeded. The user confirmed the MCP App renders in the Claude app, which shows "Widget from AxLint ping". The Claude Code terminal shows text only. Lane C is complete. No Phase 2 work or lane merge has occurred.
 
 - Live MCP URL: `https://fast-pulse-rlqvb.run.mcp-use.com/mcp`.
 - Manufact dashboard: `https://manufact.com/cloud/org-41c8b7a1-w8fak/servers/1df33784-bc1a-4b0a-a539-22c8ed18ab05/overview`.
@@ -80,11 +80,11 @@ The same official MCP SDK connected to the live cloud URL. At `2026-10-17T19:41:
 
 ## Human Claude Code acceptance and widget follow-up
 
-On October 17 the user confirmed that Claude Code successfully called deployed ping and received `pong: all platform checks passed`: outbound HTTPS 200; Anthropic, Blaxel and workspace secrets set; sandbox DEPLOYED; original run axlint-spike-1792264922765 completed 23 ticks in about 120 seconds. This satisfies the remaining S4 Claude Code tool-call acceptance. The user saw plain JSON and no displayed widget; Claude app rendering remains unverified.
+On October 17 the user confirmed that Claude Code successfully called deployed ping and received `pong: all platform checks passed`: outbound HTTPS 200; Anthropic, Blaxel and workspace secrets set; sandbox DEPLOYED; original run axlint-spike-1792264922765 completed 23 ticks in about 120 seconds. This satisfies the remaining S4 Claude Code tool-call acceptance. At this initial check the user saw plain JSON and no displayed widget in the Claude Code terminal; Claude app rendering had not yet been tested. The subsequent Claude app confirmation is recorded below.
 
 A direct official SDK wire check at 12:54 PM Pacific found the existing deployment already declared `ui://views/ping.html` in both `tools/list._meta.ui.resourceUri` and `tools/call._meta.ui.resourceUri` (plus legacy `ui/resourceUri`). `resources/list` advertised `text/html;profile=mcp-app`, and `resources/read` returned the real 1,259-character HTML shell with same-origin CSP metadata. Plain JSON in the Claude Code display did not establish that the UI resource was undeclared.
 
-Version 0.1.1 keeps the native mcp-use View binding, outputSchema and structuredContent, changes model-readable text to a concise status message, and adds an explicit `resource_link` content block for the same MCP App HTML resource on successful calls. The framework still stamps the native result metadata. Error calls do not advertise a successful widget. This makes the UI reference directly inspectable in result content as well as metadata. Local production typecheck and build passed (442 ms build). A real MCP integration check passed at 12:55:58 PM Pacific for server version 0.1.1: native tool/result UI metadata, explicit resource link, readable MCP App HTML, HTTP 200 for widget JavaScript and CSS, and all platform checks. Redeployment and the hosted wire check passed at 12:58:32 PM Pacific; no Claude rendering success is claimed.
+Version 0.1.1 keeps the native mcp-use View binding, outputSchema and structuredContent, changes model-readable text to a concise status message, and adds an explicit `resource_link` content block for the same MCP App HTML resource on successful calls. The framework still stamps the native result metadata. Error calls do not advertise a successful widget. This makes the UI reference directly inspectable in result content as well as metadata. Local production typecheck and build passed (442 ms build). A real MCP integration check passed at 12:55:58 PM Pacific for server version 0.1.1: native tool/result UI metadata, explicit resource link, readable MCP App HTML, HTTP 200 for widget JavaScript and CSS, and all platform checks. Redeployment and the hosted wire check passed at 12:58:32 PM Pacific. At that stage only Inspector rendering had been checked; the subsequent user-confirmed Claude app rendering is recorded below.
 
 ## Reconfirmed independent Blaxel reads
 
@@ -96,7 +96,7 @@ The original launcher exited successfully after starting the detached process. A
 
 A second fresh process at 12:54:56 PM Pacific read both files again, 30.87 minutes after completion, and observed status DEPLOYED and `expiresIn:8826` seconds. The accepted three-hour TTL expires around 3:22:02 PM Pacific on October 17. For the observed completion at 12:24:03 PM, the sandbox and files are configured to survive about 2 hours 58 minutes after completion, exceeding the required two hours. These fresh reads directly demonstrate launcher independence and approximately 31 minutes of elapsed persistence; a full two-hour wall-clock read has not yet been performed. Files survive standby and are erased on TTL expiry or explicit deletion. Longer jobs must reserve at least two hours after their maximum duration, with a margin.
 
-To test rendering, reconnect the deployed server in a fresh Claude app conversation and ask it to call ping and display its MCP App widget. The proof sandbox expires around 3:22 PM Pacific; after expiry, start a new spike and update the hosted AXLINT_SPIKE_RUN_ID rather than claiming stale connectivity.
+The user subsequently tested rendering in the Claude app and confirmed success, as recorded below. The proof sandbox expires around 3:22 PM Pacific; after expiry, start a new spike and update the hosted AXLINT_SPIKE_RUN_ID rather than claiming stale connectivity.
 
 ## Hosted widget follow-up acceptance
 
@@ -117,4 +117,8 @@ PASS expected failure: real sandbox404 preserved; no success-widget link or UI m
 
 Hosted `resources/read` returned the 1,259-character MCP App HTML shell. Both the widget JavaScript and CSS returned HTTP 200. Outbound HTTPS, all three secret-presence flags and the original Blaxel run still passed. The actual hosted screenshot at `/private/tmp/axlint-ping-explicit-widget.png` was visually inspected: the widget is readable and shows all four platform checks passing. This is Inspector evidence, not a claim about Claude app rendering. Typecheck, production build and git diff checks passed. The two temporary local listeners used for successful/error-path verification were stopped.
 
-Ready for the user to reconnect the same MCP URL in a fresh Claude app conversation, call ping, and inspect the widget. Claude Code tool invocation is already confirmed by the user; actual Claude app rendering is the sole remaining widget observation.
+## Claude app confirmation and Lane C completion
+
+On October 17, 2026, the user confirmed the Claude app shows "Widget from AxLint ping" and renders the deployed MCP App widget. The MCP App renders in the Claude app; the Claude Code terminal shows text only. This is direct human confirmation in Claude, separate from the earlier Inspector screenshots.
+
+The Claude Code ping call, Blaxel detached-run and independent-file-read checks, hosted platform checks, and Claude app widget rendering are complete. Lane C is done and stopped at the user's request. No merge or Phase 2 work is authorized by this confirmation.
