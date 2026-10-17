@@ -2,7 +2,7 @@ import { useToolContext } from "mcp-use/react";
 
 export default function PingView() {
   const { status, toolOutput, error } = useToolContext<"ping">();
-  const style = {fontFamily:"system-ui, sans-serif", padding:24, fontSize:18, lineHeight:1.5};
+  const style = {background:"#111827", color:"#f3f4f6", fontFamily:"system-ui, sans-serif", padding:24, fontSize:18, lineHeight:1.5};
   if (status === "pending") return <main style={style} aria-live="polite">Checking AX Lint platforms…</main>;
   if (status === "error") return <main style={style} role="alert">Platform check failed: {error.message}</main>;
   const { https, secrets, sandbox, checkedAt } = toolOutput;

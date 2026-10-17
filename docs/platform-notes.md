@@ -60,3 +60,13 @@ The Manufact organization was verified as `Ax Lint`, slug `org-41c8b7a1-w8fak`. 
 After cherry-picking the lead's root setup commit, `pnpm install --frozen-lockfile`, `pnpm typecheck` (including the View) and `pnpm build` passed. Build output: `[mcp-use] built src/server.ts + views (ping) → .mcp-use/build/index.js (450ms)`.
 
 Started the actual production build on port 3007 and connected with the official MCP SDK HTTP client. `tools/list` returned only `ping` with `ui://views/ping.html`; `resources/list` advertised `text/html;profile=mcp-app`. `tools/call ping {}` returned structured content `pong: all platform checks passed`, outbound `HTTP 200`, all three secret-presence booleans true, sandbox `DEPLOYED`, and the real completed 120008ms progress document. This local proof does not substitute for the hosted proof or Claude rendering.
+11. The Inspector screenshot command first returned `client_install_required: @mcp-use/client is required for this command`. Re-ran through an ephemeral `npx -p mcp-use@2.10.0 -p @mcp-use/client@latest` installation, leaving root dependencies unchanged.
+12. Real Inspector capture succeeded but visual inspection found inherited black text on a black background. Added explicit dark background and light text, then typechecked and rebuilt successfully; repeating capture against the rebuilt production entry.
+13. First deployment validation returned `usage_error: --env-file must be relative.` Moved the minimal environment file into gitignored `.env.platform-deploy` with mode 0600 and retried. No secret values appeared in output or commits.
+
+## Cloud deployment
+
+Created Manufact server `1df33784-bc1a-4b0a-a539-22c8ed18ab05` from the existing GitHub repository's `lane/platform` branch. Its production branch is explicitly `lane/platform`; main has not been merged or replaced. Build command is `pnpm build`; start command is `pnpm exec mcp-use start --host 0.0.0.0`. Initial deployment ID is `ae8080dc-90ad-4e7f-ba7a-93c8c19b48fd`.
+
+- Assigned MCP URL: `https://fast-pulse-rlqvb.run.mcp-use.com/mcp` (hosted checks pending).
+- Manufact dashboard: `https://manufact.com/cloud/org-41c8b7a1-w8fak/servers/1df33784-bc1a-4b0a-a539-22c8ed18ab05/overview`.
