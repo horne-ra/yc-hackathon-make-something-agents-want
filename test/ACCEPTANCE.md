@@ -24,7 +24,7 @@ Identical `include_comments` source lines occur in two tool objects. The generat
 
 The unit suite applies all four edits to the fixture, evaluates the resulting Zod shapes, and verifies emitted JSON Schema descriptions. This provides local coverage of JSON escaping, `.optional().describe(...)`, replacement of existing descriptions and field preservation.
 
-**Passed:** S3's real mcp-use server fidelity integration subsequently ran against trackr commit `9489411`, using core-generated edits from its actual source. It started temporary baseline and patched servers, called `tools/list`, and proved the complete emitted metadata equals baseline plus wire ops. The local Zod emission check remains separate from that integration gate. The spec-derived fixture is unchanged; replacement still belongs to Checkpoint 1.
+**Passed:** S3's real mcp-use server fidelity integration subsequently ran against trackr commit `91b0484`, using core-generated edits from its actual source. It started temporary baseline and patched servers, called `tools/list`, and proved the complete emitted metadata equals baseline plus wire ops. The local Zod emission check remains separate from that integration gate. The spec-derived fixture is unchanged; replacement still belongs to Checkpoint 1.
 
 Representative trials exclude infrastructure errors. If infrastructure exclusion leaves an exact pass/fail tie, there is no majority and the representative is null rather than inventing one.
 
@@ -70,17 +70,19 @@ src/tools.ts sha256:b666a8823e062edb2e3885f85fbe6f9fb1031745a45518365d6018e1571b
 src/validation.ts sha256:cf485c948165fd19dba87e85f515c786211eefb5481f6e8bc97d9f83e2eae188
 ```
 
-From `/Users/ransomhorne/Documents/trackr` at commit `9489411`, `pnpm exec tsx scripts/fidelity.test.ts /private/tmp/axlint-core-fidelity-patch.json` exited 0:
+From `/Users/ransomhorne/Documents/trackr` at commit `91b0484`, `pnpm exec tsx scripts/fidelity.test.ts /private/tmp/axlint-core-fidelity-patch.json` exited 0:
 
 ```text
 PASS exact wire description: list_issues
 PASS exact wire description: search_issues
 PASS exact wire description: list_issues.status
-EMITTED list_issues.status: {"schema":{"description":"One of: open, in_progress, blocked, closed. open: not started. in_progress: someone is actively working on it. blocked: waiting on something. closed: done.","type":"string"},"required":[]}
+EMITTED list_issues.status: {"schema":{"description":"One of: open, in_progress, blocked, closed. open: not started. in_progress: someone is actively working on it. blocked: waiting on something. closed: done.","type":"string"},"required_present":false}
 PASS exact wire description: list_issues.include_comments
-EMITTED list_issues.include_comments: {"schema":{"description":"Include full comment threads, roughly 1 to 2K tokens per issue. Defaults to true. Set false when only titles and status are needed.","type":"boolean"},"required":[]}
+EMITTED list_issues.include_comments: {"schema":{"description":"Include full comment threads, roughly 1 to 2K tokens per issue. Defaults to true. Set false when only titles and status are needed.","type":"boolean"},"required_present":false}
 PASS source fidelity: real mcp-use tools/list equals baseline plus wire_ops; all non-description metadata unchanged
 PASS cleanup: temporary trackr source and server processes removed
 ```
 
 The first non-escalated tsx patch-generation attempt failed with an IPC `listen EPERM` sandbox restriction; the authorized escalated retry passed. The integration itself passed on its first invocation. It uses temporary copies and removes its server processes; no secrets were printed or copied.
+
+Protocol precision: the raw `list_issues.inputSchema` has no `required` field. Both patched parameters remain optional. The earlier S3 log normalized an absent field to `[]`; the independently rerun output above reports actual presence as `required_present:false` instead. This correction changes logging evidence only, not core code or assertions.
