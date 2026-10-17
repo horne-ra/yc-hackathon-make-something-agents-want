@@ -1,3 +1,4 @@
+import { errorMessage } from '../src/blaxel/errors.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -11,7 +12,7 @@ export type ProgressFile = { status: 'queued'|'running'; updated_at: string; pro
 export type ResultFile = {status:'complete'; result:ReturnType<typeof VerificationResultSchema.parse>} | {status:'failed';error:{code:string;message:string}};
 export interface RunFiles { progress(value:ProgressFile):Promise<void>; result(value:ResultFile):Promise<void>; context?(value:unknown):Promise<void> }
 export function cleanError(error:unknown):string {
-  let message = error instanceof Error ? error.message : String(error);
+  let message = errorMessage(error);
   for (const [key, value] of Object.entries(process.env)) if (value && /KEY|TOKEN|SECRET/.test(key)) message=message.replaceAll(value,'<redacted>');
   return message.slice(0,2000);
 }
