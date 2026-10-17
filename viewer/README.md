@@ -4,7 +4,7 @@ Lane C completed with user-confirmed Claude app widget rendering and a successfu
 
 ## Bearer credential
 
-`AXLINT_API_TOKEN` is a random 32-byte base64url credential stored in `/Users/ransomhorne/Documents/axlint-platform/.env` (gitignored). Never copy it into chat, source files, URLs or committed client configuration. The server requires `Authorization: Bearer <token>` on every `/mcp` request, including calls using an existing session. Missing, wrong or malformed credentials return 401 with a Bearer challenge. Missing server configuration also fails closed with 401. `/health` is public and returns only `{ "status": "healthy" }`; widget JavaScript/CSS stay public and contain no secret or run data.
+`AXLINT_API_TOKEN` is a random 32-byte base64url credential stored in `/Users/ransomhorne/Documents/axlint-platform/.env` (gitignored). Never copy it into chat, source files, URLs or committed client configuration. The application middleware requires `Authorization: Bearer <token>` on every `/mcp` request, including calls using an existing session. Missing, wrong or malformed credentials return 401 with a Bearer challenge at the application; missing server configuration also fails closed with 401. Manufact's gateway handles some malformed transport requests and preflights before this middleware; see [the exact hosted behavior below](#auth-acceptance-and-gateway-behavior). The application's public `/health` route returns only `{ "status": "healthy" }`; the hosted gateway adds its own timestamp. Widget JavaScript/CSS stay public and contain no secret or run data.
 
 Manufact: set `AXLINT_API_TOKEN` to the exact `.env` value as a write-only production secret, alongside the existing platform credentials. This lane configures it through the authenticated API without printing it.
 
@@ -35,3 +35,11 @@ Valid unauthenticated MCP POST, GET with a valid Accept header, and DELETE with 
 `viewer/create-fixture.ts` adapted the recorded public-trackr S3 gate result into audit, patch, result, progress and confirm files. All five contracts validate against the actual external `axlint-core` checkout without importing unmerged core into the product. Trial choices, arguments, scores and token counts remain the recorded 24 trials: baseline 9/12, candidate 12/12. Unrecorded latency is zero only in the fixture contract and never displayed. Confirmation gates are visibly illustrative; the preview never applies a patch or claims a real confirmation.
 
 The actual authenticated production MCP endpoint returned both complete and running `preview_run` snapshots with the expected 24 trials and verdict. An invalid phase was rejected. Typecheck and production build passed. Pending, ready and error UI states, interaction and actual rendered layout are checked separately below.
+
+## Rendered UI and interaction acceptance
+
+The actual Inspector rendered all six sections in `/private/tmp/axlint-viewer-preview.png` (1100 px) and `/private/tmp/axlint-viewer-interaction.png` (768 px). Both were visually inspected. The View prominently labels recorded fixture playback and illustrative confirmation; it never displays synthetic latency. Verdict, representative calls, payload metrics and progress derive from the validated data.
+
+`pnpm exec tsx viewer/check-viewer-ui.ts` used an isolated temporary Chrome profile and the real screenshot CLI's CDP hook. Actual DOM checks passed: 24 trial cells, 3 baseline failures, computed text at least 16 px, no horizontal overflow at inline width, task selection changes the representative story, replay resets and advances trials without a reload, and Show all restores all 24. The temporary browser/profile is removed afterward. This proves Inspector behavior, not a new human Claude app observation.
+
+The screenshot helper emitted npm's `Unknown env config "verify-deps-before-run"` warning; capture and checks completed successfully. Initial fixture-adapter typecheck found a JSON-union cast mismatch, corrected by narrowing the validated JSON boundary; typecheck then passed. A development-only log-inspection one-liner had an extra brace and was corrected. These were not hidden as successful first attempts.
