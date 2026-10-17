@@ -111,3 +111,30 @@ tsc --noEmit (exit 0)
 The first typecheck found an old worktree installation missing already-declared React packages. `pnpm install --frozen-lockfile` reused the existing lockfile (10 cached packages, no manifest/lock changes); the subsequent full typecheck passed. No new dependency requested.
 
 No acceptance checks skipped. Yahoo Finance was not started. No production tools were registered and nothing was merged into main.
+
+## Real-repository size check
+
+**Measurement only, separate from the frozen synthetic benchmark above.** No model generation, task scoring, or benchmark-result change. On October 17, 2026, cloned [Commander.js v13.1.0](https://github.com/tj/commander.js/tree/e6f56c888c96d1339c2b974fee7e6ba4f2e3d218) at exact commit `e6f56c888c96d1339c2b974fee7e6ba4f2e3d218` into a temp directory and ran `npm ci` successfully. The pinned package-lock.json SHA-256 `aa6f6ec42ef38d4d533e442274e3ae3f53f7c3e65e660050c4fc3d06f2b77331` remained unchanged.
+
+The unchanged official filesystem server at `bbb701e7ac1e57f3edd1c2836b94c5457eaf7b9c` returned its exact frozen 14-tool metadata. Called `directory_tree` twice on the same installed clone: once with no excludePatterns and once with `["node_modules", ".git"]`. Counted **each entire serialized MCP response**, including both content and structuredContent, through Anthropic countTokens with configured `AXLINT_MODEL=claude-sonnet-5-5`. These protocol fields repeat the tree; the counts include both copies. They are potential returned-context tokens, not model-generated output, actual consumed input, or an end-to-end cost estimate.
+
+| directory_tree arguments | Tree file entries | Tree directories | Full MCP response characters | Full-response tokens |
+| --- | ---: | ---: | ---: | ---: |
+| No excludePatterns | 9,985 | 1,477 | 3,470,786 | **1,037,509** |
+| excludePatterns: node_modules, .git | 219 | 12 | 43,484 | **19,443** |
+
+Full-response token reduction for these explicit calls: **98.13%**. No model chose these arguments, so this measurement does not establish a task-success rate or change the benchmark verdict.
+
+Independent filesystem walk after npm ci found **9,953 regular files + 32 symbolic links** and 1,477 directories; directory_tree represents the links as file entries. Before install, the shallow pinned clone had 241 regular files, 3 symbolic links and 22 directories. Recorded environment: darwin/arm64, Node v25.6.1, npm 11.9.0; dependency installation contents can vary by platform. Both raw responses and their SHA-256 digests are retained. The temporary clone and its temporary npm cache were deleted after measurement.
+
+Actual output:
+
+```text
+PASS npm ci; pinned package-lock unchanged
+PASS pinned official server; tools/list exactly equals frozen 14-tool baseline
+MEASURE unfiltered: 9985 tree files; 1477 directories; 1037509 full-response tokens (3470786 chars)
+MEASURE excluded: 219 tree files; 12 directories; 19443 full-response tokens (43484 chars)
+PASS temporary clone and install cache deleted; no model generation calls
+```
+
+Reproduce with `node --import tsx scripts/filesystem-real-repo-size.ts`. Evidence: [measurement and environment](../scripts/real-repository-size/commander-2026-10-17T22-03-39.312Z/measurement.json), [unfiltered full response](../scripts/real-repository-size/commander-2026-10-17T22-03-39.312Z/unfiltered-response.json), [excluded full response](../scripts/real-repository-size/commander-2026-10-17T22-03-39.312Z/excluded-response.json), [npm ci output](../scripts/real-repository-size/commander-2026-10-17T22-03-39.312Z/npm-ci.log). The original benchmark prefix and all its committed trial artifacts remain unchanged.
