@@ -1,6 +1,6 @@
 # S3 real server gate results
 
-Trackr remains the primary demo. The official memory server already passes all nine scored trials in each condition. The new live Railway trackr comparison improves the payload task from 0/3 to 3/3 and keeps every other task at 3/3, including the control. Under the specification's ordered verdict rules, the live trackr result is **Improved**. The routing and status baseline-failure hypotheses were not observed; do not claim those failures in the demo.
+Recommendation pending the user's gate decision: keep trackr as the primary demo target. The official memory server already passes all nine scored trials in each condition. The new live Railway trackr comparison improves the payload task from 0/3 to 3/3 and keeps every other task at 3/3, including the control. Under the specification's ordered verdict rules, the live trackr result is **Improved**. The routing and status baseline-failure hypotheses were not observed; do not claim those failures in the demo.
 
 Provisional: 3 trials per condition. A demonstration, not a statistical claim.
 
@@ -23,7 +23,7 @@ Result tokens count the complete serialized MCP response, including content and 
 | memory-control | 3/3 | 3/3 | 24090 | 24090 |
 | memory-boundary | unscored | unscored | 24984 | 24984 |
 
-All scored tasks pass 3/3 in both conditions. The unscored boundary task chooses search_nodes with query Priya Nair in every trial. Source metadata fidelity passes, but there is no observed behavioral gain. Under the S3 gate table, keep trackr primary.
+All scored tasks pass 3/3 in both conditions. The unscored boundary task chooses search_nodes with query Priya Nair in every trial. Source metadata fidelity passes, but there is no observed behavioral gain. Under the S3 gate table, the recommendation is to keep trackr primary, pending the user's decision.
 
 | Task | Condition | Trial | Tool | Arguments | Pass or fail | Result tokens |
 | --- | --- | --- | --- | --- | --- | --- |
