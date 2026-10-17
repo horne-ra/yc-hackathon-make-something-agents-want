@@ -71,3 +71,15 @@ Tests 57 passed (57)
 An added provider-response retry test initially failed TypeScript because its mock omitted the current SDK's required `caller` field; corrected mock to `caller:{type:'direct'}`. Actual retry checks now pass for missing, multiple and wrong tool submissions. Provider/network errors and token-count failures do not trigger new proposals. There is no temperature field in any production request.
 
 The remaining S7 acceptance is the real before/after confirm using E's stored approved run and root's serialized apply/redeploy. No Trackr source/deployment mutation has been performed by this lane.
+
+## Real negative confirm gates (2:16 PM Pacific)
+
+Using E's actual independent Blaxel `readRun` adapter (passed explicitly to the acceptance harness, not imported by production):
+
+```text
+PASS real Inconclusive stored run rejected at gate 1: run_not_approved; no target metadata read
+PASS real Improved stored run rejected at gate 3 before redeploy: revision_mismatch
+live=trackr-demo-001@91b048476d764329df779e5662f9ca4952361397
+```
+
+Actual Inconclusive run `axlint-run-78daa3da-4a36-41d2-a2e6-2d9d1df41247` used the superseded proposal (9/12 → 11/12, retained). Final Improved run `axlint-run-e0aaa3be-cf54-4d77-9b2e-17fe41aed395` used corrected v2 (9/12 → 12/12; result tokens 115,194 → 13,917; static 651 → 955). These Phase 2 numbers differ from the original frozen compact-patch Phase 1 numbers; neither is rewritten. Full negative outputs in `confirm.before-evidence.json`. Root informed the unchanged baseline acceptance window is complete and it may now serialize the exact v2 apply/redeploy.
