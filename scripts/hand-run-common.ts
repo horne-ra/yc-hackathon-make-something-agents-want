@@ -55,9 +55,12 @@ function shuffled<T>(items: T[]) {
 }
 export async function runBenchmark(options: { name: string; tasks: Task[]; connect: () => Promise<Connection>; patch: (tools: Tool[]) => Tool[]; allowlist: ReadonlySet<string>; provenance: unknown }) {
   const { provider, model } = loadEnvironment();
+  // User-approved departure from the frozen temperature-0 requirement for Sonnet 5.5.
+  // Anthropic rejects the field for this pinned model; do not send it at all.
+  const sampling = model === 'claude-sonnet-5-5' ? {} : { temperature: 0 };
   const output = resolve('scripts/results', `${options.name}-${new Date().toISOString().replaceAll(':', '-')}`);
   await mkdir(output, { recursive: true });
-  const report: Record<string, unknown> = { status: 'preflight', label: LABEL, model, system: SYSTEM, temperature: 0, max_tokens: 300, tool_choice: 'auto', shuffle_seed: 173201, concurrency: 4, provenance: options.provenance, tasks: options.tasks.map(({ checkArgs, ...task }) => task), trials: [] };
+  const report: Record<string, unknown> = { status: 'preflight', label: LABEL, model, system: SYSTEM, temperature: model === 'claude-sonnet-5-5' ? 'omitted; model-default sampling' : 0, sampling_departure: model === 'claude-sonnet-5-5' ? 'User explicitly authorized keeping claude-sonnet-5-5 and omitting the rejected temperature field. This departs from the original temperature-0 specification.' : null, max_tokens: 300, tool_choice: 'auto', shuffle_seed: 173201, concurrency: 4, provenance: options.provenance, tasks: options.tasks.map(({ checkArgs, ...task }) => task), trials: [] };
   const trials = report.trials as Trial[];
   let saveQueue = Promise.resolve();
   function save() { const data = JSON.stringify(report, null, 2); saveQueue = saveQueue.then(async () => { await writeFile(`${output}/progress.json.tmp`, data); await rename(`${output}/progress.json.tmp`, `${output}/progress.json`); }); return saveQueue; }
@@ -98,7 +101,7 @@ export async function runBenchmark(options: { name: string; tasks: Task[]; conne
         let response: Anthropic.Message | undefined;
         for (let attempt = 0; attempt < 3; attempt++) {
           try {
-            response = await provider.messages.create({ model, system: SYSTEM, temperature: 0, max_tokens: 300, tool_choice: { type: 'auto' }, tools: providerTools(condition === 'baseline' ? baseline : candidate), messages: [{ role: 'user', content: task.prompt }] });
+            response = await provider.messages.create({ model, system: SYSTEM, ...sampling, max_tokens: 300, tool_choice: { type: 'auto' }, tools: providerTools(condition === 'baseline' ? baseline : candidate), messages: [{ role: 'user', content: task.prompt }] });
             record.attempts.push({ attempt: attempt + 1, status: 'ok' }); break;
           } catch (error) {
             const status = (error as { status?: number }).status;
