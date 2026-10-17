@@ -34,3 +34,11 @@ The five absent context files returned filesystem 404, rather than being discard
 At 22:22 UTC, all ten slots were still DEPLOYED. Every verification sandbox was younger than two hours. **Free slots: 0. No eligible deletion; no sandbox deleted.** The earliest successful complete result becomes eligible after 23:13:22 UTC (4:13:22 PM Pacific). Failed result files are protected even when old. The proof sandbox remains protected regardless of age.
 
 To unblock sooner: increase the Blaxel workspace `axlint` sandbox quota, then set the optional Manufact environment variable `AXLINT_SANDBOX_CAPACITY` to the new positive integer limit (default 10). No secret values are needed. A new VM measurement and hosted start check remain blocked until a slot is available.
+
+## Manufact redeployment confirmed
+
+Deployment `8dd23aa6-0bc7-4342-a37f-b1fb5562aef1` is `running`, pipeline phase `complete`, from main commit `fc8ea3dcb07eff1bb9e266f207fe2e57d48b74a1`. No Trackr or Railway requests were made.
+
+## Subsequent S8 evidence preserved
+
+The proof sandbox disappeared through its original TTL (no delete request was issued). A new S8 run, `axlint-run-f2f5be10-367e-4cd5-8614-cb0658fa3e2d`, used the available slot at 22:23:24 UTC, before the repair was live. Its three files are preserved under `scripts/results/blaxel-export-2026-10-17T22-29-32.875Z/`. It completed with Improved, 9/12 → 12/12, 115,194 → 13,917 returned tokens, on the old 1024 MB / 4h settings. This is observed user S8 evidence, not either of the requested C follow-up checks. Total files exported: **25**, across **10 verification sandboxes**. A subsequent count remained **10 occupied / 0 free**; no sandbox was deleted.

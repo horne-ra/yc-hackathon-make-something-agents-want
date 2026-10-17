@@ -5,9 +5,11 @@ process.loadEnvFile('.env');
 const directory=resolve('scripts/results',`blaxel-export-${new Date().toISOString().replaceAll(':','-')}`);
 await mkdir(directory,{recursive:true});
 const records=[];
+const only=process.argv[2];
+if(only&&!/^axlint-run-[a-z0-9-]+$/.test(only))throw new Error('Optional argument must be an axlint-run sandbox ID');
 for await (const sandbox of await SandboxInstance.list({limit:100})) {
  const name=sandbox.metadata.name!;
- if(!name.startsWith('axlint-run-'))continue;
+ if(!name.startsWith('axlint-run-')||(only&&name!==only))continue;
  const record:{name:string;status:unknown;created_at:unknown;files:string[];missing:string[];process:unknown}={name,status:sandbox.status,created_at:sandbox.metadata.createdAt,files:[],missing:[],process:null};
  await mkdir(resolve(directory,name),{recursive:true});
  for(const file of ['context.json','progress.json','result.json']){
