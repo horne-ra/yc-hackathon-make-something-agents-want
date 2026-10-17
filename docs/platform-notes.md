@@ -122,3 +122,11 @@ Hosted `resources/read` returned the 1,259-character MCP App HTML shell. Both th
 On October 17, 2026, the user confirmed the Claude app shows "Widget from AxLint ping" and renders the deployed MCP App widget. The MCP App renders in the Claude app; the Claude Code terminal shows text only. This is direct human confirmation in Claude, separate from the earlier Inspector screenshots.
 
 The Claude Code ping call, Blaxel detached-run and independent-file-read checks, hosted platform checks, and Claude app widget rendering are complete. Lane C is done and stopped at the user's request. No merge or Phase 2 work is authorized by this confirmation.
+
+## Authenticated connection checkpoint and viewer handoff
+
+On October 17, 2026, the user confirmed the Claude app connects with **No sign-in** and `Authorization: Bearer <token>`. The follow-up ping-widget and Claude Code result message still contained alternatives rather than actual outcomes; neither is recorded as a new pass. A local file-presence check found no `/Users/ransomhorne/Documents/trackr/.mcp.json`. This alone does not determine Claude Code connectivity, since the supplied configuration helper uses local scope.
+
+The live auth and fixture-viewer implementation is already on `lane/viewer`, separately from this Lane C checkpoint. Hosted version 0.2.1 requires the fixed token, returns 401 without an OAuth challenge header, and returns 404 for OAuth/OpenID discovery. Token-bearing ping and `preview_run` calls passed; widget assets remain public. The recorded-fixture viewer has passed actual rendering and interaction checks and is already deployed. Human Claude app confirmation of rendering after authentication remains pending. Viewer implementation and acceptance evidence are documented in `viewer/README.md` on that branch.
+
+This checkpoint records confirmed results on `lane/platform` as requested. It does not merge the viewer or change main.
