@@ -7,6 +7,7 @@ import {CallToolResultSchema} from '@modelcontextprotocol/sdk/types.js';
 import {SandboxInstance} from '@blaxel/core';
 import {proposePatchTool} from '../src/tools/propose.js';
 process.loadEnvFile('.env');
+const output=process.argv[2]??'scripts/results/s8-hosted-capacity.json';
 const endpoint='https://fast-pulse-rlqvb.run.mcp-use.com/mcp';
 const client=new Client({name:'axlint-s8-capacity-check',version:'1.0.0'});
 try{
@@ -27,12 +28,12 @@ try{
   input.server_url='http://127.0.0.1:1/mcp';
   const response=CallToolResultSchema.parse(await client.callTool({name:'verify_patch',arguments:input}));
   record.capacity_check={response};
-  await writeFile('scripts/results/s8-hosted-capacity.json',JSON.stringify(record,null,2)+'\n');
+  await writeFile(output,JSON.stringify(record,null,2)+'\n');
   assert.equal(response.isError,true);
   const text=response.content.filter(c=>c.type==='text').map(c=>c.text).join('\n');
   assert.ok(!text.includes('[object Object]'));const error=JSON.parse(text).error;
   assert.equal(error.code,'capacity_exhausted');record.capacity_check={isError:response.isError,error};
  }
- await writeFile('scripts/results/s8-hosted-capacity.json',JSON.stringify(record,null,2)+'\n');console.log(JSON.stringify(record));
+ await writeFile(output,JSON.stringify(record,null,2)+'\n');console.log(JSON.stringify(record));
 }finally{await client.close();}
 process.exit(0);

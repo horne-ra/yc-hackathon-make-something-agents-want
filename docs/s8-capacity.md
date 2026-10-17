@@ -56,3 +56,7 @@ The remote bootstrap now enforces the same absolute fourteen-minute deadline eve
 ```
 
 Evidence: `scripts/results/s8-hosted-capacity.json`. The final error sanitizer also replaces the literal object-coercion string if an upstream SDK has already inserted it into an Error.message. Full checks remain green: typecheck, build, **9 files / 108 tests**.
+
+## Final production confirmation
+
+Final application commit `9290c3c3eb7594c29d91c85458740e39c3907b61` on `main` is active in Manufact deployment `bd0b2d47-151f-4aa2-9340-d5f147ddea2f`: status **running**, pipeline **complete**, confirmed 2026-10-17T22:42:16.016Z. A separate hosted check then passed at 22:42:47 UTC, again returning `capacity_exhausted` with `isError:true`, preserving the original Regressed run, and exposing the complete-source proposer metadata. Evidence: `scripts/results/s8-final-deployment.json` and `scripts/results/s8-final-hosted-capacity.json`. Free slots remained **0 of 10**. No sandbox was deleted and neither Trackr nor Railway was accessed. The 256 MB VM execution check and both requested C verification verdicts remain blocked by capacity and the active-S8 restriction.
