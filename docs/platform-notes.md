@@ -2,7 +2,7 @@
 
 ## Current result
 
-Blaxel detached execution and the hosted Manufact platform checks pass. The deployed ping MCP App also renders correctly in the real mcp-use Inspector. Claude Code mounting, the human tool call and actual Claude widget rendering remain pending; those acceptance steps are reserved for the user by the lane brief. No Phase 2 work or lane merge has occurred.
+Blaxel detached execution and the hosted Manufact platform checks pass. The deployed ping MCP App also renders correctly in the real mcp-use Inspector. The user confirmed Claude Code mounting and the deployed ping call succeeded. Actual widget rendering in the Claude app remains pending. No Phase 2 work or lane merge has occurred.
 
 - Live MCP URL: `https://fast-pulse-rlqvb.run.mcp-use.com/mcp`.
 - Manufact dashboard: `https://manufact.com/cloud/org-41c8b7a1-w8fak/servers/1df33784-bc1a-4b0a-a539-22c8ed18ab05/overview`.
@@ -78,13 +78,22 @@ The same official MCP SDK connected to the live cloud URL. At `2026-10-17T19:41:
 18. The first process-cleanup helper exited 143 after terminating the two pending device-login children; a second targeted inventory/cleanup completed with `remainingDeviceLoginsCanceled:0`. No pending device login remains.
 19. Runtime logged `listen() is serving on 0.0.0.0 without Host validation`. The framework explicitly identifies this as expected behind a platform edge that only routes the server's domains; Manufact supplies that edge. No direct listener was exposed by this spike.
 
-## Remaining human acceptance
+## Human Claude Code acceptance and widget follow-up
 
-The lane brief explicitly reserves mounting and actual Claude client calls for the human:
+On October 17 the user confirmed that Claude Code successfully called deployed ping and received `pong: all platform checks passed`: outbound HTTPS 200; Anthropic, Blaxel and workspace secrets set; sandbox DEPLOYED; original run axlint-spike-1792264922765 completed 23 ticks in about 120 seconds. This satisfies the remaining S4 Claude Code tool-call acceptance. The user saw plain JSON and no displayed widget; Claude app rendering remains unverified.
 
-1. In `/Users/ransomhorne/Documents/trackr`, run `claude mcp add --transport http axlint https://fast-pulse-rlqvb.run.mcp-use.com/mcp`. Syntax was verified against the installed `claude mcp add --help`.
-2. Start a fresh Claude Code session, open `/mcp`, and confirm `axlint` is connected.
-3. Ask: `Call the axlint ping tool. Show its result and, if this client supports MCP Apps, its platform ping widget.`
-4. Record whether the tool succeeds and whether the widget actually renders. Expected result: `pong: all platform checks passed`. If the tool works but Claude does not render the widget, choose the web-page-first viewer path at the checkpoint. Do not report actual Claude rendering from Inspector screenshots.
+A direct official SDK wire check at 12:54 PM Pacific found the existing deployment already declared `ui://views/ping.html` in both `tools/list._meta.ui.resourceUri` and `tools/call._meta.ui.resourceUri` (plus legacy `ui/resourceUri`). `resources/list` advertised `text/html;profile=mcp-app`, and `resources/read` returned the real 1,259-character HTML shell with same-origin CSP metadata. Plain JSON in the Claude Code display did not establish that the UI resource was undeclared.
 
-The proof sandbox expires around 3:22 PM America/Los_Angeles on October 17. If the human check happens after that, start a fresh spike and update the hosted `AXLINT_SPIKE_RUN_ID`; an expired proof run should report its real failure rather than falsely claim connectivity.
+Version 0.1.1 keeps the native mcp-use View binding, outputSchema and structuredContent, changes model-readable text to a concise status message, and adds an explicit `resource_link` content block for the same MCP App HTML resource on successful calls. The framework still stamps the native result metadata. Error calls do not advertise a successful widget. This makes the UI reference directly inspectable in result content as well as metadata. Local production typecheck and build passed (442 ms build). A real MCP integration check passed at 12:55:58 PM Pacific for server version 0.1.1: native tool/result UI metadata, explicit resource link, readable MCP App HTML, HTTP 200 for widget JavaScript and CSS, and all platform checks. Redeployment and the final hosted wire check are pending below; no Claude rendering success is claimed.
+
+## Reconfirmed independent Blaxel reads
+
+The original launcher exited successfully after starting the detached process. A fresh process run during this follow-up invoked `pnpm exec tsx scripts/blaxel-spike.ts read axlint-spike-1792264922765`; it found the sandbox by ID and read both final files without the original launcher or local state:
+
+```json
+{"run_id":"axlint-spike-1792264922765","process_status":"completed","exit_code":0,"progress":{"status":"complete","ticks":23,"elapsedMs":120008,"startedAt":"2026-10-17T19:22:03.707Z","completedAt":"2026-10-17T19:24:03.715Z"},"result":{"status":"complete","ticks":23,"elapsedMs":120008,"startedAt":"2026-10-17T19:22:03.707Z","completedAt":"2026-10-17T19:24:03.715Z"}}
+```
+
+A second fresh process at 12:54:56 PM Pacific read both files again, 30.87 minutes after completion, and observed status DEPLOYED and `expiresIn:8826` seconds. The accepted three-hour TTL expires around 3:22:02 PM Pacific on October 17. For the observed completion at 12:24:03 PM, the sandbox and files are configured to survive about 2 hours 58 minutes after completion, exceeding the required two hours. These fresh reads directly demonstrate launcher independence and approximately 31 minutes of elapsed persistence; a full two-hour wall-clock read has not yet been performed. Files survive standby and are erased on TTL expiry or explicit deletion. Longer jobs must reserve at least two hours after their maximum duration, with a margin.
+
+To test rendering, reconnect the deployed server in a fresh Claude app conversation and ask it to call ping and display its MCP App widget. The proof sandbox expires around 3:22 PM Pacific; after expiry, start a new spike and update the hosted AXLINT_SPIKE_RUN_ID rather than claiming stale connectivity.

@@ -5,7 +5,7 @@ import { z } from "zod";
 const server = new MCPServer({
   name: "axlint-platform-ping",
   title: "AX Lint Platform Ping",
-  version: "0.1.0",
+  version: "0.1.1",
   description: "AX Lint platform connectivity proof",
   instructions: "Call ping to check outbound HTTPS, secret configuration and Blaxel connectivity.",
 });
@@ -62,7 +62,23 @@ export const ping = server.tool({
   }
   const ok = https.ok && Object.values(secrets).every(Boolean) && sandbox.ok;
   const data = {message:ok ? "pong: all platform checks passed" : "pong: platform checks incomplete or failed", checkedAt:new Date().toISOString(), https, secrets, sandbox};
-  return {content:[{type:"text" as const, text:JSON.stringify(data)}], structuredContent:data, ...(ok ? {} : {isError:true})};
+  // Keep typed render data in structuredContent. Expose the View as an actual
+  // content link too, so clients can discover it without displaying result _meta.
+  // mcp-use stamps the matching ui.resourceUri metadata from the View binding.
+  return {
+    content: [
+      { type: "text" as const, text: data.message },
+      ...(ok ? [{
+        type: "resource_link" as const,
+        uri: "ui://views/ping.html",
+        name: "AX Lint platform ping",
+        description: "Interactive platform connectivity widget",
+        mimeType: "text/html;profile=mcp-app",
+      }] : []),
+    ],
+    structuredContent: data,
+    ...(ok ? {} : { isError: true }),
+  };
 });
 
 export default server;
