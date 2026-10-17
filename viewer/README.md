@@ -63,3 +63,7 @@ Hosted version 0.2.1 was verified at approximately 1:40 PM Pacific. `/mcp` witho
 ## Human Claude app connection confirmation
 
 On October 17, 2026, the user confirmed the Claude app connects successfully with **No sign-in** and the fixed `Authorization: Bearer <token>` request header. This confirms the authenticated connector connection. This reply did not separately confirm calling ping or rendering the widget after authentication; the earlier Lane C widget rendering confirmation remains recorded separately.
+
+## Human authenticated widget and Claude Code acceptance
+
+On October 17, 2026, the user explicitly confirmed all remaining client checks: the Claude app renders the ping widget with the bearer token; `preview_run` renders the verification viewer; and Claude Code shows axlint connected when opened from the trackr folder. This supersedes the earlier pending human checks. The user authorized further fixture-driven viewer polish on `lane/viewer` without touching `src/core/`, with a 2:15 PM report ahead of the 2:30 PM checkpoint.
