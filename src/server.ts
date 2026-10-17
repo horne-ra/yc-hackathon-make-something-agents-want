@@ -1,13 +1,31 @@
 import { MCPServer } from "mcp-use";
 import { SandboxInstance } from "@blaxel/core";
 import { z } from "zod";
+import { acceptsBearer } from "../viewer/auth.js";
 
 const server = new MCPServer({
   name: "axlint-platform-ping",
   title: "AX Lint Platform Ping",
-  version: "0.1.1",
+  version: "0.1.2",
   description: "AX Lint platform connectivity proof",
   instructions: "Call ping to check outbound HTTPS, secret configuration and Blaxel connectivity.",
+});
+
+// Guard the MCP transport on every request, including existing-session calls.
+// Widget JS/CSS are public static code; their render data arrives through MCP.
+server.app.use("*", async (context, next) => {
+  const path = context.req.path;
+  if ((path !== "/mcp" && path !== "/mcp/") || context.req.method === "OPTIONS") return next();
+  const expected = process.env.AXLINT_API_TOKEN;
+  if (!expected || expected.length < 32) {
+    context.header("WWW-Authenticate", 'Bearer realm="axlint"');
+    return context.json({ error: "AX Lint authentication is not configured" }, 401);
+  }
+  if (!acceptsBearer(context.req.header("Authorization"), expected)) {
+    context.header("WWW-Authenticate", 'Bearer realm="axlint"');
+    return context.json({ error: "Unauthorized" }, 401);
+  }
+  return next();
 });
 
 server.get("/health", context => context.json({ status: "healthy" }));
@@ -24,7 +42,7 @@ const outputSchema = z.object({
 function safeError(error: unknown): string {
   const apiError = error as { code?: unknown; error?: unknown } | null;
   let message = error instanceof Error ? error.message : typeof apiError?.error === "string" ? `${String(apiError.code ?? "API error")}: ${apiError.error}` : String(error);
-  for (const key of ["ANTHROPIC_API_KEY", "BL_API_KEY", "MCP_USE_API_KEY"]) {
+  for (const key of ["ANTHROPIC_API_KEY", "BL_API_KEY", "MCP_USE_API_KEY", "AXLINT_API_TOKEN"]) {
     const secret = process.env[key];
     if (secret) message = message.replaceAll(secret, "<redacted>");
   }
