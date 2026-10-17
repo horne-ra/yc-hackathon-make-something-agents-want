@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import { readFile, writeFile, mkdtemp, cp, rm, access } from 'node:fs/promises';
+import { resolve, join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
+import { applyPatch } from 'diff';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+const repo=resolve('vendor/mcp-servers');
+assert.equal(execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8'}).trim(),'bbb701e7ac1e57f3edd1c2836b94c5457eaf7b9c');
+const patch=await readFile('scripts/upstream-filesystem.patch','utf8');
+const draft=await readFile('docs/upstream-pr-filesystem.md','utf8');
+assert.equal(draft.match(/```diff\n([\s\S]*?)```/)?.[1],patch);
+const frozen=(await readFile('scripts/filesystem-evidence/source.patch','utf8')).split('\n').slice(2).join('\n');
+assert.equal(patch.split('\n').slice(3).join('\n'),frozen);
+execFileSync('git',['apply','--check',resolve('scripts/upstream-filesystem.patch')],{cwd:repo,stdio:'pipe'});
+console.log('PASS portable diff applies to pinned base; exact frozen hunks and PR diff agree');
+const copy=await mkdtemp(join(repo,'src/axlint-upstream-draft-'));
+const allowed=await mkdtemp(join(tmpdir(),'axlint-upstream-allowed-'));
+const client=new Client({name:'axlint-upstream-draft-fidelity',version:'1.0.0'});
+try{
+ await cp(join(repo,'src/filesystem'),copy,{recursive:true,filter:path=>!path.includes('/node_modules')&&!path.includes('/dist/')&&!path.endsWith('/dist')});
+ const source=await readFile(join(copy,'server.ts'),'utf8');const changed=applyPatch(source,patch);assert.notEqual(changed,false);await writeFile(join(copy,'server.ts'),changed as string);
+ execFileSync(join(repo,'node_modules/.bin/tsc'),['-p',join(copy,'tsconfig.json')],{stdio:'pipe'});
+ await client.connect(new StdioClientTransport({command:process.execPath,args:[join(copy,'dist/index.js'),allowed],env:{PATH:process.env.PATH??''},stderr:'pipe'}));
+ assert.deepEqual((await client.listTools()).tools,JSON.parse(await readFile('scripts/filesystem-evidence/candidate-tools.json','utf8')));
+ assert.equal(execFileSync('git',['diff','--name-only','HEAD','--','src/filesystem'],{cwd:repo,encoding:'utf8'}),'');
+ console.log('PASS compiled draft tools/list exactly equals frozen candidate: all 14 tools, three description edits, unchanged remaining metadata');
+}finally{await client.close().catch(()=>{});await rm(copy,{recursive:true,force:true});await rm(allowed,{recursive:true,force:true});await assert.rejects(access(copy));await assert.rejects(access(allowed));}
+console.log('PASS temporary source copy removed; original vendor source untouched; zero model calls; no PR opened');
