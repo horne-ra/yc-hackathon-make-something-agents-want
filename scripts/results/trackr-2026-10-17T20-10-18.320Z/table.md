@@ -113,3 +113,16 @@ Model: claude-sonnet-5-5
   }
 ]
 ```
+
+## Per-condition consistency
+
+| Task | Condition | Trials | Disagreement flag | Calls | Outcomes | Result tokens |
+| --- | --- | --- | --- | --- | --- | --- |
+| t1-route | baseline | 1, 2, 3 | no | same | same | same |
+| t1-route | candidate | 1, 2, 3 | no | same | same | same |
+| t2-status | baseline | 1, 2, 3 | no | same | same | same |
+| t2-status | candidate | 1, 2, 3 | no | same | same | same |
+| t3-payload | baseline | 1, 2, 3 | no | same | same | same |
+| t3-payload | candidate | 1, 2, 3 | no | same | same | same |
+| t4-control | baseline | 1, 2, 3 | no | same | same | same |
+| t4-control | candidate | 1, 2, 3 | no | same | same | same |
