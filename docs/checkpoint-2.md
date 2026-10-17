@@ -23,4 +23,14 @@ The actual real-result Inspector capture /private/tmp/axlint-live-result.png was
 
 S4 follow-up: a fresh process read both original proof files from axlint-spike-1792264922765 at130.38 minutes after completion, status DEPLOYED. This directly proves more than two hours of elapsed persistence for the original proof (separate from the new runner's configured4hTTL/30mmax).
 
-Next ordered steps: revert Trackr's S7 patch by a new commit, verify baseline byte-for-byte and new Railway SHA, then stop for the user's Manufact production-branch switch to main. Only afterward verify hosted seven-tool listing/ping and run the three consecutive propose/verify stability checks. The user runs S8 from Claude Code.
+Trackr baseline restoration passed after pushing revert commit f9b6c2beae2ec8c5774a7b902349618052582f2f (reverts ad3eca26118f1c221e3f2ff01865f1e1bc8aa73d; no history rewrite). src/tools.ts has no diff from baseline commit91b0484. Railway verification output:
+
+```text
+Railway server version: trackr-demo-001@f9b6c2beae2ec8c5774a7b902349618052582f2f
+PASS all three baseline descriptions byte-for-byte; parameter descriptions absent
+PASS full tools hash: sha256:df53e86195ee4202079dc899964072aa655d72e1b3b0c81fdd3db03c6e7737d5
+```
+
+Stopped at the requested step3: the user must switch Manufact's production deployment branch to main. Hosted seven-tool listing/ping and the three consecutive propose/verify stability runs remain pending that confirmation. No stability run or patch application has occurred; Trackr remains baseline. The user will run S8 from Claude Code.
+
+Lane H is complete and pushed separately on lane/filesystem at539476234c123ad94eda208f2c4dc34460286a98; it is not merged. Its preregistered benchmark reports Improved, scored passes4/9→9/9, result tokens2,107,401→4,911 (−99.77%), static tokens3,143→3,315. All24 trials and consistency flags are in docs/filesystem-results.md on that branch. Source fidelity, read-only dispatch and fresh process/fixture isolation passed. No new dependency or package/lockfile edit was required. The baseline fs-tests group disagreed; its one passing trial is retained. Candidate fs-tests outcomes agreed while token counts varied with paths. No Yahoo Finance benchmark was started.
