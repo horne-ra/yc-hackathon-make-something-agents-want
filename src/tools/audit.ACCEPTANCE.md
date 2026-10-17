@@ -35,3 +35,39 @@ server.tool(confirm.definition, async input => jsonResult(await confirm.handler(
 ```
 
 `readRun` is injected and matches core GetVerificationResultOutputSchema. No imports of another worktree or unmerged implementation. All tools are read-only with respect to target and repository. `proposePatch` returns source edits and never writes them. The acceptance harness may write sanitized JSON evidence and the temporary shared candidate file.
+
+## Live audit/proposal/fidelity milestone (2:14 PM Pacific)
+
+Root verified `horne-ra/trackr` is public (`isPrivate:false`), correcting the approval review's premise. The same direct request was accepted on retry with that evidence. Three already-public Trackr source files were sent to the explicitly configured Anthropic provider; no .env or credentials were included.
+
+Preserved failures, not hidden:
+
+1. `propose.failed-forced-tool.json`: provider HTTP400, forced tool_choice `tool`/`any` unsupported by this model. Switched to default auto selection.
+2. `propose.failed-oneof-schema.json`: provider HTTP400, strict schema `oneOf` unsupported. Used `anyOf` for the disjoint operation variants; local strict Zod validation remains authoritative. Provider schema support: https://platform.claude.com/docs/en/build-with-claude/structured-outputs.
+3. `propose.superseded-audit-order.json` and `propose.superseded-audit-attempts.json`: first generated patch mechanically passed fidelity, but audit metadata had been sorted before finding assignment, making F2 point to get_issue.id. This missed the specified status finding and touched the control parameter. Rejected for S7; original patch is preserved at `/private/tmp/axlint-phase2-proposed-patch.json`. E had already started one 24-trial sandbox run on it; the run stays recorded and is not approved for apply.
+
+Fix: preserve real tools/list order for deterministic audit; canonicalize only for hashes and comparisons. Live assertions now require F2=list_issues.status and F3=list_issues.include_comments. The corrected proposal's control is untouched.
+
+Corrected live evidence: `propose.live-evidence.json`, `propose.attempts.json`. Shared corrected PatchSpec `/private/tmp/axlint-phase2-proposed-patch-v2.json` (the original candidate is not overwritten).
+
+```text
+PASS live audit: F1–F3
+server_version=trackr-demo-001@91b048476d764329df779e5662f9ca4952361397
+base_tools_hash=sha256:df53e86195ee4202079dc899964072aa655d72e1b3b0c81fdd3db03c6e7737d5
+PROPOSAL attempt 1: accepted
+PASS compact proposal: 5 description ops, 5 deterministic edits, 0 warnings, static 651 → 955
+PASS exact wire description: list_issues
+PASS exact wire description: search_issues
+PASS exact wire description: list_issues.status
+PASS exact wire description: list_issues.include_comments
+PASS exact wire description: search_issues.include_comments
+PASS source fidelity: real mcp-use tools/list equals baseline plus wire_ops; all non-description metadata unchanged
+PASS cleanup: temporary trackr source and server processes removed
+pnpm typecheck: exit 0
+Test Files 3 passed (3)
+Tests 57 passed (57)
+```
+
+An added provider-response retry test initially failed TypeScript because its mock omitted the current SDK's required `caller` field; corrected mock to `caller:{type:'direct'}`. Actual retry checks now pass for missing, multiple and wrong tool submissions. Provider/network errors and token-count failures do not trigger new proposals. There is no temperature field in any production request.
+
+The remaining S7 acceptance is the real before/after confirm using E's stored approved run and root's serialized apply/redeploy. No Trackr source/deployment mutation has been performed by this lane.

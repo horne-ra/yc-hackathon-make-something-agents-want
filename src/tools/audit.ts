@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { randomUUID } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { AuditInputSchema, AuditSchema, ToolsSchema, auditTools, canonicalize, hashTools, parameterSummaries, type Tool } from '../core/index.js';
+import { AuditInputSchema, AuditSchema, ToolsSchema, auditTools, hashTools, parameterSummaries, type Tool } from '../core/index.js';
 
 export type Metadata = { server_version: string; tools: Tool[] };
 export type AuditDependencies = { readMetadata?: (url: string) => Promise<Metadata>; countStaticTokens?: (tools: Tool[]) => Promise<number> };
@@ -16,7 +16,7 @@ export async function readMetadata(url: string): Promise<Metadata> {
     do { const page = await client.listTools(cursor ? { cursor } : {}); tools.push(...ToolsSchema.parse(page.tools)); cursor = page.nextCursor; } while (cursor);
     const version = client.getServerVersion()?.version;
     if (!version) throw new Error('missing_server_version: initialize did not report serverInfo.version');
-    return { server_version: version, tools: canonicalize(ToolsSchema.parse(tools)) };
+    return { server_version: version, tools: ToolsSchema.parse(tools) };
   } finally { await client.close().catch(() => {}); }
 }
 export const providerTools = (tools: Tool[]): Anthropic.Tool[] => tools.map(t => ({ name: t.name, description: t.description ?? '', input_schema: t.inputSchema as Anthropic.Tool.InputSchema }));
