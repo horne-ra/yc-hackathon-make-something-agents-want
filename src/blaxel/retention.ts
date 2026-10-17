@@ -6,9 +6,10 @@ export const WORKSPACE_CAPACITY=10;
 function configuredCapacity(){const value=Number(process.env.AXLINT_SANDBOX_CAPACITY??WORKSPACE_CAPACITY);if(!Number.isInteger(value)||value<1)throw new RunStartError('invalid_capacity_configuration','AXLINT_SANDBOX_CAPACITY must be a positive integer matching the Blaxel workspace quota.');return value;}
 // At most 14 minutes from creation to termination leaves >2h in a 2h15m VM.
 export const RUN_DEADLINE_MS=14*60*1000;
-export type RetainedSandbox={name:string;createdAt?:string;status?:string};
+export type RetainedSandbox={name:string;createdAt?:string;status?:string;shared?:boolean};
 export type Completion={processStatus?:string;completedAt?:string;resultStatus?:string;progressStatus?:string};
 export function eligibleForCleanup(sandbox:RetainedSandbox,completion:Completion,now:number):boolean {
+ if(sandbox.shared)return false;
  if(!/^axlint-run-[a-z0-9-]+$/.test(sandbox.name))return false;
  const created=Date.parse(sandbox.createdAt??''),completed=Date.parse(completion.completedAt??'');
  return Number.isFinite(created)&&Number.isFinite(completed)&&created<=completed&&now-created>RETENTION_MS&&now-completed>RETENTION_MS&&completion.processStatus==='completed'&&completion.resultStatus==='complete'&&completion.progressStatus!=='queued'&&completion.progressStatus!=='running';
@@ -42,7 +43,7 @@ export async function ensureRunCapacity(deps:RetentionDependencies=productionRet
  throw new RunStartError('capacity_exhausted',`Blaxel sandbox capacity is exhausted (${occupied}/${capacity}). No completed AX Lint run older than two hours can be safely removed. Wait for expiry, or increase the workspace quota and set AXLINT_SANDBOX_CAPACITY to match; queued, running, recent runs and the proof sandbox are protected.`);
 }
 export const productionRetention:RetentionDependencies={
- async list(){const rows:RetainedSandbox[]=[];for await(const s of await SandboxInstance.list({limit:100}))rows.push({name:s.metadata.name!,createdAt:s.metadata.createdAt,status:s.status});return rows;},
+ async list(){const rows:RetainedSandbox[]=[];for await(const s of await SandboxInstance.list({limit:100}))rows.push({name:s.metadata.name!,createdAt:s.metadata.createdAt,status:s.status,shared:s.metadata.labels?.axlint_role==='shared-runner'});return rows;},
  async completion(name){
   const s=await SandboxInstance.get(name);
   const [p,result,progress]=await Promise.all([s.process.get('axlint-verification'),s.fs.read('/app/axlint-run/result.json'),s.fs.read('/app/axlint-run/progress.json')]);

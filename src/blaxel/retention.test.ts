@@ -39,3 +39,4 @@ describe('provider errors',()=>{
  it('never emits object coercion, including cyclic diagnostics',()=>{const value:{error?:unknown}={};value.error=value;for(const error of [value,{},null,new Error('[object Object]'),{error:{message:'Request failed: [object Object]'}},{error:{message:'offline'}}])expect(errorMessage(error)).not.toContain('[object Object]');expect(errorMessage({error:{message:'offline'}})).toContain('offline');});
  it('redacts environment secrets from diagnostics',()=>{process.env.AXLINT_TEST_TOKEN='test-only-private-value';try{expect(errorMessage({message:'Failed test-only-private-value'})).toBe('Failed <redacted>');}finally{delete process.env.AXLINT_TEST_TOKEN;}});
 });
+describe('shared pool migration protection',()=>{it('never retires an adopted shared runner through legacy sandbox cleanup',()=>{expect(eligibleForCleanup({...sandbox,shared:true},completed,now)).toBe(false);});});

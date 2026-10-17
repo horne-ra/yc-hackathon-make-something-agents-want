@@ -2,22 +2,22 @@ import {SandboxInstance} from "@blaxel/core";
 import {z} from "zod";
 import {ToolsSchema,PatchSpecSchema,TasksSchema,TrialSchema,ConfirmPatchOutputSchema,provisionalLabel,auditTools,type Tool,type Trial} from "../src/core/index.js";
 import type {GetVerificationResultOutput} from "../src/blaxel/runs.js";
-import {RUN_DIRECTORY} from "../src/blaxel/runs.js";
+import {resolveRunId} from "../src/blaxel/run-location.js";
 import {RunPresentationSchema,type RunPresentation} from "./presentation.js";
 const ContextSchema=z.object({baseline_tools:ToolsSchema,patch:PatchSpecSchema,tasks:TasksSchema,model:z.string(),trials:z.number(),server_version:z.string(),static_tool_tokens:z.object({baseline:z.number(),candidate:z.number()})});
 const ProgressFileSchema=z.object({trials:z.array(z.object({task_id:z.string(),trial:TrialSchema})),progress:z.object({done:z.number(),total:z.number()})});
 export type RunArtifacts={context?:z.infer<typeof ContextSchema>;progress?:z.infer<typeof ProgressFileSchema>;confirmation?:z.infer<typeof ConfirmPatchOutputSchema>};
 export async function readRunArtifacts(runId:string):Promise<RunArtifacts>{
- if(!/^axlint-run-[a-z0-9-]{1,64}$/.test(runId))return {};
- const sandbox=await SandboxInstance.get(runId);
- const optional=async(name:string,schema:z.ZodType)=>{try{return schema.parse(JSON.parse(await sandbox.fs.read(`${RUN_DIRECTORY}/${name}.json`)))}catch{return undefined}};
+ const location=resolveRunId(runId);if(!location)return {};
+ const sandbox=await SandboxInstance.get(location.sandbox);
+ const optional=async(name:string,schema:z.ZodType)=>{try{return schema.parse(JSON.parse(await sandbox.fs.read(`${location.directory}/${name}.json`)))}catch{return undefined}};
  const [context,progress,confirmation]=await Promise.all([optional("context",ContextSchema),optional("progress",ProgressFileSchema),optional("confirm",ConfirmPatchOutputSchema)]);
  return {context,progress,confirmation} as RunArtifacts;
 }
 export async function saveRunConfirmation(runId:string,value:unknown){
- if(!/^axlint-run-[a-z0-9-]{1,64}$/.test(runId))return;
- const parsed=ConfirmPatchOutputSchema.parse(value);const sandbox=await SandboxInstance.get(runId);
- await sandbox.fs.write(`${RUN_DIRECTORY}/confirm.json`,JSON.stringify(parsed));
+ const location=resolveRunId(runId);if(!location)return;
+ const parsed=ConfirmPatchOutputSchema.parse(value);const sandbox=await SandboxInstance.get(location.sandbox);
+ await sandbox.fs.write(`${location.directory}/confirm.json`,JSON.stringify(parsed));
 }
 const summary=(rows:Trial[])=>({passed:rows.filter(t=>t.passed).length,of:rows.filter(t=>t.failure!=="infra").length,result_tokens:rows.reduce((n,t)=>n+t.result_tokens,0)});
 const description=(tool:Tool|undefined,param?:string)=>{if(!tool)return "Unavailable";if(!param)return tool.description??"No tool description";const props=tool.inputSchema.properties as Record<string,{description?:string}>|undefined;return props?.[param]?.description??"No parameter description"};

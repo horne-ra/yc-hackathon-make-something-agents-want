@@ -7,7 +7,7 @@ import {startRun} from './runs.js';
 import {RUN_DEADLINE_MS} from './retention.js';
 const input=JSON.parse(readFileSync('runner/evidence/corrected-input.json','utf8'));
 beforeEach(()=>{
- vi.resetAllMocks();vi.useFakeTimers({now:0});
+ vi.resetAllMocks();vi.stubEnv('AXLINT_RUNNER_MODE','per-run');vi.useFakeTimers({now:0});
  for(const key of ['BL_API_KEY','BL_WORKSPACE','ANTHROPIC_API_KEY','AXLINT_MODEL'])vi.stubEnv(key,'test-only-value');
  mock.list.mockResolvedValue({async *[Symbol.asyncIterator](){}});
  mock.create.mockResolvedValue({fs:{writeTree:mock.write},process:{exec:mock.exec}});

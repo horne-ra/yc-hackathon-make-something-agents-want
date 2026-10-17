@@ -134,3 +134,35 @@ The user then explicitly confirmed authenticated ping-widget rendering and `prev
 ## Empirical two-hour retention follow-up
 
 During Checkpoint2 integration on October17, a fresh independent process found axlint-spike-1792264922765 by ID and read both progress.json and result.json at130.38 minutes after completion, with sandbox status DEPLOYED. The original launcher was long gone. This closes the earlier full two-hour elapsed-read gap; the configured three-hour creation TTL remains unchanged.
+
+## Shared runner pool (ordered follow-up C, October 17)
+
+The default verifier now uses a long-lived shared sandbox discovered by `axlint_role=shared-runner`, with `axlint_pool=1` (a secondary is created only when the primary's atomic reservation reports full). `AXLINT_MAX_CONCURRENT_RUNS` defaults to 4 per sandbox. There are at most two shared pools. Fresh pools have at least 1024 MB; the default four-process budget is 256 MB per run. Sandbox TTL is cleared: lifecycle retention is now per run directory, not VM lifetime.
+
+At the existing 10/10 quota, the completed milestone sandbox `axlint-run-f2f5be10-367e-4cd5-8614-cb0658fa3e2d` was safely reused under that label. Its existing `/app/axlint-run/` files were preserved. No VM was deleted or resized, no young per-run sandbox was retired, and no additional slot was required. Shared pools are protected from the legacy part-A cleanup. Legacy per-run sandboxes otherwise retain their old TTL and part-A retirement rules.
+
+New opaque IDs have format `axlint-v2.<base64url sandbox name>.<UUID>` and resolve without local server state. Each process has `/runs/<run_id>/input.json`, its own runner payload and context/progress/result files, plus a small lifecycle lease. A filesystem-exclusive allocator lock coordinates callers across server processes and limits queued/running leases. The worker records terminal completion; a dead worker can be recognized as failed without discarding partial progress. Pre-launch upload failures become terminal leases, while ambiguous launches remain protected. The allocator sweeps only complete/failed directories more than **2h15m after completion**, never queued/running or young directories. It runs at pool initialization and on every verify_patch allocation.
+
+**If a shared sandbox is lost, its run files are gone.** `get_verification_result` reports `run_unavailable` for an unreachable shared sandbox, and `run_expired` for a missing run directory. New verifications create a replacement pool if necessary. There is no independent durable object store in this design. The recorded S8 fallback remains committed in the repository. Old-format IDs still resolve to their original directory while their sandboxes exist. confirm_patch and the MCP App viewer use the same new/legacy resolver. Setting `AXLINT_RUNNER_MODE=per-run` retains the part-A launch fallback.
+
+C began at 22:49 UTC with a one-hour limit. First, two local acceptance harness startups failed before any verification launch because the source entry had not primed MCP App views. Both failure records are retained under `scripts/results/shared-runner-2026-10-17T22-55-19.700Z/` and `...22-56-02.827Z/`. Loading the production build entry corrected the harness.
+
+The first real pair then completed in one sandbox: both Improved, 9/12 → 12/12, 24 schema-valid trials each. The actual AX Lint OS process was killed while a verification process was running, then a new AX Lint PID polled the same IDs successfully. Its warm launch was 1474.6 ms. Replacing the allocator's coarse synchronous wait with direct process polling produced a second complete pair; all four runs and every failed baseline trial are preserved, not substituted.
+
+Final pair evidence: `scripts/results/shared-runner-2026-10-17T22-57-44.693Z/`.
+
+```text
+Typecheck PASS; full suite 12 files / 130 tests PASS; production build PASS
+Launch 1 1082.6 ms; warm launch 2 928.4 ms
+RUN 1 COMPLETE: Improved; 9/12 → 12/12; 24 schema-valid trials
+RUN 2 COMPLETE: Improved; 9/12 → 12/12; 24 schema-valid trials
+PASS AX Lint killed mid-run and restarted with a different PID; independent Blaxel work preserved
+PASS same sandbox, distinct run directories and process names
+PASS missing run directory: run_expired
+PASS unapplied new-format run confirmation: revision_mismatch (correct; no patch applied)
+Workspace: 10 sandboxes, 1 shared pool, 0 free VM slots
+Trackr: trackr-demo-001@ad88596baf761ec9b44abd019d3e8a90f84ceb96
+Tools hash: sha256:df53e86195ee4202079dc899964072aa655d72e1b3b0c81fdd3db03c6e7737d5
+```
+
+The 928.4 ms observed warm launch is within the previous hosted range, 894.4–997.1 ms (mean 949.8 ms), from docs/stability-results.md. This is one launch measurement, not a statistical speed claim. The first final-pair launch exceeded one second; warm launch met the earlier S6 target. Real VM loss was not induced because that would destroy recent runs; recreation and status behavior are unit-tested. Hosted deployment and Claude/native widget evidence are recorded next when complete.
