@@ -98,4 +98,3 @@ mcp-read axlint-run-not-a-real-run nonexistent-poll.json
 ```
 
 S6 acceptance: **all three checks pass**: actual MCP start/poll complete24 with valid schema; stale→failed/stale_patch; nonexistent→run_expired plus process restart while running loses nothing. Under-one-second launch passes after the recorded fix. No S6 check was skipped. Hosted production registration/deployment belongs to Checkpoint 2 / S8, not this lane. Two-hour retention is guaranteed by the configured lifetime budget (4-hour TTL,30-minute maximum runner); a two-hour elapsed read was not waited for in S6. No new dependencies, no secret-bearing files, no production registration, and no core edits.
-
