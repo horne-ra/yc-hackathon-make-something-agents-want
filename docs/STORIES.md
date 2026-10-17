@@ -41,7 +41,7 @@ A story is done only when its checks pass. Items marked **(you)** need a person.
 - Ask the organizers what may be prepared before Saturday 10:30 AM.
 - Read your invention-assignment agreement and any personal open-source policy.
 - Create personal accounts for Manufact Cloud, Blaxel, the model provider and GitHub; keys in a local `.env` that's gitignored.
-- Pick the pinned model ID and confirm it accepts temperature 0 with tools.
+- Pick the pinned model ID and confirm it accepts the temperature parameter omitted for Sonnet 5.5 with tools.
 
 **Done when:** you know what may be prebuilt, accounts exist, and the model ID is recorded in the spec.
 
@@ -66,7 +66,7 @@ The target server and its data, per the spec section "The target: `trackr`". Fix
 
 Three scripts that answer the riskiest questions before any AX Lint code exists, including whether a real server can replace `trackr` as the demo target.
 
-- `scripts/hand-run.ts` (in `axlint`, pointed at `trackr`'s Railway URL): runs the spec's four tasks, 3 times each, against the baseline and a hand-applied version of the compact patch, with the spec's system prompt, temperature 0, single turn. Prints chosen tool, arguments, pass/fail and result tokens for all 24 trials.
+- `scripts/hand-run.ts` (in `axlint`, pointed at `trackr`'s Railway URL): runs the spec's four tasks, 3 times each, against the baseline and a hand-applied version of the compact patch, with the spec's system prompt, the temperature parameter omitted for Sonnet 5.5, single turn. Prints chosen tool, arguments, pass/fail and result tokens for all 24 trials.
 - `scripts/fidelity.test.ts` (in `trackr`, taking a patch file as input): applies the compact patch's source edits to a copy of `trackr`, starts it, and asserts `tools/list` descriptions equal the patch values exactly. Record what mcp-use emits for a `.describe()` on an optional parameter.
 
 - **Real-server benchmark** (`scripts/hand-run-memory.ts`): the official MCP Knowledge Graph Memory reference server, cloned at pinned commit `bbb701e`, run locally over stdio with a seeded fictional graph large enough that `read_graph` is expensive. Baseline versus a hand-written compact patch to the three read-tool descriptions. Rules:

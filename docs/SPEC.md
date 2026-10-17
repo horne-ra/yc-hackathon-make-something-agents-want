@@ -2,6 +2,8 @@
 
 Oct 13, 2026 · Ransom Horne · v3, frozen for implementation
 
+**Authorized implementation update, Oct 17:** `AXLINT_MODEL=claude-sonnet-5-5`. Anthropic recognizes this model but rejects `temperature: 0` with HTTP 400, "temperature is deprecated for this model." The user authorized omitting the parameter. Both conditions use the model default sampling behavior; no temperature value is claimed in run config. All 24 original rejected memory trials remain recorded. All other frozen requirements remain in force.
+
 ## The rule
 
 AX Lint verifies a candidate interface. The coding agent may apply it only after the verifier shows the candidate improves observed agent behavior without violating the interface contract. The final source must then reproduce the verified interface exactly.
@@ -301,7 +303,6 @@ Never return an empty or missing result silently; every poll maps to one of thes
   "label": "Provisional: 3 trials per condition. A demonstration, not a statistical claim.",
   "config": {
     "model": "<pinned model id>",
-    "temperature": 0,
     "trials": 3,
     "server_version": "trackr-demo-001@abc1234",
     "tasks_hash": "sha256:…",
@@ -420,7 +421,7 @@ Closes the gap between what was verified and what ships. Called after the coding
     - System prompt, verbatim: "You are an assistant with access to an issue tracker. Use the available tools to help the user."
     - User message: the task prompt.
     - Tools: the condition's list, converted to the provider's tool format.
-    - Temperature 0, tool choice automatic, max 300 output tokens.
+    - Omit the temperature parameter for Sonnet 5.5, tool choice automatic, max 300 output tokens.
 5. Take the first tool call as the trial's answer and any preceding text as `model_text`. No tool call means `no_tool_call`.
 6. Score the call against `expect` with the matchers. Wrong tool is `wrong_tool`; right tool with a failed argument check is `bad_args`. Generate `explanation`.
 7. Execute the chosen call against the real server and count `result_tokens`. The result is not sent back to the model; trials are single-turn.
@@ -502,7 +503,7 @@ If Friday prep isn't allowed, the deterministic core moves into block 1 and bloc
 
 - [ ] Does the Blaxel job lifecycle work from a Manufact Cloud deployment, and what are the sandbox timeout and expiry?
 - [ ] What exactly does mcp-use emit in `tools/list` for a Zod `.describe()` on an optional parameter?
-- [ ] Which pinned model ID is the default, and does it accept temperature 0 with tools?
+- [ ] Which pinned model ID is the default, and does it accept the temperature parameter omitted for Sonnet 5.5 with tools?
 - [ ] Does the provider's token-counting endpoint accept a tools list without a real conversation?
 - [ ] Does mcp-use let a server set `serverInfo.version` from an environment variable?
 
