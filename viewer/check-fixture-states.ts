@@ -12,6 +12,8 @@ assert.equal((ready.match(/class="trial-cell fail"/g)??[]).length,3);
 assert(ready.includes("10,408")&&ready.includes("441"));
 assert.equal((ready.match(/Fixture pass/g)??[]).length,4);
 assert(ready.includes("removed-word")&&ready.includes("added-word"));
+assert.equal((ready.match(/class="empty-description"/g)??[]).length,2);
+assert(!ready.includes('class="removed-word">No parameter description'));
 const running=render(fixturePresentation("running"));
 assert(running.includes('class="verdict-panel awaiting"'));
 assert(running.includes("Waiting for all trials"));
