@@ -31,14 +31,15 @@ export async function runVerification(raw:unknown,runId:string,files:RunFiles):P
     if(!model)throw new Error('missing_model: Set AXLINT_MODEL to the pinned model ID');
     const provider=new Anthropic({apiKey:process.env.ANTHROPIC_API_KEY,maxRetries:0,timeout:60_000});
     await metadata.connect(new StreamableHTTPClientTransport(new URL(input.server_url)));
-    const baseline=canonicalize(ToolsSchema.parse((await metadata.listTools()).tools));
+    const liveTools=ToolsSchema.parse((await metadata.listTools()).tools);
+    const baseline=canonicalize(liveTools);
     const serverVersion=metadata.getServerVersion()?.version;
     if(!serverVersion)throw new Error('missing_server_version: Target does not report serverInfo.version');
     if(hashTools(baseline)!==input.patch.base_tools_hash)throw new Error('stale_patch: Live tools/list differs from patch.base_tools_hash');
     const candidate=canonicalize(input.patch.candidate_tools);
     if(hashTools(candidate)!==input.patch.candidate_tools_hash)throw new Error('candidate_hash_mismatch: Stored candidate hash does not match');
     if(hashTools(applyWireOps(baseline,input.patch.wire_ops))!==input.patch.candidate_tools_hash)throw new Error('candidate_ops_mismatch: Candidate differs from validated description operations');
-    const findings=auditTools(baseline);
+    const findings=auditTools(liveTools);
     const countBase={model,system:SYSTEM,messages:[{role:'user' as const,content:'Count.'}]};
     const without=(await provider.messages.countTokens(countBase)).input_tokens;
     const staticCounts=await Promise.all([baseline,candidate].map(async tools=>(await provider.messages.countTokens({...countBase,tools:providerTools(tools)})).input_tokens-without));

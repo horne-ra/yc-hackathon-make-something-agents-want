@@ -36,7 +36,8 @@ if(mode==='prepare'){
  const client=new Client({name:'s6-acceptance-client',version:'1'});await client.connect(new StreamableHTTPClientTransport(new URL(url)));
  try{
   if(mode==='mcp-read'){
-   const response=await client.callTool({name:'get_verification_result',arguments:{run_id:argument}});const data=GetVerificationResultOutputSchema.parse(response.structuredContent);
+   const runId=argument==='latest'?JSON.parse(await readFile(resolve(output,'launch.json'),'utf8')).run_id:argument;
+   const response=await client.callTool({name:'get_verification_result',arguments:{run_id:runId}});const data=GetVerificationResultOutputSchema.parse(response.structuredContent);
    await writeFile(resolve(output,extra??'last-poll.json'),JSON.stringify(data,null,2));console.log(JSON.stringify(data.status==='complete'?{status:data.status,progress:data.progress,totals:data.result.totals,verdict:data.result.verdict,server_version:data.result.config.server_version}:data));
   }else{
    const input=JSON.parse(await readFile(resolve(output,'input.json'),'utf8'));if(mode==='mcp-stale')input.patch.base_tools_hash='sha256:'+'0'.repeat(64);
