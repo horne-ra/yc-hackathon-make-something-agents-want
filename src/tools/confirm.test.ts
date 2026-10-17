@@ -1,0 +1,20 @@
+import { readFileSync } from 'node:fs';
+import { describe, it, expect } from 'vitest';
+import { confirmPatch } from './confirm.js';
+import { VerificationResultSchema, hashTools } from '../core/index.js';
+const result = VerificationResultSchema.parse(JSON.parse(readFileSync(new URL('../../viewer/fixtures/result.json', import.meta.url), 'utf8')));
+result.config.server_version = 'trackr-demo-001@baseline';
+result.verdict = 'improved';
+result.config.candidate_tools_hash = hashTools(result.candidate_tools);
+const input = { server_url: 'https://trackr.test/mcp', run_id: result.run_id, expected_revision: 'patched' };
+const run = { status: 'complete' as const, progress: { done: 24, total: 24 }, result };
+const readRun = async () => run;
+const metadata = { server_version: 'trackr-demo-001@patched', tools: result.candidate_tools };
+describe('S7 ordered confirm gates', () => {
+ it('rejects Inconclusive before touching live target', async () => { const actual = await confirmPatch(input, { readRun: async () => ({ ...run, result: { ...result, verdict: 'inconclusive' } }), readMetadata: async () => { throw new Error('must not call target'); } }); expect(actual.error).toBe('run_not_approved'); expect(Object.values(actual.gates)).toEqual([false, false, false, false]); });
+ it('rejects a running run at gate one', async () => { const actual = await confirmPatch(input, { readRun: async () => ({ status: 'running', progress: { done: 1, total: 24 } }) }); expect(actual.error).toBe('run_not_approved'); });
+ it('rejects another deployment before revision check', async () => { const actual = await confirmPatch(input, { readRun, readMetadata: async () => ({ ...metadata, server_version: 'other@patched' }) }); expect(actual.error).toBe('wrong_deployment'); expect(actual.gates.same_deployment).toBe(false); });
+ it('rejects unchanged baseline even when expected_revision names it', async () => { const actual = await confirmPatch({ ...input, expected_revision: 'baseline' }, { readRun, readMetadata: async () => ({ ...metadata, server_version: 'trackr-demo-001@baseline' }) }); expect(actual.error).toBe('revision_mismatch'); expect(actual.gates.revision_updated).toBe(false); });
+ it('compares all non-description fields and reports exact JSON paths', async () => { const tools = structuredClone(metadata.tools); tools.find(t => t.name === 'list_issues')!.inputSchema.additionalProperties = true; const actual = await confirmPatch(input, { readRun, readMetadata: async () => ({ ...metadata, tools }) }); expect(actual.match).toBe(false); expect(actual.gates.revision_updated).toBe(true); expect(actual.diffs.some(d => d.path === 'tools.list_issues.inputSchema.additionalProperties')).toBe(true); });
+ it('passes every gate only for new revision and exact candidate', async () => { const actual = await confirmPatch(input, { readRun, readMetadata: async () => metadata }); expect(actual.match).toBe(true); expect(Object.values(actual.gates)).toEqual([true, true, true, true]); expect(actual.diffs).toEqual([]); });
+});
