@@ -1,0 +1,152 @@
+import assert from 'node:assert/strict';
+import { readFile, writeFile, access } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import { evaluateVerdict, hashTools, ToolsSchema, type ConditionSummary } from '../src/core/index.js';
+import { summarizeConsistency, type Trial } from './hand-run-common.js';
+
+type Summary = { task_id: string; control: boolean; unscored: boolean; baseline: ConditionSummary & { result_tokens: number }; candidate: ConditionSummary & { result_tokens: number } };
+type Report = { status: string; model: string; temperature: string; system: string; max_tokens: number; tool_choice: string; shuffle_seed: number; concurrency: number; tasks: unknown[]; provenance: { patch: unknown }; baseline_tools: Tool[]; candidate_tools: Tool[]; static_tool_tokens: { baseline: number; candidate: number; approximate: boolean }; trials: Trial[]; summary: Summary[]; server_identity?: unknown };
+const paths = {
+  memory: { sonnet: 'scripts/results/memory-2026-10-17T19-34-10.561Z/result.json', haiku: 'scripts/results/memory-2026-10-17T21-41-09.662Z/result.json' },
+  trackr: { sonnet: 'scripts/results/trackr-2026-10-17T20-10-18.320Z/result.json', haiku: 'scripts/results/trackr-2026-10-17T21-41-08.977Z/result.json' },
+};
+const number = (value: number) => value.toLocaleString('en-US');
+const arrow = (a: number, b: number) => `${number(a)} → ${number(b)}`;
+const totals = (report: Report, condition: 'baseline' | 'candidate', scoredOnly: boolean) => report.summary.filter(s => !scoredOnly || !s.unscored).reduce((sum, s) => sum + s[condition].result_tokens, 0);
+const passes = (report: Report, condition: 'baseline' | 'candidate') => {
+  const rows = report.summary.filter(s => !s.unscored);
+  return `${rows.reduce((sum, s) => sum + s[condition].passed, 0)}/${rows.reduce((sum, s) => sum + s[condition].of, 0)}`;
+};
+function verdict(report: Report) {
+  return evaluateVerdict(report.summary.filter(s => !s.unscored).map(s => ({ id: s.task_id, control: s.control, baseline: s.baseline, candidate: s.candidate })));
+}
+const title = (value: string) => value[0].toUpperCase() + value.slice(1);
+const flag = (item: ReturnType<typeof summarizeConsistency>[number]) => !item.disagree ? 'agree' : [item.call_disagreement && 'calls', item.outcome_disagreement && 'outcomes', item.result_token_disagreement && 'tokens'].filter(Boolean).join(', ');
+type Rate = { input_usd_per_million_tokens: number; output_usd_per_million_tokens: number; input_usd_per_token: number; output_usd_per_token: number; prompt_tokens_up_to?: number };
+const pricing = JSON.parse(await readFile('scripts/cross-model-evidence/pricing.json', 'utf8')) as { source_url: string; accessed_date: string; models: Record<string, Rate> };
+const costEvidence: Record<string, unknown> = { pricing_source: pricing.source_url, pricing_accessed_date: pricing.accessed_date, currency: 'USD', estimate: true, averaging_scope: 'scored trials only; each trial is one task attempt; includes failed attempts', servers: {} };
+const usd = (value: number) => `$${value.toFixed(9)}`;
+const mean = (value: number) => value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function costCell(report: Report, condition: 'baseline' | 'candidate') {
+  const unscored = new Set(report.summary.filter(s => s.unscored).map(s => s.task_id));
+  const rows = report.trials.filter(t => t.condition === condition && !unscored.has(t.task_id));
+  const rate = pricing.models[report.model];
+  assert.ok(rate, 'Verified pricing entry required');
+  assert.equal(Math.round(rate.input_usd_per_token * 1_000_000_000), Math.round(rate.input_usd_per_million_tokens * 1000));
+  assert.equal(Math.round(rate.output_usd_per_token * 1_000_000_000), Math.round(rate.output_usd_per_million_tokens * 1000));
+  const sum = (field: 'input_tokens' | 'output_tokens' | 'result_tokens') => rows.reduce((total, row) => total + row[field], 0);
+  for (const row of rows) {
+    assert.ok(Number.isSafeInteger(row.input_tokens) && row.input_tokens > 0);
+    assert.ok(Number.isSafeInteger(row.output_tokens) && row.output_tokens > 0);
+    if (rate.prompt_tokens_up_to !== undefined) assert.ok(row.input_tokens <= rate.prompt_tokens_up_to, 'Do not silently price a long-context request at the lower Haiku tier');
+  }
+  const passed = rows.filter(t => t.passed).length;
+  const input = sum('input_tokens'), output = sum('output_tokens'), result = sum('result_tokens');
+  // Integer nanodollars keep finite-decimal price arithmetic exact before division.
+  const input_nanos = Math.round(rate.input_usd_per_token * 1_000_000_000);
+  const output_nanos = Math.round(rate.output_usd_per_token * 1_000_000_000);
+  const total_cost = (input * input_nanos + output * output_nanos) / 1_000_000_000;
+  return { model: report.model, condition, trials: rows.length, passes: passed, total_input_tokens: input, total_output_tokens: output, total_result_tokens: result, mean_input_tokens: input / rows.length, mean_output_tokens: output / rows.length, mean_result_tokens: result / rows.length, max_input_tokens: Math.max(...rows.map(t => t.input_tokens)), estimated_cell_cost_usd: total_cost, estimated_cost_per_success_usd: passed ? total_cost / passed : null };
+}
+const output: string[] = [
+  '# Cross-model benchmark: Sonnet 5.5 versus Haiku 5.5', '',
+  '**The patch mattered more for Haiku on Trackr:** scored passes rose 6/12 → 12/12 (+6), versus Sonnet’s 9/12 → 12/12 (+3). **On Memory it mattered the same:** both models passed 9/9 in both conditions, with no observed patch benefit.', '',
+  'Provisional: 3 trials per condition. A demonstration, not a statistical claim.', '',
+  '## Model and protocol', '',
+  'Before any benchmark model call, authenticated GET /v1/models listed **claude-haiku-5-5**, displayed as Claude Haiku 5.5, created 2026-10-07T18:00:00Z. GET /v1/models/claude-haiku-5-5 confirmed that exact ID; no dated Haiku 5.5 snapshot appeared. Evidence checked at 2026-10-17T21:40:38.888Z is retained in [preflight.json](../scripts/cross-model-evidence/preflight.json), pushed before trials in cf005dd.', '',
+  'Runs use a process-only AXLINT_MODEL=claude-haiku-5-5 override. The shared .env and production Sonnet setting are unchanged. Same harness entrypoints, tasks, prompts, scorers, candidate patches, seeds, max_tokens=300, automatic tool choice, single turn, three trials per task and condition, and four-worker limit. Provider-default sampling; temperature is never sent. The only shared-harness edit removes a legacy non-Sonnet temperature:0 fallback and records default sampling for every model. Neither entrypoint, tasks, scoring, fixture nor patch changed.', '',
+  'Sonnet values are the retained successful runs cited in [docs/gate-results.md](gate-results.md), not reruns. Byte-for-byte equality checks cover tasks, neutral system prompt, baseline/candidate tools and patch provenance between models. Memory uses pinned official server bbb701e7ac1e57f3edd1c2836b94c5457eaf7b9c, all nine tools visible, the same fictional seed, dispatch-enforced read allowlist, and one fresh process/graph per trial.', '',
+  'Trackr ran against https://trackr-production-e1a6.up.railway.app/mcp. Before both model runs, the live baseline descriptions and complete tools hash matched the frozen baseline: sha256:df53e86195ee4202079dc899964072aa655d72e1b3b0c81fdd3db03c6e7737d5. Haiku serverInfo.version and every trial identity report trackr-demo-001@f9b6c2beae2ec8c5774a7b902349618052582f2f. This is the new revert SHA; source metadata matches the earlier Sonnet deployment. Both metadata conditions execute against that identical baseline deployment; patches affect only model-visible descriptions. No source edits were applied.', '',
+  'Result tokens use countTokens on the complete serialized MCP response, including content and structuredContent where present. They measure potential returned context; the one-turn model does not consume tool results. Static tool-definition tokens are separate. There are no approximate counts, provider retries or infrastructure failures in either new run. All 48 trials, including failures and unscored boundary calls, are retained.', '',
+];
+output.push('## Estimated cost method and official prices', '',
+  `Prices checked **${pricing.accessed_date}** against [Anthropic’s official pricing page](${pricing.source_url}). Standard Claude API list prices in USD per million tokens: **Sonnet 5.5 $2 input / $10 output**; **Haiku 5.5 $0.10 input / $0.50 output** for prompts up to 100,000 tokens. Haiku above that threshold is $0.50 input / $2.50 output; every measured input is below 100,000. Unit rates and the date are retained in [pricing.json](../scripts/cross-model-evidence/pricing.json).`, '',
+  'All dollar figures and ratios are **estimates** repricing both models at those current rates, not invoices. Standard global on-demand inference, no batch or cache discount, regional premium, infrastructure cost, or benchmark setup/countTokens cost. The unchanged harness requests no prompt caching; cache-category usage was not retained. This is an estimate for the measured single model turn, not end-to-end agent cost.', '',
+  'Each server’s 2×2 is shown as four model/condition rows. Means and costs cover the scored trials only: nine per Memory cell, twelve per Trackr cell. A successful task attempt means one passing scored trial; all three repetitions contribute separately. Unscored Memory boundary calls remain in the original tables but are excluded from these four cost cells. Failed scored attempts remain in the numerator, so failure cannot make cost per success artificially cheap.', '',
+  'Mean input tokens come from the actual response usage.input_tokens and already include tool definitions, the neutral system prompt and task text; static tool-definition counts must not be added again. Mean output tokens come from usage.output_tokens and are shown to make the cost calculation auditable. Returned MCP result tokens are measured separately and are never consumed by this single-turn harness: they are neither model-generated output nor billed next-turn input. Large result payloads therefore do not trigger Haiku’s prompt-length tier here.', '',
+  'Formula: estimated cell USD = Σ(input_tokens × input_USD_per_token + output_tokens × output_USD_per_token), including failed scored trials; estimated USD per successful task attempt = estimated cell USD / passing scored trials. Ratios use unrounded cell totals and denominators.', '',
+  'Reproducible full-precision cells and ratios are retained in [costs.json](../scripts/cross-model-evidence/costs.json); an independent Decimal calculation against raw usage passed all eight cells and both ratios ([check output](../scripts/cross-model-evidence/cost-validation.log)).', '',
+  'The completed 48 Haiku trials from the preceding cross-model request are reused in full for this additional cost check; no trials were selected, replaced or rerun. Sonnet evidence is reused from gate-results.md as requested. The exact model-ID and pre-run baseline checks above precede these Haiku trials.', '');
+const checks: string[] = [];
+for (const [server, files] of Object.entries(paths)) {
+  const sonnet = JSON.parse(await readFile(files.sonnet, 'utf8')) as Report;
+  const haiku = JSON.parse(await readFile(files.haiku, 'utf8')) as Report;
+  assert.equal(sonnet.model, 'claude-sonnet-5-5');
+  assert.equal(haiku.model, 'claude-haiku-5-5');
+  for (const field of ['tasks', 'system', 'max_tokens', 'tool_choice', 'shuffle_seed', 'concurrency', 'baseline_tools', 'candidate_tools'] as const) assert.deepEqual(haiku[field], sonnet[field], `${server}: unchanged ${field}`);
+  assert.deepEqual(haiku.provenance.patch, sonnet.provenance.patch);
+  for (const [model, report] of Object.entries({ sonnet, haiku })) {
+    assert.equal(report.status, 'complete'); assert.equal(report.temperature, 'omitted; model-default sampling');
+    assert.equal(report.trials.length, 24); assert.equal(report.static_tool_tokens.approximate, false);
+    const rows = report.trials;
+    assert.ok(rows.every(t => t.failure !== 'infra' && !t.result_tokens_approximate));
+    const consistency = summarizeConsistency(rows);
+    assert.equal(consistency.length, 8);
+    for (const item of consistency) { assert.equal(item.trial_count, 3); assert.deepEqual(item.trial_ids, [1, 2, 3]); }
+    for (const s of report.summary) for (const c of ['baseline', 'candidate'] as const) {
+      const group = rows.filter(t => t.task_id === s.task_id && t.condition === c);
+      assert.equal(group.reduce((sum, t) => sum + t.result_tokens, 0), s[c].result_tokens);
+      if (!s.unscored) assert.equal(group.filter(t => t.passed).length, s[c].passed);
+    }
+    checks.push(`PASS ${server}/${model}: 24 trials; all eight groups contain trials 1,2,3; exact token counts and summaries; no infra`);
+  }
+  assert.ok(haiku.trials.every(t => t.attempts.length === 1 && (t.attempts[0] as { status: string }).status === 'ok'));
+  if (server === 'memory') {
+    const identities = haiku.trials.map(t => t.server_pid as { pid: number; memory_file: string; commit: string });
+    assert.equal(new Set(identities.map(i => i.pid)).size, 24);
+    assert.equal(new Set(identities.map(i => i.memory_file)).size, 24);
+    for (const i of identities) { assert.equal(i.commit, 'bbb701e7ac1e57f3edd1c2836b94c5457eaf7b9c'); await assert.rejects(access(i.memory_file)); }
+    assert.ok(haiku.trials.every(t => t.executed && ['read_graph', 'search_nodes', 'open_nodes'].includes(t.tool!)));
+    checks.push('PASS memory/haiku: 24 unique server PIDs/graph copies; every graph removed; only allowlisted reads executed');
+  } else {
+    assert.equal(hashTools(ToolsSchema.parse(haiku.baseline_tools)), 'sha256:df53e86195ee4202079dc899964072aa655d72e1b3b0c81fdd3db03c6e7737d5');
+    for (const t of haiku.trials) assert.deepEqual(t.server_pid, { name: 'trackr', version: 'trackr-demo-001@f9b6c2beae2ec8c5774a7b902349618052582f2f' });
+    checks.push('PASS trackr/haiku: exact frozen baseline hash; all 24 trials use the deployed revert SHA');
+  }
+  checks.push(`PASS ${server}: tasks/prompts/scoring entrypoints and baseline/candidate metadata unchanged across models; candidate patch provenance identical`);
+  const passText = (s: Summary, c: 'baseline' | 'candidate') => s.unscored ? 'unscored' : `${s[c].passed}/${s[c].of}`;
+  output.push(`## ${title(server)}`, '',
+    '| Task | Sonnet passes B → C | Haiku passes B → C | Sonnet result tokens B → C | Haiku result tokens B → C |',
+    '| --- | --- | --- | ---: | ---: |',
+    ...sonnet.summary.map((s, i) => { const h = haiku.summary[i]; assert.equal(s.task_id, h.task_id); return `| ${s.task_id}${s.control ? ' (control)' : s.unscored ? ' (unscored)' : ''} | ${passText(s, 'baseline')} → ${passText(s, 'candidate')} | ${passText(h, 'baseline')} → ${passText(h, 'candidate')} | ${arrow(s.baseline.result_tokens, s.candidate.result_tokens)} | ${arrow(h.baseline.result_tokens, h.candidate.result_tokens)} |`; }), '',
+    '| Model | Scored passes B → C | Scored result tokens B → C | Static tool tokens B → C | Ordered verdict |', '| --- | --- | ---: | ---: | --- |',
+    ...[sonnet, haiku].map(r => `| ${r.model} | ${passes(r, 'baseline')} → ${passes(r, 'candidate')} | ${arrow(totals(r, 'baseline', true), totals(r, 'candidate', true))} | ${arrow(r.static_tool_tokens.baseline, r.static_tool_tokens.candidate)} | **${title(verdict(r).verdict)}** |`), '',
+    ...[sonnet, haiku].map(r => `${r.model}: ${verdict(r).verdict_reasons.join('; ')}. Unscored tasks are excluded from the verdict.`), '',
+    '| Task | Sonnet baseline | Sonnet candidate | Haiku baseline | Haiku candidate |', '| --- | --- | --- | --- | --- |',
+    ...sonnet.summary.map(s => { const flags = [sonnet, haiku].flatMap(r => ['baseline', 'candidate'].map(c => flag(summarizeConsistency(r.trials).find(f => f.task_id === s.task_id && f.condition === c)!))); return `| ${s.task_id} | ${flags.join(' | ')} |`; }), '',
+    `Evidence: [Sonnet result](../${files.sonnet}), [Haiku result](../${files.haiku}), [Haiku full trial table](../${files.haiku.replace('result.json', 'table.md')}), [captured harness output](../scripts/cross-model-evidence/haiku-${server}.log).`, '');
+  const cells = [sonnet, haiku].flatMap(r => (['baseline', 'candidate'] as const).map(c => costCell(r, c)));
+  const sb = cells.find(c => c.model === sonnet.model && c.condition === 'baseline')!;
+  const hc = cells.find(c => c.model === haiku.model && c.condition === 'candidate')!;
+  assert.ok(sb.estimated_cost_per_success_usd && hc.estimated_cost_per_success_usd);
+  const ratio = hc.estimated_cost_per_success_usd / sb.estimated_cost_per_success_usd;
+  const matchesOrBeats = hc.passes >= sb.passes;
+  const comparison = { haiku_candidate_passes: hc.passes, sonnet_baseline_passes: sb.passes, trials_per_cell: hc.trials, matches_or_beats_passes: matchesOrBeats, estimated_cost_per_success_ratio_haiku_candidate_over_sonnet_baseline: ratio, estimated_cost_per_attempt_ratio_haiku_candidate_over_sonnet_baseline: (hc.estimated_cell_cost_usd / hc.trials) / (sb.estimated_cell_cost_usd / sb.trials), estimated_cheaper_factor_per_success: 1 / ratio };
+  (costEvidence.servers as Record<string, unknown>)[server] = { cells, comparison };
+  output.push('### Estimated 2×2 cost check', '',
+    '| Model | Condition | Passes | Mean input tokens / trial (includes tools) | Mean output tokens / trial | Mean result tokens / trial | Estimated cell USD | Estimated USD / successful task attempt |',
+    '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |',
+    ...cells.map(c => `| ${c.model} | ${c.condition} | ${c.passes}/${c.trials} | ${mean(c.mean_input_tokens)} | ${mean(c.mean_output_tokens)} | ${mean(c.mean_result_tokens)} | ${usd(c.estimated_cell_cost_usd)} | ${c.estimated_cost_per_success_usd === null ? 'undefined (zero passes)' : usd(c.estimated_cost_per_success_usd)} |`), '',
+    `**Haiku + candidate ${matchesOrBeats ? (hc.passes > sb.passes ? 'beats' : 'matches') : 'does not match'} Sonnet + baseline on observed passes: ${hc.passes}/${hc.trials} versus ${sb.passes}/${sb.trials}.** Estimated cost per successful task attempt is ${usd(hc.estimated_cost_per_success_usd)} versus ${usd(sb.estimated_cost_per_success_usd)}, a **${ratio.toFixed(4)}× ratio (${(ratio * 100).toFixed(2)}% of the cost; ${(1 / ratio).toFixed(2)}× cheaper)**. For the distinct cost-per-attempt denominator, the estimated ratio is ${comparison.estimated_cost_per_attempt_ratio_haiku_candidate_over_sonnet_baseline.toFixed(4)}×. These are small-sample benchmark estimates, not a general model-quality guarantee.`, '');
+  checks.push(`PASS ${server} estimated 2x2: all four cells include failed-trial usage; no tool-result double billing; Haiku inputs stay below 100K; cost/success ratio ${ratio.toFixed(6)}`);
+  if (server === 'memory') output.push('Both verdicts are **Inconclusive** under the ordered rules: no regression or insufficient data, but no scored task gains two passes. Scored result totals are identical in both conditions and both models. Including unscored boundary calls, Sonnet totals are 789,636 → 789,636; Haiku totals are 764,871 → 764,871. On the boundary Haiku consistently searched the combined string "Priya Nair checkout migration", returning an empty match (73 tokens), versus Sonnet’s "Priya Nair" (8,328 tokens). That unscored difference is not evidence of better task success or a patch benefit.', '');
+  else output.push('Haiku has two within-condition flags, with **no pass/fail disagreement**: t1-route candidate omits include_comments in trials 2 and 3 (6,570 tokens each) but sets false in trial 1 (344); t2-status baseline omits status in trials 1 and 3 (80,949 tokens each) and sends invalid "in progress" in trial 2 (41-token tool validation error). All three status baseline calls fail the unchanged scorer; every failure remains in the evidence. Other Haiku groups agree; every Sonnet group agrees.', '',
+    'Trackr’s patch gains six passes for Haiku, compared with three for Sonnet: Haiku additionally needs the documented in_progress spelling. Both models already pass routing and exact-issue lookup 3/3. Potential returned result tokens fall 88.4% for Haiku (220,823 → 25,724), versus 88.5% for Sonnet (115,194 → 13,272); accuracy gains are larger for Haiku while its routing payload reduction is less consistent. Static cost rises 651 → 837 for both. Tokens do not determine either Improved verdict.', '');
+}
+// The model comparison must not alter the benchmark entrypoints or scoring implementation.
+assert.equal(execFileSync('git', ['diff', 'origin/main', '--', 'scripts/hand-run.ts', 'scripts/hand-run-memory.ts'], { encoding: 'utf8' }), '');
+checks.push('PASS unchanged harness entrypoints: git diff origin/main -- scripts/hand-run.ts scripts/hand-run-memory.ts is empty');
+output.push('## Checks run', '', '```text',
+  'pnpm typecheck: exit 0',
+  'hand-run-memory.ts --check: nine tools; dispatch blocks delete_entities; deterministic seed size; compiled source fidelity exact',
+  'hand-run.ts --check: exact baseline descriptions; control unchanged; TRK-117 succeeds; deployed revert SHA',
+  'hand-run-memory.ts: exit 0; 24 Haiku trials retained',
+  'hand-run.ts: exit 0; 24 Haiku trials retained',
+  ...checks, '```', '',
+  'Only scripts/ and docs/ are changed on lane/models. No new dependency, package/lockfile edit, source apply, Manufact change or main merge. Existing ignored vendor/build dependencies were reused. The prior production stability work remains paused for the user’s deployment-branch confirmation.', '');
+await writeFile('docs/cross-model-results.md', output.join('\n'));
+await writeFile('scripts/cross-model-evidence/costs.json', JSON.stringify(costEvidence, null, 2) + '\n');
+await writeFile('scripts/cross-model-evidence/validation.log', checks.join('\n') + '\n');
+console.log(checks.join('\n'));
+console.log('Wrote docs/cross-model-results.md');
