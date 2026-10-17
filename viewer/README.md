@@ -137,3 +137,14 @@ PASS hosted widget assets: public200, recorded-live label present, no configured
 ```
 
 The lead was told the same MCP URL/header is ready for a fresh `preview_run` Claude app retest. This is a retest request, not a claim of a new human result.
+
+Final actual hosted Inspector checks exited 0:
+
+```text
+PASS real Inspector UI:complete/768px,24cells,minFont16px,noinlineoverflow; exacttrialselection; removedwordsvisible; futurepayloadhidden; pause/resume; Showallrestores24
+PASS real Inspector UI:running/390px,24cells,minFont16px,noinlineoverflow; exacttrialselection; removedwordsvisible; futurepayloadhidden; pause/resume; Showallrestores24
+```
+
+Screenshots `/private/tmp/axlint-viewer-complete-768.png` and `/private/tmp/axlint-viewer-running-390.png` were visually inspected after interaction ended on Show all. Both display all six sections, the recorded live run label, t3-payload selected, 10,408 → 441, Improved, total returned-token reduction and separate static-token cost. An additional untouched partial capture `/private/tmp/axlint-viewer-live-partial-390.png` was visually inspected: playback paused at 8/24, payload/story calls pending, verdict waiting, illustrative confirmation gates awaiting. The narrow trial grid scrolls within its labeled region while the document remains within the viewport. The screenshot command emitted the previously recorded npm `verify-deps-before-run` warning and completed successfully.
+
+Lane G's Phase 2 brief is complete and pushed. No dependency was requested. All local and hosted checks described above passed. A new human Claude app retest remains pending; prior authenticated app acceptance is preserved above. Real Blaxel run polling, `get_verification_result` construction and widget binding to that product tool are deliberately skipped until Lane E is merged at Checkpoint 2 and the lead registers the product tools. No core/config/dependency edits or Phase 2 merges were performed by Lane G. The lead made the small shared-view label change in its separate `835de01` commit; this lane's implementation edits are restricted to `viewer/` and the existing `preview_run` registration.
