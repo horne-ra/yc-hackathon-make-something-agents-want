@@ -79,3 +79,22 @@ Real Inspector interaction checks passed at complete/768px and running/390px: mi
 Hosted deployment `6d9696b4-6745-415a-b412-1073d85cfcd9` reached running from `c754b7b`. The real hosted Inspector interaction check passed at 768px with exact trial selection, Pause/Resume, hidden future payload, 16px minimum text, no page overflow and all 24 trials restored. The 390px hosted partial fixture was captured at `/private/tmp/axlint-viewer-hosted-running-390.png` and visually inspected: playback paused, both payloads pending, unrevealed story calls pending, verdict waiting and all confirmation gates awaiting. The Inspector screenshots prove rendering; the earlier human Claude app acceptance remains separately recorded.
 
 Visual review then clarified two details: absent parameter descriptions display as an absence label rather than struck-through source text, and narrow screens show an explicit sideways-scroll cue for the trial grid. Renderer assertions, typecheck and build passed for this follow-up. No new dependencies or core edits were introduced.
+
+## Final hosted polish evidence for the checkpoint
+
+Deployment `110c4912-8c7a-4fd1-81a6-652de7dee8be` is running from `6124119`. The final hosted 390px partial screenshot `/private/tmp/axlint-viewer-final-running-390.png` was visually inspected: absence labels are not struck through, the scroll cue is visible, and future payload/story/verdict/confirmation values remain pending. Hosted SDK checks produced:
+
+```text
+PASS hosted running: fixture progress and native MCP App metadata
+PASS hosted complete: fixture progress and native MCP App metadata
+PASS final hosted assets: public200, absence label and scroll cue present, no configured credential values
+PASS hosted fixed-token auth: missing token401, no OAuth challenge
+```
+
+The major interaction check ran against hosted `c754b7b` before the small absence-label/scroll-cue follow-up:
+
+```text
+PASS real Inspector UI:complete/768px,24cells,minFont16px,noinlineoverflow; exacttrialselection; removedwordsvisible; futurepayloadhidden; pause/resume; Showallrestores24
+```
+
+Local running/390px interaction coverage also passed. Final renderer checks, typecheck and build passed; the final build completed in 524ms. The temporary localhost production listener was stopped. No new product dependency is needed; package.json, lockfile, recorded results and src/core/ are unchanged by viewer polish. The actual real-run polling/verification integration is intentionally outside this fixture-only task. Pending/error lifecycle rendering was checked at the pure renderer boundary, while ready and partial playback were checked in the actual Inspector. No new provider benchmark was run or implied. The 2:15 PM checkpoint report is scheduled as requested.
