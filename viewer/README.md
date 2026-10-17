@@ -98,3 +98,59 @@ PASS real Inspector UI:complete/768px,24cells,minFont16px,noinlineoverflow; exac
 ```
 
 Local running/390px interaction coverage also passed. Final renderer checks, typecheck and build passed; the final build completed in 524ms. The temporary localhost production listener was stopped. No new product dependency is needed; package.json, lockfile, recorded results and src/core/ are unchanged by viewer polish. The actual real-run polling/verification integration is intentionally outside this fixture-only task. Pending/error lifecycle rendering was checked at the pure renderer boundary, while ready and partial playback were checked in the actual Inspector. No new provider benchmark was run or implied. The 2:15 PM checkpoint report is scheduled as requested.
+
+## Phase 2: recorded live Railway run
+
+The preview now loads the immutable live run `scripts/results/trackr-2026-10-17T20-10-18.320Z/result.json` through the merged `src/core/` contracts. Regenerate with `pnpm exec tsx viewer/create-fixture.ts` (optional arguments: recorded result path, pinned source path). The adapter has no dependency on the external core worktree. `viewer/fixtures/provenance.json` records the full source path and SHA-256, actual benchmark revision, the pinned Checkpoint 1 source revision used to derive edits, measured fields, derived values and example-only fields.
+
+All 24 trials are retained, including all three baseline failures. The spotlight is `t3-payload`: baseline `list_issues` omits `include_comments` and returns 10,408 tokens; candidate explicitly sets it to false and returns 441. The verdict is Improved with 9/12 → 12/12 first-call passes. Returned result tokens total 115,194 → 13,272 (−88.5%); static tool-definition cost rises 651 → 837. The t1-route and t2-status baseline-failure hypotheses were rejected; the preview says so. These are provisional N=3 results; returned tokens represent potential context and were never consumed by the single-turn model.
+
+The complete run is recorded live data, not hypothetical data. Partial progress is an illustrative replay snapshot: the original harness did not record trial timing, so replay uses presentation order and makes no real-speed claim. Confirmation is explicitly example layout data because no source patch was applied or confirmed in this run. The required numeric `latency_ms` slots remain zero placeholders, documented as unavailable and never displayed as measured latency. No new benchmark, provider calls, temperature setting or target mutation occurs during conversion or playback.
+
+Actual local acceptance output:
+
+```text
+PASS live run conversion: 4 tasks, 24 trials retained, 3 baseline failures; five run-file contracts validate against merged src/core
+PASS observed verdict: improved; 9/12 → 12/12; result tokens 115194 → 13272; static tokens 651 → 837
+PASS merged core contracts: audit, patch, result, progress, confirm; original source hash unchanged
+PASS 24/24 original trials preserved exactly: tools, arguments, outcomes, input/output/result tokens; all 3 failures visible
+PASS spotlight t3-payload: list_issues omitted include_comments = 10408; explicit false = 441 result tokens
+PASS verdict Improved: 9/12 → 12/12; 115194 → 13272 (−88.5%); static651 → 837; rejected hypotheses explicit
+PASS provenance: live source/revision retained; example partial progress/confirm identified; latency unavailable; temperature omitted
+PASS recorded fixtures: complete24/3fail, both diff sides; running hides future payload/verdict/confirmation
+PASS in-memory edge cases: all3verdicts; failed confirmation stays failed; missing representative stays unavailable
+PASS pending/error renderer: accessible loading and retry guidance
+```
+
+`pnpm typecheck` exited 0. `pnpm build` built both MCP App views in 518ms. `src/core/`, package.json, lockfile and the original recorded run remain untouched. `get_verification_result` and real run polling are Lane E's work and are intentionally not registered by this lane. Hosted protocol/render checks follow deployment below. Human Claude app retesting is requested separately and is never inferred from Inspector results.
+
+The first hosted equality probe ran while the previous deployment was still active. It passed fixed-token/no-OAuth authentication, then failed the new run-ID/reason equality assertion against the older preview; this was a deployment-readiness mismatch, not a benchmark trial. The probe was made concise and rerun after the new production deployment became active. Nonproduction preview deployments from main/runner/tools appeared failed in the shared deployment list; they were not the production viewer deployment and were not modified by this lane.
+
+Production deployment `69399384-51e4-4b94-bf18-35066687e7c3` is running from `af34059`. `pnpm exec tsx viewer/check-hosted-live.ts` exited 0:
+
+```text
+PASS hosted auth: missing token401, no OAuth challenge
+PASS hosted running: exact converted live data, all24trials, native MCP App metadata
+PASS hosted complete: exact converted live data, all24trials, native MCP App metadata
+PASS hosted schema: invalid playback phase rejected
+PASS hosted widget assets: public200, recorded-live label present, no configured credential values
+```
+
+The lead was told the same MCP URL/header is ready for a fresh `preview_run` Claude app retest. This is a retest request, not a claim of a new human result.
+
+Final actual hosted Inspector checks exited 0:
+
+```text
+PASS real Inspector UI:complete/768px,24cells,minFont16px,noinlineoverflow; exacttrialselection; removedwordsvisible; futurepayloadhidden; pause/resume; Showallrestores24
+PASS real Inspector UI:running/390px,24cells,minFont16px,noinlineoverflow; exacttrialselection; removedwordsvisible; futurepayloadhidden; pause/resume; Showallrestores24
+```
+
+Screenshots `/private/tmp/axlint-viewer-complete-768.png` and `/private/tmp/axlint-viewer-running-390.png` were visually inspected after interaction ended on Show all. Both display all six sections, the recorded live run label, t3-payload selected, 10,408 → 441, Improved, total returned-token reduction and separate static-token cost. An additional untouched partial capture `/private/tmp/axlint-viewer-live-partial-390.png` was visually inspected: playback paused at 8/24, payload/story calls pending, verdict waiting, illustrative confirmation gates awaiting. The narrow trial grid scrolls within its labeled region while the document remains within the viewport. The screenshot command emitted the previously recorded npm `verify-deps-before-run` warning and completed successfully.
+
+Lane G's Phase 2 brief is complete and pushed. No dependency was requested. All local and hosted checks described above passed. A new human Claude app retest remains pending; prior authenticated app acceptance is preserved above. Real Blaxel run polling, `get_verification_result` construction and widget binding to that product tool are deliberately skipped until Lane E is merged at Checkpoint 2 and the lead registers the product tools. No core/config/dependency edits or Phase 2 merges were performed by Lane G. The lead made the small shared-view label change in its separate `835de01` commit; this lane's implementation edits are restricted to `viewer/` and the existing `preview_run` registration.
+
+## Human Claude app acceptance — October 17, 2026, 2:23 PM Pacific
+
+The user reported that the recorded-live `preview_run` worked well and supplied five Claude app screenshots. Visual inspection confirms the rendered description-only patch, all 24 trial cells with the three t3 baseline failures visible, the t3-payload baseline omitting include_comments (10,408 result tokens) versus the candidate explicitly setting false (441), and the Improved verdict with 9/12 → 12/12 passes. The verdict visibly reports total result tokens 115,194 → 13,272 (−88.5%), static tool-definition cost 651 → 837, rejected t1/t2 baseline-failure hypotheses, and the provisional label. Confirmation remains clearly illustrative. This closes the pending human Claude app retest for the Phase 2 recorded-live viewer.
+
+Screenshots were provided by the user as Screenshot 2026-10-17 at 2.23.08 PM through 2.23.26 PM. They are not copied into the repository because they include incidental desktop content. No runtime change was made for this evidence update. Phase 2 merging, product-tool registration and S8 remain awaiting the user's go-ahead at Checkpoint 2.
