@@ -15,7 +15,7 @@ const server = new MCPServer({
 // Widget JS/CSS are public static code; their render data arrives through MCP.
 server.app.use("*", async (context, next) => {
   const path = context.req.path;
-  if ((path !== "/mcp" && path !== "/mcp/") || context.req.method === "OPTIONS") return next();
+  if (path !== "/mcp" && path !== "/mcp/") return next();
   const expected = process.env.AXLINT_API_TOKEN;
   if (!expected || expected.length < 32) {
     context.header("WWW-Authenticate", 'Bearer realm="axlint"');

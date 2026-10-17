@@ -29,6 +29,9 @@ try {
     assert.match(response.headers.get("WWW-Authenticate")??"", /^Bearer/);
     assert.doesNotMatch(await response.text(), new RegExp(token));
   }
+  for (const method of ["GET", "HEAD", "DELETE", "OPTIONS"]) {
+    assert.equal((await fetch(base+"/mcp",{method})).status,401);
+  }
   const client = new Client({name:"auth-acceptance", version:"1"});
   const transport = new StreamableHTTPClientTransport(new URL(base+"/mcp"), {requestInit:{headers:{Authorization:`Bearer ${token}`}}});
   await client.connect(transport);
