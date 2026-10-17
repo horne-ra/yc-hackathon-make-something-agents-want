@@ -16,14 +16,14 @@ The `source_files` parameter now explicitly requests tool declarations, validati
 
 ## Behavior and validation
 
-Unknown facts must be omitted from descriptions. Missing facts are returned separately as `missing_allowed_values` and `missing_default` warnings. Common source-absence hedges, inferred unrestricted values, unsupported or conflicting literal defaults, and unverified explicit allowed-value lists cause validation rejection and the existing one corrective retry. Both rejected and accepted attempts remain observable. A second invalid attempt fails clearly.
+Unknown facts must be omitted from descriptions. Missing facts are returned separately as `missing_allowed_values` and `missing_default` warnings. Common source-absence hedges, inferred unrestricted values, unsupported or conflicting literal defaults, unverified side-effect guarantees, and unverified explicit allowed-value lists cause validation rejection and the existing one corrective retry. Both rejected and accepted attempts remain observable. A second invalid attempt fails clearly.
 
 Source checks recognize Trackr's literal validation arrays, inline Zod enums/defaults and handler nullish/destructuring defaults. Unresolved expressions produce warnings. This is conservative source checking; verification still determines behavior. The only shared contract change adds the two warning codes; frozen results, tasks, scoring, provider sampling and baseline metadata are unchanged.
 
 ## Checks
 
 - `pnpm typecheck`: passed.
-- `pnpm test`: 8 test files passed, 103 tests passed.
+- `pnpm test`: 8 test files passed, 104 tests passed.
 - `pnpm build`: built server and all three views.
 - `pnpm exec tsx scripts/s8-proposer-checks.ts`: plan only, no network calls.
 - Original attempt: **Regressed, 9/12 → 6/12**, preserved in [s8-attempt-1.md](s8-attempt-1.md).

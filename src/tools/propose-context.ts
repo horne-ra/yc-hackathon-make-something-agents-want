@@ -51,6 +51,7 @@ function sourceAllowedValues(files:readonly SourceFile[],tool:string,param:strin
 }
 export function validateSourceClaims(operations:readonly WireOp[],files:readonly SourceFile[]=[]):void {
  for(const op of operations){
+  if(/\bread[- ]only\b|\bno side effects\b/i.test(op.value)&&!/\breadOnlyHint\s*:\s*true\b/.test(sourceForTool(files,op.tool)))throw new Error(`unsupported_source_claim: ${op.tool}: omit a side-effect guarantee without an explicit readOnlyHint source annotation`);
   const missing=/\b(?:source|sources|provided (?:code|files)|implementation)\b[^.!?\n]{0,100}\b(?:not|no|missing|unknown|undefined|undocumented|unspecified|unavailable)\b|\b(?:not|never)\s+(?:defined|specified|documented|shown|provided|visible|available|verified|found)\b|\b(?:likely|probably|perhaps|presumably|apparently|seems?|appears?|guess(?:ed|ing)?)\b|\bno\s+(?:default|allowed values)\b/i;
   if(op.op==='set_param_description'){
    const values=/(?:one of|allowed values(?: are)?|valid values(?: are)?)\s*:\s*([^.;\n]+)/i.exec(op.value);

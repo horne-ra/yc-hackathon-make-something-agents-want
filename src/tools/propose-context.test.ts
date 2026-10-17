@@ -42,6 +42,10 @@ describe('proposer source context and metadata',()=>{
   expect(()=>validateSourceClaims([op('include_comments','Defaults true.')],[source])).toThrow('unsupported_source_claim');
   expect(()=>validateSourceClaims([op('include_comments','Defaults false.')],[source,handler])).toThrow('unsupported_source_claim');
  });
+ it('omits side-effect guarantees without an explicit source annotation',()=>{
+  expect(()=>validateSourceClaims([op('query','Read-only query.')],[source])).toThrow('unsupported_source_claim');
+  expect(()=>validateSourceClaims([op('query','Read-only query.')],[{...source,content:source.content.replace('params: {','annotations: {readOnlyHint:true},\n params: {')}])).not.toThrow();
+ });
  it('publishes complete-source and severity guidance in tool and parameter metadata',()=>{
   expect(proposePatchTool.description).toContain('every file defining accepted values or defaults');
   expect(proposePatchTool.description).toContain('highest-severity');
