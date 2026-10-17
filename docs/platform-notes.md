@@ -126,3 +126,5 @@ The Claude Code ping call, Blaxel detached-run and independent-file-read checks,
 ## Lane G follow-up
 
 The subsequently authorized bearer authentication and fixture MCP App viewer are on `lane/viewer`. Hosted auth and viewer checks passed on October 17; see [viewer acceptance and client configuration](../viewer/README.md). The Lane C deployment identifiers above describe its accepted snapshot. Claude app rendering with the new bearer header and the gateway response policy decision are still pending.
+
+The user subsequently confirmed successful Claude app connection using No sign-in plus the Authorization bearer header. This confirms authenticated connector connectivity; a new widget-rendering observation after authentication was not included in that reply. See the Lane G acceptance report for the deployed version 0.2.1 auth correction and wire checks.
