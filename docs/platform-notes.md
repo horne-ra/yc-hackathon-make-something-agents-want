@@ -6,7 +6,7 @@ Blaxel detached execution and the hosted Manufact platform checks pass. The depl
 
 - Live MCP URL: `https://fast-pulse-rlqvb.run.mcp-use.com/mcp`.
 - Manufact dashboard: `https://manufact.com/cloud/org-41c8b7a1-w8fak/servers/1df33784-bc1a-4b0a-a539-22c8ed18ab05/overview`.
-- Active deployment: `2b8f9bfb-ab47-4aa1-863f-e89dff795802`, status `running`, source commit `75ad22b748beb1461d34b51ef0ee90691f9200d8` on `lane/platform`, server version `0.1.1`.
+- Lane C acceptance deployment snapshot: `2b8f9bfb-ab47-4aa1-863f-e89dff795802`, status `running`, source commit `75ad22b748beb1461d34b51ef0ee90691f9200d8` on `lane/platform`, server version `0.1.1`.
 
 ## Blaxel detached run and retention
 
@@ -122,3 +122,7 @@ Hosted `resources/read` returned the 1,259-character MCP App HTML shell. Both th
 On October 17, 2026, the user confirmed the Claude app shows "Widget from AxLint ping" and renders the deployed MCP App widget. The MCP App renders in the Claude app; the Claude Code terminal shows text only. This is direct human confirmation in Claude, separate from the earlier Inspector screenshots.
 
 The Claude Code ping call, Blaxel detached-run and independent-file-read checks, hosted platform checks, and Claude app widget rendering are complete. Lane C is done and stopped at the user's request. No merge or Phase 2 work is authorized by this confirmation.
+
+## Lane G follow-up
+
+The subsequently authorized bearer authentication and fixture MCP App viewer are on `lane/viewer`. Hosted auth and viewer checks passed on October 17; see [viewer acceptance and client configuration](../viewer/README.md). The Lane C deployment identifiers above describe its accepted snapshot. Claude app rendering with the new bearer header and the gateway response policy decision are still pending.
