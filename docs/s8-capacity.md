@@ -42,3 +42,7 @@ Deployment `8dd23aa6-0bc7-4342-a37f-b1fb5562aef1` is `running`, pipeline phase `
 ## Subsequent S8 evidence preserved
 
 The proof sandbox disappeared through its original TTL (no delete request was issued). A new S8 run, `axlint-run-f2f5be10-367e-4cd5-8614-cb0658fa3e2d`, used the available slot at 22:23:24 UTC, before the repair was live. Its three files are preserved under `scripts/results/blaxel-export-2026-10-17T22-29-32.875Z/`. It completed with Improved, 9/12 → 12/12, 115,194 → 13,917 returned tokens, on the old 1024 MB / 4h settings. This is observed user S8 evidence, not either of the requested C follow-up checks. Total files exported: **25**, across **10 verification sandboxes**. A subsequent count remained **10 occupied / 0 free**; no sandbox was deleted.
+
+## Final launch checks
+
+The remote bootstrap now enforces the same absolute fourteen-minute deadline even if the process request is delayed. `pnpm typecheck`, `pnpm build`, and the full suite pass: **9 files, 108 tests**. The launch tests exercise 256 MB / 2h15m configuration, preparation time subtraction, rejecting an exhausted deadline before launch, and executing an already-expired bootstrap to confirm it stops before reading run files. No new sandbox was needed for these checks.

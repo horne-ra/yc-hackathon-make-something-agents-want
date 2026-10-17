@@ -23,7 +23,7 @@ Source checks recognize Trackr's literal validation arrays, inline Zod enums/def
 ## Checks
 
 - `pnpm typecheck`: passed.
-- `pnpm test`: 8 test files passed, 104 tests passed.
+- `pnpm test`: 9 test files passed, 108 tests passed.
 - `pnpm build`: built server and all three views.
 - `pnpm exec tsx scripts/s8-proposer-checks.ts`: plan only, no network calls.
 - Original attempt: **Regressed, 9/12 → 6/12**, preserved in [s8-attempt-1.md](s8-attempt-1.md).
@@ -36,3 +36,16 @@ Source checks recognize Trackr's literal validation arrays, inline Zod enums/def
 | All findings, attempt-1 setup | src/tools.ts | Not run: S8 remains active; workspace has no free slot |
 
 The script defaults to a safe plan. `--proposals-only` may exercise the real proposer with committed source and recorded metadata while allowing network access only to Anthropic; it cannot contact Trackr. Those are proposal checks and cannot establish verification verdicts. `--after-s8` is prepared for use only after the user lifts the S8 restriction; it confirms the frozen baseline hash, performs each full check sequentially, retains failures and never modifies or deploys Trackr.
+
+## Real sequential proposer checks (no target access)
+
+Final evidence: `scripts/results/s8-proposer-2026-10-17T22-34-19.884Z/`. Both used `claude-sonnet-5-5`, provider default sampling, and the unchanged committed source and recorded audit. An enforced network allowlist permitted Anthropic only.
+
+| Case | Proposer attempts | Accepted operations | Warnings | Static tokens | Verification verdict |
+| --- | --- | --- | --- | --- | --- |
+| Top three, full source | rejected, accepted | 4 | 1 | 651 → 869 | Not run / blocked |
+| All findings, tools only | accepted | 10 | 9 | 651 → 955 | Not run / blocked |
+
+The full-source case's first attempt included an unverified read-only guarantee; it was rejected and the corrective attempt removed it. The rejection and both proposed operation sets are preserved. Its accepted status description states the four verified values, and its include_comments description states `Defaults to true; set false` for smaller summaries. The tools-only case omitted status values and the runtime comment default, with explicit warnings for the missing source facts.
+
+An earlier proposer snapshot is also retained in `scripts/results/s8-proposer-2026-10-17T22-32-41.398Z/`. Neither snapshot is a new verification run or a replacement for frozen benchmark results. The two requested verification verdicts are still unavailable while S8 remains active and Blaxel is at 10/10. A workspace quota of at least 12, with Manufact `AXLINT_SANDBOX_CAPACITY` matching it, would accommodate both retained checks once S8 access is permitted.

@@ -14,6 +14,7 @@ if(!['--proposals-only','--after-s8'].includes(mode??'')){
  process.exit(0);
 }
 process.loadEnvFile('.env');
+assert.equal(process.env.AXLINT_MODEL,'claude-sonnet-5-5','Keep the S8 checks on the configured pinned Sonnet model');
 const cached='scripts/results/hosted-stability-2026-10-17T21-52-45.266Z';
 const auditFrame=JSON.parse(await readFile(`${cached}/run-1-audit.json`,'utf8'));
 const proposalFrame=JSON.parse(await readFile(`${cached}/run-1-proposal.json`,'utf8'));
