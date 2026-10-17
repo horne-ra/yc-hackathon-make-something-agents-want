@@ -53,6 +53,16 @@ function shuffled<T>(items: T[]) {
   for (let i = items.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [items[i], items[j]] = [items[j], items[i]]; }
   return items;
 }
+export function summarizeConsistency(trials: Trial[]) {
+  const stable = (value: unknown): unknown => Array.isArray(value) ? value.map(stable) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => [key, stable(entry)])) : value;
+  return [...new Set(trials.map(trial => trial.task_id))].sort().flatMap(task_id => (['baseline', 'candidate'] as const).map(condition => {
+    const rows = trials.filter(trial => trial.task_id === task_id && trial.condition === condition).sort((a, b) => a.trial - b.trial);
+    const call_disagreement = new Set(rows.map(row => JSON.stringify(stable({ tool: row.tool, arguments: row.arguments })))).size > 1;
+    const outcome_disagreement = new Set(rows.map(row => JSON.stringify({ passed: row.passed, failure: row.failure }))).size > 1;
+    const result_token_disagreement = new Set(rows.map(row => row.result_tokens)).size > 1;
+    return { task_id, condition, trial_count: rows.length, trial_ids: rows.map(row => row.trial), disagree: call_disagreement || outcome_disagreement || result_token_disagreement, call_disagreement, outcome_disagreement, result_token_disagreement };
+  }));
+}
 export async function runBenchmark(options: { name: string; tasks: Task[]; connect: () => Promise<Connection>; patch: (tools: Tool[]) => Tool[]; allowlist: ReadonlySet<string>; provenance: unknown }) {
   const { provider, model } = loadEnvironment();
   // User-approved departure from the frozen temperature-0 requirement for Sonnet 5.5.
@@ -145,11 +155,13 @@ export async function runBenchmark(options: { name: string; tasks: Task[]; conne
     return [condition, { passed: task.unscored ? null : rows.filter(t => t.passed).length, of: rows.filter(t => t.failure !== 'infra').length, infra_errors: rows.filter(t => t.failure === 'infra').length, insufficient_data: rows.filter(t => t.failure === 'infra').length > 1, result_tokens: rows.reduce((sum, t) => sum + t.result_tokens, 0) }];
   })) }));
   report.summary = summary;
+  report.per_condition_consistency = summarizeConsistency(trials);
   await save();
   await writeFile(`${output}/result.json`, JSON.stringify(report, null, 2));
   const table = ['# ' + options.name, '', LABEL, '', `Model: ${model}`, '', '| Task | Condition | Trial | Tool | Arguments | Pass | Result tokens |', '| --- | --- | --- | --- | --- | --- | --- |', ...trials.map(row => `| ${row.task_id} | ${row.condition} | ${row.trial} | ${row.tool ?? '-'} | ${JSON.stringify(row.arguments).replaceAll('|', '\\|')} | ${row.failure === 'infra' ? 'infra' : row.passed === null ? 'unscored' : row.passed ? 'pass' : `fail: ${row.failure}`} | ${row.result_tokens}${row.result_tokens_approximate ? ' approximate' : ''} |`), '', '## Summary', '', '```json', JSON.stringify(summary, null, 2), '```', ''].join('\n');
   await writeFile(`${output}/table.md`, table);
   console.log(JSON.stringify(summary, null, 2));
+  console.log("PER-CONDITION CONSISTENCY", JSON.stringify(report.per_condition_consistency, null, 2));
   console.log(`Full results: ${output}/result.json\nReadable table: ${output}/table.md`);
   if (trials.some(row => row.failure === 'infra')) process.exitCode = 1;
 }
