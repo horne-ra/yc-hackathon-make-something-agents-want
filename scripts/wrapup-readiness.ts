@@ -1,3 +1,4 @@
+import {configuredToken} from '../viewer/auth.js';
 // Read-only preflight. No model calls, source edits, allocations or deletions.
 import assert from 'node:assert/strict';
 import {writeFile} from 'node:fs/promises';
@@ -26,8 +27,8 @@ for await(const sandbox of await SandboxInstance.list({limit:100})){
 }
 const c=new Client({name:'wrapup-recorded-preview',version:'1'});
 try{
- // Legacy fallback is for the pre-rotation read-only checkpoint only.
- const credential=JSON.parse(process.env.AXLINT_API_TOKENS??'{}').codex?.token??process.env.AXLINT_API_TOKEN;
+ // Acceptance utilities never consult the retired single-token setting.
+ const credential=configuredToken();
  await c.connect(new StreamableHTTPClientTransport(new URL('https://fast-pulse-rlqvb.run.mcp-use.com/mcp'),{requestInit:{headers:{Authorization:`Bearer ${credential}`}}}));
  const response=await c.callTool({name:'preview_run',arguments:{}});assert(!response.isError,JSON.stringify(response));
  const presentation=RunPresentationSchema.parse(response.structuredContent);

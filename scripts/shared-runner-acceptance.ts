@@ -1,3 +1,4 @@
+import {configuredToken} from '../viewer/auth.js';
 import assert from 'node:assert/strict';
 import {spawn,type ChildProcess} from 'node:child_process';
 import {once} from 'node:events';
@@ -17,7 +18,7 @@ let child:ChildProcess|undefined;let client:Client|undefined;
 async function boot(){
  child=spawn(process.execPath,['--import','tsx','scripts/shared-local-server.ts'],{cwd:process.cwd(),stdio:['ignore','pipe','pipe']});
  const launched=child;let text='',errors='';launched.stderr!.on('data',chunk=>{errors+=chunk.toString();});const url=await new Promise<string>((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Local AX Lint startup timed out')),30000);launched.stdout!.on('data',chunk=>{text+=chunk.toString();const match=/AXLINT_READY (\S+)/.exec(text);if(match){clearTimeout(timer);resolve(match[1]!);}});launched.once('exit',code=>{clearTimeout(timer);let message=errors.slice(-4000);for(const[key,secret]of Object.entries(process.env))if(secret&&/KEY|TOKEN|SECRET/.test(key))message=message.replaceAll(secret,'<redacted>');reject(Error(`Local server exited ${code}: ${message}`));});});
- client=new Client({name:'shared-runner-restart-check',version:'1.0.0'});await client.connect(new StreamableHTTPClientTransport(new URL(url),{requestInit:{headers:{Authorization:`Bearer ${process.env.AXLINT_API_TOKEN}`}}}));
+ client=new Client({name:'shared-runner-restart-check',version:'1.0.0'});await client.connect(new StreamableHTTPClientTransport(new URL(url),{requestInit:{headers:{Authorization:`Bearer ${configuredToken()}`}}}));
  return{pid:launched.pid,url};
 }
 const launches:Array<{run_id:string;elapsed_ms:number;sandbox:string;directory:string}>=[];

@@ -1,3 +1,4 @@
+import {configuredToken} from '../viewer/auth.js';
 import assert from 'node:assert/strict';
 import {writeFile} from 'node:fs/promises';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
@@ -8,7 +9,7 @@ const endpoint='https://fast-pulse-rlqvb.run.mcp-use.com/mcp';
 const run_id='axlint-v2.YXhsaW50LXJ1bi1mMmY1YmUxMC0zNjdlLTRjZDUtODYxNC1jYjA2NThmYTNlMmQ.542700b5-5900-4a3f-a584-b6d1344a35e0';
 const client=new Client({name:'shared-hosted-check',version:'1'});
 try{
- await client.connect(new StreamableHTTPClientTransport(new URL(endpoint),{requestInit:{headers:{Authorization:`Bearer ${process.env.AXLINT_API_TOKEN}`}}}));
+ await client.connect(new StreamableHTTPClientTransport(new URL(endpoint),{requestInit:{headers:{Authorization:`Bearer ${configuredToken()}`}}}));
  const response=await client.callTool({name:'get_verification_result',arguments:{run_id}});assert(!response.isError);
  const state=GetVerificationResultOutputSchema.parse(response.structuredContent);assert.equal(state.status,'complete');if(state.status!=='complete')throw Error('incomplete');
  assert.equal(state.result.tasks.flatMap(t=>t.trials).length,24);

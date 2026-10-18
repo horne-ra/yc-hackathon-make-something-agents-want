@@ -1,3 +1,4 @@
+import {configuredToken} from '../viewer/auth.js';
 /** Read-only AX Lint checks plus capacity rejection against a local-only dummy target. */
 import assert from 'node:assert/strict';
 import {readFile,writeFile} from 'node:fs/promises';
@@ -11,7 +12,7 @@ const output=process.argv[2]??'scripts/results/s8-hosted-capacity.json';
 const endpoint='https://fast-pulse-rlqvb.run.mcp-use.com/mcp';
 const client=new Client({name:'axlint-s8-capacity-check',version:'1.0.0'});
 try{
- await client.connect(new StreamableHTTPClientTransport(new URL(endpoint),{requestInit:{headers:{Authorization:`Bearer ${process.env.AXLINT_API_TOKEN}`}}}));
+ await client.connect(new StreamableHTTPClientTransport(new URL(endpoint),{requestInit:{headers:{Authorization:`Bearer ${configuredToken()}`}}}));
  const tools=(await client.listTools()).tools;
  const propose=tools.find(t=>t.name==='propose_patch');
  assert.equal(propose?.description,proposePatchTool.description);

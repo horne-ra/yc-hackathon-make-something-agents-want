@@ -1,3 +1,4 @@
+import {configuredToken} from '../viewer/auth.js';
 import assert from 'node:assert/strict';
 import {readFile,writeFile} from 'node:fs/promises';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
@@ -14,7 +15,7 @@ const evidence='scripts/results/s8-proposer-2026-10-17T23-07-22.577Z';
 const summary=JSON.parse(await readFile(`${evidence}/summary.json`,'utf8'));
 const client=new Client({name:'ordered-follow-up-final-check',version:'1'});
 try{
- await client.connect(new StreamableHTTPClientTransport(new URL('https://fast-pulse-rlqvb.run.mcp-use.com/mcp'),{requestInit:{headers:{Authorization:`Bearer ${process.env.AXLINT_API_TOKEN}`}}}));
+ await client.connect(new StreamableHTTPClientTransport(new URL('https://fast-pulse-rlqvb.run.mcp-use.com/mcp'),{requestInit:{headers:{Authorization:`Bearer ${configuredToken()}`}}}));
  const definition=(await client.listTools()).tools.find(t=>t.name==='propose_patch');assert.equal(definition?.description,proposePatchTool.description);
  assert.match((definition!.inputSchema.properties!.source_files as any).description,/src\/handlers.ts/);
  console.log('PASS hosted proposer tool and parameter descriptions match complete-source and severity guidance');

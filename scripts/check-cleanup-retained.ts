@@ -1,3 +1,4 @@
+import {configuredToken} from '../viewer/auth.js';
 import assert from 'node:assert/strict';
 import {readFile,writeFile} from 'node:fs/promises';
 import {SandboxInstance} from '@blaxel/core';
@@ -12,7 +13,7 @@ const cleanup=manifest.rows.findLast((r:any)=>r.action==='summary');assert.equal
 const prior=JSON.parse(await readFile('scripts/results/ordered-follow-up-final-check.json','utf8'));
 const client=new Client({name:'post-cleanup-live-proof',version:'1'});
 try{
- await client.connect(new StreamableHTTPClientTransport(new URL('https://fast-pulse-rlqvb.run.mcp-use.com/mcp'),{requestInit:{headers:{Authorization:`Bearer ${process.env.AXLINT_API_TOKEN}`}}}));
+ await client.connect(new StreamableHTTPClientTransport(new URL('https://fast-pulse-rlqvb.run.mcp-use.com/mcp'),{requestInit:{headers:{Authorization:`Bearer ${configuredToken()}`}}}));
  const cases=[];
  for(const item of [{run_id:'axlint-run-f2f5be10-367e-4cd5-8614-cb0658fa3e2d',expected:'improved'},...prior.cases.map((r:any)=>({run_id:r.run_id,expected:r.verdict}))]){
   const wire=await client.callTool({name:'get_verification_result',arguments:{run_id:item.run_id}});

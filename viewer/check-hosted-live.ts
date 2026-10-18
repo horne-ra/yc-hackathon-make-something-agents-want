@@ -1,3 +1,4 @@
+import {configuredToken} from './auth.js';
 // Authenticated protocol checks, with no credential values in output.
 import assert from "node:assert/strict";
 import {loadEnvFile} from "node:process";
@@ -5,11 +6,11 @@ import {Client} from "@modelcontextprotocol/sdk/client/index.js";
 import {StreamableHTTPClientTransport} from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import {fixturePresentation,RunPresentationSchema} from "./presentation.js";
 loadEnvFile(new URL("../.env",import.meta.url));
-const token=process.env.AXLINT_API_TOKEN;if(!token)throw Error("AXLINT_API_TOKEN is missing");
+const token=configuredToken();if(!token)throw Error("Named AXLINT_API_TOKENS credential is missing");
 const endpoint=process.argv[2]??"https://fast-pulse-rlqvb.run.mcp-use.com/mcp";
 const client=new Client({name:"axlint-live-viewer-check",version:"1.0.0"});
 try{
- const missing=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json",accept:"application/json, text/event-stream"},body:JSON.stringify({jsonrpc:"2.0",id:1,method:"initialize",params:{protocolVersion:"2025-06-18",capabilities:{},clientInfo:{name:"auth-check",version:"1"}}})});
+ const missing=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json",accept:"application/json, text/event-stream"},body:JSON.stringify({jsonrpc:"2.0",id:1,method:"tools/call",params:{name:"preview_run",arguments:{}}})});
  assert.equal(missing.status,401);assert.equal(missing.headers.get("www-authenticate"),null);
  console.log("PASS hosted auth: missing token401, no OAuth challenge");
  await client.connect(new StreamableHTTPClientTransport(new URL(endpoint),{requestInit:{headers:{Authorization:`Bearer ${token}`}}}));

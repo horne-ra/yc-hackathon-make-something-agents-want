@@ -1,3 +1,4 @@
+import {configuredToken} from '../viewer/auth.js';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
@@ -46,7 +47,7 @@ function consistency(trials:Trial[]){
 const completed:unknown[]=[];
 try{
  await baselineCheck('baseline-before');
- await client.connect(new StreamableHTTPClientTransport(new URL(endpoint),{requestInit:{headers:{Authorization:`Bearer ${process.env.AXLINT_API_TOKEN}`}}}));
+ await client.connect(new StreamableHTTPClientTransport(new URL(endpoint),{requestInit:{headers:{Authorization:`Bearer ${configuredToken()}`}}}));
  const tools=(await client.listTools()).tools;
  assert.equal(client.getServerVersion()?.version,'0.3.0');
  assert.deepEqual(tools.map(t=>t.name).sort(),['audit_server','propose_patch','verify_patch','get_verification_result','confirm_patch','ping','preview_run'].sort());
