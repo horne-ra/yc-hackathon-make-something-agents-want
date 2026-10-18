@@ -1,0 +1,351 @@
+{
+  "status": "FROZEN_APPROVED",
+  "started_at": "2026-10-18T00:53:37.000Z",
+  "deadline": "2026-10-18T01:38:37.000Z",
+  "time_box_minutes": 45,
+  "source": {
+    "repository": "https://github.com/Alex2Yang97/yahoo-finance-mcp",
+    "commit": "b9c176547d3797b2196adeba0210ae67861ac589",
+    "server_sha256": "sha256:a7926e70e4624e447e86e0bf64e561594c011a1f1cdea2ad7952a8a96b034763",
+    "uv_lock_sha256": "sha256:b8a39ba377dbb04da35f685a733a5126f5407d86cc1173992bb591e7a8dc6b2d"
+  },
+  "transport": "Local stdio: uv run --frozen --no-sync --python 3.14.6 server.py",
+  "runtime": {
+    "python": "3.14.6",
+    "mcp": "2.1.0",
+    "yfinance": "1.6.0",
+    "uv_launch": "0.10.6",
+    "isolated_installer_uv": "0.13.1",
+    "initial_install_failures": [
+      "Default uv selected incompatible Python 3.14.3.",
+      "uv 0.10.6 had no embedded 3.14.6 download; isolated uv 0.13.1 installed it without source/lock changes."
+    ]
+  },
+  "paper": {
+    "url": "https://arxiv.org/html/2602.14878v3",
+    "version": "v3, 31 May 2026",
+    "section": "2 A Motivational Example",
+    "relationship": "Motivating example discusses this ambiguous historical-price description. This is a new pinned current-source benchmark, not a replication of the paper’s full evaluation or its fork that adds date parameters."
+  },
+  "static_facts": {
+    "description_claim": "Either Use period parameter or use start and end",
+    "accepted_historical_arguments": [
+      "ticker",
+      "period",
+      "interval"
+    ],
+    "function_signature": "get_historical_stock_prices(ticker: str, period: str = \"1mo\", interval: str = \"1d\") -> str",
+    "all_nine_read_only": "Confirmed by inspection of the pinned functions: financial-data reads only. Do not fabricate readOnlyHint annotations where absent; enforce explicit nine-name source-reviewed allowlist and reject destructiveHint true."
+  },
+  "tasks": [
+    {
+      "id": "Y1",
+      "control": false,
+      "prompt": "How did Apple's stock do between January 1 and March 31, 2025?",
+      "tool": "get_historical_stock_prices",
+      "ticker": "AAPL",
+      "pass": "Only supported arguments ticker/period/interval; ticker AAPL; period 2y, 5y, 10y or max covers the requested dates from frozen today 2026-10-17. No start/end or any unsupported key. Y1 interval and minimum breadth beyond coverage are unscored."
+    },
+    {
+      "id": "Y2",
+      "control": false,
+      "prompt": "How has NVIDIA's stock performed over the last 5 years? Just the overall trend.",
+      "tool": "get_historical_stock_prices",
+      "ticker": "NVDA",
+      "pass": "Only supported arguments; ticker NVDA, period 5y, interval 1wk, 1mo or 3mo. Omitted/1d interval fails."
+    },
+    {
+      "id": "Y3",
+      "control": false,
+      "prompt": "What's the general trend for Tesla's stock over the past year?",
+      "tool": "get_historical_stock_prices",
+      "ticker": "TSLA",
+      "pass": "Only supported arguments; ticker TSLA, period 1y, interval 1wk or 1mo. Omitted/1d interval fails."
+    },
+    {
+      "id": "Y4-control",
+      "control": true,
+      "prompt": "What's the latest news about Microsoft?",
+      "tool": "get_yahoo_finance_news",
+      "ticker": "MSFT",
+      "pass": "One get_yahoo_finance_news call with ticker MSFT and no unsupported arguments."
+    }
+  ],
+  "today": "2026-10-17",
+  "date_context": "Today's date: 2026-10-17 (America/Los_Angeles).",
+  "date_timezone": "America/Los_Angeles",
+  "fairness": "Y2/Y3 request a general trend that weekly/monthly observations can answer. Y1 requests dates, but this implementation can express a covering window only via period. Score period coverage rather than adding unsupported functionality or requiring the smallest covering period.",
+  "coverage": {
+    "reference_date": "2026-10-17",
+    "requested_start": "2025-01-01",
+    "requested_end": "2025-03-31",
+    "smallest_documented_covering_period": "2y",
+    "accepted": [
+      "2y",
+      "5y",
+      "10y",
+      "max"
+    ],
+    "rejected": [
+      "1d",
+      "5d",
+      "1mo",
+      "3mo",
+      "6mo",
+      "1y",
+      "ytd"
+    ],
+    "explanation": "At 2026-10-17, 1y begins 2025-10-17 and misses Q1 2025; 2y begins 2024-10-17 and covers it. Market holidays are not missing-data failures; actual returned date extents are recorded separately."
+  },
+  "setup": {
+    "probe": {
+      "tool": "get_historical_stock_prices",
+      "arguments": {
+        "ticker": "AAPL",
+        "period": "1mo",
+        "interval": "1d",
+        "start": "2025-01-01",
+        "end": "2025-03-31"
+      },
+      "calls": 1,
+      "purpose": "Record whether the unmodified server errors on or silently ignores unknown start/end. No repeat probe."
+    },
+    "cost_calls": [
+      {
+        "tool": "get_historical_stock_prices",
+        "arguments": {
+          "ticker": "NVDA",
+          "period": "5y",
+          "interval": "1d"
+        }
+      },
+      {
+        "tool": "get_historical_stock_prices",
+        "arguments": {
+          "ticker": "NVDA",
+          "period": "5y",
+          "interval": "1mo"
+        }
+      }
+    ],
+    "total_target_calls": 3,
+    "fresh_process_per_call": true,
+    "spacing": ">=1.05 seconds between process trials/setup calls",
+    "retries": 0
+  },
+  "candidate_rule": "Change only get_historical_stock_prices tool description. Remove false start/end guidance; state accepted arguments ticker/period/interval, date ranges unsupported, choose smallest documented period covering dates using today, interval controls returned rows, measured full-response 5y NVDA 1d vs 1mo token counts, and recommend 1wk/1mo for multi-month/multi-year trends. Preserve other valid period/interval/default/intraday information. No schema, handler, annotation or other description change. Verify an actual hand-edited candidate server exports exactly that tools/list before freezing.",
+  "all_tools_visible": [
+    "get_historical_stock_prices",
+    "get_stock_info",
+    "get_yahoo_finance_news",
+    "get_stock_actions",
+    "get_financial_statement",
+    "get_holder_info",
+    "get_option_expiration_dates",
+    "get_option_chain",
+    "get_recommendations"
+  ],
+  "dispatch_allowlist": [
+    "get_historical_stock_prices",
+    "get_stock_info",
+    "get_yahoo_finance_news",
+    "get_stock_actions",
+    "get_financial_statement",
+    "get_holder_info",
+    "get_option_expiration_dates",
+    "get_option_chain",
+    "get_recommendations"
+  ],
+  "baseline_tools_sha256": "sha256:fcd055ca45c2095d084cf105cb5660d6b43ebc5c98f3224a78923148b344df35",
+  "model_id": "claude-sonnet-5-5",
+  "system": "You are a helpful assistant. Use the available tools to answer the user.",
+  "context": "Identical separate user text block containing date_context only. No tool/argument names in task prompts.",
+  "sampling": "Provider default; temperature omitted",
+  "max_tokens": 300,
+  "tool_choice": "auto",
+  "trials": 24,
+  "trials_per_task_per_condition": 3,
+  "conditions": [
+    "baseline",
+    "candidate"
+  ],
+  "schedule": [
+    {
+      "task_id": "Y1",
+      "trial": 2,
+      "condition": "candidate"
+    },
+    {
+      "task_id": "Y1",
+      "trial": 3,
+      "condition": "candidate"
+    },
+    {
+      "task_id": "Y4-control",
+      "trial": 3,
+      "condition": "candidate"
+    },
+    {
+      "task_id": "Y3",
+      "trial": 2,
+      "condition": "baseline"
+    },
+    {
+      "task_id": "Y2",
+      "trial": 2,
+      "condition": "candidate"
+    },
+    {
+      "task_id": "Y1",
+      "trial": 2,
+      "condition": "baseline"
+    },
+    {
+      "task_id": "Y4-control",
+      "trial": 2,
+      "condition": "baseline"
+    },
+    {
+      "task_id": "Y1",
+      "trial": 1,
+      "condition": "candidate"
+    },
+    {
+      "task_id": "Y3",
+      "trial": 3,
+      "condition": "candidate"
+    },
+    {
+      "task_id": "Y4-control",
+      "trial": 1,
+      "condition": "baseline"
+    },
+    {
+      "task_id": "Y3",
+      "trial": 1,
+      "condition": "candidate"
+    },
+    {
+      "task_id": "Y3",
+      "trial": 1,
+      "condition": "baseline"
+    },
+    {
+      "task_id": "Y2",
+      "trial": 3,
+      "condition": "candidate"
+    },
+    {
+      "task_id": "Y3",
+      "trial": 2,
+      "condition": "candidate"
+    },
+    {
+      "task_id": "Y2",
+      "trial": 3,
+      "condition": "baseline"
+    },
+    {
+      "task_id": "Y2",
+      "trial": 1,
+      "condition": "candidate"
+    },
+    {
+      "task_id": "Y1",
+      "trial": 3,
+      "condition": "baseline"
+    },
+    {
+      "task_id": "Y4-control",
+      "trial": 3,
+      "condition": "baseline"
+    },
+    {
+      "task_id": "Y3",
+      "trial": 3,
+      "condition": "baseline"
+    },
+    {
+      "task_id": "Y1",
+      "trial": 1,
+      "condition": "baseline"
+    },
+    {
+      "task_id": "Y4-control",
+      "trial": 1,
+      "condition": "candidate"
+    },
+    {
+      "task_id": "Y4-control",
+      "trial": 2,
+      "condition": "candidate"
+    },
+    {
+      "task_id": "Y2",
+      "trial": 1,
+      "condition": "baseline"
+    },
+    {
+      "task_id": "Y2",
+      "trial": 2,
+      "condition": "baseline"
+    }
+  ],
+  "shuffle_seed": 173201,
+  "concurrency": 1,
+  "fresh_process_per_trial": true,
+  "tool_budget": "At most one source-reviewed read-only target call per trial. Multiple model calls fail and none execute. Allowed single calls are dispatched even with scoring-invalid arguments, preserving real unknown-argument behavior. No retries, second turns or replacement trials.",
+  "spacing": "Wait >=1.05 seconds after each trial process closes before starting the next; Yahoo library-internal HTTP fan-out/retries are outside this guarantee and unchanged in both conditions.",
+  "result_tokens": "Anthropic countTokens of JSON.stringify the complete redacted MCP response in one user message. Includes all content/structuredContent. No approximation. Results never fed back to generation.",
+  "error_policy": "Report routing separately from execution. MCP isError, transport errors and server text beginning Error: are execution errors. Empty [] is retained and marked empty, not proof of usable prices. Errors/incomplete data remain in the ordered verdict evidence; no fabricated token counts.",
+  "consistency": "Per task/condition flag tool/argument, outcome and result-token disagreement. Retain all 24 scheduled rows.",
+  "ordered_verdict": "Use unchanged src/core/verdict.ts: regression first (any control loss or >=2 loss on a task); insufficient data next; then all nonnegative deltas and >=2 gain on a non-control task => Improved; otherwise Inconclusive. A perfect baseline is valid and reported plainly.",
+  "privacy": "Public financial data only; do not send credentials to the server or inherit .env secrets into the subprocess. Redact configured secrets/bearer/API-key patterns before storage/countTokens. Keep Manufact files ignored/private.",
+  "freeze": "Commit setup registration before any provider or target tool call; then commit measured candidate, source-fidelity proof, exact metadata/tasks/context/schedule/source hashes before generation. Drift stops rather than silently changing the benchmark. Stop at deadline and retain incomplete outcomes.",
+  "frozen_at": "2026-10-18T01:02:46.671Z",
+  "setup_registration_commit": "0ad8496ae53173c3b4cb97c7370102b123b6d7e6",
+  "candidate_tools_sha256": "sha256:d9f221e875d22576320bd2ce89f0b7525711b1482f77c9d0a87f8178128dee1b",
+  "setup_measured": {
+    "unknown_arguments": "accepted_without_error",
+    "probe_observed": {
+      "mcp_is_error": false,
+      "server_text_error": false,
+      "rows": 22,
+      "empty": false,
+      "first_date": "2026-09-17T04:00:00.000Z",
+      "last_date": "2026-10-16T04:00:00.000Z",
+      "text_chars": 3826
+    },
+    "cost_examples": [
+      {
+        "arguments": {
+          "ticker": "NVDA",
+          "period": "5y",
+          "interval": "1d"
+        },
+        "rows": 1255,
+        "full_response_tokens": 287653
+      },
+      {
+        "arguments": {
+          "ticker": "NVDA",
+          "period": "5y",
+          "interval": "1mo"
+        },
+        "rows": 60,
+        "full_response_tokens": 13935
+      }
+    ]
+  },
+  "source_fidelity": {
+    "status": "exact_match",
+    "checked_at": "2026-10-18T01:00:09.972Z",
+    "tools": 9,
+    "description_only": true,
+    "ast_check": "AST matches except the single tool description",
+    "baseline_source_sha256": "sha256:a7926e70e4624e447e86e0bf64e561594c011a1f1cdea2ad7952a8a96b034763",
+    "candidate_source_sha256": "sha256:5fd981af28f672b2c2ff5f702259476cd120b7c176018ae99599564869cef06e",
+    "candidate_tools_sha256": "sha256:d9f221e875d22576320bd2ce89f0b7525711b1482f77c9d0a87f8178128dee1b",
+    "no_target_tool_called": true
+  }
+}

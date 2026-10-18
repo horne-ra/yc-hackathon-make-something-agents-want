@@ -32,3 +32,9 @@ Retain every trial, model output, all proposed calls, dispatch decision, complet
 Per-task/condition consistency flags cover selected tool/arguments, pass/failure, and result tokens. Ordered verdict uses unchanged `src/core/verdict.ts`: regression first for any control loss or a task loss ≥2; insufficient data next; Improved only for all nonnegative deltas and a non-control gain ≥2; otherwise Inconclusive. A perfect baseline is a valid result and must be reported plainly. Returned-token changes alone do not make Improved.
 
 Commit the measured patch, source-fidelity evidence, and frozen metadata/tasks/date/schedule/model/source hashes before generation. Any hash, tool metadata, model or source drift stops execution. At the 45-minute deadline stop starting work, retain partial results, and report incomplete outcomes; do not change tasks/patch or manufacture success to fit the time box. Report path: `docs/yfinance-results.md`.
+
+## Frozen setup findings
+
+One probe confirmed silent ignore of unsupported start/end: the supplied 1mo window returned 22 rows from 2026-09-17T04:00:00.000Z to 2026-10-16T04:00:00.000Z, rather than Q1 2025. NVDA 5y setup: daily 1255 rows / 287653 complete-response input tokens; monthly 60 rows / 13935 tokens. These measurements are embedded in the exact candidate description.
+
+The actual hand-edited candidate exports exactly the candidate tools/list; executable AST is unchanged except for that one decorator-description literal. All tasks, dates, predicates, model settings, and stop rules above remain unchanged. Frozen artifacts and hashes are in `scripts/yfinance/frozen/` and must be committed before generation.
