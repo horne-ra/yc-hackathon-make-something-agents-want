@@ -1,0 +1,1367 @@
+{
+  "slug": "jenner-analytics",
+  "source_url": "https://manufact.com/mcp-catalog/jenner-analytics",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:53:45.018Z",
+    "endpoint": "https://workspace.jenneranalytics.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "rmcp",
+      "version": "2.2.0"
+    },
+    "capabilities": {
+      "tools": {}
+    },
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "execute_sas_program",
+            "description": "Execute a SAS-language program (DATA steps and PROC steps such as PROC TABULATE or PROC FREQ), optionally against a demo CDISC ADaM dataset supplied as SAS Transport (XPT). Each call is an independent run with a fresh WORK library. A dataset created by one call does not exist in the next: a program reading work.name from an earlier call fails to find it. Steps that build on each other belong in one call. On a capped tier the row limit applies to rows a DATA step WRITES as well as rows it reads. The step still runs to completion — only the first N rows it writes are kept, so a step generating 300 rows returns 100 and its later statements still execute. The cap in force is reported as limits.row_cap on every run. Returns the status, a triage summary of the SAS log (level, ERROR and WARNING lines, and a NOTE count), the printed output listing (the rendered regulator-style table, for example a demographics summary), any output datasets, a manifest of the files the run wrote as artifacts (name, mime and bytes — the file contents themselves are not returned), and, for an authenticated caller, the id of a persisted auditable artifact recording exactly what ran, including the full log, retrievable via get_execution_audit. An anonymous run is not audited and its audit_id is empty.",
+            "inputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "include_log": {
+                  "default": null,
+                  "description": "Return the run's full SAS log alongside the result.\n\nOmit (the default) and no log is returned, exactly as before; it is\nstill retrievable afterwards via `get_execution_audit`. Set this to read\nthe log in the SAME round trip. `log_tail_bytes` implies this.",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "input_dataset": {
+                  "default": null,
+                  "description": "Optional input dataset to run against, given by name as a plain string.\nThe program references it by that name, e.g. `data=adsl`. Omit for a\nprogram that needs no input.\n\nWithout `org`, four synthetic CDISC-shaped ADaM demo datasets are\navailable. They are generated together and share ONE subject list, so\nthey join on `USUBJID`:\n\n- `adsl` — 200 rows, one per subject: USUBJID, TRT01P, SEX, RACE, AGE,\n  AGEGR1, TRT01PN, SAFFL, ITTFL, HEIGHTBL, WEIGHTBL, BMIBL\n- `adae` — 216 rows, one per adverse event (safety population only):\n  USUBJID, TRT01P, TRT01PN, AEDECOD, AEBODSYS, AESEV, AESER, AEREL,\n  AESTDY, TRTEMFL\n- `adlb` — 3200 rows, one per subject/parameter/visit (BDS): USUBJID,\n  TRT01P, TRT01PN, PARAMCD, PARAM, AVISIT, AVISITN, AVAL, BASE, CHG,\n  ABLFL\n- `adtte` — 400 rows, one per subject/time-to-event parameter: USUBJID,\n  TRT01P, TRT01PN, PARAMCD, PARAM, AVAL, CNSR, EVNTDESC\n\nEvery variable is character EXCEPT these, which are numeric: AGE,\nTRT01PN, HEIGHTBL, WEIGHTBL, BMIBL, AESTDY, AVISITN, AVAL, BASE, CHG,\nCNSR.\n\nThese counts are the FULL datasets. A tier-capped caller reads fewer\nrows — see `limits.row_cap` on the result.\n\nWith `org`, this is any dataset name in that organization's shared\ncatalog and the built-in registry is not consulted.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "log_tail_bytes": {
+                  "default": null,
+                  "description": "Return only the LAST this-many bytes of the log.\n\nSetting this returns the log whatever `include_log` says — including an\nexplicit `include_log: false`, which it OVERRIDES rather than merely\nimplying. Asking for the tail of something and getting nothing would be\nthe more surprising reading.\n\nThe tail, not the head: a run's failures land at the end. Same\ncharacter-boundary rule as `max_listing_bytes`.",
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "max_listing_bytes": {
+                  "default": null,
+                  "description": "Cap the returned `listing` at this many BYTES, keeping the head.\n\nOmit for the full listing — the default is unchanged and nothing is\ntrimmed unless you ask. Worth asking: two `PROC PRINT`s over the demo\ndatasets already return ~27 KB, and an uncapped run over the full 3,200\n-row `adlb` is several times a typical client's tool-output budget,\nwhich clients discard silently rather than reporting.\n\nThe bound is honoured exactly except that it never splits a multi-byte\ncharacter; when that happens the result is a byte or two shorter, and\n`truncated` reports what was actually returned.",
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "org": {
+                  "default": null,
+                  "description": "Optional organization slug (e.g. `\"east-agile\"`). When set,\n`input_dataset` is resolved ONLY against that organization's shared\ncatalog (never the built-in demo registry), and the caller must be an\nactive member of the organization. Omit to use the built-in demo\nregistry.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "program": {
+                  "description": "SAS-language program source to execute.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "program"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "$defs": {
+                "ArtifactPreview": {
+                  "description": "One output FILE in an `execute_sas_program` result: a plot the run\nrendered, an ODS report, a `PROC EXPORT` extract.\n\nMetadata only, and deliberately so. The engine writes these into the run's\nsandbox and names them in the log; the gateway then strips their bytes\nbefore the response reaches jenner-web\n(`clients::run_api::OutputFile`). Reporting the manifest is what stops a\nrun that produced a figure from looking like a run that produced nothing —\nfetching the bytes is a separate concern with its own authorization.",
+                  "properties": {
+                    "bytes": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "mime": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "mime",
+                    "bytes"
+                  ],
+                  "type": "object"
+                },
+                "CallerLimits": {
+                  "description": "The execution limits the caller's TIER imposes, reported on EVERY run.\n\nAn agent that discovers its cap only after a run was truncated has already\nproduced a wrong answer over partial data. [`input_cap_for_tier`] knows the\nanswer before the run, so it is reported unconditionally — capped or not —\nand the caller can plan instead of react.",
+                  "properties": {
+                    "row_cap": {
+                      "description": "Maximum observations the engine will process for this caller, or `null`\nwhen the tier runs uncapped.\n\nThe cap is TWO-SIDED: it bounds the rows a program READS *and* the rows\na DATA step WRITES. A step that generates its own data\n(`do i = 1 to 300; output; end;`) stops at this many rows, and the log\ncarries `NOTE: Unlicensed mode - output limited to N observations`. Do\nnot read this as an input-only limit — self-generated data is capped\ntoo, and that case produces no truncation notice of its own.",
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "tier": {
+                      "description": "The caller's EFFECTIVE tier: `anonymous` (no credential at all), `free`,\n`pro`, or `enterprise`.\n\nNot the string the caller arrived with. run-api floors everything it\ndoes not recognize — unknown, blank, legacy, even the literal\n`\"anonymous\"` — to `free` (`gateway/src/auth.rs`,\n`oauth.rs::tier_from_claim`), so an unrecognized tier is reported as the\n`free` it will actually be treated as. Echoing it back verbatim would\nname a tier that does not exist and invite planning against a cap the\ncaller does not have.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "tier"
+                  ],
+                  "type": "object"
+                },
+                "ChartSpec": {
+                  "description": "The engine's machine-readable account of one plot the run drew.\n\nA rendered figure is pixels, and this connector returns no pixels — Claude\nCode renders none, and the gateway strips artifact bytes regardless. The\nsidecar the engine writes beside every plot\n(`jenner-language/src/runtime/ods_graphics.rs`) is therefore the only way a\ncaller can check WHAT was drawn: the plot type, which column went on which\naxis, the values behind the marks.",
+                  "properties": {
+                    "name": {
+                      "description": "Sidecar filename, matching the entry in [`ExecuteResult::artifacts`] —\n`ods_output/sgplot.spec.json` beside `ods_output/sgplot.svg`.",
+                      "type": "string"
+                    },
+                    "spec": {
+                      "description": "The spec as the engine wrote it, minus any array trimming. Its schema is\nper-PROC and open; treat it as descriptive, not as a fixed contract."
+                    },
+                    "truncated": {
+                      "description": "Arrays that were shortened to bound the result, `\"<path>: <was> → <kept>\"`.\n\nNon-empty means the spec is NO LONGER a faithful reproduction input — it\nstill says what was plotted, but re-rendering it would draw a different\nfigure than the run did. Empty (and omitted) means it came through whole.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "spec"
+                  ],
+                  "type": "object"
+                },
+                "DatasetPreview": {
+                  "description": "One output dataset in an `execute_sas_program` result. The rendered table\nitself is in [`ExecuteResult::listing`]; this is the dataset's shape.",
+                  "properties": {
+                    "columns": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "rows": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "rows",
+                    "columns"
+                  ],
+                  "type": "object"
+                },
+                "LogSummary": {
+                  "description": "A parsed triage view over a SAS-language execution log: severity level,\nthe ERROR and WARNING lines verbatim, and a count of NOTE lines.",
+                  "properties": {
+                    "errors": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "level": {
+                      "type": "string"
+                    },
+                    "notes": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "warnings": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "level",
+                    "errors",
+                    "warnings",
+                    "notes"
+                  ],
+                  "type": "object"
+                },
+                "Truncated": {
+                  "description": "One thing the caller's own bounds cut short.\n\nReported only when something was ACTUALLY cut. A notice that fires when\nnothing was trimmed teaches a caller to ignore it.",
+                  "properties": {
+                    "returned_bytes": {
+                      "description": "Bytes actually returned — may be under the requested bound when the\ncut would have split a character.",
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "total_bytes": {
+                      "description": "Bytes the run produced in full.",
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "what": {
+                      "description": "`\"listing\"` or `\"log\"`.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "what",
+                    "returned_bytes",
+                    "total_bytes"
+                  ],
+                  "type": "object"
+                }
+              },
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "artifacts": {
+                  "description": "Files the run wrote. `Some([])` on a run that produced none — an\n`Option`, not a bare `Vec` skipped when empty, so \"the run made no\nfiles\" stays distinguishable from \"there was no run\", exactly as\n`datasets` does.",
+                  "items": {
+                    "$ref": "#/$defs/ArtifactPreview"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "audit_id": {
+                  "description": "Id of the persisted auditable artifact; pass to `get_execution_audit`.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "chart_specs": {
+                  "description": "Structured descriptions of the plots the run drew, one per sidecar the\nengine wrote. `Some([])` on a run that drew nothing — and also on a run\nwhose sidecars could not be read back, which is deliberately not an\nerror: `artifacts` still names every file, so a caller can always tell a\nfigure was produced.",
+                  "items": {
+                    "$ref": "#/$defs/ChartSpec"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "datasets": {
+                  "description": "Output dataset previews. `Some([])` on a run that produced none —\n`Option`, not a bare `Vec` skipped when empty, so \"the run made no\ndatasets\" stays distinguishable from \"there was no run\".",
+                  "items": {
+                    "$ref": "#/$defs/DatasetPreview"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "duration_ms": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "error": {
+                  "description": "Present iff `ok:false`. The rejection reason; generic and slug-free for\nthe org-access cases (see [`ORG_REFUSAL`]).",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "input_notice": {
+                  "description": "Platform notice that the caller's TIER capped the program's input, so\nthe result covers only the first N rows. Distinct from\n`log_summary.warnings`, which is SAS-engine log content: this is\njenner-web speaking about the plan the caller is on. `null` when nothing\nwas capped. Always serialized (part of the ok:true schema contract);\n`None` on a reject.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "limits": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/CallerLimits"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "The execution limits the caller's tier imposes. Present on every run,\ncapped or not, so an agent can plan before it is truncated rather than\ndiscover the bound afterwards."
+                },
+                "listing": {
+                  "description": "Printed output — the regulator-style table lives here.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "log": {
+                  "description": "The run's SAS log, present only when the caller asked for it via\n`include_log` or `log_tail_bytes`. Absent by default, exactly as before.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "log_summary": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/LogSummary"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Triage view over the SAS log: the authoritative `level` (reconciled\nwith the engine exit code), ERROR/WARNING lines, and NOTE count.\nThe full log is not returned inline BY DEFAULT (every tool return\ncrosses the caller's context window on each subsequent turn). Ask for it\nwith `include_log` or `log_tail_bytes` in the same round trip; it is also\npersisted in full on the audit and retrievable via\n`get_execution_audit`."
+                },
+                "ok": {
+                  "description": "`true` = the program ran; `false` = the caller's input was rejected.",
+                  "type": "boolean"
+                },
+                "status": {
+                  "description": "The engine's raw status string (e.g. `\"ok\"`, `\"completed\"`) — kept for\nprovenance, but NOT authoritative: the engine can report `ok` on a\nfailed step. Trust `log_summary.level` for the real outcome.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "truncated": {
+                  "description": "What the caller's own bounds cut short. Empty (and omitted) when the\ncaller set no bounds, or when nothing exceeded them.",
+                  "items": {
+                    "$ref": "#/$defs/Truncated"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Execute a SAS-language program",
+              "readOnlyHint": false,
+              "destructiveHint": false
+            }
+          },
+          {
+            "name": "get_execution_audit",
+            "description": "Retrieve a SAS-language execution's auditable artifact by id: the exact program that ran, its content hash, the execution environment, a plain-language description of what the run did, the input context, and the resulting output datasets.",
+            "inputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "audit_id": {
+                  "description": "The `audit_id` of a prior SAS-language execution.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "audit_id"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "$defs": {
+                "AuditArtifact": {
+                  "description": "One output FILE recorded on the audit — the manifest of what a run\nactually produced, so a reviewer can see that a figure or a report existed\neven after the gateway's run record has aged out.\n\nNo hash at all, where [`AuditDataset::sha256`] at least carries a shape\ndescriptor. The gateway strips artifact bytes before they reach jenner-web\n(`clients::run_api::OutputFile`), so a content hash could only be invented\n— and unlike a dataset, an artifact has no name/rows/columns triple to\nstand in for one. Size and mime are the whole of what the wire gives us.",
+                  "properties": {
+                    "bytes": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "mime": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "mime",
+                    "bytes"
+                  ],
+                  "type": "object"
+                },
+                "AuditDataset": {
+                  "description": "One dataset produced by an execution. `sha256` is a shape descriptor over\n`name|rows|columns`, NOT a hash of the dataset bytes: the gateway returns\ndataset bytes behind token-scoped URLs rather than inline, so per-dataset\ncontent-addressing is Phase 2. For a genuine output-content hash see\n[`ExecutionAudit::output_listing_sha256`].",
+                  "properties": {
+                    "cols": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "rows": {
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "sha256": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "rows",
+                    "cols",
+                    "sha256"
+                  ],
+                  "type": "object"
+                }
+              },
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "audit_id": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "deterministic": {
+                  "type": "boolean"
+                },
+                "duration_ms": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "engine_version": {
+                  "description": "The engine build that produced this result, from\n[`crate::clients::run_api::RunOutcome::jenner_version`] — run-api\nresolves it by exec'ing the same binary that ran the program, so it\ncarries the git SHA.\n\n`None` when run-api reported no version, or reported its `\"dev\"`\nplaceholder. Never derived from the log: a caller's own output reaches\nthe log verbatim, and a provenance field must not be forgeable by the\nparty it describes.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "error": {
+                  "description": "Present iff `ok:false`. The rejection reason; deliberately the same\nstring for every miss, whatever its cause (see 47465).",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "failure_class": {
+                  "description": "Why the run-api gateway gave no usable result (`gateway_timeout`,\n`gateway_unreachable`, `gateway_bad_response`, `gateway_status_<5xx>`).\nSuch a row keeps no program text and no log, and is the only kind with\nthis set, so `failure_class IS NOT NULL` is what marks it: `status` is\notherwise the gateway's own string. `None` for every run with an outcome.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "gateway_target": {
+                  "type": "string"
+                },
+                "input_dataset": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "input_sha256": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "log": {
+                  "type": "string"
+                },
+                "ok": {
+                  "description": "`true` = the audit was found and its fields are inlined alongside;\n`false` = the request was rejected (see `error`).",
+                  "type": "boolean"
+                },
+                "organization_id": {
+                  "description": "Nullable, best-effort: Phase 1 audit is user-scoped, not org-scoped.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "output_artifacts": {
+                  "description": "Files the run wrote (plots, ODS reports, exports). Empty for a run\nthat produced none, and for any audit written before the manifest\nexisted — the column defaults to `[]`, so a row from an older writer\nreads as \"no artifacts\" rather than failing to load.",
+                  "items": {
+                    "$ref": "#/$defs/AuditArtifact"
+                  },
+                  "type": "array"
+                },
+                "output_datasets": {
+                  "items": {
+                    "$ref": "#/$defs/AuditDataset"
+                  },
+                  "type": "array"
+                },
+                "output_listing_sha256": {
+                  "description": "Content hash of the printed output listing (the rendered table the\ncaller is shown), making the artifact tamper-evident on its output.\nContrast [`AuditDataset::sha256`], which is only a shape descriptor.",
+                  "type": "string"
+                },
+                "program_sha256": {
+                  "type": "string"
+                },
+                "program_text": {
+                  "type": "string"
+                },
+                "request_id": {
+                  "description": "jenner-web's own `x-request-id` (see `mcp::router`), NOT the\ngateway's `trace_id` — the gateway never populates that field for\nexternal callers.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "type": "string"
+                },
+                "user_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Retrieve an execution's auditable artifact",
+              "readOnlyHint": true,
+              "destructiveHint": false
+            }
+          },
+          {
+            "name": "ping",
+            "description": "Liveness check for the Jenner MCP server.",
+            "inputSchema": {
+              "properties": {},
+              "type": "object"
+            },
+            "outputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "ok": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Ping",
+              "readOnlyHint": true,
+              "destructiveHint": false
+            }
+          },
+          {
+            "name": "validate_sas_program",
+            "description": "Validate a SAS-language program (DATA steps, PROC steps, macros, PROC SQL) for parse errors without executing it. Returns ok=true when the program parses cleanly. A program that fails to parse returns ok=false with one or more diagnostics describing each parse issue and no error. A rejected request (for example an empty program) returns ok=false with an error explaining what to fix and no diagnostics.",
+            "inputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "program": {
+                  "description": "SAS-language program source to parse-check.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "program"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "$defs": {
+                "ToolDiagnostic": {
+                  "description": "One `/v1/validate` diagnostic, reshaped from `clients::run_api::Diagnostic`\nfor the tool's own output schema (kept separate from the gateway client's\nwire type so the two can evolve independently).",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "severity": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "severity",
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              },
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "diagnostics": {
+                  "description": "One entry per parse issue; empty on a clean parse and on a rejection.",
+                  "items": {
+                    "$ref": "#/$defs/ToolDiagnostic"
+                  },
+                  "type": "array"
+                },
+                "error": {
+                  "description": "Present iff the request was REJECTED (empty program, missing scope):\nthe reason, with no diagnostics. Absent on a parse failure, which\nreports itself through `diagnostics` instead.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ok": {
+                  "description": "`true` = the program parsed cleanly; `false` = it failed to parse (see\n`diagnostics`) or the request was rejected (see `error`).",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "ok",
+                "diagnostics"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Validate a SAS-language program",
+              "readOnlyHint": true,
+              "destructiveHint": false
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "execute_sas_program",
+        "description": "Execute a SAS-language program (DATA steps and PROC steps such as PROC TABULATE or PROC FREQ), optionally against a demo CDISC ADaM dataset supplied as SAS Transport (XPT). Each call is an independent run with a fresh WORK library. A dataset created by one call does not exist in the next: a program reading work.name from an earlier call fails to find it. Steps that build on each other belong in one call. On a capped tier the row limit applies to rows a DATA step WRITES as well as rows it reads. The step still runs to completion — only the first N rows it writes are kept, so a step generating 300 rows returns 100 and its later statements still execute. The cap in force is reported as limits.row_cap on every run. Returns the status, a triage summary of the SAS log (level, ERROR and WARNING lines, and a NOTE count), the printed output listing (the rendered regulator-style table, for example a demographics summary), any output datasets, a manifest of the files the run wrote as artifacts (name, mime and bytes — the file contents themselves are not returned), and, for an authenticated caller, the id of a persisted auditable artifact recording exactly what ran, including the full log, retrievable via get_execution_audit. An anonymous run is not audited and its audit_id is empty.",
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "include_log": {
+              "default": null,
+              "description": "Return the run's full SAS log alongside the result.\n\nOmit (the default) and no log is returned, exactly as before; it is\nstill retrievable afterwards via `get_execution_audit`. Set this to read\nthe log in the SAME round trip. `log_tail_bytes` implies this.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "input_dataset": {
+              "default": null,
+              "description": "Optional input dataset to run against, given by name as a plain string.\nThe program references it by that name, e.g. `data=adsl`. Omit for a\nprogram that needs no input.\n\nWithout `org`, four synthetic CDISC-shaped ADaM demo datasets are\navailable. They are generated together and share ONE subject list, so\nthey join on `USUBJID`:\n\n- `adsl` — 200 rows, one per subject: USUBJID, TRT01P, SEX, RACE, AGE,\n  AGEGR1, TRT01PN, SAFFL, ITTFL, HEIGHTBL, WEIGHTBL, BMIBL\n- `adae` — 216 rows, one per adverse event (safety population only):\n  USUBJID, TRT01P, TRT01PN, AEDECOD, AEBODSYS, AESEV, AESER, AEREL,\n  AESTDY, TRTEMFL\n- `adlb` — 3200 rows, one per subject/parameter/visit (BDS): USUBJID,\n  TRT01P, TRT01PN, PARAMCD, PARAM, AVISIT, AVISITN, AVAL, BASE, CHG,\n  ABLFL\n- `adtte` — 400 rows, one per subject/time-to-event parameter: USUBJID,\n  TRT01P, TRT01PN, PARAMCD, PARAM, AVAL, CNSR, EVNTDESC\n\nEvery variable is character EXCEPT these, which are numeric: AGE,\nTRT01PN, HEIGHTBL, WEIGHTBL, BMIBL, AESTDY, AVISITN, AVAL, BASE, CHG,\nCNSR.\n\nThese counts are the FULL datasets. A tier-capped caller reads fewer\nrows — see `limits.row_cap` on the result.\n\nWith `org`, this is any dataset name in that organization's shared\ncatalog and the built-in registry is not consulted.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "log_tail_bytes": {
+              "default": null,
+              "description": "Return only the LAST this-many bytes of the log.\n\nSetting this returns the log whatever `include_log` says — including an\nexplicit `include_log: false`, which it OVERRIDES rather than merely\nimplying. Asking for the tail of something and getting nothing would be\nthe more surprising reading.\n\nThe tail, not the head: a run's failures land at the end. Same\ncharacter-boundary rule as `max_listing_bytes`.",
+              "format": "uint",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "max_listing_bytes": {
+              "default": null,
+              "description": "Cap the returned `listing` at this many BYTES, keeping the head.\n\nOmit for the full listing — the default is unchanged and nothing is\ntrimmed unless you ask. Worth asking: two `PROC PRINT`s over the demo\ndatasets already return ~27 KB, and an uncapped run over the full 3,200\n-row `adlb` is several times a typical client's tool-output budget,\nwhich clients discard silently rather than reporting.\n\nThe bound is honoured exactly except that it never splits a multi-byte\ncharacter; when that happens the result is a byte or two shorter, and\n`truncated` reports what was actually returned.",
+              "format": "uint",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "org": {
+              "default": null,
+              "description": "Optional organization slug (e.g. `\"east-agile\"`). When set,\n`input_dataset` is resolved ONLY against that organization's shared\ncatalog (never the built-in demo registry), and the caller must be an\nactive member of the organization. Omit to use the built-in demo\nregistry.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "program": {
+              "description": "SAS-language program source to execute.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "program"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "$defs": {
+            "ArtifactPreview": {
+              "description": "One output FILE in an `execute_sas_program` result: a plot the run\nrendered, an ODS report, a `PROC EXPORT` extract.\n\nMetadata only, and deliberately so. The engine writes these into the run's\nsandbox and names them in the log; the gateway then strips their bytes\nbefore the response reaches jenner-web\n(`clients::run_api::OutputFile`). Reporting the manifest is what stops a\nrun that produced a figure from looking like a run that produced nothing —\nfetching the bytes is a separate concern with its own authorization.",
+              "properties": {
+                "bytes": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "mime": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "mime",
+                "bytes"
+              ],
+              "type": "object"
+            },
+            "CallerLimits": {
+              "description": "The execution limits the caller's TIER imposes, reported on EVERY run.\n\nAn agent that discovers its cap only after a run was truncated has already\nproduced a wrong answer over partial data. [`input_cap_for_tier`] knows the\nanswer before the run, so it is reported unconditionally — capped or not —\nand the caller can plan instead of react.",
+              "properties": {
+                "row_cap": {
+                  "description": "Maximum observations the engine will process for this caller, or `null`\nwhen the tier runs uncapped.\n\nThe cap is TWO-SIDED: it bounds the rows a program READS *and* the rows\na DATA step WRITES. A step that generates its own data\n(`do i = 1 to 300; output; end;`) stops at this many rows, and the log\ncarries `NOTE: Unlicensed mode - output limited to N observations`. Do\nnot read this as an input-only limit — self-generated data is capped\ntoo, and that case produces no truncation notice of its own.",
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "tier": {
+                  "description": "The caller's EFFECTIVE tier: `anonymous` (no credential at all), `free`,\n`pro`, or `enterprise`.\n\nNot the string the caller arrived with. run-api floors everything it\ndoes not recognize — unknown, blank, legacy, even the literal\n`\"anonymous\"` — to `free` (`gateway/src/auth.rs`,\n`oauth.rs::tier_from_claim`), so an unrecognized tier is reported as the\n`free` it will actually be treated as. Echoing it back verbatim would\nname a tier that does not exist and invite planning against a cap the\ncaller does not have.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tier"
+              ],
+              "type": "object"
+            },
+            "ChartSpec": {
+              "description": "The engine's machine-readable account of one plot the run drew.\n\nA rendered figure is pixels, and this connector returns no pixels — Claude\nCode renders none, and the gateway strips artifact bytes regardless. The\nsidecar the engine writes beside every plot\n(`jenner-language/src/runtime/ods_graphics.rs`) is therefore the only way a\ncaller can check WHAT was drawn: the plot type, which column went on which\naxis, the values behind the marks.",
+              "properties": {
+                "name": {
+                  "description": "Sidecar filename, matching the entry in [`ExecuteResult::artifacts`] —\n`ods_output/sgplot.spec.json` beside `ods_output/sgplot.svg`.",
+                  "type": "string"
+                },
+                "spec": {
+                  "description": "The spec as the engine wrote it, minus any array trimming. Its schema is\nper-PROC and open; treat it as descriptive, not as a fixed contract."
+                },
+                "truncated": {
+                  "description": "Arrays that were shortened to bound the result, `\"<path>: <was> → <kept>\"`.\n\nNon-empty means the spec is NO LONGER a faithful reproduction input — it\nstill says what was plotted, but re-rendering it would draw a different\nfigure than the run did. Empty (and omitted) means it came through whole.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "name",
+                "spec"
+              ],
+              "type": "object"
+            },
+            "DatasetPreview": {
+              "description": "One output dataset in an `execute_sas_program` result. The rendered table\nitself is in [`ExecuteResult::listing`]; this is the dataset's shape.",
+              "properties": {
+                "columns": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "rows": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "name",
+                "rows",
+                "columns"
+              ],
+              "type": "object"
+            },
+            "LogSummary": {
+              "description": "A parsed triage view over a SAS-language execution log: severity level,\nthe ERROR and WARNING lines verbatim, and a count of NOTE lines.",
+              "properties": {
+                "errors": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "level": {
+                  "type": "string"
+                },
+                "notes": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "warnings": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "level",
+                "errors",
+                "warnings",
+                "notes"
+              ],
+              "type": "object"
+            },
+            "Truncated": {
+              "description": "One thing the caller's own bounds cut short.\n\nReported only when something was ACTUALLY cut. A notice that fires when\nnothing was trimmed teaches a caller to ignore it.",
+              "properties": {
+                "returned_bytes": {
+                  "description": "Bytes actually returned — may be under the requested bound when the\ncut would have split a character.",
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "total_bytes": {
+                  "description": "Bytes the run produced in full.",
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "what": {
+                  "description": "`\"listing\"` or `\"log\"`.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "what",
+                "returned_bytes",
+                "total_bytes"
+              ],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "artifacts": {
+              "description": "Files the run wrote. `Some([])` on a run that produced none — an\n`Option`, not a bare `Vec` skipped when empty, so \"the run made no\nfiles\" stays distinguishable from \"there was no run\", exactly as\n`datasets` does.",
+              "items": {
+                "$ref": "#/$defs/ArtifactPreview"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "audit_id": {
+              "description": "Id of the persisted auditable artifact; pass to `get_execution_audit`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "chart_specs": {
+              "description": "Structured descriptions of the plots the run drew, one per sidecar the\nengine wrote. `Some([])` on a run that drew nothing — and also on a run\nwhose sidecars could not be read back, which is deliberately not an\nerror: `artifacts` still names every file, so a caller can always tell a\nfigure was produced.",
+              "items": {
+                "$ref": "#/$defs/ChartSpec"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "datasets": {
+              "description": "Output dataset previews. `Some([])` on a run that produced none —\n`Option`, not a bare `Vec` skipped when empty, so \"the run made no\ndatasets\" stays distinguishable from \"there was no run\".",
+              "items": {
+                "$ref": "#/$defs/DatasetPreview"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "duration_ms": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "error": {
+              "description": "Present iff `ok:false`. The rejection reason; generic and slug-free for\nthe org-access cases (see [`ORG_REFUSAL`]).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "input_notice": {
+              "description": "Platform notice that the caller's TIER capped the program's input, so\nthe result covers only the first N rows. Distinct from\n`log_summary.warnings`, which is SAS-engine log content: this is\njenner-web speaking about the plan the caller is on. `null` when nothing\nwas capped. Always serialized (part of the ok:true schema contract);\n`None` on a reject.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "limits": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/CallerLimits"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The execution limits the caller's tier imposes. Present on every run,\ncapped or not, so an agent can plan before it is truncated rather than\ndiscover the bound afterwards."
+            },
+            "listing": {
+              "description": "Printed output — the regulator-style table lives here.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "log": {
+              "description": "The run's SAS log, present only when the caller asked for it via\n`include_log` or `log_tail_bytes`. Absent by default, exactly as before.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "log_summary": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/LogSummary"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Triage view over the SAS log: the authoritative `level` (reconciled\nwith the engine exit code), ERROR/WARNING lines, and NOTE count.\nThe full log is not returned inline BY DEFAULT (every tool return\ncrosses the caller's context window on each subsequent turn). Ask for it\nwith `include_log` or `log_tail_bytes` in the same round trip; it is also\npersisted in full on the audit and retrievable via\n`get_execution_audit`."
+            },
+            "ok": {
+              "description": "`true` = the program ran; `false` = the caller's input was rejected.",
+              "type": "boolean"
+            },
+            "status": {
+              "description": "The engine's raw status string (e.g. `\"ok\"`, `\"completed\"`) — kept for\nprovenance, but NOT authoritative: the engine can report `ok` on a\nfailed step. Trust `log_summary.level` for the real outcome.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "truncated": {
+              "description": "What the caller's own bounds cut short. Empty (and omitted) when the\ncaller set no bounds, or when nothing exceeded them.",
+              "items": {
+                "$ref": "#/$defs/Truncated"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "ok"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Execute a SAS-language program",
+          "readOnlyHint": false,
+          "destructiveHint": false
+        }
+      },
+      {
+        "name": "get_execution_audit",
+        "description": "Retrieve a SAS-language execution's auditable artifact by id: the exact program that ran, its content hash, the execution environment, a plain-language description of what the run did, the input context, and the resulting output datasets.",
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "audit_id": {
+              "description": "The `audit_id` of a prior SAS-language execution.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "audit_id"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "$defs": {
+            "AuditArtifact": {
+              "description": "One output FILE recorded on the audit — the manifest of what a run\nactually produced, so a reviewer can see that a figure or a report existed\neven after the gateway's run record has aged out.\n\nNo hash at all, where [`AuditDataset::sha256`] at least carries a shape\ndescriptor. The gateway strips artifact bytes before they reach jenner-web\n(`clients::run_api::OutputFile`), so a content hash could only be invented\n— and unlike a dataset, an artifact has no name/rows/columns triple to\nstand in for one. Size and mime are the whole of what the wire gives us.",
+              "properties": {
+                "bytes": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "mime": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "mime",
+                "bytes"
+              ],
+              "type": "object"
+            },
+            "AuditDataset": {
+              "description": "One dataset produced by an execution. `sha256` is a shape descriptor over\n`name|rows|columns`, NOT a hash of the dataset bytes: the gateway returns\ndataset bytes behind token-scoped URLs rather than inline, so per-dataset\ncontent-addressing is Phase 2. For a genuine output-content hash see\n[`ExecutionAudit::output_listing_sha256`].",
+              "properties": {
+                "cols": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "rows": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "sha256": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "rows",
+                "cols",
+                "sha256"
+              ],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "audit_id": {
+              "type": "string"
+            },
+            "created_at": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "deterministic": {
+              "type": "boolean"
+            },
+            "duration_ms": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "engine_version": {
+              "description": "The engine build that produced this result, from\n[`crate::clients::run_api::RunOutcome::jenner_version`] — run-api\nresolves it by exec'ing the same binary that ran the program, so it\ncarries the git SHA.\n\n`None` when run-api reported no version, or reported its `\"dev\"`\nplaceholder. Never derived from the log: a caller's own output reaches\nthe log verbatim, and a provenance field must not be forgeable by the\nparty it describes.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "error": {
+              "description": "Present iff `ok:false`. The rejection reason; deliberately the same\nstring for every miss, whatever its cause (see 47465).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "failure_class": {
+              "description": "Why the run-api gateway gave no usable result (`gateway_timeout`,\n`gateway_unreachable`, `gateway_bad_response`, `gateway_status_<5xx>`).\nSuch a row keeps no program text and no log, and is the only kind with\nthis set, so `failure_class IS NOT NULL` is what marks it: `status` is\notherwise the gateway's own string. `None` for every run with an outcome.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "gateway_target": {
+              "type": "string"
+            },
+            "input_dataset": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "input_sha256": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "log": {
+              "type": "string"
+            },
+            "ok": {
+              "description": "`true` = the audit was found and its fields are inlined alongside;\n`false` = the request was rejected (see `error`).",
+              "type": "boolean"
+            },
+            "organization_id": {
+              "description": "Nullable, best-effort: Phase 1 audit is user-scoped, not org-scoped.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "output_artifacts": {
+              "description": "Files the run wrote (plots, ODS reports, exports). Empty for a run\nthat produced none, and for any audit written before the manifest\nexisted — the column defaults to `[]`, so a row from an older writer\nreads as \"no artifacts\" rather than failing to load.",
+              "items": {
+                "$ref": "#/$defs/AuditArtifact"
+              },
+              "type": "array"
+            },
+            "output_datasets": {
+              "items": {
+                "$ref": "#/$defs/AuditDataset"
+              },
+              "type": "array"
+            },
+            "output_listing_sha256": {
+              "description": "Content hash of the printed output listing (the rendered table the\ncaller is shown), making the artifact tamper-evident on its output.\nContrast [`AuditDataset::sha256`], which is only a shape descriptor.",
+              "type": "string"
+            },
+            "program_sha256": {
+              "type": "string"
+            },
+            "program_text": {
+              "type": "string"
+            },
+            "request_id": {
+              "description": "jenner-web's own `x-request-id` (see `mcp::router`), NOT the\ngateway's `trace_id` — the gateway never populates that field for\nexternal callers.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "status": {
+              "type": "string"
+            },
+            "user_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "ok"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Retrieve an execution's auditable artifact",
+          "readOnlyHint": true,
+          "destructiveHint": false
+        }
+      },
+      {
+        "name": "ping",
+        "description": "Liveness check for the Jenner MCP server.",
+        "inputSchema": {
+          "properties": {},
+          "type": "object"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "ok": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "ok"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Ping",
+          "readOnlyHint": true,
+          "destructiveHint": false
+        }
+      },
+      {
+        "name": "validate_sas_program",
+        "description": "Validate a SAS-language program (DATA steps, PROC steps, macros, PROC SQL) for parse errors without executing it. Returns ok=true when the program parses cleanly. A program that fails to parse returns ok=false with one or more diagnostics describing each parse issue and no error. A rejected request (for example an empty program) returns ok=false with an error explaining what to fix and no diagnostics.",
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "program": {
+              "description": "SAS-language program source to parse-check.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "program"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "$defs": {
+            "ToolDiagnostic": {
+              "description": "One `/v1/validate` diagnostic, reshaped from `clients::run_api::Diagnostic`\nfor the tool's own output schema (kept separate from the gateway client's\nwire type so the two can evolve independently).",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "severity",
+                "message"
+              ],
+              "type": "object"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "diagnostics": {
+              "description": "One entry per parse issue; empty on a clean parse and on a rejection.",
+              "items": {
+                "$ref": "#/$defs/ToolDiagnostic"
+              },
+              "type": "array"
+            },
+            "error": {
+              "description": "Present iff the request was REJECTED (empty program, missing scope):\nthe reason, with no diagnostics. Absent on a parse failure, which\nreports itself through `diagnostics` instead.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "ok": {
+              "description": "`true` = the program parsed cleanly; `false` = it failed to parse (see\n`diagnostics`) or the request was rejected (see `error`).",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "ok",
+            "diagnostics"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Validate a SAS-language program",
+          "readOnlyHint": true,
+          "destructiveHint": false
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:53:41.637Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:53:42.688Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:53:43.738Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:53:44.790Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 4,
+    "tools_hash": "sha256:24207179fc21069a1d9012bd67ba5ec77c75a498e4469c4b0785860c28ca1133",
+    "static_tool_tokens": 2746,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "execute_sas_program",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_execution_audit",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "ping",
+        "message": "Description does not say when to use this tool."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 2,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "execute_sas_program",
+          "path": "inputSchema.properties.include_log",
+          "name": "include_log",
+          "description": "Return the run's full SAS log alongside the result.\n\nOmit (the default) and no log is returned, exactly as before; it is\nstill retrievable afterwards via `get_execution_audit`. Set this to read\nthe log in the SAME round trip. `log_tail_bytes` implies this.",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "execute_sas_program",
+          "path": "inputSchema.properties.max_listing_bytes",
+          "name": "max_listing_bytes",
+          "description": "Cap the returned `listing` at this many BYTES, keeping the head.\n\nOmit for the full listing — the default is unchanged and nothing is\ntrimmed unless you ask. Worth asking: two `PROC PRINT`s over the demo\ndatasets already return ~27 KB, and an uncapped run over the full 3,200\n-row `adlb` is several times a typical client's tool-output budget,\nwhich clients discard silently rather than reporting.\n\nThe bound is honoured exactly except that it never splits a multi-byte\ncharacter; when that happens the result is a byte or two shorter, and\n`truncated` reports what was actually returned.",
+          "mentions_size_or_cost": true,
+          "default": null
+        }
+      ],
+      "flags": []
+    },
+    "read_only_allowlist": [
+      "get_execution_audit",
+      "ping",
+      "validate_sas_program"
+    ]
+  }
+}

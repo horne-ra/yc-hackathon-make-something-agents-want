@@ -1,0 +1,1307 @@
+{
+  "slug": "pgh-pest-control",
+  "source_url": "https://manufact.com/mcp-catalog/pgh-pest-control",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:24:26.882Z",
+    "endpoint": "https://pgh-booking-mcp.charlie-4be.workers.dev/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "pgh-booking",
+      "version": "1.0.0"
+    },
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "PGH Pest Control online booking (UK). Speaking the answers: pgh_find_service, pgh_get_slots, pgh_quote_slot and pgh_confirm_booking each return say, a line ready to speak, with prices in words and dates spoken: speak say as it is. pgh_find_service leaves say out while the caller has not chosen between close matches: then ask them which, as its hint says, and give no price until they choose. pgh_quote_slot also returns priceLine with require_repeat_verbatim true: repeat its response_text word for word. Never restate a price, a date or a reference from memory or from the figures in other fields. Finding the service: call pgh_find_service FIRST with the caller's own words (\"rats in the loft\", \"wasps nest\"); it returns the best matching service with its from-price and only its own pricing questions, and names any other close matches in hint so you can ask the caller which (for example indoor and outdoor, or outdoor only) before fetching more. Call pgh_list_services with compact:true only when you need to offer the caller the list of services; call pgh_list_services without compact (the full catalogue, large) only if the caller asks for everything in detail. Then: pgh_get_slots for real diary availability at the customer's postcode, with a window of at most seven days starting from the day the caller wants; it returns three slots and a say line that offers the first, then the others with or: speak say, stop at the first slot the caller takes, and pass that slot's start unchanged; pgh_quote_slot once the customer has picked a slot, which holds it and returns the exact price including VAT: speak its say, repeat its priceLine word for word, then read the terms; pgh_confirm_booking only after an explicit yes, which returns a Stripe Checkout URL and a say line with the booking reference, the total in words and the payment-link line: speak it, then have the payment link texted to the caller, as that line says (on the phone line the text tool attaches the link itself: never copy it into a message, never read a web address aloud); if its say carries no total, repeat the quote's priceLine word for word instead. THE CUSTOMER pays there personally; agents never take payment. A quote that is never confirmed, and a reservation that is never paid, both release themselves at no cost. pgh_reserve_slot is the older single call that does quote and confirm together, for surfaces that have already shown the customer the price and the terms.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "pgh_list_services",
+            "title": "List PGH services and prices",
+            "description": "List the pest-control services PGH Pest Control offers for online booking: names, visit counts, from-prices (inc VAT), and the pricing questions each service asks. Reservations validate against this catalogue. A voice agent should call pgh_find_service first (a small fraction of the size) and use compact:true here only to offer a list. Prices are 'from' prices; the exact total is confirmed during reservation, before the customer pays.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "compact": {
+                  "description": "true returns only serviceId, name and fromPrice per service, for offering the caller a list. Omit for the full catalogue.",
+                  "type": "boolean"
+                }
+              }
+            },
+            "annotations": {
+              "title": "List PGH services and prices",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "pgh_find_service",
+            "title": "Find the PGH service for the caller's problem",
+            "description": "Match the caller's own words (for example \"rats in the loft\", \"wasps nest\", \"pigeons on solar panels\") to the best PGH service (limit 1, the default; up to three with limit). Other close matches come back by name only in hint: if the caller has not said which (for example indoor and outdoor, or outdoor only), ask them, then call again with the name of the service they choose, exactly as hint writes it (a service's own name always finds it first). Each match carries serviceId, name, a one-line description, visits, fromPrice (inc VAT) and that service's pricing questions only. Each question gives options as [value, label] pairs: say the label, send the value in pricingAnswers. notOnline lists values that cannot be booked online (offer a survey or the phone number instead); showIf means ask only when that earlier answer applies. bookingQuestions are asked once per booking and answered with serviceId bookingQuestionsServiceId. If matches is empty, hint lists every service name: ask the caller to pick one and call again with it. Use this before pgh_list_services; it is a small fraction of the size. When the caller's words settle the service (nothing else matched, their words picked it, or you called with its exact name), say comes back: the service's name, its one-line description and its from-price in words. Speak say as it is. When say is absent the choice is open: ask the caller which, as hint says, and give no price until they choose. Never restate the price from fromPrice or from memory.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300,
+                  "description": "What the caller said the problem is, in their own words"
+                },
+                "postcode": {
+                  "description": "Customer's UK postcode if already known (not used for matching; pass it to pgh_get_slots)",
+                  "type": "string",
+                  "maxLength": 16
+                },
+                "limit": {
+                  "description": "How many matches to return in full, 1 to 3. Omit for 1, the best match; the others are named in hint.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3
+                }
+              },
+              "required": [
+                "query"
+              ]
+            },
+            "annotations": {
+              "title": "Find the PGH service for the caller's problem",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "pgh_get_slots",
+            "title": "Check PGH appointment availability",
+            "description": "Get bookable appointment slots for a PGH service. Ask for a window of at most seven days, starting from the day the caller wants (dateFrom that day, dateTo six days later). Provide the customer's postcode whenever known: some services are only bookable within travel range, and the postcode filters slots to technicians who can actually attend. By default the answer is the first three slots, each with start (pass it to pgh_quote_slot as slotStart, exactly as given, and never read it aloud) and spoken (that slot's own spoken form), and one say line that offers the first slot, then the others with or. Speak say as it is, stop at the first slot the caller takes, and never restate a date or a time from memory. compact:false returns the full shape (ISO-8601 UTC times, capacity) for surfaces that show a calendar. This can take up to ~40 seconds for a first search on a new postcode.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "serviceId": {
+                  "type": "string",
+                  "description": "Service id exactly as returned by pgh_find_service or pgh_list_services with compact:true"
+                },
+                "dateFrom": {
+                  "type": "string",
+                  "description": "Range start: YYYY-MM-DD or ISO-8601"
+                },
+                "dateTo": {
+                  "type": "string",
+                  "description": "Range end (inclusive day): YYYY-MM-DD or ISO-8601"
+                },
+                "postcode": {
+                  "description": "The property's UK postcode, e.g. 'SA6 8QF'. Required for the spoken answer: ask the caller for it before searching.",
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "additionalServiceIds": {
+                  "description": "Other service ids being booked in the same visit, if any",
+                  "maxItems": 23,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "limit": {
+                  "description": "How many slots to return in the compact answer, 1 to 10. Omit for 3.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10
+                },
+                "compact": {
+                  "description": "Omit (or true) for the first slots with a spoken form each, for a voice agent. false returns the full shape (every slot, ISO-8601 UTC times and capacity); limit does not apply to it.",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "serviceId",
+                "dateFrom",
+                "dateTo"
+              ]
+            },
+            "annotations": {
+              "title": "Check PGH appointment availability",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "pgh_reserve_slot",
+            "title": "Reserve a PGH appointment (customer pays at Stripe)",
+            "description": "Reserve an appointment slot for the customer and return a Stripe Checkout URL where THE CUSTOMER pays to confirm the booking. Agents never take payment. Call this ONCE per booking — it creates a real reservation and provisions the job before payment (both self-cancel at no cost if the customer does not pay within ~30 minutes; nothing ever needs cancelling). Before calling: (1) the customer must have chosen a slot from pgh_get_slots, (2) you must have shown them the price and the terms (termsUrl from pgh_find_service) and they must have explicitly accepted, (3) answer the service's applicable pricing questions from pgh_find_service in pricingAnswers. The exact price (inc VAT) is returned so you can confirm it with the customer; it also appears on the Stripe page before they pay. If it fails, read the error's holdNote before retrying — an immediate identical re-run can collide with the abandoned hold.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "serviceId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Primary service id from pgh_find_service (or pgh_list_services with compact:true)"
+                },
+                "slotStart": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Chosen slot's start from pgh_get_slots (start in the default answer, slotStart with compact:false), ISO-8601, exactly as returned"
+                },
+                "additionalServices": {
+                  "description": "Other services in the same booking (no duplicates; use quantity for multiples)",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "serviceId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "quantity": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 10
+                      }
+                    },
+                    "required": [
+                      "serviceId",
+                      "quantity"
+                    ]
+                  }
+                },
+                "followUpSlots": {
+                  "description": "For multi-visit services: chosen follow-up visit slots. Omit to let the scheduler auto-plan follow-ups; contested picks fall back to auto-planning.",
+                  "maxItems": 32,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "serviceId": {
+                        "description": "Defaults to the primary service",
+                        "type": "string"
+                      },
+                      "visitIndex": {
+                        "type": "integer",
+                        "minimum": 2,
+                        "maximum": 16,
+                        "description": "2 = second visit, 3 = third…"
+                      },
+                      "slotStart": {
+                        "type": "string",
+                        "description": "ISO-8601 slot start for that visit"
+                      }
+                    },
+                    "required": [
+                      "visitIndex",
+                      "slotStart"
+                    ]
+                  }
+                },
+                "contact": {
+                  "type": "object",
+                  "properties": {
+                    "firstName": {
+                      "type": "string",
+                      "maxLength": 100
+                    },
+                    "lastName": {
+                      "type": "string",
+                      "maxLength": 100
+                    },
+                    "email": {
+                      "type": "string",
+                      "maxLength": 254,
+                      "description": "Booking confirmation goes here after payment"
+                    },
+                    "phone": {
+                      "type": "string",
+                      "maxLength": 30,
+                      "description": "The customer's phone: on a phone call, the number they are calling from unless they give another"
+                    }
+                  },
+                  "required": [
+                    "firstName",
+                    "lastName",
+                    "email",
+                    "phone"
+                  ]
+                },
+                "address": {
+                  "type": "object",
+                  "properties": {
+                    "line1": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "description": "First line of the property's address: house or unit, and street"
+                    },
+                    "line2": {
+                      "type": "string"
+                    },
+                    "town": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "description": "The town, not a street"
+                    },
+                    "postcode": {
+                      "type": "string",
+                      "maxLength": 12
+                    }
+                  },
+                  "required": [
+                    "line1",
+                    "town",
+                    "postcode"
+                  ]
+                },
+                "propertyType": {
+                  "type": "string",
+                  "enum": [
+                    "Home",
+                    "Business"
+                  ]
+                },
+                "businessName": {
+                  "description": "Required when propertyType is Business",
+                  "type": "string"
+                },
+                "pricingAnswers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "serviceId": {
+                        "description": "Service the question belongs to (default: primary; '_booking' for global questions)",
+                        "type": "string"
+                      },
+                      "questionId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The chosen option's value; for multiSelect questions join values with '|'"
+                      }
+                    },
+                    "required": [
+                      "questionId",
+                      "value"
+                    ]
+                  }
+                },
+                "customerAcceptedTerms": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "Pass true ONLY after the customer has been shown and accepted the terms"
+                },
+                "marketingOptIn": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "serviceId",
+                "slotStart",
+                "contact",
+                "address",
+                "propertyType",
+                "customerAcceptedTerms"
+              ]
+            },
+            "annotations": {
+              "title": "Reserve a PGH appointment (customer pays at Stripe)",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "pgh_quote_slot",
+            "title": "Hold a PGH slot and get the exact price",
+            "description": "Holds the slot and returns the exact price including VAT. Speak say (the held slot) as it is, then repeat priceLine.response_text word for word (require_repeat_verbatim: the total in words, VAT included), then read the terms; never restate the price from priceFormatted or from memory. Call pgh_confirm_booking only after an explicit spoken yes. The hold releases itself at no cost if not confirmed. Before calling: (1) the customer must have chosen a slot from pgh_get_slots, (2) answer the service's applicable pricing questions (from pgh_find_service or pgh_list_services) in pricingAnswers. Nothing is committed here: no terms are recorded, no job is created, no payment page exists yet. Keep the returned quoteId and quoteToken for the confirm call, and do not read them aloud.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "serviceId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Primary service id from pgh_find_service (or pgh_list_services with compact:true)"
+                },
+                "slotStart": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Chosen slot's start from pgh_get_slots (start in the default answer, slotStart with compact:false), ISO-8601, exactly as returned"
+                },
+                "additionalServices": {
+                  "description": "Other services in the same booking (no duplicates; use quantity for multiples)",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "serviceId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "quantity": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 10
+                      }
+                    },
+                    "required": [
+                      "serviceId",
+                      "quantity"
+                    ]
+                  }
+                },
+                "followUpSlots": {
+                  "description": "For multi-visit services: chosen follow-up visit slots. Omit to let the scheduler auto-plan follow-ups; contested picks fall back to auto-planning.",
+                  "maxItems": 32,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "serviceId": {
+                        "description": "Defaults to the primary service",
+                        "type": "string"
+                      },
+                      "visitIndex": {
+                        "type": "integer",
+                        "minimum": 2,
+                        "maximum": 16,
+                        "description": "2 = second visit, 3 = third…"
+                      },
+                      "slotStart": {
+                        "type": "string",
+                        "description": "ISO-8601 slot start for that visit"
+                      }
+                    },
+                    "required": [
+                      "visitIndex",
+                      "slotStart"
+                    ]
+                  }
+                },
+                "contact": {
+                  "type": "object",
+                  "properties": {
+                    "firstName": {
+                      "type": "string",
+                      "maxLength": 100
+                    },
+                    "lastName": {
+                      "type": "string",
+                      "maxLength": 100
+                    },
+                    "email": {
+                      "type": "string",
+                      "maxLength": 254,
+                      "description": "Booking confirmation goes here after payment"
+                    },
+                    "phone": {
+                      "type": "string",
+                      "maxLength": 30,
+                      "description": "The customer's phone: on a phone call, the number they are calling from unless they give another"
+                    }
+                  },
+                  "required": [
+                    "firstName",
+                    "lastName",
+                    "email",
+                    "phone"
+                  ]
+                },
+                "address": {
+                  "type": "object",
+                  "properties": {
+                    "line1": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "description": "First line of the property's address: house or unit, and street"
+                    },
+                    "line2": {
+                      "type": "string"
+                    },
+                    "town": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "description": "The town, not a street"
+                    },
+                    "postcode": {
+                      "type": "string",
+                      "maxLength": 12
+                    }
+                  },
+                  "required": [
+                    "line1",
+                    "town",
+                    "postcode"
+                  ]
+                },
+                "propertyType": {
+                  "type": "string",
+                  "enum": [
+                    "Home",
+                    "Business"
+                  ]
+                },
+                "businessName": {
+                  "description": "Required when propertyType is Business",
+                  "type": "string"
+                },
+                "pricingAnswers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "serviceId": {
+                        "description": "Service the question belongs to (default: primary; '_booking' for global questions)",
+                        "type": "string"
+                      },
+                      "questionId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "value": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The chosen option's value; for multiSelect questions join values with '|'"
+                      }
+                    },
+                    "required": [
+                      "questionId",
+                      "value"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "serviceId",
+                "slotStart",
+                "contact",
+                "address",
+                "propertyType"
+              ]
+            },
+            "annotations": {
+              "title": "Hold a PGH slot and get the exact price",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "pgh_confirm_booking",
+            "title": "Confirm a quoted PGH booking (customer pays at Stripe)",
+            "description": "Confirm the booking the customer has just agreed to, using the quoteId and quoteToken from pgh_quote_slot, and return a Stripe Checkout URL where THE CUSTOMER pays. Agents never take payment. Call this ONLY after the customer has heard the exact price and the terms and has said yes explicitly: this records their acceptance and provisions the job. Call it once per quote. If the booking included follow-up visits, their times are confirmed by the scheduler and may be adjusted, so do not promise the requested follow-up dates as fixed. On success, say carries the booking reference character by character, the total in words, and the payment-link line, which tells the caller the link is being texted: speak say as it is, then have the payment link texted to the caller (on the phone line the text tool attaches the link itself: never copy it into a message), and never read the web address aloud or restate the reference or the price from memory. When the engine did not re-serve the price, say carries no total: repeat the quote's priceLine word for word instead. If it fails, read the error's holdNote before retrying: an immediate identical re-run can collide with the hold in flight.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "quoteId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "quoteId exactly as returned by pgh_quote_slot"
+                },
+                "quoteToken": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "quoteToken exactly as returned by pgh_quote_slot"
+                },
+                "customerAcceptedTerms": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "Pass true ONLY after the customer has heard the price and the terms and said yes"
+                },
+                "marketingOptIn": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "quoteId",
+                "quoteToken",
+                "customerAcceptedTerms"
+              ]
+            },
+            "annotations": {
+              "title": "Confirm a quoted PGH booking (customer pays at Stripe)",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "pgh_list_services",
+        "title": "List PGH services and prices",
+        "description": "List the pest-control services PGH Pest Control offers for online booking: names, visit counts, from-prices (inc VAT), and the pricing questions each service asks. Reservations validate against this catalogue. A voice agent should call pgh_find_service first (a small fraction of the size) and use compact:true here only to offer a list. Prices are 'from' prices; the exact total is confirmed during reservation, before the customer pays.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "compact": {
+              "description": "true returns only serviceId, name and fromPrice per service, for offering the caller a list. Omit for the full catalogue.",
+              "type": "boolean"
+            }
+          }
+        },
+        "annotations": {
+          "title": "List PGH services and prices",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "pgh_find_service",
+        "title": "Find the PGH service for the caller's problem",
+        "description": "Match the caller's own words (for example \"rats in the loft\", \"wasps nest\", \"pigeons on solar panels\") to the best PGH service (limit 1, the default; up to three with limit). Other close matches come back by name only in hint: if the caller has not said which (for example indoor and outdoor, or outdoor only), ask them, then call again with the name of the service they choose, exactly as hint writes it (a service's own name always finds it first). Each match carries serviceId, name, a one-line description, visits, fromPrice (inc VAT) and that service's pricing questions only. Each question gives options as [value, label] pairs: say the label, send the value in pricingAnswers. notOnline lists values that cannot be booked online (offer a survey or the phone number instead); showIf means ask only when that earlier answer applies. bookingQuestions are asked once per booking and answered with serviceId bookingQuestionsServiceId. If matches is empty, hint lists every service name: ask the caller to pick one and call again with it. Use this before pgh_list_services; it is a small fraction of the size. When the caller's words settle the service (nothing else matched, their words picked it, or you called with its exact name), say comes back: the service's name, its one-line description and its from-price in words. Speak say as it is. When say is absent the choice is open: ask the caller which, as hint says, and give no price until they choose. Never restate the price from fromPrice or from memory.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300,
+              "description": "What the caller said the problem is, in their own words"
+            },
+            "postcode": {
+              "description": "Customer's UK postcode if already known (not used for matching; pass it to pgh_get_slots)",
+              "type": "string",
+              "maxLength": 16
+            },
+            "limit": {
+              "description": "How many matches to return in full, 1 to 3. Omit for 1, the best match; the others are named in hint.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "annotations": {
+          "title": "Find the PGH service for the caller's problem",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "pgh_get_slots",
+        "title": "Check PGH appointment availability",
+        "description": "Get bookable appointment slots for a PGH service. Ask for a window of at most seven days, starting from the day the caller wants (dateFrom that day, dateTo six days later). Provide the customer's postcode whenever known: some services are only bookable within travel range, and the postcode filters slots to technicians who can actually attend. By default the answer is the first three slots, each with start (pass it to pgh_quote_slot as slotStart, exactly as given, and never read it aloud) and spoken (that slot's own spoken form), and one say line that offers the first slot, then the others with or. Speak say as it is, stop at the first slot the caller takes, and never restate a date or a time from memory. compact:false returns the full shape (ISO-8601 UTC times, capacity) for surfaces that show a calendar. This can take up to ~40 seconds for a first search on a new postcode.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "serviceId": {
+              "type": "string",
+              "description": "Service id exactly as returned by pgh_find_service or pgh_list_services with compact:true"
+            },
+            "dateFrom": {
+              "type": "string",
+              "description": "Range start: YYYY-MM-DD or ISO-8601"
+            },
+            "dateTo": {
+              "type": "string",
+              "description": "Range end (inclusive day): YYYY-MM-DD or ISO-8601"
+            },
+            "postcode": {
+              "description": "The property's UK postcode, e.g. 'SA6 8QF'. Required for the spoken answer: ask the caller for it before searching.",
+              "type": "string",
+              "maxLength": 40
+            },
+            "additionalServiceIds": {
+              "description": "Other service ids being booked in the same visit, if any",
+              "maxItems": 23,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "limit": {
+              "description": "How many slots to return in the compact answer, 1 to 10. Omit for 3.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "compact": {
+              "description": "Omit (or true) for the first slots with a spoken form each, for a voice agent. false returns the full shape (every slot, ISO-8601 UTC times and capacity); limit does not apply to it.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "serviceId",
+            "dateFrom",
+            "dateTo"
+          ]
+        },
+        "annotations": {
+          "title": "Check PGH appointment availability",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "pgh_reserve_slot",
+        "title": "Reserve a PGH appointment (customer pays at Stripe)",
+        "description": "Reserve an appointment slot for the customer and return a Stripe Checkout URL where THE CUSTOMER pays to confirm the booking. Agents never take payment. Call this ONCE per booking — it creates a real reservation and provisions the job before payment (both self-cancel at no cost if the customer does not pay within ~30 minutes; nothing ever needs cancelling). Before calling: (1) the customer must have chosen a slot from pgh_get_slots, (2) you must have shown them the price and the terms (termsUrl from pgh_find_service) and they must have explicitly accepted, (3) answer the service's applicable pricing questions from pgh_find_service in pricingAnswers. The exact price (inc VAT) is returned so you can confirm it with the customer; it also appears on the Stripe page before they pay. If it fails, read the error's holdNote before retrying — an immediate identical re-run can collide with the abandoned hold.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "serviceId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Primary service id from pgh_find_service (or pgh_list_services with compact:true)"
+            },
+            "slotStart": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Chosen slot's start from pgh_get_slots (start in the default answer, slotStart with compact:false), ISO-8601, exactly as returned"
+            },
+            "additionalServices": {
+              "description": "Other services in the same booking (no duplicates; use quantity for multiples)",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "serviceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  }
+                },
+                "required": [
+                  "serviceId",
+                  "quantity"
+                ]
+              }
+            },
+            "followUpSlots": {
+              "description": "For multi-visit services: chosen follow-up visit slots. Omit to let the scheduler auto-plan follow-ups; contested picks fall back to auto-planning.",
+              "maxItems": 32,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "serviceId": {
+                    "description": "Defaults to the primary service",
+                    "type": "string"
+                  },
+                  "visitIndex": {
+                    "type": "integer",
+                    "minimum": 2,
+                    "maximum": 16,
+                    "description": "2 = second visit, 3 = third…"
+                  },
+                  "slotStart": {
+                    "type": "string",
+                    "description": "ISO-8601 slot start for that visit"
+                  }
+                },
+                "required": [
+                  "visitIndex",
+                  "slotStart"
+                ]
+              }
+            },
+            "contact": {
+              "type": "object",
+              "properties": {
+                "firstName": {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                "lastName": {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                "email": {
+                  "type": "string",
+                  "maxLength": 254,
+                  "description": "Booking confirmation goes here after payment"
+                },
+                "phone": {
+                  "type": "string",
+                  "maxLength": 30,
+                  "description": "The customer's phone: on a phone call, the number they are calling from unless they give another"
+                }
+              },
+              "required": [
+                "firstName",
+                "lastName",
+                "email",
+                "phone"
+              ]
+            },
+            "address": {
+              "type": "object",
+              "properties": {
+                "line1": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "description": "First line of the property's address: house or unit, and street"
+                },
+                "line2": {
+                  "type": "string"
+                },
+                "town": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "description": "The town, not a street"
+                },
+                "postcode": {
+                  "type": "string",
+                  "maxLength": 12
+                }
+              },
+              "required": [
+                "line1",
+                "town",
+                "postcode"
+              ]
+            },
+            "propertyType": {
+              "type": "string",
+              "enum": [
+                "Home",
+                "Business"
+              ]
+            },
+            "businessName": {
+              "description": "Required when propertyType is Business",
+              "type": "string"
+            },
+            "pricingAnswers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "serviceId": {
+                    "description": "Service the question belongs to (default: primary; '_booking' for global questions)",
+                    "type": "string"
+                  },
+                  "questionId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The chosen option's value; for multiSelect questions join values with '|'"
+                  }
+                },
+                "required": [
+                  "questionId",
+                  "value"
+                ]
+              }
+            },
+            "customerAcceptedTerms": {
+              "type": "boolean",
+              "const": true,
+              "description": "Pass true ONLY after the customer has been shown and accepted the terms"
+            },
+            "marketingOptIn": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "serviceId",
+            "slotStart",
+            "contact",
+            "address",
+            "propertyType",
+            "customerAcceptedTerms"
+          ]
+        },
+        "annotations": {
+          "title": "Reserve a PGH appointment (customer pays at Stripe)",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "pgh_quote_slot",
+        "title": "Hold a PGH slot and get the exact price",
+        "description": "Holds the slot and returns the exact price including VAT. Speak say (the held slot) as it is, then repeat priceLine.response_text word for word (require_repeat_verbatim: the total in words, VAT included), then read the terms; never restate the price from priceFormatted or from memory. Call pgh_confirm_booking only after an explicit spoken yes. The hold releases itself at no cost if not confirmed. Before calling: (1) the customer must have chosen a slot from pgh_get_slots, (2) answer the service's applicable pricing questions (from pgh_find_service or pgh_list_services) in pricingAnswers. Nothing is committed here: no terms are recorded, no job is created, no payment page exists yet. Keep the returned quoteId and quoteToken for the confirm call, and do not read them aloud.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "serviceId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Primary service id from pgh_find_service (or pgh_list_services with compact:true)"
+            },
+            "slotStart": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Chosen slot's start from pgh_get_slots (start in the default answer, slotStart with compact:false), ISO-8601, exactly as returned"
+            },
+            "additionalServices": {
+              "description": "Other services in the same booking (no duplicates; use quantity for multiples)",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "serviceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  }
+                },
+                "required": [
+                  "serviceId",
+                  "quantity"
+                ]
+              }
+            },
+            "followUpSlots": {
+              "description": "For multi-visit services: chosen follow-up visit slots. Omit to let the scheduler auto-plan follow-ups; contested picks fall back to auto-planning.",
+              "maxItems": 32,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "serviceId": {
+                    "description": "Defaults to the primary service",
+                    "type": "string"
+                  },
+                  "visitIndex": {
+                    "type": "integer",
+                    "minimum": 2,
+                    "maximum": 16,
+                    "description": "2 = second visit, 3 = third…"
+                  },
+                  "slotStart": {
+                    "type": "string",
+                    "description": "ISO-8601 slot start for that visit"
+                  }
+                },
+                "required": [
+                  "visitIndex",
+                  "slotStart"
+                ]
+              }
+            },
+            "contact": {
+              "type": "object",
+              "properties": {
+                "firstName": {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                "lastName": {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                "email": {
+                  "type": "string",
+                  "maxLength": 254,
+                  "description": "Booking confirmation goes here after payment"
+                },
+                "phone": {
+                  "type": "string",
+                  "maxLength": 30,
+                  "description": "The customer's phone: on a phone call, the number they are calling from unless they give another"
+                }
+              },
+              "required": [
+                "firstName",
+                "lastName",
+                "email",
+                "phone"
+              ]
+            },
+            "address": {
+              "type": "object",
+              "properties": {
+                "line1": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "description": "First line of the property's address: house or unit, and street"
+                },
+                "line2": {
+                  "type": "string"
+                },
+                "town": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "description": "The town, not a street"
+                },
+                "postcode": {
+                  "type": "string",
+                  "maxLength": 12
+                }
+              },
+              "required": [
+                "line1",
+                "town",
+                "postcode"
+              ]
+            },
+            "propertyType": {
+              "type": "string",
+              "enum": [
+                "Home",
+                "Business"
+              ]
+            },
+            "businessName": {
+              "description": "Required when propertyType is Business",
+              "type": "string"
+            },
+            "pricingAnswers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "serviceId": {
+                    "description": "Service the question belongs to (default: primary; '_booking' for global questions)",
+                    "type": "string"
+                  },
+                  "questionId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The chosen option's value; for multiSelect questions join values with '|'"
+                  }
+                },
+                "required": [
+                  "questionId",
+                  "value"
+                ]
+              }
+            }
+          },
+          "required": [
+            "serviceId",
+            "slotStart",
+            "contact",
+            "address",
+            "propertyType"
+          ]
+        },
+        "annotations": {
+          "title": "Hold a PGH slot and get the exact price",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "pgh_confirm_booking",
+        "title": "Confirm a quoted PGH booking (customer pays at Stripe)",
+        "description": "Confirm the booking the customer has just agreed to, using the quoteId and quoteToken from pgh_quote_slot, and return a Stripe Checkout URL where THE CUSTOMER pays. Agents never take payment. Call this ONLY after the customer has heard the exact price and the terms and has said yes explicitly: this records their acceptance and provisions the job. Call it once per quote. If the booking included follow-up visits, their times are confirmed by the scheduler and may be adjusted, so do not promise the requested follow-up dates as fixed. On success, say carries the booking reference character by character, the total in words, and the payment-link line, which tells the caller the link is being texted: speak say as it is, then have the payment link texted to the caller (on the phone line the text tool attaches the link itself: never copy it into a message), and never read the web address aloud or restate the reference or the price from memory. When the engine did not re-serve the price, say carries no total: repeat the quote's priceLine word for word instead. If it fails, read the error's holdNote before retrying: an immediate identical re-run can collide with the hold in flight.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "quoteId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "quoteId exactly as returned by pgh_quote_slot"
+            },
+            "quoteToken": {
+              "type": "string",
+              "minLength": 1,
+              "description": "quoteToken exactly as returned by pgh_quote_slot"
+            },
+            "customerAcceptedTerms": {
+              "type": "boolean",
+              "const": true,
+              "description": "Pass true ONLY after the customer has heard the price and the terms and said yes"
+            },
+            "marketingOptIn": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "quoteId",
+            "quoteToken",
+            "customerAcceptedTerms"
+          ]
+        },
+        "annotations": {
+          "title": "Confirm a quoted PGH booking (customer pays at Stripe)",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:24:23.642Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:24:24.694Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:24:25.745Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:24:26.796Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 6,
+    "tools_hash": "sha256:dd10da18ccf28aabc5746132e319cfbe73aa1f25ae967ef383084784bc22fc89",
+    "static_tool_tokens": 5676,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "pgh_list_services",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F5",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "pgh_find_service",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "pgh_find_service",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "pgh_get_slots",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "pgh_get_slots",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "pgh_reserve_slot",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "pgh_reserve_slot",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "pgh_reserve_slot",
+        "message": "Parameter has no description.",
+        "param": "contact"
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "pgh_reserve_slot",
+        "message": "Parameter has no description.",
+        "param": "address"
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "pgh_reserve_slot",
+        "message": "Parameter has no description.",
+        "param": "propertyType"
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "pgh_reserve_slot",
+        "message": "Parameter has no description.",
+        "param": "pricingAnswers"
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "pgh_reserve_slot",
+        "message": "Parameter has no description.",
+        "param": "marketingOptIn"
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "pgh_quote_slot",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "pgh_quote_slot",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "pgh_quote_slot",
+        "message": "Parameter has no description.",
+        "param": "contact"
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "pgh_quote_slot",
+        "message": "Parameter has no description.",
+        "param": "address"
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "pgh_quote_slot",
+        "message": "Parameter has no description.",
+        "param": "propertyType"
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "pgh_quote_slot",
+        "message": "Parameter has no description.",
+        "param": "pricingAnswers"
+      },
+      {
+        "id": "F22",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "pgh_confirm_booking",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F23",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "pgh_confirm_booking",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F24",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "pgh_confirm_booking",
+        "message": "Parameter has no description.",
+        "param": "marketingOptIn"
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 19,
+      "warning": 2
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "pgh_list_services",
+          "path": "inputSchema.properties.compact",
+          "name": "compact",
+          "description": "true returns only serviceId, name and fromPrice per service, for offering the caller a list. Omit for the full catalogue.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "pgh_find_service",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "How many matches to return in full, 1 to 3. Omit for 1, the best match; the others are named in hint.",
+          "mentions_size_or_cost": true,
+          "maximum": 3
+        },
+        {
+          "tool": "pgh_get_slots",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "How many slots to return in the compact answer, 1 to 10. Omit for 3.",
+          "mentions_size_or_cost": true,
+          "maximum": 10
+        },
+        {
+          "tool": "pgh_get_slots",
+          "path": "inputSchema.properties.compact",
+          "name": "compact",
+          "description": "Omit (or true) for the first slots with a spoken form each, for a voice agent. false returns the full shape (every slot, ISO-8601 UTC times and capacity); limit does not apply to it.",
+          "mentions_size_or_cost": true
+        }
+      ],
+      "flags": []
+    },
+    "read_only_allowlist": [
+      "pgh_list_services",
+      "pgh_find_service",
+      "pgh_get_slots"
+    ]
+  }
+}

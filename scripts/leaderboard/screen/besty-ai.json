@@ -1,0 +1,3397 @@
+{
+  "slug": "besty-ai",
+  "source_url": "https://manufact.com/mcp-catalog/besty-ai",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:23:20.250Z",
+    "endpoint": "https://mcp.besty.ai/consumer/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "besty-consumer-mcp",
+      "version": "0.1.1"
+    },
+    "capabilities": {
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Besty AI: search and book professionally managed vacation rentals directly from each property manager. The numeric listing_id is the ONLY stable identifier; URL slugs are decorative and can change. Sequence: search_stays, then get_property, then get_rate_calendar (cached; check refreshed_at), then get_stay_quote (LIVE total including fees and taxes), then present booking_url. Data tools (search_stays, get_property, get_stay_quote, and the rest) return data only. In clients that render cards, call show_stays once with the final listing_id list after searching, and show_property once for a chosen listing; retries of a search must not call show_stays again. Bookings complete on the property manager's own website via HTTPS link; quotes hold about 15 minutes at checkout; prices can move until then.\n\nAdditional guidance: get_rate_calendar data may be a few hours old. Never present its numbers as a final price; only get_stay_quote totals are final. Don't call get_stay_quote in loops across many date combos (tight rate limits); narrow with the calendar first. Location search is city/state text, not radius; common regions (Poconos, Catskills, Outer Banks, Smokies) work as city. search_stays returns compact rows (default 10, next_cursor for more) and a from_nightly_price on undated searches that comes from the cached calendar, not a quote. Some properties are request-to-book: the booking link starts an inquiry, say so plainly. Each property belongs to an independent manager whose own site, brand, and policies govern the stay; per-tenant endpoints at /c/{slug}/mcp scope all tools to one manager. All tools are read-only; no account is needed or supported.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "search_stays",
+            "title": "Search vacation rentals",
+            "description": "Find professionally managed vacation rental homes to book. Map the request onto structured parameters: place names go to city/state (regions such as Poconos, Catskills, Outer Banks, or Smokies work as city), amenity words go to amenities, counts go to adults/children/min_bedrooms, budgets go to the price caps, and free_text is for flavor only (it re-ranks, never excludes). Do not use this tool for hotels, long-term rentals, flights, or listing a property; results are compact summaries keyed by the stable numeric listing_id (get_property has full detail, show_stays renders cards), and any caveats that apply come back in notes.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "tenant_slug": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "city": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string"
+                },
+                "check_in": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "check_out": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "flex_days": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 3
+                },
+                "adults": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "children": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "infants": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "pets": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "min_bedrooms": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "max_nightly_price": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "max_total_price": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "price_currency": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z]{3}$",
+                  "description": "ISO 4217 currency for the price caps, default USD. Listings quoting another currency are omitted from capped searches."
+                },
+                "amenities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "free_text": {
+                  "type": "string"
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 20,
+                  "default": 10
+                },
+                "cursor": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "title": "Search vacation rentals"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/widgetAccessible": true,
+              "ui": {
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              },
+              "openai/toolInvocation/invoking": "Searching vacation rentals",
+              "openai/toolInvocation/invoked": "Found stays"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "results": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "listing_id": {
+                        "type": "number"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "city": {
+                        "type": "string"
+                      },
+                      "bedrooms": {
+                        "type": "number"
+                      },
+                      "max_guests": {
+                        "type": "number"
+                      },
+                      "from_nightly_price": {
+                        "type": "number"
+                      },
+                      "total_price": {
+                        "type": "number"
+                      },
+                      "estimated_total_price": {
+                        "type": "number"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "matched_check_in": {
+                        "type": "string"
+                      },
+                      "matched_check_out": {
+                        "type": "string"
+                      },
+                      "review_avg": {
+                        "type": "number"
+                      },
+                      "review_count": {
+                        "type": "number"
+                      },
+                      "photo": {
+                        "type": "string"
+                      },
+                      "booking_url": {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "booking_mode": {
+                        "type": "string"
+                      },
+                      "similar_count": {
+                        "type": "number"
+                      },
+                      "similar_listing_ids": {
+                        "type": "array",
+                        "items": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "required": [
+                      "listing_id",
+                      "title"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "next_cursor": {
+                  "type": "string"
+                },
+                "notes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "get_property",
+            "title": "Get property details",
+            "description": "Full detail for one vacation rental by its stable numeric listing_id (or a listing URL; the id is parsed off the URL tail, slugs can change). Returns description, photos (first 12, photos_total has the full count), amenities, capacity, location, policies, house-rule FAQs, review summary, manager brand, canonical URLs, and booking mode. Returns data only; call show_property to display the interactive card.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "listing_id": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "listing_url": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "title": "Get property details"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/widgetAccessible": true,
+              "ui": {
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              },
+              "openai/toolInvocation/invoking": "Loading property details",
+              "openai/toolInvocation/invoked": "Property details ready"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "number"
+                },
+                "canonicalUrl": {
+                  "type": "string"
+                },
+                "ratesUrl": {
+                  "type": "string"
+                },
+                "reviewsUrl": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "propertyType": {
+                  "type": "string"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string"
+                },
+                "country": {
+                  "type": "string"
+                },
+                "latitude": {
+                  "type": "number"
+                },
+                "longitude": {
+                  "type": "number"
+                },
+                "bedrooms": {
+                  "type": "number"
+                },
+                "bathrooms": {
+                  "type": "number"
+                },
+                "beds": {
+                  "type": "number"
+                },
+                "maxGuests": {
+                  "type": "number"
+                },
+                "petsAllowed": {
+                  "type": "boolean"
+                },
+                "photos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "amenities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "brand": {
+                  "type": "string"
+                },
+                "bookingMode": {
+                  "type": "string"
+                },
+                "fromNightlyPrice": {
+                  "type": "number"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "reviewSummary": {
+                  "type": "object",
+                  "properties": {
+                    "average": {
+                      "type": "number"
+                    },
+                    "count": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "average",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                },
+                "photos_total": {
+                  "type": "integer"
+                },
+                "check_in_time": {
+                  "type": "string"
+                },
+                "check_out_time": {
+                  "type": "string"
+                },
+                "house_rules": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "cancellation_policy": {
+                  "type": "object",
+                  "additionalProperties": {}
+                },
+                "faqs": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "question": {
+                        "type": "string"
+                      },
+                      "answer": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "question",
+                      "answer"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "sleeping_arrangements": {
+                  "type": "object",
+                  "properties": {
+                    "bedrooms": {
+                      "type": "number"
+                    },
+                    "beds": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "get_rate_calendar",
+            "title": "Get rate & availability calendar",
+            "description": "Per-day nightly rate, minimum stay, and open/booked status for up to 365 days ahead, from a cache refreshed several times daily; `refreshed_at` states exactly when. Use this to find open windows and estimate cost; always confirm an exact bookable total with `get_stay_quote` before presenting a final price.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "listing_id": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "from": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "to": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                }
+              },
+              "required": [
+                "listing_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "title": "Get rate & availability calendar"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/widgetAccessible": true,
+              "ui": {
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              },
+              "openai/toolInvocation/invoking": "Checking rates and availability",
+              "openai/toolInvocation/invoked": "Calendar loaded"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "listing_id": {
+                  "type": "number"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "refreshed_at": {
+                  "type": "number"
+                },
+                "fees_summary": {
+                  "type": "object",
+                  "additionalProperties": {}
+                },
+                "days": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "date": {
+                        "type": "string"
+                      },
+                      "nightly_rate": {
+                        "type": "number"
+                      },
+                      "min_stay": {
+                        "type": "number"
+                      },
+                      "available": {
+                        "type": "boolean"
+                      },
+                      "checkin_allowed": {
+                        "type": "boolean"
+                      },
+                      "checkout_allowed": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "date",
+                      "available",
+                      "checkin_allowed",
+                      "checkout_allowed"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "stale": {
+                  "type": "boolean"
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "get_stay_quote",
+            "title": "Get live bookable quote",
+            "description": "LIVE quote for specific dates and party size: total with full line items (nightly, cleaning, fees, taxes, discounts), quoted directly from the property's management system at call time. Includes `booking_url`, a checkout link with dates and guests pre-filled on the manager's own website, and `quote_as_of`. Prices can change until checkout; checkout holds the dates ~15 minutes. Rate-limited more tightly than other tools; don't sweep many date combinations; use `get_rate_calendar` to narrow first.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "listing_id": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "check_in": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "check_out": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "adults": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "children": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "infants": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "pets": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "listing_id",
+                "check_in",
+                "check_out",
+                "adults"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "title": "Get live bookable quote"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/widgetAccessible": true,
+              "ui": {
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              },
+              "openai/toolInvocation/invoking": "Getting a live quote",
+              "openai/toolInvocation/invoked": "Quote ready"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "listing_id": {
+                  "type": "number"
+                },
+                "total": {
+                  "type": "number"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "nights": {
+                  "type": "number"
+                },
+                "line_items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "amount": {
+                        "type": "number"
+                      },
+                      "kind": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "amount"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "booking_url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "quote_as_of": {
+                  "type": "string"
+                },
+                "quote_expires_at": {
+                  "type": "string"
+                },
+                "booking_mode": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "get_booking_link",
+            "title": "Get booking link",
+            "description": "Direct HTTPS checkout link on the property manager's own website with property, dates, and guests pre-filled. Booking and payment complete on the manager's site (they are the merchant), not in this conversation. If the property uses request-to-book, the link starts an inquiry rather than an instant booking; this is stated in the response.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "listing_id": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "check_in": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "check_out": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "adults": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "children": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "infants": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "pets": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "listing_id",
+                "check_in",
+                "check_out",
+                "adults"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "title": "Get booking link"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/widgetAccessible": true,
+              "ui": {
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              },
+              "openai/toolInvocation/invoking": "Preparing your booking link",
+              "openai/toolInvocation/invoked": "Booking link ready"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "booking_mode": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "get_reviews",
+            "title": "Get guest reviews",
+            "description": "Use this when a traveler asks about guest experiences, ratings, or trustworthiness of a specific property. Returns the guest reviews the property manager publishes on the listing page, across booking channels: displayable review text, ratings, dates, and reviewer first names, with cursor pagination, plus a summary average and count. Some properties have a rating summary but no published review text yet; when reviews is empty, present the summary and say written reviews are not yet published. Not for reviews of the manager's company or for properties outside this catalog.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "listing_id": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "cursor": {
+                  "type": "string"
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 25,
+                  "default": 10
+                }
+              },
+              "required": [
+                "listing_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "title": "Get guest reviews"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/widgetAccessible": true,
+              "ui": {
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              },
+              "openai/toolInvocation/invoking": "Loading guest reviews",
+              "openai/toolInvocation/invoked": "Reviews loaded"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "listing_id": {
+                  "type": "number"
+                },
+                "review_summary": {
+                  "type": "object",
+                  "properties": {
+                    "average": {
+                      "type": "number"
+                    },
+                    "count": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "average",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                },
+                "reviews": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "rating": {
+                        "type": "number"
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "date": {
+                        "type": "string"
+                      },
+                      "guest_first_name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "rating",
+                      "text"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "next_cursor": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "find_open_windows",
+            "title": "Find open dates",
+            "description": "Use this when a traveler has flexible dates and wants to know when a specific property is available, e.g. \"when is it free in October\". Returns cached contiguous bookable date windows (no price total). Cheaper and faster than scanning the rate calendar. Always follow up with get_stay_quote for the exact bookable total once dates are chosen. Not for searching across properties; use search_stays for that.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "listing_id": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "from": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "to": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "nights": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 30
+                }
+              },
+              "required": [
+                "listing_id",
+                "from",
+                "to",
+                "nights"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "title": "Find open dates"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/toolInvocation/invoking": "Finding open dates",
+              "openai/toolInvocation/invoked": "Open dates found"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "listing_id": {
+                  "type": "number"
+                },
+                "nights": {
+                  "type": "number"
+                },
+                "refreshed_at": {
+                  "type": "number"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "windows": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "check_in": {
+                        "type": "string"
+                      },
+                      "check_out": {
+                        "type": "string"
+                      },
+                      "nightly_rates": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "date": {
+                              "type": "string"
+                            },
+                            "nightly_rate": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "date"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "check_in",
+                      "check_out",
+                      "nightly_rates"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "truncated": {
+                  "type": "boolean"
+                },
+                "stale": {
+                  "type": "boolean"
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "show_stays",
+            "title": "Show stay cards",
+            "description": "Render tool: shows a visual card list for vacation rentals already found with search_stays. Call it once, after search_stays returns the final set to present, with the listing_id values in display order. Pass the same check_in, check_out, and party counts as the search so cards show the same dated totals. Not a search; unknown or unavailable listing_id values are dropped. Call it at most once per set of results; do not call it again for a retry of the same search.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "listing_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "minItems": 1,
+                  "maxItems": 20
+                },
+                "check_in": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "check_out": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "flex_days": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 3
+                },
+                "adults": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "children": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "infants": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "pets": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "listing_ids"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "title": "Show stay cards"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui.resourceUri": "ui://widget/staycardlist.html",
+              "openai/outputTemplate": "ui://widget/staycardlist.html",
+              "ui": {
+                "resourceUri": "ui://widget/staycardlist.html",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              },
+              "openai/toolInvocation/invoking": "Preparing stay cards",
+              "openai/toolInvocation/invoked": "Stay cards ready"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "results": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "listing_id": {
+                        "type": "number"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "city": {
+                        "type": "string"
+                      },
+                      "state": {
+                        "type": "string"
+                      },
+                      "bedrooms": {
+                        "type": "number"
+                      },
+                      "bathrooms": {
+                        "type": "number"
+                      },
+                      "beds": {
+                        "type": "number"
+                      },
+                      "max_guests": {
+                        "type": "number"
+                      },
+                      "from_nightly_price": {
+                        "type": "number"
+                      },
+                      "total_price": {
+                        "type": "number"
+                      },
+                      "estimated_total_price": {
+                        "type": "number"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "photo": {
+                        "type": "string"
+                      },
+                      "review_summary": {
+                        "type": "object",
+                        "properties": {
+                          "average": {
+                            "type": "number"
+                          },
+                          "count": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "average",
+                          "count"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "booking_url": {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "matched_check_in": {
+                        "type": "string"
+                      },
+                      "matched_check_out": {
+                        "type": "string"
+                      },
+                      "booking_mode": {
+                        "type": "string"
+                      },
+                      "similar_count": {
+                        "type": "number"
+                      },
+                      "similar_listing_ids": {
+                        "type": "array",
+                        "items": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "required": [
+                      "listing_id",
+                      "title"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "show_property",
+            "title": "Show property card",
+            "description": "Render tool: shows the interactive detail card (photos, calendar, quote, reserve) for one vacation rental. Call it once when the traveler wants to see or book a specific property, after get_property or a search_stays result gave you its listing_id. Returns the same fields as get_property. Do not call it again for the same listing in one conversation; the card updates itself.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "listing_id": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                }
+              },
+              "required": [
+                "listing_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "title": "Show property card"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui.resourceUri": "ui://widget/staydetailcard.html",
+              "openai/outputTemplate": "ui://widget/staydetailcard.html",
+              "ui": {
+                "resourceUri": "ui://widget/staydetailcard.html",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              },
+              "openai/toolInvocation/invoking": "Preparing property card",
+              "openai/toolInvocation/invoked": "Property card ready"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "number"
+                },
+                "canonicalUrl": {
+                  "type": "string"
+                },
+                "ratesUrl": {
+                  "type": "string"
+                },
+                "reviewsUrl": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "propertyType": {
+                  "type": "string"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string"
+                },
+                "country": {
+                  "type": "string"
+                },
+                "latitude": {
+                  "type": "number"
+                },
+                "longitude": {
+                  "type": "number"
+                },
+                "bedrooms": {
+                  "type": "number"
+                },
+                "bathrooms": {
+                  "type": "number"
+                },
+                "beds": {
+                  "type": "number"
+                },
+                "maxGuests": {
+                  "type": "number"
+                },
+                "petsAllowed": {
+                  "type": "boolean"
+                },
+                "photos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "amenities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "brand": {
+                  "type": "string"
+                },
+                "bookingMode": {
+                  "type": "string"
+                },
+                "fromNightlyPrice": {
+                  "type": "number"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "reviewSummary": {
+                  "type": "object",
+                  "properties": {
+                    "average": {
+                      "type": "number"
+                    },
+                    "count": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "average",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                },
+                "photos_total": {
+                  "type": "integer"
+                },
+                "check_in_time": {
+                  "type": "string"
+                },
+                "check_out_time": {
+                  "type": "string"
+                },
+                "house_rules": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "cancellation_policy": {
+                  "type": "object",
+                  "additionalProperties": {}
+                },
+                "faqs": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "question": {
+                        "type": "string"
+                      },
+                      "answer": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "question",
+                      "answer"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "sleeping_arrangements": {
+                  "type": "object",
+                  "properties": {
+                    "bedrooms": {
+                      "type": "number"
+                    },
+                    "beds": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "search_stays",
+        "title": "Search vacation rentals",
+        "description": "Find professionally managed vacation rental homes to book. Map the request onto structured parameters: place names go to city/state (regions such as Poconos, Catskills, Outer Banks, or Smokies work as city), amenity words go to amenities, counts go to adults/children/min_bedrooms, budgets go to the price caps, and free_text is for flavor only (it re-ranks, never excludes). Do not use this tool for hotels, long-term rentals, flights, or listing a property; results are compact summaries keyed by the stable numeric listing_id (get_property has full detail, show_stays renders cards), and any caveats that apply come back in notes.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "tenant_slug": {
+              "type": "string",
+              "minLength": 1
+            },
+            "city": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            },
+            "check_in": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "check_out": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "flex_days": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3
+            },
+            "adults": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "children": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "infants": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pets": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "min_bedrooms": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "max_nightly_price": {
+              "type": "number",
+              "minimum": 0
+            },
+            "max_total_price": {
+              "type": "number",
+              "minimum": 0
+            },
+            "price_currency": {
+              "type": "string",
+              "pattern": "^[A-Za-z]{3}$",
+              "description": "ISO 4217 currency for the price caps, default USD. Listings quoting another currency are omitted from capped searches."
+            },
+            "amenities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "free_text": {
+              "type": "string"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20,
+              "default": 10
+            },
+            "cursor": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Search vacation rentals"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/widgetAccessible": true,
+          "ui": {
+            "visibility": [
+              "model",
+              "app"
+            ]
+          },
+          "openai/toolInvocation/invoking": "Searching vacation rentals",
+          "openai/toolInvocation/invoked": "Found stays"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "listing_id": {
+                    "type": "number"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "bedrooms": {
+                    "type": "number"
+                  },
+                  "max_guests": {
+                    "type": "number"
+                  },
+                  "from_nightly_price": {
+                    "type": "number"
+                  },
+                  "total_price": {
+                    "type": "number"
+                  },
+                  "estimated_total_price": {
+                    "type": "number"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "matched_check_in": {
+                    "type": "string"
+                  },
+                  "matched_check_out": {
+                    "type": "string"
+                  },
+                  "review_avg": {
+                    "type": "number"
+                  },
+                  "review_count": {
+                    "type": "number"
+                  },
+                  "photo": {
+                    "type": "string"
+                  },
+                  "booking_url": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "booking_mode": {
+                    "type": "string"
+                  },
+                  "similar_count": {
+                    "type": "number"
+                  },
+                  "similar_listing_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "required": [
+                  "listing_id",
+                  "title"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "next_cursor": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get_property",
+        "title": "Get property details",
+        "description": "Full detail for one vacation rental by its stable numeric listing_id (or a listing URL; the id is parsed off the URL tail, slugs can change). Returns description, photos (first 12, photos_total has the full count), amenities, capacity, location, policies, house-rule FAQs, review summary, manager brand, canonical URLs, and booking mode. Returns data only; call show_property to display the interactive card.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "listing_id": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "listing_url": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Get property details"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/widgetAccessible": true,
+          "ui": {
+            "visibility": [
+              "model",
+              "app"
+            ]
+          },
+          "openai/toolInvocation/invoking": "Loading property details",
+          "openai/toolInvocation/invoked": "Property details ready"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "number"
+            },
+            "canonicalUrl": {
+              "type": "string"
+            },
+            "ratesUrl": {
+              "type": "string"
+            },
+            "reviewsUrl": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "propertyType": {
+              "type": "string"
+            },
+            "city": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            },
+            "country": {
+              "type": "string"
+            },
+            "latitude": {
+              "type": "number"
+            },
+            "longitude": {
+              "type": "number"
+            },
+            "bedrooms": {
+              "type": "number"
+            },
+            "bathrooms": {
+              "type": "number"
+            },
+            "beds": {
+              "type": "number"
+            },
+            "maxGuests": {
+              "type": "number"
+            },
+            "petsAllowed": {
+              "type": "boolean"
+            },
+            "photos": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "amenities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "brand": {
+              "type": "string"
+            },
+            "bookingMode": {
+              "type": "string"
+            },
+            "fromNightlyPrice": {
+              "type": "number"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "reviewSummary": {
+              "type": "object",
+              "properties": {
+                "average": {
+                  "type": "number"
+                },
+                "count": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "average",
+                "count"
+              ],
+              "additionalProperties": false
+            },
+            "photos_total": {
+              "type": "integer"
+            },
+            "check_in_time": {
+              "type": "string"
+            },
+            "check_out_time": {
+              "type": "string"
+            },
+            "house_rules": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "cancellation_policy": {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            "faqs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "question": {
+                    "type": "string"
+                  },
+                  "answer": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "question",
+                  "answer"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "sleeping_arrangements": {
+              "type": "object",
+              "properties": {
+                "bedrooms": {
+                  "type": "number"
+                },
+                "beds": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get_rate_calendar",
+        "title": "Get rate & availability calendar",
+        "description": "Per-day nightly rate, minimum stay, and open/booked status for up to 365 days ahead, from a cache refreshed several times daily; `refreshed_at` states exactly when. Use this to find open windows and estimate cost; always confirm an exact bookable total with `get_stay_quote` before presenting a final price.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "listing_id": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "from": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "to": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          "required": [
+            "listing_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Get rate & availability calendar"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/widgetAccessible": true,
+          "ui": {
+            "visibility": [
+              "model",
+              "app"
+            ]
+          },
+          "openai/toolInvocation/invoking": "Checking rates and availability",
+          "openai/toolInvocation/invoked": "Calendar loaded"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "listing_id": {
+              "type": "number"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "refreshed_at": {
+              "type": "number"
+            },
+            "fees_summary": {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            "days": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string"
+                  },
+                  "nightly_rate": {
+                    "type": "number"
+                  },
+                  "min_stay": {
+                    "type": "number"
+                  },
+                  "available": {
+                    "type": "boolean"
+                  },
+                  "checkin_allowed": {
+                    "type": "boolean"
+                  },
+                  "checkout_allowed": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "date",
+                  "available",
+                  "checkin_allowed",
+                  "checkout_allowed"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "stale": {
+              "type": "boolean"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get_stay_quote",
+        "title": "Get live bookable quote",
+        "description": "LIVE quote for specific dates and party size: total with full line items (nightly, cleaning, fees, taxes, discounts), quoted directly from the property's management system at call time. Includes `booking_url`, a checkout link with dates and guests pre-filled on the manager's own website, and `quote_as_of`. Prices can change until checkout; checkout holds the dates ~15 minutes. Rate-limited more tightly than other tools; don't sweep many date combinations; use `get_rate_calendar` to narrow first.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "listing_id": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "check_in": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "check_out": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "adults": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "children": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "infants": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pets": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "listing_id",
+            "check_in",
+            "check_out",
+            "adults"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Get live bookable quote"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/widgetAccessible": true,
+          "ui": {
+            "visibility": [
+              "model",
+              "app"
+            ]
+          },
+          "openai/toolInvocation/invoking": "Getting a live quote",
+          "openai/toolInvocation/invoked": "Quote ready"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "listing_id": {
+              "type": "number"
+            },
+            "total": {
+              "type": "number"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "nights": {
+              "type": "number"
+            },
+            "line_items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "number"
+                  },
+                  "kind": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "label",
+                  "amount"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "booking_url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "quote_as_of": {
+              "type": "string"
+            },
+            "quote_expires_at": {
+              "type": "string"
+            },
+            "booking_mode": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get_booking_link",
+        "title": "Get booking link",
+        "description": "Direct HTTPS checkout link on the property manager's own website with property, dates, and guests pre-filled. Booking and payment complete on the manager's site (they are the merchant), not in this conversation. If the property uses request-to-book, the link starts an inquiry rather than an instant booking; this is stated in the response.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "listing_id": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "check_in": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "check_out": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "adults": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "children": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "infants": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pets": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "listing_id",
+            "check_in",
+            "check_out",
+            "adults"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Get booking link"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/widgetAccessible": true,
+          "ui": {
+            "visibility": [
+              "model",
+              "app"
+            ]
+          },
+          "openai/toolInvocation/invoking": "Preparing your booking link",
+          "openai/toolInvocation/invoked": "Booking link ready"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "booking_mode": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get_reviews",
+        "title": "Get guest reviews",
+        "description": "Use this when a traveler asks about guest experiences, ratings, or trustworthiness of a specific property. Returns the guest reviews the property manager publishes on the listing page, across booking channels: displayable review text, ratings, dates, and reviewer first names, with cursor pagination, plus a summary average and count. Some properties have a rating summary but no published review text yet; when reviews is empty, present the summary and say written reviews are not yet published. Not for reviews of the manager's company or for properties outside this catalog.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "listing_id": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "cursor": {
+              "type": "string"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 25,
+              "default": 10
+            }
+          },
+          "required": [
+            "listing_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Get guest reviews"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/widgetAccessible": true,
+          "ui": {
+            "visibility": [
+              "model",
+              "app"
+            ]
+          },
+          "openai/toolInvocation/invoking": "Loading guest reviews",
+          "openai/toolInvocation/invoked": "Reviews loaded"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "listing_id": {
+              "type": "number"
+            },
+            "review_summary": {
+              "type": "object",
+              "properties": {
+                "average": {
+                  "type": "number"
+                },
+                "count": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "average",
+                "count"
+              ],
+              "additionalProperties": false
+            },
+            "reviews": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "rating": {
+                    "type": "number"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "date": {
+                    "type": "string"
+                  },
+                  "guest_first_name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "rating",
+                  "text"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "next_cursor": {
+              "type": "string"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "find_open_windows",
+        "title": "Find open dates",
+        "description": "Use this when a traveler has flexible dates and wants to know when a specific property is available, e.g. \"when is it free in October\". Returns cached contiguous bookable date windows (no price total). Cheaper and faster than scanning the rate calendar. Always follow up with get_stay_quote for the exact bookable total once dates are chosen. Not for searching across properties; use search_stays for that.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "listing_id": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "from": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "to": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "nights": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 30
+            }
+          },
+          "required": [
+            "listing_id",
+            "from",
+            "to",
+            "nights"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Find open dates"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/toolInvocation/invoking": "Finding open dates",
+          "openai/toolInvocation/invoked": "Open dates found"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "listing_id": {
+              "type": "number"
+            },
+            "nights": {
+              "type": "number"
+            },
+            "refreshed_at": {
+              "type": "number"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "windows": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "check_in": {
+                    "type": "string"
+                  },
+                  "check_out": {
+                    "type": "string"
+                  },
+                  "nightly_rates": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "date": {
+                          "type": "string"
+                        },
+                        "nightly_rate": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "date"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "check_in",
+                  "check_out",
+                  "nightly_rates"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "truncated": {
+              "type": "boolean"
+            },
+            "stale": {
+              "type": "boolean"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "show_stays",
+        "title": "Show stay cards",
+        "description": "Render tool: shows a visual card list for vacation rentals already found with search_stays. Call it once, after search_stays returns the final set to present, with the listing_id values in display order. Pass the same check_in, check_out, and party counts as the search so cards show the same dated totals. Not a search; unknown or unavailable listing_id values are dropped. Call it at most once per set of results; do not call it again for a retry of the same search.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "listing_ids": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "minItems": 1,
+              "maxItems": 20
+            },
+            "check_in": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "check_out": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "flex_days": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3
+            },
+            "adults": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "children": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "infants": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pets": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "listing_ids"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Show stay cards"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui.resourceUri": "ui://widget/staycardlist.html",
+          "openai/outputTemplate": "ui://widget/staycardlist.html",
+          "ui": {
+            "resourceUri": "ui://widget/staycardlist.html",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          },
+          "openai/toolInvocation/invoking": "Preparing stay cards",
+          "openai/toolInvocation/invoked": "Stay cards ready"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "listing_id": {
+                    "type": "number"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "type": "string"
+                  },
+                  "bedrooms": {
+                    "type": "number"
+                  },
+                  "bathrooms": {
+                    "type": "number"
+                  },
+                  "beds": {
+                    "type": "number"
+                  },
+                  "max_guests": {
+                    "type": "number"
+                  },
+                  "from_nightly_price": {
+                    "type": "number"
+                  },
+                  "total_price": {
+                    "type": "number"
+                  },
+                  "estimated_total_price": {
+                    "type": "number"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "photo": {
+                    "type": "string"
+                  },
+                  "review_summary": {
+                    "type": "object",
+                    "properties": {
+                      "average": {
+                        "type": "number"
+                      },
+                      "count": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "average",
+                      "count"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "booking_url": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "matched_check_in": {
+                    "type": "string"
+                  },
+                  "matched_check_out": {
+                    "type": "string"
+                  },
+                  "booking_mode": {
+                    "type": "string"
+                  },
+                  "similar_count": {
+                    "type": "number"
+                  },
+                  "similar_listing_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "required": [
+                  "listing_id",
+                  "title"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "show_property",
+        "title": "Show property card",
+        "description": "Render tool: shows the interactive detail card (photos, calendar, quote, reserve) for one vacation rental. Call it once when the traveler wants to see or book a specific property, after get_property or a search_stays result gave you its listing_id. Returns the same fields as get_property. Do not call it again for the same listing in one conversation; the card updates itself.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "listing_id": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "listing_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Show property card"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui.resourceUri": "ui://widget/staydetailcard.html",
+          "openai/outputTemplate": "ui://widget/staydetailcard.html",
+          "ui": {
+            "resourceUri": "ui://widget/staydetailcard.html",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          },
+          "openai/toolInvocation/invoking": "Preparing property card",
+          "openai/toolInvocation/invoked": "Property card ready"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "number"
+            },
+            "canonicalUrl": {
+              "type": "string"
+            },
+            "ratesUrl": {
+              "type": "string"
+            },
+            "reviewsUrl": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "propertyType": {
+              "type": "string"
+            },
+            "city": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            },
+            "country": {
+              "type": "string"
+            },
+            "latitude": {
+              "type": "number"
+            },
+            "longitude": {
+              "type": "number"
+            },
+            "bedrooms": {
+              "type": "number"
+            },
+            "bathrooms": {
+              "type": "number"
+            },
+            "beds": {
+              "type": "number"
+            },
+            "maxGuests": {
+              "type": "number"
+            },
+            "petsAllowed": {
+              "type": "boolean"
+            },
+            "photos": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "amenities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "brand": {
+              "type": "string"
+            },
+            "bookingMode": {
+              "type": "string"
+            },
+            "fromNightlyPrice": {
+              "type": "number"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "reviewSummary": {
+              "type": "object",
+              "properties": {
+                "average": {
+                  "type": "number"
+                },
+                "count": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "average",
+                "count"
+              ],
+              "additionalProperties": false
+            },
+            "photos_total": {
+              "type": "integer"
+            },
+            "check_in_time": {
+              "type": "string"
+            },
+            "check_out_time": {
+              "type": "string"
+            },
+            "house_rules": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "cancellation_policy": {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            "faqs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "question": {
+                    "type": "string"
+                  },
+                  "answer": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "question",
+                  "answer"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "sleeping_arrangements": {
+              "type": "object",
+              "properties": {
+                "bedrooms": {
+                  "type": "number"
+                },
+                "beds": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:23:16.808Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:23:17.859Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:23:18.911Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:23:19.962Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 9,
+    "tools_hash": "sha256:2f4b87432be3308f2d35260acd8e477d907b22d67fc2c0f5a0415cd583c00ef6",
+    "static_tool_tokens": 3935,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F2",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "search_stays",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "tenant_slug"
+      },
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "tenant_slug"
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "city"
+      },
+      {
+        "id": "F6",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "search_stays",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "city"
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "state"
+      },
+      {
+        "id": "F8",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "search_stays",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "state"
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "check_in"
+      },
+      {
+        "id": "F10",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "search_stays",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "check_in"
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "check_out"
+      },
+      {
+        "id": "F12",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "search_stays",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "check_out"
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "flex_days"
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "adults"
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "children"
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "infants"
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "pets"
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "min_bedrooms"
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "max_nightly_price"
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "max_total_price"
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "amenities"
+      },
+      {
+        "id": "F22",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "free_text"
+      },
+      {
+        "id": "F23",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "search_stays",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "free_text"
+      },
+      {
+        "id": "F24",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "limit"
+      },
+      {
+        "id": "F25",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_stays",
+        "message": "Parameter has no description.",
+        "param": "cursor"
+      },
+      {
+        "id": "F26",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "search_stays",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "cursor"
+      },
+      {
+        "id": "F27",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_property",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F28",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_property",
+        "message": "Parameter has no description.",
+        "param": "listing_id"
+      },
+      {
+        "id": "F29",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_property",
+        "message": "Parameter has no description.",
+        "param": "listing_url"
+      },
+      {
+        "id": "F30",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_property",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "listing_url"
+      },
+      {
+        "id": "F31",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_rate_calendar",
+        "message": "Parameter has no description.",
+        "param": "listing_id"
+      },
+      {
+        "id": "F32",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_rate_calendar",
+        "message": "Parameter has no description.",
+        "param": "from"
+      },
+      {
+        "id": "F33",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_rate_calendar",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "from"
+      },
+      {
+        "id": "F34",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_rate_calendar",
+        "message": "Parameter has no description.",
+        "param": "to"
+      },
+      {
+        "id": "F35",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_rate_calendar",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "to"
+      },
+      {
+        "id": "F36",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_stay_quote",
+        "message": "Parameter has no description.",
+        "param": "listing_id"
+      },
+      {
+        "id": "F37",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_stay_quote",
+        "message": "Parameter has no description.",
+        "param": "check_in"
+      },
+      {
+        "id": "F38",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_stay_quote",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "check_in"
+      },
+      {
+        "id": "F39",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_stay_quote",
+        "message": "Parameter has no description.",
+        "param": "check_out"
+      },
+      {
+        "id": "F40",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_stay_quote",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "check_out"
+      },
+      {
+        "id": "F41",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_stay_quote",
+        "message": "Parameter has no description.",
+        "param": "adults"
+      },
+      {
+        "id": "F42",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_stay_quote",
+        "message": "Parameter has no description.",
+        "param": "children"
+      },
+      {
+        "id": "F43",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_stay_quote",
+        "message": "Parameter has no description.",
+        "param": "infants"
+      },
+      {
+        "id": "F44",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_stay_quote",
+        "message": "Parameter has no description.",
+        "param": "pets"
+      },
+      {
+        "id": "F45",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_booking_link",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F46",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_booking_link",
+        "message": "Parameter has no description.",
+        "param": "listing_id"
+      },
+      {
+        "id": "F47",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_booking_link",
+        "message": "Parameter has no description.",
+        "param": "check_in"
+      },
+      {
+        "id": "F48",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_booking_link",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "check_in"
+      },
+      {
+        "id": "F49",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_booking_link",
+        "message": "Parameter has no description.",
+        "param": "check_out"
+      },
+      {
+        "id": "F50",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_booking_link",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "check_out"
+      },
+      {
+        "id": "F51",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_booking_link",
+        "message": "Parameter has no description.",
+        "param": "adults"
+      },
+      {
+        "id": "F52",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_booking_link",
+        "message": "Parameter has no description.",
+        "param": "children"
+      },
+      {
+        "id": "F53",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_booking_link",
+        "message": "Parameter has no description.",
+        "param": "infants"
+      },
+      {
+        "id": "F54",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_booking_link",
+        "message": "Parameter has no description.",
+        "param": "pets"
+      },
+      {
+        "id": "F55",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_reviews",
+        "message": "Parameter has no description.",
+        "param": "listing_id"
+      },
+      {
+        "id": "F56",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_reviews",
+        "message": "Parameter has no description.",
+        "param": "cursor"
+      },
+      {
+        "id": "F57",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_reviews",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "cursor"
+      },
+      {
+        "id": "F58",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_reviews",
+        "message": "Parameter has no description.",
+        "param": "limit"
+      },
+      {
+        "id": "F59",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "find_open_windows",
+        "message": "Parameter has no description.",
+        "param": "listing_id"
+      },
+      {
+        "id": "F60",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "find_open_windows",
+        "message": "Parameter has no description.",
+        "param": "from"
+      },
+      {
+        "id": "F61",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "find_open_windows",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "from"
+      },
+      {
+        "id": "F62",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "find_open_windows",
+        "message": "Parameter has no description.",
+        "param": "to"
+      },
+      {
+        "id": "F63",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "find_open_windows",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "to"
+      },
+      {
+        "id": "F64",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "find_open_windows",
+        "message": "Parameter has no description.",
+        "param": "nights"
+      },
+      {
+        "id": "F65",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "show_stays",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F66",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "show_stays",
+        "message": "Parameter has no description.",
+        "param": "listing_ids"
+      },
+      {
+        "id": "F67",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "show_stays",
+        "message": "Parameter has no description.",
+        "param": "check_in"
+      },
+      {
+        "id": "F68",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "show_stays",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "check_in"
+      },
+      {
+        "id": "F69",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "show_stays",
+        "message": "Parameter has no description.",
+        "param": "check_out"
+      },
+      {
+        "id": "F70",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "show_stays",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "check_out"
+      },
+      {
+        "id": "F71",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "show_stays",
+        "message": "Parameter has no description.",
+        "param": "flex_days"
+      },
+      {
+        "id": "F72",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "show_stays",
+        "message": "Parameter has no description.",
+        "param": "adults"
+      },
+      {
+        "id": "F73",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "show_stays",
+        "message": "Parameter has no description.",
+        "param": "children"
+      },
+      {
+        "id": "F74",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "show_stays",
+        "message": "Parameter has no description.",
+        "param": "infants"
+      },
+      {
+        "id": "F75",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "show_stays",
+        "message": "Parameter has no description.",
+        "param": "pets"
+      },
+      {
+        "id": "F76",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "show_property",
+        "message": "Parameter has no description.",
+        "param": "listing_id"
+      }
+    ],
+    "severity_counts": {
+      "high": 19,
+      "medium": 55,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_stays",
+          "path": "inputSchema.properties.max_nightly_price",
+          "name": "max_nightly_price",
+          "description": "",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "search_stays",
+          "path": "inputSchema.properties.max_total_price",
+          "name": "max_total_price",
+          "description": "",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "search_stays",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": 10,
+          "maximum": 20
+        },
+        {
+          "tool": "search_stays",
+          "path": "inputSchema.properties.cursor",
+          "name": "cursor",
+          "description": "",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "get_reviews",
+          "path": "inputSchema.properties.cursor",
+          "name": "cursor",
+          "description": "",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "get_reviews",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": 10,
+          "maximum": 25
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "search_stays"
+          ],
+          "path": "inputSchema.properties.max_nightly_price",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "search_stays"
+          ],
+          "path": "inputSchema.properties.max_total_price",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "search_stays"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "search_stays"
+          ],
+          "path": "inputSchema.properties.cursor",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_booking_link"
+          ],
+          "description": "Direct HTTPS checkout link on the property manager's own website with property, dates, and guests pre-filled. Booking and payment complete on the manager's site (they are the merchant), not in this conversation. If the property uses request-to-book, the link starts an inquiry rather than an instant booking; this is stated in the response.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get_reviews"
+          ],
+          "path": "inputSchema.properties.cursor",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get_reviews"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "search_stays",
+            "get_stay_quote"
+          ],
+          "hypothesis": "Read tools share resource terms (stay), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "search_stays",
+      "get_property",
+      "get_rate_calendar",
+      "get_stay_quote",
+      "get_booking_link",
+      "get_reviews",
+      "find_open_windows",
+      "show_stays",
+      "show_property"
+    ]
+  }
+}

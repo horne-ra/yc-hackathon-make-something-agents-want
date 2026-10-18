@@ -1,0 +1,3414 @@
+{
+  "slug": "kifly",
+  "source_url": "https://manufact.com/mcp-catalog/kifly",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:54:38.436Z",
+    "endpoint": "https://kifly.ai/api/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "kifly",
+      "title": "Kifly — Agentic Commerce & Payments",
+      "version": "1.0.0",
+      "description": "Infrastructure layer for agent commerce. Discover products across multiple sellers, manage a cart, and check out via a secure Stripe-powered payment link on kifly.ai for physical goods. Buyer identity management: register, recover via email OTP, save shipping address — repeat buyers skip all manual data entry. Network tokens (kfn_live_) browse the full Kifly merchant network; seller tokens (kfa_live_) scope to one merchant. Hosted at https://kifly.ai — no local setup required."
+    },
+    "capabilities": {
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Kifly lets you shop independent online stores without a browser. If the user names a store or its website, call get_seller with `domain` (any URL on the site) or `name` FIRST: it says in one call whether Kifly carries the store, and returns its profile. Found with fulfillment kifly_checkout: search_products with seller_handle, then create_cart, add_to_cart, checkout. Found with fulfillment external: same flow; checkout returns links to the store's own site. SELLER_NOT_FOUND with details.did_you_mean: ask the user which store they meant; never pick for them. SELLER_AMBIGUOUS: ask which one. SELLER_NOT_FOUND with nothing close: Kifly does not carry it yet; say so, then use the store's own site. If the user names only a product, call search_products across the network. Items marked kifly:offNetwork are outside retailers' (affiliate): relay kifly:affiliateDisclosure, cart them the same way; checkout returns their links. Never invent a product fact. Checkout returns a payment link the human opens and confirms; never claim a purchase is complete before order_status says it is paid. Full playbook: resource kifly://docs/playbook.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "search_products",
+            "description": "Search or browse Kifly's product catalog across every seller on the network. Multilingual semantic search (100+ languages); omit `q` to browse recent listings. Pass `q` as an array (up to 5) to try several phrasings in ONE call instead of N searches. Too many hits? Ask once with `facets: true`, then narrow with `delivers_to`, price, `category` or `seller_handle`; page with `cursor` when `kifly:hasMore`. Returns a JSON-LD ItemList.\n\n**Rules that matter before you read the response:**\n- Cart every product the buyer wants: checkout hands them to pay with the cart ready. `kifly:purchasable: false` is still buyable, paid on the seller's own site. `availability` is STOCK; `kifly:purchasable` is WHERE they pay.\n- On `availability:OutOfStock`, still show it if asked, say it is sold out, and never cart it (`add_to_cart` returns 409).\n- When a product has several size/style variants, ask the buyer ONE option axis at a time (`kifly:productOptions` gives the axes in the seller's order). Never recite the combination matrix.\n- On an empty result, read `kifly:emptyReason`: say nothing matched rather than guessing, then offer `kifly:suggestions` (related, NOT matches). Items with `kifly:offNetwork` are outside retailers': relay `kifly:affiliateDisclosure`, cart as usual.\n\n**Full field reference: resource `kifly://docs/search-response`** (seller map, delivery coverage, variants, capped fields, every `kifly:` extension). Fetch it once for field-level detail.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "ucp-agent": {
+                      "type": "object",
+                      "properties": {
+                        "profile": {
+                          "type": "string",
+                          "format": "uri",
+                          "maxLength": 512,
+                          "description": "https:// URL of your agent's UCP profile. No API key needed."
+                        }
+                      },
+                      "required": [
+                        "profile"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ucp-agent"
+                  ],
+                  "additionalProperties": true,
+                  "description": "Who is calling. See kifly://docs/mcp."
+                },
+                "q": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 500
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      },
+                      "minItems": 1,
+                      "maxItems": 5
+                    }
+                  ],
+                  "description": "Query, or up to 5 queries unioned by best relevance. Omit to browse."
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 20,
+                  "description": "Max results per page (default 10)."
+                },
+                "sort_by": {
+                  "type": "string",
+                  "enum": [
+                    "relevance",
+                    "price_asc",
+                    "price_desc",
+                    "newest"
+                  ],
+                  "description": "Sort order (default: relevance)"
+                },
+                "min_price_cents": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Min price, cents"
+                },
+                "max_price_cents": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Max price, cents"
+                },
+                "in_stock_only": {
+                  "type": "boolean",
+                  "description": "In-stock only"
+                },
+                "category": {
+                  "type": "string",
+                  "description": "Category, e.g. a kifly:facets value"
+                },
+                "seller_handle": {
+                  "type": "string",
+                  "description": "Scope to one seller's catalog"
+                },
+                "cursor": {
+                  "type": "string",
+                  "description": "kifly:nextCursor from the previous page"
+                },
+                "delivers_to": {
+                  "type": "object",
+                  "properties": {
+                    "country": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 2
+                    },
+                    "region": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "postal_code": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "country"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Only sellers delivering here, e.g. {country:'US',region:'CA'}"
+                },
+                "facets": {
+                  "type": "boolean",
+                  "description": "Add kifly:facets counts over all matches"
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Search Catalog",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://kifly/search-results.html"
+              }
+            }
+          },
+          {
+            "name": "create_cart",
+            "description": "Create a new shopping cart on Kifly. **For network (cross-seller) tokens you MUST pass `seller_handle`** — each cart is bound to exactly one seller. Get the handle from search_products results (every item's `kifly:seller` IS the handle in network results) or get_seller. Seller-scoped tokens may omit the handle — their own seller is implicit. Returns a cart_id to use with add_to_cart and checkout. The response's `seller.kifly_purchasable` (and `seller.fulfillment`) tells you upfront where the buyer pays — `false`/`\"external\"` means the buyer pays on the seller's own site: build the cart as usual; checkout hands them there with a link per product. Never say the order is placed. The same flag rides every add_to_cart/get_cart response.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "ucp-agent": {
+                      "type": "object",
+                      "properties": {
+                        "profile": {
+                          "type": "string",
+                          "format": "uri",
+                          "maxLength": 512,
+                          "description": "https:// URL of your agent's UCP profile. No API key needed."
+                        }
+                      },
+                      "required": [
+                        "profile"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ucp-agent"
+                  ],
+                  "additionalProperties": true,
+                  "description": "Who is calling. See kifly://docs/mcp."
+                },
+                "idempotency_key": {
+                  "type": "string",
+                  "minLength": 16,
+                  "maxLength": 64,
+                  "description": "Your own retry key (16-64 chars). Resend the SAME key to retry safely."
+                },
+                "seller_handle": {
+                  "type": "string",
+                  "description": "Seller handle (e.g. 'bay-clothing-district'). Required for network tokens; ignored for seller-scoped tokens."
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Create Cart",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "add_to_cart",
+            "description": "Requires `cart:write`, or no key: send `meta.ucp-agent.profile`. Add a product variant to an existing cart. Use the variant_id from search_products results. Returns full cart state including item_ids you can use with update_cart_item. **Max quantity per item and max cart total are enforced — call `get_platform_limits` to check the current limits before building a large cart.** Exceeding the per-item limit returns 400 `QUANTITY_EXCEEDS_LIMIT`; exceeding the cart total returns 400 `CART_TOTAL_EXCEEDS_LIMIT` at checkout. `cart.kifly_purchasable` (and `cart.fulfillment`) carries the same signal as create_cart's `seller` field.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "ucp-agent": {
+                      "type": "object",
+                      "properties": {
+                        "profile": {
+                          "type": "string",
+                          "format": "uri",
+                          "maxLength": 512,
+                          "description": "https:// URL of your agent's UCP profile. No API key needed."
+                        }
+                      },
+                      "required": [
+                        "profile"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ucp-agent"
+                  ],
+                  "additionalProperties": true,
+                  "description": "Who is calling. See kifly://docs/mcp."
+                },
+                "idempotency_key": {
+                  "type": "string",
+                  "minLength": 16,
+                  "maxLength": 64,
+                  "description": "Your own retry key (16-64 chars). Resend the SAME key to retry safely."
+                },
+                "cart_id": {
+                  "type": "string",
+                  "description": "Cart ID from create_cart"
+                },
+                "variant_id": {
+                  "type": "string",
+                  "description": "Product variant ID from search_products results"
+                },
+                "quantity": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "default": 1,
+                  "description": "Quantity to add"
+                }
+              },
+              "required": [
+                "cart_id",
+                "variant_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Add to Cart",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_cart",
+            "description": "Inspect the current state of a cart — line items, quantities, prices, and shipping address. Each item includes an `item_id` you can pass to `update_cart_item` to change quantity or remove the item. Call this after `add_to_cart` to review the cart before checkout, or any time the buyer asks what's in the cart. `kifly_purchasable: false` (`fulfillment: \"external\"`) means checkout on this cart hands the buyer to the seller's own site to pay: say so, so the buyer knows where they will pay.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "ucp-agent": {
+                      "type": "object",
+                      "properties": {
+                        "profile": {
+                          "type": "string",
+                          "format": "uri",
+                          "maxLength": 512,
+                          "description": "https:// URL of your agent's UCP profile. No API key needed."
+                        }
+                      },
+                      "required": [
+                        "profile"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ucp-agent"
+                  ],
+                  "additionalProperties": true,
+                  "description": "Who is calling. See kifly://docs/mcp."
+                },
+                "cart_id": {
+                  "type": "string",
+                  "description": "Cart ID from create_cart"
+                }
+              },
+              "required": [
+                "cart_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Get Cart",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "update_cart_item",
+            "description": "Requires `cart:write`, or no key: send `meta.ucp-agent.profile`. Change the quantity of a line item in an open cart, or remove it entirely. Set `quantity` to 0 to remove the item. Get the `item_id` from `get_cart` or the `cart` field in the `add_to_cart` response. Returns the updated cart state. **The per-item quantity ceiling applies here too — call `get_platform_limits` to check the current limit.** Exceeding it returns 400 `QUANTITY_EXCEEDS_LIMIT`.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "ucp-agent": {
+                      "type": "object",
+                      "properties": {
+                        "profile": {
+                          "type": "string",
+                          "format": "uri",
+                          "maxLength": 512,
+                          "description": "https:// URL of your agent's UCP profile. No API key needed."
+                        }
+                      },
+                      "required": [
+                        "profile"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ucp-agent"
+                  ],
+                  "additionalProperties": true,
+                  "description": "Who is calling. See kifly://docs/mcp."
+                },
+                "idempotency_key": {
+                  "type": "string",
+                  "minLength": 16,
+                  "maxLength": 64,
+                  "description": "Your own retry key (16-64 chars). Resend the SAME key to retry safely."
+                },
+                "cart_id": {
+                  "type": "string",
+                  "description": "Cart ID from create_cart"
+                },
+                "item_id": {
+                  "type": "string",
+                  "description": "Item ID from get_cart or add_to_cart response"
+                },
+                "quantity": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "New quantity (0 removes the item)"
+                }
+              },
+              "required": [
+                "cart_id",
+                "item_id",
+                "quantity"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Update Cart Item",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "set_shipping_address",
+            "description": "Requires `cart:write`, or no key: send `meta.ucp-agent.profile`. Persist a shipping address on the cart and confirm the seller can deliver to it. **Call BEFORE `checkout`.** Returns `delivery_eligible`. When true it also returns `cart_total_with_delivery_cents` — quote that full price before sending the buyer to pay, unless `shipping_priced_at` is `merchant_checkout`: then fee and total are null because the seller's own checkout prices shipping; say so, never call shipping free. When false, no address is saved and `delivery_coverage` says where the seller does cover, so you can retry with a covered address. Coverage semantics: `kifly://docs/delivery`.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "ucp-agent": {
+                      "type": "object",
+                      "properties": {
+                        "profile": {
+                          "type": "string",
+                          "format": "uri",
+                          "maxLength": 512,
+                          "description": "https:// URL of your agent's UCP profile. No API key needed."
+                        }
+                      },
+                      "required": [
+                        "profile"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ucp-agent"
+                  ],
+                  "additionalProperties": true,
+                  "description": "Who is calling. See kifly://docs/mcp."
+                },
+                "idempotency_key": {
+                  "type": "string",
+                  "minLength": 16,
+                  "maxLength": 64,
+                  "description": "Your own retry key (16-64 chars). Resend the SAME key to retry safely."
+                },
+                "cart_id": {
+                  "type": "string",
+                  "description": "Cart ID from create_cart"
+                },
+                "shipping_address": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 150,
+                      "description": "Buyer's full name"
+                    },
+                    "line1": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Street address line 1"
+                    },
+                    "line2": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Street address line 2 (apt, suite)"
+                    },
+                    "city": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "region": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 50,
+                      "description": "US state code (e.g. 'CA', 'NE') — matched against seller's delivery_coverage.states"
+                    },
+                    "postal_code": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 20,
+                      "description": "Postal/ZIP code"
+                    },
+                    "country": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 2,
+                      "default": "US",
+                      "description": "ISO 3166-1 alpha-2 country code"
+                    },
+                    "phone": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 30
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Optional contact phone for delivery"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "line1",
+                    "city",
+                    "region",
+                    "postal_code"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Structured shipping address collected conversationally from the buyer"
+                }
+              },
+              "required": [
+                "cart_id",
+                "shipping_address"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Set Shipping Address",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "quick_buy",
+            "description": "Requires `cart:write` scope. Create a cart, add items, and set the shipping address in ONE call — the fast path when you already know the seller, the exact variant(s), and the buyer's address (e.g. a reorder, or a buyer who has decided). Prefer this over the create_cart → add_to_cart → set_shipping_address sequence to save round trips; those granular tools stay available for exploratory, multi-step carts. **You must call `search_products` first** so Kifly knows each variant's seller (quick_buy returns 422 `VARIANT_SNAPSHOT_MISSING` otherwise). One cart = one seller: every item must belong to the same seller (409 `CART_SELLER_MISMATCH` otherwise) — for a network token, pass that seller's `seller_handle`. Returns `{ cart_id, items_added, seller, delivery }`. `delivery` is exactly what `set_shipping_address` returns — **quote `cart_total_with_delivery_cents` before sending the buyer to pay**; on `delivery_eligible: false` no address is saved, so you can call again with a covered address. Field detail and the three coverage cases: `kifly://docs/delivery`. **quick_buy never charges — it stops at the cart. The buyer still pays via `checkout`**, which returns the payment link they open themselves. On a 5xx/'temporarily unavailable' error, retry once with the same arguments.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "ucp-agent": {
+                      "type": "object",
+                      "properties": {
+                        "profile": {
+                          "type": "string",
+                          "format": "uri",
+                          "maxLength": 512,
+                          "description": "https:// URL of your agent's UCP profile. No API key needed."
+                        }
+                      },
+                      "required": [
+                        "profile"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ucp-agent"
+                  ],
+                  "additionalProperties": true,
+                  "description": "Who is calling. See kifly://docs/mcp."
+                },
+                "idempotency_key": {
+                  "type": "string",
+                  "minLength": 16,
+                  "maxLength": 64,
+                  "description": "Your own retry key (16-64 chars). Resend the SAME key to retry safely."
+                },
+                "seller_handle": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 40,
+                  "pattern": "^[a-z0-9-]+$",
+                  "description": "Seller handle from search_products. REQUIRED for network tokens; omit for seller-scoped tokens (their own seller is implicit)."
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "variant_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Product variant ID from search_products results"
+                      },
+                      "quantity": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Quantity to add"
+                      },
+                      "measure_amount": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "description": "Sold-by-measure amount (e.g. 0.4 oz) for variants priced by measure; omit for fixed-price variants"
+                      }
+                    },
+                    "required": [
+                      "variant_id",
+                      "quantity"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "description": "Line items to add — all must belong to the same seller"
+                },
+                "shipping_address": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 150,
+                      "description": "Buyer's full name"
+                    },
+                    "line1": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Street address line 1"
+                    },
+                    "line2": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Street address line 2 (apt, suite)"
+                    },
+                    "city": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "region": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 50,
+                      "description": "US state code (e.g. 'CA', 'NE') — matched against seller's delivery_coverage.states"
+                    },
+                    "postal_code": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 20,
+                      "description": "Postal/ZIP code"
+                    },
+                    "country": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 2,
+                      "default": "US",
+                      "description": "ISO 3166-1 alpha-2 country code"
+                    },
+                    "phone": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 30
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Optional contact phone for delivery"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "line1",
+                    "city",
+                    "region",
+                    "postal_code"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Structured shipping address collected conversationally from the buyer"
+                },
+                "external_customer_ref": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255,
+                  "description": "Embedded-commerce pass-through: the seller's own opaque customer id for a cart from their embed widget. Omit unless you are the embed flow."
+                }
+              },
+              "required": [
+                "items",
+                "shipping_address"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Quick Buy",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "checkout",
+            "description": "Requires `checkout:write` or `checkout:link`, or no key: send `meta.ucp-agent.profile` for the same payment link. **Checkout is always human-in-the-loop: it returns a link the buyer opens and confirms — it never charges a card or completes an order on its own.** **Call `set_shipping_address` first unless `fulfillment` is `\"external\"` (the seller's site collects the address).** Cart total must not exceed the platform cap (`kifly://platform/limits`). **To pre-fill the buyer's email on the payment page, pass `email` — ask the buyer for it in plain language ('what email should the receipt go to?'). Never ask the buyer to paste a token.** Read `payment_rail` on the response BEFORE telling the buyer anything: `'stripe-checkout'` is paid through Kifly, `'directory-handoff'` hands the buyer to the seller's own site to pay, with a tracked link per product and no Kifly payment link, and `'shopify-native'` sends the buyer to the seller's own checkout. **Full response field reference, including every refusal code: read the `kifly://docs/checkout-response` resource.**",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "idempotency_key": {
+                  "type": "string",
+                  "minLength": 16,
+                  "maxLength": 64,
+                  "description": "Your own retry key (16-64 chars). Resend the SAME key to retry safely."
+                },
+                "cart_id": {
+                  "type": "string",
+                  "description": "Cart ID from create_cart"
+                },
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "description": "Buyer's email, collected conversationally. Pre-fills the Stripe Checkout email field so the buyer doesn't retype it. This is ALL you need to pre-fill email — ask the buyer for their email, never for a token."
+                },
+                "buyer_token": {
+                  "type": "string",
+                  "description": "INTERNAL token (kfb_live_...) minted by register_buyer / verify_buyer — resolves the buyer's saved profile and pre-fills their email on the payment link. NEVER ask the buyer to paste this. Omit it unless you already obtained one programmatically this session; to pre-fill email, use `email` instead."
+                }
+              },
+              "required": [
+                "cart_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Checkout",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "register_buyer",
+            "description": "Start registering a buyer so they can be recognized across future purchases without re-entering their details. Takes the buyer's email and name and always emails a 6-digit verification code — the response is `{ verification_required: true, buyer_profile_id }` whether the email is brand new or already has an account (so this call alone never reveals which). Ask the buyer to read you the code from their inbox, then call `verify_buyer` with the same email + code to get a `buyer_token` (`kfb_live_...`). **Store that token and pass it to `checkout` on every future order** — it pre-fills the buyer's email on the secure Stripe payment link. Safe to call for a buyer you believe is new; if they already have an account, verify_buyer still recovers it.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "description": "Buyer's email address"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Buyer's full name"
+                }
+              },
+              "required": [
+                "email",
+                "name"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Register Buyer",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "request_buyer_code",
+            "description": "Send a 6-digit verification code to a **returning** buyer's email so they can prove the account is theirs and recover their saved name + shipping address on this connection — without pasting any token or re-entering their name. Call this when the buyer says they've shopped with Kifly before and gives you their email; then ask them to read you the code from their inbox and call `verify_buyer`. Always returns `{ sent: true }`, whether or not the email has a Kifly account. If the buyer never receives a code, they likely don't have an account yet: call `register_buyer` instead, which creates one and emails a code either way. Requires the `buyer:write` capability (marketplace/network keys).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "description": "The returning buyer's email address"
+                }
+              },
+              "required": [
+                "email"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Request Buyer Verification Code",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "verify_buyer",
+            "description": "Verify the 6-digit code a returning buyer received by email (from `request_buyer_code`). On success returns `{ buyer_token, buyer_profile_id }` — pass the `buyer_token` to `get_buyer_profile` to auto-fill their saved name + shipping address, and to `checkout` to pre-fill their email on the payment link. Fails with `invalid_otp` if the code is wrong or expired (ask them to re-check, or call `request_buyer_code` again). Requires the `buyer:write` capability.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "description": "The buyer's email address (same one used for request_buyer_code)"
+                },
+                "code": {
+                  "type": "string",
+                  "pattern": "^\\d{6}$",
+                  "description": "The 6-digit code the buyer received by email"
+                }
+              },
+              "required": [
+                "email",
+                "code"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Verify Buyer",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_buyer_profile",
+            "description": "Retrieve a repeat buyer's saved name, email, and default shipping address, given their `buyer_token`. Use them to auto-fill `set_shipping_address`, and pass the token to `checkout` so Stripe pre-fills their email. `default_shipping_address` may be null — then collect it normally and call `save_buyer_address` so it is pre-filled next time. **Ask in plain language ('are you a returning Kifly shopper? what email is on your account?') — never ask a buyer to paste a token.** **How to get the token: read `kifly://docs/buyer-identity`** — the email-code sequence, the one-click sign-in alternative, and what to do for a new buyer.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "buyer_token": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The buyer's kfb_live_... token from their Kifly account"
+                }
+              },
+              "required": [
+                "buyer_token"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Get Buyer Profile",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "list_orders",
+            "description": "List a returning buyer's recent orders and their current fulfillment status — use this in a NEW session to answer 'did my order ship?' / 'where's my package?' when you don't have the original `session_id` from `checkout`. Requires the buyer's `buyer_token` (recover it via `request_buyer_code` + `verify_buyer` if you don't have one). Returns `{ orders, count }`, newest first; each order has `status` (`paid` | `shipped` | `delivered`), `items`, `amount_cents`, `placed_at`, and — once shipped — `tracking_number`, `carrier`, and a public `tracking_url`. **Pass `since` (an ISO-8601 timestamp from a previous check) to get only orders that changed since then** — surface those proactively ('your last order just shipped'). `order_id` identifies the order; `session_id` cross-references `order_status` for a single live checkout.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "buyer_token": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The buyer's kfb_live_... token from their Kifly account"
+                },
+                "since": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "ISO-8601 timestamp. Only return orders updated after this — pass the time of your last check to get the delta."
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50,
+                  "description": "Max orders to return (default 20, max 50)."
+                }
+              },
+              "required": [
+                "buyer_token"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "List Orders",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "save_buyer_address",
+            "description": "Save a shipping address to the buyer's Kifly profile so it auto-fills on future purchases. **Call this after a successful checkout if `get_buyer_profile` returned `default_shipping_address: null`.** The address is persisted server-side against the buyer token — the buyer never needs to re-enter it. Use the same address that was passed to `set_shipping_address` for this order.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "buyer_token": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The buyer's kfb_live_... token"
+                },
+                "address": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 150,
+                      "description": "Buyer's full name"
+                    },
+                    "line1": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "description": "Street address line 1"
+                    },
+                    "line2": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Street address line 2"
+                    },
+                    "city": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "region": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 50,
+                      "description": "State/region code, e.g. 'CA'"
+                    },
+                    "postal_code": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 20
+                    },
+                    "country": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 2,
+                      "default": "US",
+                      "description": "ISO 3166-1 alpha-2 country code"
+                    },
+                    "phone": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 30
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "line1",
+                    "city",
+                    "region",
+                    "postal_code"
+                  ],
+                  "additionalProperties": false,
+                  "description": "The shipping address to save — same structure as set_shipping_address"
+                }
+              },
+              "required": [
+                "buyer_token",
+                "address"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Save Buyer Address",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "submit_feedback",
+            "description": "Send structured feedback to the Kifly team. **No API key required** — send `meta.ucp-agent.profile` and this works with no credential at all. **Call after a confusing response, a dead-end, or a successful workaround you had to invent** — it's how we improve the agent surface, and a report from the moment you were stuck is worth more to us than a working purchase. Fire-and-forget: returns 202 immediately, no blocking, safe to skip if it would add latency to a user-facing flow. `category` and `severity` are required enums (don't free-form them). Include `context` with what you were doing (tool called, query used, response shape, what you expected). Add `suggested_fix` only if you have a concrete idea. Rate-limited.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "ucp-agent": {
+                      "type": "object",
+                      "properties": {
+                        "profile": {
+                          "type": "string",
+                          "format": "uri",
+                          "maxLength": 512,
+                          "description": "https:// URL of your agent's UCP profile. No API key needed."
+                        }
+                      },
+                      "required": [
+                        "profile"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ucp-agent"
+                  ],
+                  "additionalProperties": true,
+                  "description": "Who is calling. See kifly://docs/mcp."
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "discoverability",
+                    "response_shape",
+                    "tool_description",
+                    "latency",
+                    "error_handling",
+                    "missing_capability",
+                    "other"
+                  ],
+                  "description": "What kind of issue. Pick the closest match — don't invent new categories."
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "blocker",
+                    "friction",
+                    "nice_to_have"
+                  ],
+                  "description": "blocker = can't complete the task. friction = degraded UX. nice_to_have = improvement idea."
+                },
+                "message": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000,
+                  "description": "Plain-language description. Be specific about what happened and why it's a problem."
+                },
+                "context": {
+                  "type": "object",
+                  "additionalProperties": {},
+                  "description": "Reproducible signal: { tool, query, response_snippet, expected }. Auto-fill from what you just did."
+                },
+                "suggested_fix": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000,
+                  "description": "Optional. Only include if you have a concrete idea. Leave blank if you only have a complaint."
+                },
+                "agent_name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80,
+                  "description": "Optional. Your agent's name and who runs it (e.g. \"ShopBot by Acme\"), so we know who reported this."
+                },
+                "contact": {
+                  "type": "object",
+                  "properties": {
+                    "email": {
+                      "type": "string",
+                      "format": "email",
+                      "maxLength": 254
+                    },
+                    "url": {
+                      "type": "string",
+                      "format": "uri",
+                      "maxLength": 512
+                    },
+                    "handle": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Optional. Where to reach you if we have a question about this report. Needs at least one field."
+                }
+              },
+              "required": [
+                "category",
+                "severity",
+                "message"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Submit Feedback",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "request_feature",
+            "description": "Submit the buyer's **product/feature request** to the Kifly team. Use this when the buyer wishes Kifly *itself* did something it doesn't — a missing capability, a rough flow, an idea to improve the platform. **This is NOT `submit_feedback`** (that's for reporting a broken/confusing API response you hit). Requires the buyer's `kfb_live_` token — only registered buyers can file requests. Help the buyer articulate a real problem: ask OPEN, non-leading questions ('what were you trying to do? what got in the way? how do you handle it today?') — never 'would feature X help?'. Pre-fill the fields from the conversation and ask only for the gaps; keep it short. Separate the `problem` (the pain) from any `proposed_solution` (the fix). Name and email are taken from the buyer profile automatically — do not ask for them. Returns 202: it's logged for review. **Do NOT promise the user anything will be built** — just confirm it was recorded.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "buyer_token": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The buyer's kfb_live_ token. Required — feature requests must come from a registered buyer."
+                },
+                "problem": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000,
+                  "description": "The pain in the buyer's own terms — what's broken or missing for them. NOT the proposed fix."
+                },
+                "impact": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000,
+                  "description": "Why it matters: who it affects, how often, what it costs them today."
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "discoverability",
+                    "response_shape",
+                    "tool_description",
+                    "latency",
+                    "error_handling",
+                    "missing_capability",
+                    "other"
+                  ],
+                  "description": "Closest match for the area of the request. Don't invent new categories."
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "blocker",
+                    "friction",
+                    "nice_to_have"
+                  ],
+                  "description": "blocker = can't accomplish the goal at all. friction = works but painful. nice_to_have = improvement idea."
+                },
+                "current_workaround": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000,
+                  "description": "Optional. What the buyer does today instead. Leave blank if there's no workaround."
+                },
+                "proposed_solution": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000,
+                  "description": "Optional. The buyer's idea for a fix, kept separate from the problem. Leave blank if they only described the pain."
+                },
+                "contact_phone": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 50,
+                  "description": "Optional phone number IF the buyer offers one for follow-up. Name + email come from their profile — never ask for those."
+                },
+                "context": {
+                  "type": "object",
+                  "additionalProperties": {},
+                  "description": "Optional signal about the conversation: { goal, seller, last_tool }. Auto-fill from what you were doing."
+                }
+              },
+              "required": [
+                "buyer_token",
+                "problem",
+                "impact",
+                "category",
+                "severity"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Request Feature",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_seller",
+            "description": "**Call first when the user names a store or its website**: it says whether Kifly carries it before you open a browser. Returns the seller's public profile: location, storefront URL, delivery fee and coverage, catalog size, `verified_domains` (domains it proved it controls; trust signal, not identity), and `fulfillment` (buy here, or hand off to the seller's site). **Call before `create_cart` or `set_shipping_address` to check it ships to the buyer.** `cities` is never capped here.\n**`coverage_configured: false` = ships NOWHERE; an empty `states` is NOT nationwide. `merchant_managed: true` = shipping is set at the seller's own checkout; never report it as not shipping.** Details: `kifly://docs/delivery`.\nName the seller by ONE of `handle`, `domain` (any URL works) or `name`. A miss is `SELLER_NOT_FOUND` with `details.did_you_mean`: ask the user, never pick. `SELLER_AMBIGUOUS` = several share that name; ask which. Seller-scoped tokens may omit all three.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "ucp-agent": {
+                      "type": "object",
+                      "properties": {
+                        "profile": {
+                          "type": "string",
+                          "format": "uri",
+                          "maxLength": 512,
+                          "description": "https:// URL of your agent's UCP profile. No API key needed."
+                        }
+                      },
+                      "required": [
+                        "profile"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ucp-agent"
+                  ],
+                  "additionalProperties": true,
+                  "description": "Who is calling. See kifly://docs/mcp."
+                },
+                "handle": {
+                  "type": "string",
+                  "description": "Seller handle, case-insensitive (e.g. 'bay-clothing-district')."
+                },
+                "domain": {
+                  "type": "string",
+                  "maxLength": 2048,
+                  "description": "The store's website or any URL on it."
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "description": "The store's name."
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Get Seller",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_policies",
+            "description": "The seller's published returns, shipping and warranty policy, in their own words. **Call before telling a buyer what happens after purchase** — if it is not here, say so; never infer a typical policy. `available: false` is the normal case for most sellers and is not an error. `get_seller`'s `policies.available` tells you whether this call is worth making. Network tokens pass `handle`; seller-scoped tokens may omit it.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "ucp-agent": {
+                      "type": "object",
+                      "properties": {
+                        "profile": {
+                          "type": "string",
+                          "format": "uri",
+                          "maxLength": 512,
+                          "description": "https:// URL of your agent's UCP profile. No API key needed."
+                        }
+                      },
+                      "required": [
+                        "profile"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ucp-agent"
+                  ],
+                  "additionalProperties": true,
+                  "description": "Who is calling. See kifly://docs/mcp."
+                },
+                "handle": {
+                  "type": "string",
+                  "description": "Seller handle (case-insensitive). Required for network tokens; ignored for seller-scoped tokens."
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Get Store Policies",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "list_sellers",
+            "description": "List all active sellers on the Kifly network. **Requires a network token (kfn_live_…).** Returns each seller's handle, name, city, region, delivery coverage (`nationwide:true` or a `states` list), delivery fee, and catalog size. `delivery_coverage.cities` may be capped to a handful of entries — compare `cities.length` against `city_count`; if fewer, call `get_seller` for that seller's full city list. Use this to discover which sellers are available and which ship to a buyer's location before calling `get_seller` or `search_products`. **Pagination:** when `kifly:hasMore` is true, pass `kifly:nextCursor` as `cursor` to fetch the next page. Default page size is 20, max 50.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "ucp-agent": {
+                      "type": "object",
+                      "properties": {
+                        "profile": {
+                          "type": "string",
+                          "format": "uri",
+                          "maxLength": 512,
+                          "description": "https:// URL of your agent's UCP profile. No API key needed."
+                        }
+                      },
+                      "required": [
+                        "profile"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ucp-agent"
+                  ],
+                  "additionalProperties": true,
+                  "description": "Who is calling. See kifly://docs/mcp."
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50,
+                  "description": "Max sellers per page (default 20, max 50)."
+                },
+                "cursor": {
+                  "type": "string",
+                  "description": "Pagination cursor from kifly:nextCursor in a previous response. Omit on the first call."
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "List Sellers",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_platform_limits",
+            "description": "Returns the current platform-enforced cart limits: `max_item_quantity` (per-line-item ceiling), `max_cart_total_cents`, and `max_cart_total_usd`. Call this once at session start before building a large cart so you can quote limits to the buyer proactively rather than discovering them via errors. Always read them at runtime rather than hardcoding.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "ucp-agent": {
+                      "type": "object",
+                      "properties": {
+                        "profile": {
+                          "type": "string",
+                          "format": "uri",
+                          "maxLength": 512,
+                          "description": "https:// URL of your agent's UCP profile. No API key needed."
+                        }
+                      },
+                      "required": [
+                        "profile"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ucp-agent"
+                  ],
+                  "additionalProperties": true,
+                  "description": "Who is calling. See kifly://docs/mcp."
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Get Platform Limits",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "order_status",
+            "description": "No key needed for your own session: send the profile you checked out with. Check the status of a Stripe checkout session. Poll every 5 seconds after checkout until status is 'paid', 'shipped', or 'failed'. Returns order details (order_id, amount, items) when paid. When the seller marks the order as shipped, status becomes 'shipped' and tracking_number, carrier, and shipped_at are included — share these with the buyer.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "session_id": {
+                  "type": "string",
+                  "description": "Stripe checkout session ID from the checkout tool response"
+                }
+              },
+              "required": [
+                "session_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Order Status",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_help",
+            "description": "Get unstuck. Returns Kifly's website and support email for the BUYER, plus how to report the problem to Kifly's engineers yourself. Call this if you are stuck, hit an unresolvable error, or the buyer asks how to reach a human. Share the website and email with the buyer; use `submit_feedback` (no API key needed) to tell us what blocked you — that is the fastest way to get it fixed.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "meta": {
+                  "type": "object",
+                  "properties": {
+                    "ucp-agent": {
+                      "type": "object",
+                      "properties": {
+                        "profile": {
+                          "type": "string",
+                          "format": "uri",
+                          "maxLength": 512,
+                          "description": "https:// URL of your agent's UCP profile. No API key needed."
+                        }
+                      },
+                      "required": [
+                        "profile"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ucp-agent"
+                  ],
+                  "additionalProperties": true,
+                  "description": "Who is calling. See kifly://docs/mcp."
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Get Help",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "search_products",
+        "description": "Search or browse Kifly's product catalog across every seller on the network. Multilingual semantic search (100+ languages); omit `q` to browse recent listings. Pass `q` as an array (up to 5) to try several phrasings in ONE call instead of N searches. Too many hits? Ask once with `facets: true`, then narrow with `delivers_to`, price, `category` or `seller_handle`; page with `cursor` when `kifly:hasMore`. Returns a JSON-LD ItemList.\n\n**Rules that matter before you read the response:**\n- Cart every product the buyer wants: checkout hands them to pay with the cart ready. `kifly:purchasable: false` is still buyable, paid on the seller's own site. `availability` is STOCK; `kifly:purchasable` is WHERE they pay.\n- On `availability:OutOfStock`, still show it if asked, say it is sold out, and never cart it (`add_to_cart` returns 409).\n- When a product has several size/style variants, ask the buyer ONE option axis at a time (`kifly:productOptions` gives the axes in the seller's order). Never recite the combination matrix.\n- On an empty result, read `kifly:emptyReason`: say nothing matched rather than guessing, then offer `kifly:suggestions` (related, NOT matches). Items with `kifly:offNetwork` are outside retailers': relay `kifly:affiliateDisclosure`, cart as usual.\n\n**Full field reference: resource `kifly://docs/search-response`** (seller map, delivery coverage, variants, capped fields, every `kifly:` extension). Fetch it once for field-level detail.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "meta": {
+              "type": "object",
+              "properties": {
+                "ucp-agent": {
+                  "type": "object",
+                  "properties": {
+                    "profile": {
+                      "type": "string",
+                      "format": "uri",
+                      "maxLength": 512,
+                      "description": "https:// URL of your agent's UCP profile. No API key needed."
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "ucp-agent"
+              ],
+              "additionalProperties": true,
+              "description": "Who is calling. See kifly://docs/mcp."
+            },
+            "q": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "minItems": 1,
+                  "maxItems": 5
+                }
+              ],
+              "description": "Query, or up to 5 queries unioned by best relevance. Omit to browse."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20,
+              "description": "Max results per page (default 10)."
+            },
+            "sort_by": {
+              "type": "string",
+              "enum": [
+                "relevance",
+                "price_asc",
+                "price_desc",
+                "newest"
+              ],
+              "description": "Sort order (default: relevance)"
+            },
+            "min_price_cents": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Min price, cents"
+            },
+            "max_price_cents": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Max price, cents"
+            },
+            "in_stock_only": {
+              "type": "boolean",
+              "description": "In-stock only"
+            },
+            "category": {
+              "type": "string",
+              "description": "Category, e.g. a kifly:facets value"
+            },
+            "seller_handle": {
+              "type": "string",
+              "description": "Scope to one seller's catalog"
+            },
+            "cursor": {
+              "type": "string",
+              "description": "kifly:nextCursor from the previous page"
+            },
+            "delivers_to": {
+              "type": "object",
+              "properties": {
+                "country": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 2
+                },
+                "region": {
+                  "type": "string"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "postal_code": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "country"
+              ],
+              "additionalProperties": false,
+              "description": "Only sellers delivering here, e.g. {country:'US',region:'CA'}"
+            },
+            "facets": {
+              "type": "boolean",
+              "description": "Add kifly:facets counts over all matches"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Search Catalog",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://kifly/search-results.html"
+          }
+        }
+      },
+      {
+        "name": "create_cart",
+        "description": "Create a new shopping cart on Kifly. **For network (cross-seller) tokens you MUST pass `seller_handle`** — each cart is bound to exactly one seller. Get the handle from search_products results (every item's `kifly:seller` IS the handle in network results) or get_seller. Seller-scoped tokens may omit the handle — their own seller is implicit. Returns a cart_id to use with add_to_cart and checkout. The response's `seller.kifly_purchasable` (and `seller.fulfillment`) tells you upfront where the buyer pays — `false`/`\"external\"` means the buyer pays on the seller's own site: build the cart as usual; checkout hands them there with a link per product. Never say the order is placed. The same flag rides every add_to_cart/get_cart response.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "meta": {
+              "type": "object",
+              "properties": {
+                "ucp-agent": {
+                  "type": "object",
+                  "properties": {
+                    "profile": {
+                      "type": "string",
+                      "format": "uri",
+                      "maxLength": 512,
+                      "description": "https:// URL of your agent's UCP profile. No API key needed."
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "ucp-agent"
+              ],
+              "additionalProperties": true,
+              "description": "Who is calling. See kifly://docs/mcp."
+            },
+            "idempotency_key": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 64,
+              "description": "Your own retry key (16-64 chars). Resend the SAME key to retry safely."
+            },
+            "seller_handle": {
+              "type": "string",
+              "description": "Seller handle (e.g. 'bay-clothing-district'). Required for network tokens; ignored for seller-scoped tokens."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Create Cart",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "add_to_cart",
+        "description": "Requires `cart:write`, or no key: send `meta.ucp-agent.profile`. Add a product variant to an existing cart. Use the variant_id from search_products results. Returns full cart state including item_ids you can use with update_cart_item. **Max quantity per item and max cart total are enforced — call `get_platform_limits` to check the current limits before building a large cart.** Exceeding the per-item limit returns 400 `QUANTITY_EXCEEDS_LIMIT`; exceeding the cart total returns 400 `CART_TOTAL_EXCEEDS_LIMIT` at checkout. `cart.kifly_purchasable` (and `cart.fulfillment`) carries the same signal as create_cart's `seller` field.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "meta": {
+              "type": "object",
+              "properties": {
+                "ucp-agent": {
+                  "type": "object",
+                  "properties": {
+                    "profile": {
+                      "type": "string",
+                      "format": "uri",
+                      "maxLength": 512,
+                      "description": "https:// URL of your agent's UCP profile. No API key needed."
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "ucp-agent"
+              ],
+              "additionalProperties": true,
+              "description": "Who is calling. See kifly://docs/mcp."
+            },
+            "idempotency_key": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 64,
+              "description": "Your own retry key (16-64 chars). Resend the SAME key to retry safely."
+            },
+            "cart_id": {
+              "type": "string",
+              "description": "Cart ID from create_cart"
+            },
+            "variant_id": {
+              "type": "string",
+              "description": "Product variant ID from search_products results"
+            },
+            "quantity": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "description": "Quantity to add"
+            }
+          },
+          "required": [
+            "cart_id",
+            "variant_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Add to Cart",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_cart",
+        "description": "Inspect the current state of a cart — line items, quantities, prices, and shipping address. Each item includes an `item_id` you can pass to `update_cart_item` to change quantity or remove the item. Call this after `add_to_cart` to review the cart before checkout, or any time the buyer asks what's in the cart. `kifly_purchasable: false` (`fulfillment: \"external\"`) means checkout on this cart hands the buyer to the seller's own site to pay: say so, so the buyer knows where they will pay.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "meta": {
+              "type": "object",
+              "properties": {
+                "ucp-agent": {
+                  "type": "object",
+                  "properties": {
+                    "profile": {
+                      "type": "string",
+                      "format": "uri",
+                      "maxLength": 512,
+                      "description": "https:// URL of your agent's UCP profile. No API key needed."
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "ucp-agent"
+              ],
+              "additionalProperties": true,
+              "description": "Who is calling. See kifly://docs/mcp."
+            },
+            "cart_id": {
+              "type": "string",
+              "description": "Cart ID from create_cart"
+            }
+          },
+          "required": [
+            "cart_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Get Cart",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "update_cart_item",
+        "description": "Requires `cart:write`, or no key: send `meta.ucp-agent.profile`. Change the quantity of a line item in an open cart, or remove it entirely. Set `quantity` to 0 to remove the item. Get the `item_id` from `get_cart` or the `cart` field in the `add_to_cart` response. Returns the updated cart state. **The per-item quantity ceiling applies here too — call `get_platform_limits` to check the current limit.** Exceeding it returns 400 `QUANTITY_EXCEEDS_LIMIT`.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "meta": {
+              "type": "object",
+              "properties": {
+                "ucp-agent": {
+                  "type": "object",
+                  "properties": {
+                    "profile": {
+                      "type": "string",
+                      "format": "uri",
+                      "maxLength": 512,
+                      "description": "https:// URL of your agent's UCP profile. No API key needed."
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "ucp-agent"
+              ],
+              "additionalProperties": true,
+              "description": "Who is calling. See kifly://docs/mcp."
+            },
+            "idempotency_key": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 64,
+              "description": "Your own retry key (16-64 chars). Resend the SAME key to retry safely."
+            },
+            "cart_id": {
+              "type": "string",
+              "description": "Cart ID from create_cart"
+            },
+            "item_id": {
+              "type": "string",
+              "description": "Item ID from get_cart or add_to_cart response"
+            },
+            "quantity": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "New quantity (0 removes the item)"
+            }
+          },
+          "required": [
+            "cart_id",
+            "item_id",
+            "quantity"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Update Cart Item",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "set_shipping_address",
+        "description": "Requires `cart:write`, or no key: send `meta.ucp-agent.profile`. Persist a shipping address on the cart and confirm the seller can deliver to it. **Call BEFORE `checkout`.** Returns `delivery_eligible`. When true it also returns `cart_total_with_delivery_cents` — quote that full price before sending the buyer to pay, unless `shipping_priced_at` is `merchant_checkout`: then fee and total are null because the seller's own checkout prices shipping; say so, never call shipping free. When false, no address is saved and `delivery_coverage` says where the seller does cover, so you can retry with a covered address. Coverage semantics: `kifly://docs/delivery`.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "meta": {
+              "type": "object",
+              "properties": {
+                "ucp-agent": {
+                  "type": "object",
+                  "properties": {
+                    "profile": {
+                      "type": "string",
+                      "format": "uri",
+                      "maxLength": 512,
+                      "description": "https:// URL of your agent's UCP profile. No API key needed."
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "ucp-agent"
+              ],
+              "additionalProperties": true,
+              "description": "Who is calling. See kifly://docs/mcp."
+            },
+            "idempotency_key": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 64,
+              "description": "Your own retry key (16-64 chars). Resend the SAME key to retry safely."
+            },
+            "cart_id": {
+              "type": "string",
+              "description": "Cart ID from create_cart"
+            },
+            "shipping_address": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 150,
+                  "description": "Buyer's full name"
+                },
+                "line1": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Street address line 1"
+                },
+                "line2": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 200
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Street address line 2 (apt, suite)"
+                },
+                "city": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "region": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 50,
+                  "description": "US state code (e.g. 'CA', 'NE') — matched against seller's delivery_coverage.states"
+                },
+                "postal_code": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 20,
+                  "description": "Postal/ZIP code"
+                },
+                "country": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 2,
+                  "default": "US",
+                  "description": "ISO 3166-1 alpha-2 country code"
+                },
+                "phone": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 30
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Optional contact phone for delivery"
+                }
+              },
+              "required": [
+                "name",
+                "line1",
+                "city",
+                "region",
+                "postal_code"
+              ],
+              "additionalProperties": false,
+              "description": "Structured shipping address collected conversationally from the buyer"
+            }
+          },
+          "required": [
+            "cart_id",
+            "shipping_address"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Set Shipping Address",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "quick_buy",
+        "description": "Requires `cart:write` scope. Create a cart, add items, and set the shipping address in ONE call — the fast path when you already know the seller, the exact variant(s), and the buyer's address (e.g. a reorder, or a buyer who has decided). Prefer this over the create_cart → add_to_cart → set_shipping_address sequence to save round trips; those granular tools stay available for exploratory, multi-step carts. **You must call `search_products` first** so Kifly knows each variant's seller (quick_buy returns 422 `VARIANT_SNAPSHOT_MISSING` otherwise). One cart = one seller: every item must belong to the same seller (409 `CART_SELLER_MISMATCH` otherwise) — for a network token, pass that seller's `seller_handle`. Returns `{ cart_id, items_added, seller, delivery }`. `delivery` is exactly what `set_shipping_address` returns — **quote `cart_total_with_delivery_cents` before sending the buyer to pay**; on `delivery_eligible: false` no address is saved, so you can call again with a covered address. Field detail and the three coverage cases: `kifly://docs/delivery`. **quick_buy never charges — it stops at the cart. The buyer still pays via `checkout`**, which returns the payment link they open themselves. On a 5xx/'temporarily unavailable' error, retry once with the same arguments.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "meta": {
+              "type": "object",
+              "properties": {
+                "ucp-agent": {
+                  "type": "object",
+                  "properties": {
+                    "profile": {
+                      "type": "string",
+                      "format": "uri",
+                      "maxLength": 512,
+                      "description": "https:// URL of your agent's UCP profile. No API key needed."
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "ucp-agent"
+              ],
+              "additionalProperties": true,
+              "description": "Who is calling. See kifly://docs/mcp."
+            },
+            "idempotency_key": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 64,
+              "description": "Your own retry key (16-64 chars). Resend the SAME key to retry safely."
+            },
+            "seller_handle": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 40,
+              "pattern": "^[a-z0-9-]+$",
+              "description": "Seller handle from search_products. REQUIRED for network tokens; omit for seller-scoped tokens (their own seller is implicit)."
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "variant_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Product variant ID from search_products results"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Quantity to add"
+                  },
+                  "measure_amount": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "Sold-by-measure amount (e.g. 0.4 oz) for variants priced by measure; omit for fixed-price variants"
+                  }
+                },
+                "required": [
+                  "variant_id",
+                  "quantity"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "maxItems": 50,
+              "description": "Line items to add — all must belong to the same seller"
+            },
+            "shipping_address": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 150,
+                  "description": "Buyer's full name"
+                },
+                "line1": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Street address line 1"
+                },
+                "line2": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 200
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Street address line 2 (apt, suite)"
+                },
+                "city": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "region": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 50,
+                  "description": "US state code (e.g. 'CA', 'NE') — matched against seller's delivery_coverage.states"
+                },
+                "postal_code": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 20,
+                  "description": "Postal/ZIP code"
+                },
+                "country": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 2,
+                  "default": "US",
+                  "description": "ISO 3166-1 alpha-2 country code"
+                },
+                "phone": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 30
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Optional contact phone for delivery"
+                }
+              },
+              "required": [
+                "name",
+                "line1",
+                "city",
+                "region",
+                "postal_code"
+              ],
+              "additionalProperties": false,
+              "description": "Structured shipping address collected conversationally from the buyer"
+            },
+            "external_customer_ref": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "description": "Embedded-commerce pass-through: the seller's own opaque customer id for a cart from their embed widget. Omit unless you are the embed flow."
+            }
+          },
+          "required": [
+            "items",
+            "shipping_address"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Quick Buy",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "checkout",
+        "description": "Requires `checkout:write` or `checkout:link`, or no key: send `meta.ucp-agent.profile` for the same payment link. **Checkout is always human-in-the-loop: it returns a link the buyer opens and confirms — it never charges a card or completes an order on its own.** **Call `set_shipping_address` first unless `fulfillment` is `\"external\"` (the seller's site collects the address).** Cart total must not exceed the platform cap (`kifly://platform/limits`). **To pre-fill the buyer's email on the payment page, pass `email` — ask the buyer for it in plain language ('what email should the receipt go to?'). Never ask the buyer to paste a token.** Read `payment_rail` on the response BEFORE telling the buyer anything: `'stripe-checkout'` is paid through Kifly, `'directory-handoff'` hands the buyer to the seller's own site to pay, with a tracked link per product and no Kifly payment link, and `'shopify-native'` sends the buyer to the seller's own checkout. **Full response field reference, including every refusal code: read the `kifly://docs/checkout-response` resource.**",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "idempotency_key": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 64,
+              "description": "Your own retry key (16-64 chars). Resend the SAME key to retry safely."
+            },
+            "cart_id": {
+              "type": "string",
+              "description": "Cart ID from create_cart"
+            },
+            "email": {
+              "type": "string",
+              "format": "email",
+              "description": "Buyer's email, collected conversationally. Pre-fills the Stripe Checkout email field so the buyer doesn't retype it. This is ALL you need to pre-fill email — ask the buyer for their email, never for a token."
+            },
+            "buyer_token": {
+              "type": "string",
+              "description": "INTERNAL token (kfb_live_...) minted by register_buyer / verify_buyer — resolves the buyer's saved profile and pre-fills their email on the payment link. NEVER ask the buyer to paste this. Omit it unless you already obtained one programmatically this session; to pre-fill email, use `email` instead."
+            }
+          },
+          "required": [
+            "cart_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Checkout",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "register_buyer",
+        "description": "Start registering a buyer so they can be recognized across future purchases without re-entering their details. Takes the buyer's email and name and always emails a 6-digit verification code — the response is `{ verification_required: true, buyer_profile_id }` whether the email is brand new or already has an account (so this call alone never reveals which). Ask the buyer to read you the code from their inbox, then call `verify_buyer` with the same email + code to get a `buyer_token` (`kfb_live_...`). **Store that token and pass it to `checkout` on every future order** — it pre-fills the buyer's email on the secure Stripe payment link. Safe to call for a buyer you believe is new; if they already have an account, verify_buyer still recovers it.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "email": {
+              "type": "string",
+              "format": "email",
+              "description": "Buyer's email address"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Buyer's full name"
+            }
+          },
+          "required": [
+            "email",
+            "name"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Register Buyer",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "request_buyer_code",
+        "description": "Send a 6-digit verification code to a **returning** buyer's email so they can prove the account is theirs and recover their saved name + shipping address on this connection — without pasting any token or re-entering their name. Call this when the buyer says they've shopped with Kifly before and gives you their email; then ask them to read you the code from their inbox and call `verify_buyer`. Always returns `{ sent: true }`, whether or not the email has a Kifly account. If the buyer never receives a code, they likely don't have an account yet: call `register_buyer` instead, which creates one and emails a code either way. Requires the `buyer:write` capability (marketplace/network keys).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "email": {
+              "type": "string",
+              "format": "email",
+              "description": "The returning buyer's email address"
+            }
+          },
+          "required": [
+            "email"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Request Buyer Verification Code",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "verify_buyer",
+        "description": "Verify the 6-digit code a returning buyer received by email (from `request_buyer_code`). On success returns `{ buyer_token, buyer_profile_id }` — pass the `buyer_token` to `get_buyer_profile` to auto-fill their saved name + shipping address, and to `checkout` to pre-fill their email on the payment link. Fails with `invalid_otp` if the code is wrong or expired (ask them to re-check, or call `request_buyer_code` again). Requires the `buyer:write` capability.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "email": {
+              "type": "string",
+              "format": "email",
+              "description": "The buyer's email address (same one used for request_buyer_code)"
+            },
+            "code": {
+              "type": "string",
+              "pattern": "^\\d{6}$",
+              "description": "The 6-digit code the buyer received by email"
+            }
+          },
+          "required": [
+            "email",
+            "code"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Verify Buyer",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_buyer_profile",
+        "description": "Retrieve a repeat buyer's saved name, email, and default shipping address, given their `buyer_token`. Use them to auto-fill `set_shipping_address`, and pass the token to `checkout` so Stripe pre-fills their email. `default_shipping_address` may be null — then collect it normally and call `save_buyer_address` so it is pre-filled next time. **Ask in plain language ('are you a returning Kifly shopper? what email is on your account?') — never ask a buyer to paste a token.** **How to get the token: read `kifly://docs/buyer-identity`** — the email-code sequence, the one-click sign-in alternative, and what to do for a new buyer.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "buyer_token": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The buyer's kfb_live_... token from their Kifly account"
+            }
+          },
+          "required": [
+            "buyer_token"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Get Buyer Profile",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "list_orders",
+        "description": "List a returning buyer's recent orders and their current fulfillment status — use this in a NEW session to answer 'did my order ship?' / 'where's my package?' when you don't have the original `session_id` from `checkout`. Requires the buyer's `buyer_token` (recover it via `request_buyer_code` + `verify_buyer` if you don't have one). Returns `{ orders, count }`, newest first; each order has `status` (`paid` | `shipped` | `delivered`), `items`, `amount_cents`, `placed_at`, and — once shipped — `tracking_number`, `carrier`, and a public `tracking_url`. **Pass `since` (an ISO-8601 timestamp from a previous check) to get only orders that changed since then** — surface those proactively ('your last order just shipped'). `order_id` identifies the order; `session_id` cross-references `order_status` for a single live checkout.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "buyer_token": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The buyer's kfb_live_... token from their Kifly account"
+            },
+            "since": {
+              "type": "string",
+              "format": "date-time",
+              "description": "ISO-8601 timestamp. Only return orders updated after this — pass the time of your last check to get the delta."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "description": "Max orders to return (default 20, max 50)."
+            }
+          },
+          "required": [
+            "buyer_token"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "List Orders",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "save_buyer_address",
+        "description": "Save a shipping address to the buyer's Kifly profile so it auto-fills on future purchases. **Call this after a successful checkout if `get_buyer_profile` returned `default_shipping_address: null`.** The address is persisted server-side against the buyer token — the buyer never needs to re-enter it. Use the same address that was passed to `set_shipping_address` for this order.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "buyer_token": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The buyer's kfb_live_... token"
+            },
+            "address": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 150,
+                  "description": "Buyer's full name"
+                },
+                "line1": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Street address line 1"
+                },
+                "line2": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 200
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Street address line 2"
+                },
+                "city": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "region": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 50,
+                  "description": "State/region code, e.g. 'CA'"
+                },
+                "postal_code": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 20
+                },
+                "country": {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 2,
+                  "default": "US",
+                  "description": "ISO 3166-1 alpha-2 country code"
+                },
+                "phone": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 30
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "line1",
+                "city",
+                "region",
+                "postal_code"
+              ],
+              "additionalProperties": false,
+              "description": "The shipping address to save — same structure as set_shipping_address"
+            }
+          },
+          "required": [
+            "buyer_token",
+            "address"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Save Buyer Address",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "submit_feedback",
+        "description": "Send structured feedback to the Kifly team. **No API key required** — send `meta.ucp-agent.profile` and this works with no credential at all. **Call after a confusing response, a dead-end, or a successful workaround you had to invent** — it's how we improve the agent surface, and a report from the moment you were stuck is worth more to us than a working purchase. Fire-and-forget: returns 202 immediately, no blocking, safe to skip if it would add latency to a user-facing flow. `category` and `severity` are required enums (don't free-form them). Include `context` with what you were doing (tool called, query used, response shape, what you expected). Add `suggested_fix` only if you have a concrete idea. Rate-limited.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "meta": {
+              "type": "object",
+              "properties": {
+                "ucp-agent": {
+                  "type": "object",
+                  "properties": {
+                    "profile": {
+                      "type": "string",
+                      "format": "uri",
+                      "maxLength": 512,
+                      "description": "https:// URL of your agent's UCP profile. No API key needed."
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "ucp-agent"
+              ],
+              "additionalProperties": true,
+              "description": "Who is calling. See kifly://docs/mcp."
+            },
+            "category": {
+              "type": "string",
+              "enum": [
+                "discoverability",
+                "response_shape",
+                "tool_description",
+                "latency",
+                "error_handling",
+                "missing_capability",
+                "other"
+              ],
+              "description": "What kind of issue. Pick the closest match — don't invent new categories."
+            },
+            "severity": {
+              "type": "string",
+              "enum": [
+                "blocker",
+                "friction",
+                "nice_to_have"
+              ],
+              "description": "blocker = can't complete the task. friction = degraded UX. nice_to_have = improvement idea."
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "Plain-language description. Be specific about what happened and why it's a problem."
+            },
+            "context": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Reproducible signal: { tool, query, response_snippet, expected }. Auto-fill from what you just did."
+            },
+            "suggested_fix": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "Optional. Only include if you have a concrete idea. Leave blank if you only have a complaint."
+            },
+            "agent_name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80,
+              "description": "Optional. Your agent's name and who runs it (e.g. \"ShopBot by Acme\"), so we know who reported this."
+            },
+            "contact": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "maxLength": 254
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "maxLength": 512
+                },
+                "handle": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                }
+              },
+              "additionalProperties": false,
+              "description": "Optional. Where to reach you if we have a question about this report. Needs at least one field."
+            }
+          },
+          "required": [
+            "category",
+            "severity",
+            "message"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Submit Feedback",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "request_feature",
+        "description": "Submit the buyer's **product/feature request** to the Kifly team. Use this when the buyer wishes Kifly *itself* did something it doesn't — a missing capability, a rough flow, an idea to improve the platform. **This is NOT `submit_feedback`** (that's for reporting a broken/confusing API response you hit). Requires the buyer's `kfb_live_` token — only registered buyers can file requests. Help the buyer articulate a real problem: ask OPEN, non-leading questions ('what were you trying to do? what got in the way? how do you handle it today?') — never 'would feature X help?'. Pre-fill the fields from the conversation and ask only for the gaps; keep it short. Separate the `problem` (the pain) from any `proposed_solution` (the fix). Name and email are taken from the buyer profile automatically — do not ask for them. Returns 202: it's logged for review. **Do NOT promise the user anything will be built** — just confirm it was recorded.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "buyer_token": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The buyer's kfb_live_ token. Required — feature requests must come from a registered buyer."
+            },
+            "problem": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "The pain in the buyer's own terms — what's broken or missing for them. NOT the proposed fix."
+            },
+            "impact": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "Why it matters: who it affects, how often, what it costs them today."
+            },
+            "category": {
+              "type": "string",
+              "enum": [
+                "discoverability",
+                "response_shape",
+                "tool_description",
+                "latency",
+                "error_handling",
+                "missing_capability",
+                "other"
+              ],
+              "description": "Closest match for the area of the request. Don't invent new categories."
+            },
+            "severity": {
+              "type": "string",
+              "enum": [
+                "blocker",
+                "friction",
+                "nice_to_have"
+              ],
+              "description": "blocker = can't accomplish the goal at all. friction = works but painful. nice_to_have = improvement idea."
+            },
+            "current_workaround": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "Optional. What the buyer does today instead. Leave blank if there's no workaround."
+            },
+            "proposed_solution": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "Optional. The buyer's idea for a fix, kept separate from the problem. Leave blank if they only described the pain."
+            },
+            "contact_phone": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50,
+              "description": "Optional phone number IF the buyer offers one for follow-up. Name + email come from their profile — never ask for those."
+            },
+            "context": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Optional signal about the conversation: { goal, seller, last_tool }. Auto-fill from what you were doing."
+            }
+          },
+          "required": [
+            "buyer_token",
+            "problem",
+            "impact",
+            "category",
+            "severity"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Request Feature",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_seller",
+        "description": "**Call first when the user names a store or its website**: it says whether Kifly carries it before you open a browser. Returns the seller's public profile: location, storefront URL, delivery fee and coverage, catalog size, `verified_domains` (domains it proved it controls; trust signal, not identity), and `fulfillment` (buy here, or hand off to the seller's site). **Call before `create_cart` or `set_shipping_address` to check it ships to the buyer.** `cities` is never capped here.\n**`coverage_configured: false` = ships NOWHERE; an empty `states` is NOT nationwide. `merchant_managed: true` = shipping is set at the seller's own checkout; never report it as not shipping.** Details: `kifly://docs/delivery`.\nName the seller by ONE of `handle`, `domain` (any URL works) or `name`. A miss is `SELLER_NOT_FOUND` with `details.did_you_mean`: ask the user, never pick. `SELLER_AMBIGUOUS` = several share that name; ask which. Seller-scoped tokens may omit all three.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "meta": {
+              "type": "object",
+              "properties": {
+                "ucp-agent": {
+                  "type": "object",
+                  "properties": {
+                    "profile": {
+                      "type": "string",
+                      "format": "uri",
+                      "maxLength": 512,
+                      "description": "https:// URL of your agent's UCP profile. No API key needed."
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "ucp-agent"
+              ],
+              "additionalProperties": true,
+              "description": "Who is calling. See kifly://docs/mcp."
+            },
+            "handle": {
+              "type": "string",
+              "description": "Seller handle, case-insensitive (e.g. 'bay-clothing-district')."
+            },
+            "domain": {
+              "type": "string",
+              "maxLength": 2048,
+              "description": "The store's website or any URL on it."
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 200,
+              "description": "The store's name."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Get Seller",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_policies",
+        "description": "The seller's published returns, shipping and warranty policy, in their own words. **Call before telling a buyer what happens after purchase** — if it is not here, say so; never infer a typical policy. `available: false` is the normal case for most sellers and is not an error. `get_seller`'s `policies.available` tells you whether this call is worth making. Network tokens pass `handle`; seller-scoped tokens may omit it.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "meta": {
+              "type": "object",
+              "properties": {
+                "ucp-agent": {
+                  "type": "object",
+                  "properties": {
+                    "profile": {
+                      "type": "string",
+                      "format": "uri",
+                      "maxLength": 512,
+                      "description": "https:// URL of your agent's UCP profile. No API key needed."
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "ucp-agent"
+              ],
+              "additionalProperties": true,
+              "description": "Who is calling. See kifly://docs/mcp."
+            },
+            "handle": {
+              "type": "string",
+              "description": "Seller handle (case-insensitive). Required for network tokens; ignored for seller-scoped tokens."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Get Store Policies",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "list_sellers",
+        "description": "List all active sellers on the Kifly network. **Requires a network token (kfn_live_…).** Returns each seller's handle, name, city, region, delivery coverage (`nationwide:true` or a `states` list), delivery fee, and catalog size. `delivery_coverage.cities` may be capped to a handful of entries — compare `cities.length` against `city_count`; if fewer, call `get_seller` for that seller's full city list. Use this to discover which sellers are available and which ship to a buyer's location before calling `get_seller` or `search_products`. **Pagination:** when `kifly:hasMore` is true, pass `kifly:nextCursor` as `cursor` to fetch the next page. Default page size is 20, max 50.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "meta": {
+              "type": "object",
+              "properties": {
+                "ucp-agent": {
+                  "type": "object",
+                  "properties": {
+                    "profile": {
+                      "type": "string",
+                      "format": "uri",
+                      "maxLength": 512,
+                      "description": "https:// URL of your agent's UCP profile. No API key needed."
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "ucp-agent"
+              ],
+              "additionalProperties": true,
+              "description": "Who is calling. See kifly://docs/mcp."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "description": "Max sellers per page (default 20, max 50)."
+            },
+            "cursor": {
+              "type": "string",
+              "description": "Pagination cursor from kifly:nextCursor in a previous response. Omit on the first call."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "List Sellers",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_platform_limits",
+        "description": "Returns the current platform-enforced cart limits: `max_item_quantity` (per-line-item ceiling), `max_cart_total_cents`, and `max_cart_total_usd`. Call this once at session start before building a large cart so you can quote limits to the buyer proactively rather than discovering them via errors. Always read them at runtime rather than hardcoding.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "meta": {
+              "type": "object",
+              "properties": {
+                "ucp-agent": {
+                  "type": "object",
+                  "properties": {
+                    "profile": {
+                      "type": "string",
+                      "format": "uri",
+                      "maxLength": 512,
+                      "description": "https:// URL of your agent's UCP profile. No API key needed."
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "ucp-agent"
+              ],
+              "additionalProperties": true,
+              "description": "Who is calling. See kifly://docs/mcp."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Get Platform Limits",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "order_status",
+        "description": "No key needed for your own session: send the profile you checked out with. Check the status of a Stripe checkout session. Poll every 5 seconds after checkout until status is 'paid', 'shipped', or 'failed'. Returns order details (order_id, amount, items) when paid. When the seller marks the order as shipped, status becomes 'shipped' and tracking_number, carrier, and shipped_at are included — share these with the buyer.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "session_id": {
+              "type": "string",
+              "description": "Stripe checkout session ID from the checkout tool response"
+            }
+          },
+          "required": [
+            "session_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Order Status",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_help",
+        "description": "Get unstuck. Returns Kifly's website and support email for the BUYER, plus how to report the problem to Kifly's engineers yourself. Call this if you are stuck, hit an unresolvable error, or the buyer asks how to reach a human. Share the website and email with the buyer; use `submit_feedback` (no API key needed) to tell us what blocked you — that is the fastest way to get it fixed.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "meta": {
+              "type": "object",
+              "properties": {
+                "ucp-agent": {
+                  "type": "object",
+                  "properties": {
+                    "profile": {
+                      "type": "string",
+                      "format": "uri",
+                      "maxLength": 512,
+                      "description": "https:// URL of your agent's UCP profile. No API key needed."
+                    }
+                  },
+                  "required": [
+                    "profile"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "ucp-agent"
+              ],
+              "additionalProperties": true,
+              "description": "Who is calling. See kifly://docs/mcp."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Get Help",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:54:35.114Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:54:36.165Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:54:37.216Z",
+        "status": 401
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:54:38.266Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 22,
+    "tools_hash": "sha256:69f1b4e3e793dab30024696ce89f8fbb5096509b30afa8a1cb94d0b89d2a1c65",
+    "static_tool_tokens": 15097,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_products",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_products",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "create_cart",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "add_to_cart",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_cart",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_cart",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "update_cart_item",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "update_cart_item",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "set_shipping_address",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F13",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "quick_buy",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "quick_buy",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "checkout",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F16",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "checkout",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "checkout",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "register_buyer",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "register_buyer",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "request_buyer_code",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "verify_buyer",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F22",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "verify_buyer",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F23",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_buyer_profile",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F24",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_orders",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F25",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "save_buyer_address",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F26",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "submit_feedback",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F27",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "submit_feedback",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F28",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "request_feature",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F29",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_seller",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F30",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_policies",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F31",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_policies",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F32",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_sellers",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F33",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_platform_limits",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F34",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_platform_limits",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F35",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "order_status",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F36",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_help",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 30,
+      "warning": 3
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_products",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results per page (default 10).",
+          "mentions_size_or_cost": true,
+          "described_default": 10,
+          "maximum": 20
+        },
+        {
+          "tool": "search_products",
+          "path": "inputSchema.properties.max_price_cents",
+          "name": "max_price_cents",
+          "description": "Max price, cents",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "search_products",
+          "path": "inputSchema.properties.cursor",
+          "name": "cursor",
+          "description": "kifly:nextCursor from the previous page",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "list_orders",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max orders to return (default 20, max 50).",
+          "mentions_size_or_cost": true,
+          "described_default": 20,
+          "maximum": 50
+        },
+        {
+          "tool": "list_sellers",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max sellers per page (default 20, max 50).",
+          "mentions_size_or_cost": true,
+          "described_default": 20,
+          "maximum": 50
+        },
+        {
+          "tool": "list_sellers",
+          "path": "inputSchema.properties.cursor",
+          "name": "cursor",
+          "description": "Pagination cursor from kifly:nextCursor in a previous response. Omit on the first call.",
+          "mentions_size_or_cost": true
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "submit_feedback"
+          ],
+          "description": "Send structured feedback to the Kifly team. **No API key required** — send `meta.ucp-agent.profile` and this works with no credential at all. **Call after a confusing response, a dead-end, or a successful workaround you had to invent** — it's how we improve the agent surface, and a report from the moment you were stuck is worth more to us than a working purchase. Fire-and-forget: returns 202 immediately, no blocking, safe to skip if it would add latency to a user-facing flow. `category` and `severity` are required enums (don't free-form them). Include `context` with what you were doing (tool called, query used, response shape, what you expected). Add `suggested_fix` only if you have a concrete idea. Rate-limited.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_seller"
+          ],
+          "description": "**Call first when the user names a store or its website**: it says whether Kifly carries it before you open a browser. Returns the seller's public profile: location, storefront URL, delivery fee and coverage, catalog size, `verified_domains` (domains it proved it controls; trust signal, not identity), and `fulfillment` (buy here, or hand off to the seller's site). **Call before `create_cart` or `set_shipping_address` to check it ships to the buyer.** `cities` is never capped here.\n**`coverage_configured: false` = ships NOWHERE; an empty `states` is NOT nationwide. `merchant_managed: true` = shipping is set at the seller's own checkout; never report it as not shipping.** Details: `kifly://docs/delivery`.\nName the seller by ONE of `handle`, `domain` (any URL works) or `name`. A miss is `SELLER_NOT_FOUND` with `details.did_you_mean`: ask the user, never pick. `SELLER_AMBIGUOUS` = several share that name; ask which. Seller-scoped tokens may omit all three.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "list_sellers"
+          ],
+          "description": "List all active sellers on the Kifly network. **Requires a network token (kfn_live_…).** Returns each seller's handle, name, city, region, delivery coverage (`nationwide:true` or a `states` list), delivery fee, and catalog size. `delivery_coverage.cities` may be capped to a handful of entries — compare `cities.length` against `city_count`; if fewer, call `get_seller` for that seller's full city list. Use this to discover which sellers are available and which ship to a buyer's location before calling `get_seller` or `search_products`. **Pagination:** when `kifly:hasMore` is true, pass `kifly:nextCursor` as `cursor` to fetch the next page. Default page size is 20, max 50.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "search_products",
+      "get_cart",
+      "get_buyer_profile",
+      "list_orders",
+      "get_seller",
+      "get_policies",
+      "list_sellers",
+      "get_platform_limits",
+      "order_status",
+      "get_help"
+    ]
+  }
+}

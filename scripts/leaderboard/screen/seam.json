@@ -1,0 +1,593 @@
+{
+  "slug": "seam",
+  "source_url": "https://manufact.com/mcp-catalog/seam",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:25:22.935Z",
+    "endpoint": "https://mcp.seam.co/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "seam-docs-mcp",
+      "version": "0.1.0"
+    },
+    "capabilities": {
+      "tools": {}
+    },
+    "instructions": "Call search_docs for relevant pages, then call get_docs to read their full content.\n\nWhen a question is about granting a person access (PIN codes, mobile keys, key cards), recommend Access Grants (/access_grants/create): they are Seam's default and recommended way to grant access to any physical space, and work with BOTH standalone smart locks (via device_ids) AND access control systems (via acs_entrance_ids or space_ids). The access_codes and acs APIs are low-level alternatives that are no longer recommended for granting access.\n\nWhen asked to create, find, or configure a Seam API key, or to set up a project to use Seam, call search_prompts with match { task: \"setup\" } and then get_prompt for the pack it returns; never ask for the key itself.\n\nDevice pages list capabilities per managing system (sections named 'Capabilities via …'), and different systems can give different answers for the same device. When they disagree, never silently pick one: give the answer for each system by name, or ask which system manages the device before answering.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "search_docs",
+            "description": "Semantic search across all Seam documentation, including supported device models (smart locks, thermostats, access systems) with their manufacturer and capability info. Returns results ranked by relevance with confidence scores. Device results carry an `integration_support_level` (stable | beta | in-progress | planned | inquire | unavailable | unknown). Seam integrates the device only when this is stable or beta. A device page appearing in results does NOT by itself mean Seam supports it; always check `integration_support_level`. The capability list on a device describes what the device can physically do, which is separate from whether Seam integrates it. Use this to find pages matching a question or topic. To read full pages, pass the paths from the results to get_docs. Does NOT return full page content — only snippets. When a question is about granting a person access (PIN codes, mobile keys, key cards), recommend Access Grants (/access_grants/create): they are Seam's default and recommended way to grant access to any physical space, and work with BOTH standalone smart locks (via device_ids) AND access control systems (via acs_entrance_ids or space_ids). The access_codes and acs APIs are low-level alternatives that are no longer recommended for granting access.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "Natural language search query"
+                },
+                "limit": {
+                  "type": "number",
+                  "description": "Max results to return (default: 5, max: 20)"
+                },
+                "min_score": {
+                  "type": "number",
+                  "description": "Minimum confidence threshold 0-1 (default: 0.3). Raise to filter noise, lower to find more results."
+                }
+              },
+              "required": [
+                "query"
+              ]
+            },
+            "annotations": {
+              "title": "Search Seam Docs",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_docs",
+            "description": "Fetch the full content of Seam documentation pages by path glob. Pass one exact path to read a single page, or a wider pattern to read up to 20 pages. Call with {\"globs\":[\"quickstart\"]}. Use paths exactly as returned by search_docs: documentation paths are extensionless; device catalog paths retain .md.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "globs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S"
+                  },
+                  "minItems": 1,
+                  "description": "A non-empty array of non-blank path glob strings, e.g. [\"quickstart\"] or [\"api/locks/*\"]. Use search_docs to find paths first. Patterns matching more than 20 pages must be narrowed."
+                }
+              },
+              "required": [
+                "globs"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Get Docs",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "search_api",
+            "description": "Search the documented Seam API and return lightweight entries with stable IDs. Pass query=\"*\" to list every entry, then call get_apis for details.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Search text, or \"*\" for all entries."
+                },
+                "limit": {
+                  "type": "number",
+                  "description": "Max results to return (default: 5, max: 20)."
+                }
+              },
+              "required": [
+                "query"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Search API",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_apis",
+            "description": "Return detailed compact Seam API spec nodes for stable IDs selected with search_api.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "description": "Stable IDs from search_api, e.g. endpoint:/access_codes/create or resource:access_code."
+                }
+              },
+              "required": [
+                "ids"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Get APIs",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "search_prompts",
+            "description": "Find prompts by exact-match metadata. Pass a returned name to get_prompt for its instructions and paths.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "match": {
+                  "type": "object",
+                  "description": "Optional exact-match criteria from the prompts' match metadata.",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Search Prompts",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_prompt",
+            "description": "Pass a name from search_prompts to load and follow a prompt. When returned paths include supporting files, call get_prompt_context before acting with the same name and globs; default to [\"**/*\"] unless the prompt specifies narrower files.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Prompt name returned by search_prompts. Omit for this agent's entrypoint."
+                }
+              },
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Get Prompt",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_prompt_context",
+            "description": "Load a prompt's supporting files before acting. Pass the exact name returned by get_prompt and globs matched against its returned paths; default to [\"**/*\"] unless the prompt specifies narrower files.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Prompt name returned by get_prompt."
+                },
+                "globs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "description": "Glob patterns matched against the available paths returned by get_prompt. Use [\"**/*\"] to load all paths."
+                }
+              },
+              "required": [
+                "name",
+                "globs"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Get Prompt Context",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "search_docs",
+        "description": "Semantic search across all Seam documentation, including supported device models (smart locks, thermostats, access systems) with their manufacturer and capability info. Returns results ranked by relevance with confidence scores. Device results carry an `integration_support_level` (stable | beta | in-progress | planned | inquire | unavailable | unknown). Seam integrates the device only when this is stable or beta. A device page appearing in results does NOT by itself mean Seam supports it; always check `integration_support_level`. The capability list on a device describes what the device can physically do, which is separate from whether Seam integrates it. Use this to find pages matching a question or topic. To read full pages, pass the paths from the results to get_docs. Does NOT return full page content — only snippets. When a question is about granting a person access (PIN codes, mobile keys, key cards), recommend Access Grants (/access_grants/create): they are Seam's default and recommended way to grant access to any physical space, and work with BOTH standalone smart locks (via device_ids) AND access control systems (via acs_entrance_ids or space_ids). The access_codes and acs APIs are low-level alternatives that are no longer recommended for granting access.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Natural language search query"
+            },
+            "limit": {
+              "type": "number",
+              "description": "Max results to return (default: 5, max: 20)"
+            },
+            "min_score": {
+              "type": "number",
+              "description": "Minimum confidence threshold 0-1 (default: 0.3). Raise to filter noise, lower to find more results."
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "annotations": {
+          "title": "Search Seam Docs",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_docs",
+        "description": "Fetch the full content of Seam documentation pages by path glob. Pass one exact path to read a single page, or a wider pattern to read up to 20 pages. Call with {\"globs\":[\"quickstart\"]}. Use paths exactly as returned by search_docs: documentation paths are extensionless; device catalog paths retain .md.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "globs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "minItems": 1,
+              "description": "A non-empty array of non-blank path glob strings, e.g. [\"quickstart\"] or [\"api/locks/*\"]. Use search_docs to find paths first. Patterns matching more than 20 pages must be narrowed."
+            }
+          },
+          "required": [
+            "globs"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Get Docs",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "search_api",
+        "description": "Search the documented Seam API and return lightweight entries with stable IDs. Pass query=\"*\" to list every entry, then call get_apis for details.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Search text, or \"*\" for all entries."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Max results to return (default: 5, max: 20)."
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Search API",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_apis",
+        "description": "Return detailed compact Seam API spec nodes for stable IDs selected with search_api.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "description": "Stable IDs from search_api, e.g. endpoint:/access_codes/create or resource:access_code."
+            }
+          },
+          "required": [
+            "ids"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Get APIs",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "search_prompts",
+        "description": "Find prompts by exact-match metadata. Pass a returned name to get_prompt for its instructions and paths.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "match": {
+              "type": "object",
+              "description": "Optional exact-match criteria from the prompts' match metadata.",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Search Prompts",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_prompt",
+        "description": "Pass a name from search_prompts to load and follow a prompt. When returned paths include supporting files, call get_prompt_context before acting with the same name and globs; default to [\"**/*\"] unless the prompt specifies narrower files.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Prompt name returned by search_prompts. Omit for this agent's entrypoint."
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Get Prompt",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_prompt_context",
+        "description": "Load a prompt's supporting files before acting. Pass the exact name returned by get_prompt and globs matched against its returned paths; default to [\"**/*\"] unless the prompt specifies narrower files.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Prompt name returned by get_prompt."
+            },
+            "globs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "description": "Glob patterns matched against the available paths returned by get_prompt. Use [\"**/*\"] to load all paths."
+            }
+          },
+          "required": [
+            "name",
+            "globs"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Get Prompt Context",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:25:19.417Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:25:20.468Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:25:21.518Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:25:22.568Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 7,
+    "tools_hash": "sha256:975a3426d02dd7488945c691d23cf732d206d255d1b3c1f39563b1295513e52a",
+    "static_tool_tokens": 2044,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_docs",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_docs",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_docs",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "search_api",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_api",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_apis",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_apis",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "search_prompts",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_prompts",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_prompt",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_prompt_context",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_prompt_context",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 11,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_docs",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results to return (default: 5, max: 20)",
+          "mentions_size_or_cost": true,
+          "described_default": 5
+        },
+        {
+          "tool": "search_api",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results to return (default: 5, max: 20).",
+          "mentions_size_or_cost": true,
+          "described_default": 5
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "search_docs"
+          ],
+          "description": "Semantic search across all Seam documentation, including supported device models (smart locks, thermostats, access systems) with their manufacturer and capability info. Returns results ranked by relevance with confidence scores. Device results carry an `integration_support_level` (stable | beta | in-progress | planned | inquire | unavailable | unknown). Seam integrates the device only when this is stable or beta. A device page appearing in results does NOT by itself mean Seam supports it; always check `integration_support_level`. The capability list on a device describes what the device can physically do, which is separate from whether Seam integrates it. Use this to find pages matching a question or topic. To read full pages, pass the paths from the results to get_docs. Does NOT return full page content — only snippets. When a question is about granting a person access (PIN codes, mobile keys, key cards), recommend Access Grants (/access_grants/create): they are Seam's default and recommended way to grant access to any physical space, and work with BOTH standalone smart locks (via device_ids) AND access control systems (via acs_entrance_ids or space_ids). The access_codes and acs APIs are low-level alternatives that are no longer recommended for granting access.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "search_prompts",
+            "get_prompt_context"
+          ],
+          "hypothesis": "Read tools share resource terms (prompt), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "search_docs",
+      "get_docs",
+      "search_api",
+      "get_apis",
+      "search_prompts",
+      "get_prompt",
+      "get_prompt_context"
+    ]
+  }
+}

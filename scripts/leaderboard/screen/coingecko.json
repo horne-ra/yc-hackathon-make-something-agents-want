@@ -1,0 +1,3251 @@
+{
+  "slug": "coingecko",
+  "source_url": "https://manufact.com/mcp-catalog/coingecko",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:23:29.195Z",
+    "endpoint": "https://mcp.coingecko.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "coingecko-mcp-app",
+      "title": "CoinGecko",
+      "icons": [
+        {
+          "src": "https://mcp.coingecko.com/mcp/_mcp-use/public/icon.svg",
+          "mimeType": "image/svg+xml",
+          "sizes": [
+            "512x512"
+          ]
+        }
+      ],
+      "version": "1.0.0",
+      "websiteUrl": "https://www.coingecko.com",
+      "description": "MCP server exposing CoinGecko cryptocurrency market data (prices, market caps, volume) as tools and widgets."
+    },
+    "capabilities": {
+      "logging": {},
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "subscribe": true,
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Route crypto requests to the right tool: get-coin-markets for current price/market data on specific coins or a top-N leaderboard; compare-coins when the user wants to compare or contrast 2–4 specific coins side by side (phrasing like \"compare\", \"vs\", \"versus\", \"contrast\", e.g. \"BTC vs ETH\") — prefer it over get-coin-markets for these; get-coin-market-chart for a single coin's price history / chart over a range (renders an interactive chart widget); get-coin-history for a coin's price, market cap and volume on a specific past date (a point-in-time snapshot); get-coin-info for what a coin *is* — its description, categories/sectors, official links and launch date (project background, not prices); get-trending for what's hot right now; get-categories for how crypto sectors/narratives (DeFi, Layer 1, memes, AI, RWA…) are performing — a ranked leaderboard of categories by market cap or 24h change (sectors/themes, not individual coins like get-trending and not the whole market like get-global-market); get-global-market for overall market health (total market cap, dominance); get-top-gainers-losers for what's pumping or dumping today (requires a Pro key); get-crypto-news for recent crypto news headlines — global, or filtered to one coin — presented verbatim, never summarized as bullish/bearish (not for what a coin is, use get-coin-info, and not for hot coins, use get-trending); search-coins to resolve an ambiguous ticker or name to a CoinGecko id before calling the others. Map user tickers and names to CoinGecko ids yourself (e.g. BTC → bitcoin). None of these tools give financial advice — always present the data neutrally and never recommend buying, selling, or holding.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "get-coin-markets",
+            "title": "Get coin market data",
+            "description": "Get current market data (price, market cap, 24h volume, market cap rank) for a list of CoinGecko coin ids, or for the top N coins by market cap, and display it in a visual widget. Provide either ids or topN, not both. Use this when the user asks for the price or market data of specific coins, or for a top-N leaderboard by market cap. To compare or contrast 2–4 specific coins (e.g. \"BTC vs ETH\"), use compare-coins instead. Not for historical prices (use get-coin-market-chart) and not financial advice.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "ids": {
+                  "description": "CoinGecko coin *ids* (not tickers), e.g. [\"bitcoin\", \"ethereum\", \"solana\", \"zcash\"]. Up to 20. Map user tickers/names to ids yourself.",
+                  "minItems": 1,
+                  "maxItems": 20,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]{1,100}$"
+                  }
+                },
+                "topN": {
+                  "description": "Return the top N coins by market cap (1–20). Provide either ids or topN, not both; ids wins if both are given.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 20
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "ui/resourceUri": "ui://views/coin-market-data.html",
+              "ui": {
+                "resourceUri": "ui://views/coin-market-data.html"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "coins": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "CoinGecko coin id, e.g. 'bitcoin'"
+                      },
+                      "symbol": {
+                        "type": "string",
+                        "description": "Ticker symbol, e.g. 'btc'"
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Display name, e.g. 'Bitcoin'"
+                      },
+                      "image": {
+                        "type": "string",
+                        "description": "URL to the coin's logo image"
+                      },
+                      "currentPrice": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Current price in USD, or null if unavailable"
+                      },
+                      "marketCap": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Market capitalization in USD, or null if unavailable"
+                      },
+                      "marketCapRank": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Market cap rank, or null if unranked"
+                      },
+                      "totalVolume": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "24h trading volume in USD, or null if unavailable"
+                      },
+                      "priceChangePercentage24h": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "24h price change percentage, or null if unavailable"
+                      },
+                      "fullyDilutedValuation": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Fully diluted valuation in USD, or null if unavailable"
+                      },
+                      "circulatingSupply": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Circulating supply in coin units, or null if unavailable"
+                      },
+                      "maxSupply": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Max supply in coin units, or null if uncapped/unavailable"
+                      },
+                      "sparkline7d": {
+                        "type": "array",
+                        "items": {
+                          "type": "number"
+                        },
+                        "description": "7-day price series in USD (downsampled, oldest first)"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "symbol",
+                      "name",
+                      "image",
+                      "currentPrice",
+                      "marketCap",
+                      "marketCapRank",
+                      "totalVolume",
+                      "priceChangePercentage24h",
+                      "fullyDilutedValuation",
+                      "circulatingSupply",
+                      "maxSupply",
+                      "sparkline7d"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Market data for each requested coin"
+                }
+              },
+              "required": [
+                "coins"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "compare-coins",
+            "title": "Compare coins",
+            "description": "Compare 2–4 coins side by side — price, market cap, FDV, multi-window price change (1h/24h/7d/30d), volume, supply, distance from all-time high — in a visual widget. Use this when the user asks to compare, contrast, or pit specific coins against each other (phrasing like 'compare', 'vs', 'versus', 'against', e.g. 'BTC vs ETH vs SOL'). Map tickers to ids yourself. Not for a single coin (use get-coin-markets) and not financial advice.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "ids": {
+                  "minItems": 2,
+                  "maxItems": 4,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]{1,100}$"
+                  },
+                  "description": "Two to four CoinGecko coin *ids* (not tickers) to compare, e.g. [\"bitcoin\", \"ethereum\", \"solana\"]. Map user tickers/names to ids yourself."
+                }
+              },
+              "required": [
+                "ids"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "ui/resourceUri": "ui://views/compare-coins.html",
+              "ui": {
+                "resourceUri": "ui://views/compare-coins.html"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "coins": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "CoinGecko coin id, e.g. 'bitcoin'"
+                      },
+                      "symbol": {
+                        "type": "string",
+                        "description": "Ticker symbol, e.g. 'btc'"
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Display name, e.g. 'Bitcoin'"
+                      },
+                      "image": {
+                        "type": "string",
+                        "description": "URL to the coin's logo image"
+                      },
+                      "currentPrice": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Current price in USD, or null if unavailable"
+                      },
+                      "marketCap": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Market capitalization in USD, or null if unavailable"
+                      },
+                      "marketCapRank": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Market cap rank, or null if unranked"
+                      },
+                      "totalVolume": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "24h trading volume in USD, or null if unavailable"
+                      },
+                      "priceChangePercentage1h": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "1h price change percentage, or null if unavailable"
+                      },
+                      "priceChangePercentage24h": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "24h price change percentage, or null if unavailable"
+                      },
+                      "priceChangePercentage7d": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "7d price change percentage, or null if unavailable"
+                      },
+                      "priceChangePercentage30d": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "30d price change percentage, or null if unavailable"
+                      },
+                      "athChangePercentage": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Percentage below the all-time high (negative), or null if unavailable"
+                      },
+                      "volumeToMarketCap": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Derived liquidity ratio: 24h volume divided by market cap, or null if either is unavailable"
+                      },
+                      "marketCapVsLargest": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Derived: this coin's market cap divided by the largest in the set (1.0 for the largest), or null if unavailable"
+                      },
+                      "fullyDilutedValuation": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Fully diluted valuation in USD, or null if unavailable"
+                      },
+                      "circulatingSupply": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Circulating supply in coin units, or null if unavailable"
+                      },
+                      "maxSupply": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Max supply in coin units, or null if uncapped/unavailable"
+                      },
+                      "sparkline7d": {
+                        "type": "array",
+                        "items": {
+                          "type": "number"
+                        },
+                        "description": "7-day price series in USD (downsampled, oldest first)"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "symbol",
+                      "name",
+                      "image",
+                      "currentPrice",
+                      "marketCap",
+                      "marketCapRank",
+                      "totalVolume",
+                      "priceChangePercentage1h",
+                      "priceChangePercentage24h",
+                      "priceChangePercentage7d",
+                      "priceChangePercentage30d",
+                      "athChangePercentage",
+                      "volumeToMarketCap",
+                      "marketCapVsLargest",
+                      "fullyDilutedValuation",
+                      "circulatingSupply",
+                      "maxSupply",
+                      "sparkline7d"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "The compared coins, in the order requested (2–4)"
+                }
+              },
+              "required": [
+                "coins"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "get-coin-market-chart",
+            "title": "Get coin market chart",
+            "description": "Get a single coin's historical price over a date range and display it as an interactive chart widget (filled area chart with a price/market-cap toggle and a 24h–Max range selector). Use this whenever the user wants a chart, graph, or price history for one coin — e.g. 'bitcoin chart', 'ETH price last 90 days', 'how has SOL moved this year'. Not for the current spot price of one or more coins (use get-coin-markets) and not financial advice.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9-]{1,100}$",
+                  "description": "CoinGecko coin id, e.g. 'bitcoin'"
+                },
+                "days": {
+                  "type": "string",
+                  "enum": [
+                    "1",
+                    "7",
+                    "30",
+                    "90",
+                    "365",
+                    "max",
+                    "ytd"
+                  ],
+                  "description": "Chart date range: 1=24h, 7=7d, 30=1m, 90=3m, 365=1Y, max=all-time, ytd=year-to-date"
+                }
+              },
+              "required": [
+                "id",
+                "days"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "ui/resourceUri": "ui://views/coin-chart.html",
+              "ui": {
+                "resourceUri": "ui://views/coin-chart.html"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "CoinGecko coin id the chart data belongs to"
+                },
+                "days": {
+                  "type": "string",
+                  "description": "Date range used for this chart's price series"
+                },
+                "prices": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "description": "Price series in USD, oldest first"
+                },
+                "marketCaps": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "description": "Market cap series in USD, oldest first (parallel to prices)"
+                },
+                "startTs": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Unix ms timestamp of the first price point, or null if empty"
+                },
+                "endTs": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Unix ms timestamp of the last price point, or null if empty"
+                }
+              },
+              "required": [
+                "id",
+                "days",
+                "prices",
+                "marketCaps",
+                "startTs",
+                "endTs"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "get-coin-history",
+            "title": "Get coin history",
+            "description": "Get a coin's price, market cap and 24h volume on a specific past date (snapshot at 00:00 UTC). Use this when the user asks what a coin was worth on a given date, e.g. 'BTC price on Jan 1 2024'. Not for current prices (use get-coin-markets) or price ranges over time (use get-coin-market-chart), and not financial advice.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9-]{1,100}$",
+                  "description": "CoinGecko coin id, e.g. 'bitcoin'"
+                },
+                "date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "Snapshot date, YYYY-MM-DD (UTC). Must be a past date on or after 2013-04-28; for today's price use get-coin-markets."
+                },
+                "vsCurrency": {
+                  "type": "string",
+                  "enum": [
+                    "usd",
+                    "eur",
+                    "gbp",
+                    "jpy",
+                    "aud",
+                    "cad",
+                    "chf",
+                    "cny",
+                    "inr",
+                    "krw"
+                  ],
+                  "description": "Fiat quote currency (lowercase ISO code). Defaults to usd."
+                }
+              },
+              "required": [
+                "id",
+                "date"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "CoinGecko coin id"
+                },
+                "symbol": {
+                  "type": "string",
+                  "description": "Ticker symbol"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Display name"
+                },
+                "date": {
+                  "type": "string",
+                  "description": "Snapshot date (YYYY-MM-DD, 00:00 UTC)"
+                },
+                "vsCurrency": {
+                  "type": "string",
+                  "description": "Fiat currency the monetary fields are denominated in"
+                },
+                "price": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Price at the snapshot, or null if unavailable"
+                },
+                "marketCap": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Market cap at the snapshot, or null"
+                },
+                "totalVolume": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "24h volume at the snapshot, or null"
+                }
+              },
+              "required": [
+                "id",
+                "symbol",
+                "name",
+                "date",
+                "vsCurrency",
+                "price",
+                "marketCap",
+                "totalVolume"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "get-coin-info",
+            "title": "Get coin info",
+            "description": "Get descriptive project information about a coin: what it is (a short description), its categories/sectors, official links (website, explorer, Twitter/X, Reddit, GitHub, Telegram) and launch date. Use this when the user asks what a coin *is* or wants background on a project, e.g. 'what is Chainlink?' or 'tell me about Solana'. Not for prices or market data (use get-coin-markets) and not financial advice.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9-]{1,100}$",
+                  "description": "CoinGecko coin id, e.g. 'bitcoin'"
+                }
+              },
+              "required": [
+                "id"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "CoinGecko coin id"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Display name, e.g. 'Bitcoin'"
+                },
+                "symbol": {
+                  "type": "string",
+                  "description": "Ticker symbol, e.g. 'btc'"
+                },
+                "image": {
+                  "type": "string",
+                  "description": "URL to the coin's logo image ('' if none)"
+                },
+                "descriptionExcerpt": {
+                  "type": "string",
+                  "description": "Plain-text project description, HTML-stripped and clamped ('' if none)"
+                },
+                "categories": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Sector/narrative labels this coin belongs to"
+                },
+                "links": {
+                  "type": "object",
+                  "properties": {
+                    "website": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Official homepage URL, or null"
+                    },
+                    "explorer": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Block explorer URL, or null"
+                    },
+                    "twitter": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Twitter/X profile URL, or null"
+                    },
+                    "reddit": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Subreddit URL, or null"
+                    },
+                    "github": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Source repository URL, or null"
+                    },
+                    "telegram": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Telegram channel URL, or null"
+                    }
+                  },
+                  "required": [
+                    "website",
+                    "explorer",
+                    "twitter",
+                    "reddit",
+                    "github",
+                    "telegram"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Official project links (each nullable)"
+                },
+                "genesisDate": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Launch date (YYYY-MM-DD), or null if unknown"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "symbol",
+                "image",
+                "descriptionExcerpt",
+                "categories",
+                "links",
+                "genesisDate"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "search-coins",
+            "title": "Search coins",
+            "description": "Search CoinGecko for coins by name or ticker and return their coin ids. Use this when the user names a coin you cannot confidently map to a CoinGecko id, or when a ticker is ambiguous. Prefer the highest-ranked match. Not for prices — call get-coin-markets with the resolved id.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "description": "Coin name or ticker to search, e.g. 'bitcoin' or 'ethereum'"
+                }
+              },
+              "required": [
+                "query"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "coins": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "CoinGecko coin id to use with other tools"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "symbol": {
+                        "type": "string"
+                      },
+                      "marketCapRank": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Market cap rank, or null if unranked"
+                      },
+                      "thumb": {
+                        "type": "string",
+                        "description": "URL to a small coin logo image"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "symbol",
+                      "marketCapRank",
+                      "thumb"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Top matches, best first (max 10)"
+                }
+              },
+              "required": [
+                "coins"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "get-trending",
+            "title": "Get trending coins",
+            "description": "Get the coins trending on CoinGecko in the last 24 hours and display them in a visual widget. Use this when the user asks what's hot, trending, or popular right now. Not for prices of specific coins (use get-coin-markets) and not financial advice.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {}
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "ui/resourceUri": "ui://views/trending-coins.html",
+              "ui": {
+                "resourceUri": "ui://views/trending-coins.html"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "coins": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "CoinGecko coin id, e.g. 'dogecoin'"
+                      },
+                      "symbol": {
+                        "type": "string",
+                        "description": "Ticker symbol, e.g. 'doge'"
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Display name, e.g. 'Dogecoin'"
+                      },
+                      "image": {
+                        "type": "string",
+                        "description": "URL to the coin's logo image"
+                      },
+                      "marketCapRank": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Market cap rank, or null if unranked"
+                      },
+                      "price": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Current price in USD, or null if unavailable"
+                      },
+                      "priceChangePercentage24h": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "24h price change percentage, or null if unavailable"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "symbol",
+                      "name",
+                      "image",
+                      "marketCapRank",
+                      "price",
+                      "priceChangePercentage24h"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Coins trending on CoinGecko in the last 24 hours"
+                }
+              },
+              "required": [
+                "coins"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "get-categories",
+            "title": "Get crypto categories",
+            "description": "Get a ranked leaderboard of crypto categories (sectors/narratives like DeFi, Layer 1, memes, AI, RWA) by total market cap and 24h change, and display it in a visual widget. Use this when the user asks which sectors, narratives, or themes are hot, big, or moving. Order by market cap (default) or 24h change. Not for individual trending coins (use get-trending) or overall market health (use get-global-market), and not financial advice.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "order": {
+                  "description": "Sort dimension: 'market_cap' for the largest sectors (default), 'market_cap_change_24h' for the hottest sectors by 24h change.",
+                  "type": "string",
+                  "enum": [
+                    "market_cap",
+                    "market_cap_change_24h"
+                  ]
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "ui/resourceUri": "ui://views/categories.html",
+              "ui": {
+                "resourceUri": "ui://views/categories.html"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "categories": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "CoinGecko category id, e.g. 'decentralized-finance-defi'"
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Display name, e.g. 'Decentralized Finance (DeFi)'"
+                      },
+                      "marketCap": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Total market cap of the category in USD, or null if unavailable"
+                      },
+                      "marketCapChange24h": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "24h market cap change percentage, or null if unavailable"
+                      },
+                      "volume24h": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "24h trading volume of the category in USD, or null if unavailable"
+                      },
+                      "topCoins": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "description": "CoinGecko coin id of a top coin in this category"
+                            },
+                            "image": {
+                              "type": "string",
+                              "description": "URL to that coin's logo image"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "image"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "description": "Up to three of the category's largest coins (id + logo)"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "marketCap",
+                      "marketCapChange24h",
+                      "volume24h",
+                      "topCoins"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Crypto sectors/narratives, ranked by the requested order"
+                }
+              },
+              "required": [
+                "categories"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "get-global-market",
+            "title": "Get global market data",
+            "description": "Get a snapshot of the overall crypto market: total market cap, 24h change, total volume, BTC/ETH dominance, plus current price and 24h change for the top-cap coins (BTC, ETH, SOL, BNB, XRP). Use this when the user asks how the crypto market is doing overall. For prices of other/arbitrary coins, use get-coin-markets.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {}
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "ui/resourceUri": "ui://views/global-market.html",
+              "ui": {
+                "resourceUri": "ui://views/global-market.html"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "totalMarketCapUsd": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Total cryptocurrency market cap in USD, or null if unavailable"
+                },
+                "marketCapChangePercentage24hUsd": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "24h market cap change percentage in USD, or null if unavailable"
+                },
+                "totalVolumeUsd": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Total 24h trading volume in USD, or null if unavailable"
+                },
+                "btcDominancePct": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Bitcoin's share of total market cap, or null if unavailable"
+                },
+                "ethDominancePct": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Ethereum's share of total market cap, or null if unavailable"
+                },
+                "coins": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "CoinGecko coin id, e.g. 'bitcoin'"
+                      },
+                      "symbol": {
+                        "type": "string",
+                        "description": "Ticker symbol, e.g. 'btc'"
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Display name, e.g. 'Bitcoin'"
+                      },
+                      "image": {
+                        "type": "string",
+                        "description": "URL to the coin's logo image"
+                      },
+                      "currentPrice": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Current price in USD, or null if unavailable"
+                      },
+                      "priceChangePercentage24h": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "24h price change percentage, or null if unavailable"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "symbol",
+                      "name",
+                      "image",
+                      "currentPrice",
+                      "priceChangePercentage24h"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Top-cap coins (BTC, ETH, SOL, BNB, XRP) with price and 24h change"
+                }
+              },
+              "required": [
+                "totalMarketCapUsd",
+                "marketCapChangePercentage24hUsd",
+                "totalVolumeUsd",
+                "btcDominancePct",
+                "ethDominancePct",
+                "coins"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "get-top-gainers-losers",
+            "title": "Get top gainers and losers",
+            "description": "Get the top gaining and top losing coins over a time window and display them in a visual widget. Use this when the user asks what's pumping, dumping, or moving today. Not for a single coin's price (use get-coin-markets). Data only — never frame as a buy/sell signal. Requires a CoinGecko Pro API key.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "duration": {
+                  "description": "Time window for the ranking; defaults to 24h",
+                  "type": "string",
+                  "enum": [
+                    "1h",
+                    "24h",
+                    "7d"
+                  ]
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "ui/resourceUri": "ui://views/gainers-losers.html",
+              "ui": {
+                "resourceUri": "ui://views/gainers-losers.html"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "duration": {
+                  "type": "string",
+                  "description": "Time window used for this ranking"
+                },
+                "topGainers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "CoinGecko coin id, e.g. 'bitcoin'"
+                      },
+                      "symbol": {
+                        "type": "string",
+                        "description": "Ticker symbol, e.g. 'btc'"
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Display name, e.g. 'Bitcoin'"
+                      },
+                      "image": {
+                        "type": "string",
+                        "description": "URL to the coin's logo image"
+                      },
+                      "price": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Current price in USD, or null if unavailable"
+                      },
+                      "changePct": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Price change percentage over the requested duration, or null if unavailable"
+                      },
+                      "marketCapRank": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Market cap rank, or null if unranked"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "symbol",
+                      "name",
+                      "image",
+                      "price",
+                      "changePct",
+                      "marketCapRank"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Top gaining coins (max 6)"
+                },
+                "topLosers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "CoinGecko coin id, e.g. 'bitcoin'"
+                      },
+                      "symbol": {
+                        "type": "string",
+                        "description": "Ticker symbol, e.g. 'btc'"
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Display name, e.g. 'Bitcoin'"
+                      },
+                      "image": {
+                        "type": "string",
+                        "description": "URL to the coin's logo image"
+                      },
+                      "price": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Current price in USD, or null if unavailable"
+                      },
+                      "changePct": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Price change percentage over the requested duration, or null if unavailable"
+                      },
+                      "marketCapRank": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Market cap rank, or null if unranked"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "symbol",
+                      "name",
+                      "image",
+                      "price",
+                      "changePct",
+                      "marketCapRank"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Top losing coins (max 6)"
+                }
+              },
+              "required": [
+                "duration",
+                "topGainers",
+                "topLosers"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "get-crypto-news",
+            "title": "Get crypto news",
+            "description": "Get recent crypto news headlines — global, or filtered to one coin via coinId. Use this when the user asks for the latest news, headlines, or updates about crypto in general or about a specific coin. Headlines and links are presented verbatim; never summarized as bullish/bearish and never financial advice. Not for what a coin is (use get-coin-info) or price data (use get-coin-markets).",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "properties": {
+                "coinId": {
+                  "description": "CoinGecko coin id to filter news to, e.g. 'bitcoin'. Omit for global headlines. Map user tickers/names to ids yourself.",
+                  "type": "string",
+                  "pattern": "^[a-z0-9-]{1,100}$"
+                },
+                "limit": {
+                  "description": "How many articles to return, 1–20, default 10",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 20
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "articles": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string",
+                        "description": "Article headline"
+                      },
+                      "url": {
+                        "type": "string",
+                        "description": "Link to the full article"
+                      },
+                      "source": {
+                        "type": "string",
+                        "description": "Publisher/source name"
+                      },
+                      "postedAt": {
+                        "type": "string",
+                        "description": "ISO 8601 publish timestamp"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "news",
+                          "guide"
+                        ],
+                        "description": "Whether this is a news item or an educational guide"
+                      }
+                    },
+                    "required": [
+                      "title",
+                      "url",
+                      "source",
+                      "postedAt",
+                      "type"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "News headlines, most recent first"
+                }
+              },
+              "required": [
+                "articles"
+              ],
+              "additionalProperties": false
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "get-coin-markets",
+        "title": "Get coin market data",
+        "description": "Get current market data (price, market cap, 24h volume, market cap rank) for a list of CoinGecko coin ids, or for the top N coins by market cap, and display it in a visual widget. Provide either ids or topN, not both. Use this when the user asks for the price or market data of specific coins, or for a top-N leaderboard by market cap. To compare or contrast 2–4 specific coins (e.g. \"BTC vs ETH\"), use compare-coins instead. Not for historical prices (use get-coin-market-chart) and not financial advice.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "properties": {
+            "ids": {
+              "description": "CoinGecko coin *ids* (not tickers), e.g. [\"bitcoin\", \"ethereum\", \"solana\", \"zcash\"]. Up to 20. Map user tickers/names to ids yourself.",
+              "minItems": 1,
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9-]{1,100}$"
+              }
+            },
+            "topN": {
+              "description": "Return the top N coins by market cap (1–20). Provide either ids or topN, not both; ids wins if both are given.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "ui/resourceUri": "ui://views/coin-market-data.html",
+          "ui": {
+            "resourceUri": "ui://views/coin-market-data.html"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "coins": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "CoinGecko coin id, e.g. 'bitcoin'"
+                  },
+                  "symbol": {
+                    "type": "string",
+                    "description": "Ticker symbol, e.g. 'btc'"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Display name, e.g. 'Bitcoin'"
+                  },
+                  "image": {
+                    "type": "string",
+                    "description": "URL to the coin's logo image"
+                  },
+                  "currentPrice": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Current price in USD, or null if unavailable"
+                  },
+                  "marketCap": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Market capitalization in USD, or null if unavailable"
+                  },
+                  "marketCapRank": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Market cap rank, or null if unranked"
+                  },
+                  "totalVolume": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "24h trading volume in USD, or null if unavailable"
+                  },
+                  "priceChangePercentage24h": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "24h price change percentage, or null if unavailable"
+                  },
+                  "fullyDilutedValuation": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Fully diluted valuation in USD, or null if unavailable"
+                  },
+                  "circulatingSupply": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Circulating supply in coin units, or null if unavailable"
+                  },
+                  "maxSupply": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Max supply in coin units, or null if uncapped/unavailable"
+                  },
+                  "sparkline7d": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "description": "7-day price series in USD (downsampled, oldest first)"
+                  }
+                },
+                "required": [
+                  "id",
+                  "symbol",
+                  "name",
+                  "image",
+                  "currentPrice",
+                  "marketCap",
+                  "marketCapRank",
+                  "totalVolume",
+                  "priceChangePercentage24h",
+                  "fullyDilutedValuation",
+                  "circulatingSupply",
+                  "maxSupply",
+                  "sparkline7d"
+                ],
+                "additionalProperties": false
+              },
+              "description": "Market data for each requested coin"
+            }
+          },
+          "required": [
+            "coins"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "compare-coins",
+        "title": "Compare coins",
+        "description": "Compare 2–4 coins side by side — price, market cap, FDV, multi-window price change (1h/24h/7d/30d), volume, supply, distance from all-time high — in a visual widget. Use this when the user asks to compare, contrast, or pit specific coins against each other (phrasing like 'compare', 'vs', 'versus', 'against', e.g. 'BTC vs ETH vs SOL'). Map tickers to ids yourself. Not for a single coin (use get-coin-markets) and not financial advice.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "properties": {
+            "ids": {
+              "minItems": 2,
+              "maxItems": 4,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9-]{1,100}$"
+              },
+              "description": "Two to four CoinGecko coin *ids* (not tickers) to compare, e.g. [\"bitcoin\", \"ethereum\", \"solana\"]. Map user tickers/names to ids yourself."
+            }
+          },
+          "required": [
+            "ids"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "ui/resourceUri": "ui://views/compare-coins.html",
+          "ui": {
+            "resourceUri": "ui://views/compare-coins.html"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "coins": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "CoinGecko coin id, e.g. 'bitcoin'"
+                  },
+                  "symbol": {
+                    "type": "string",
+                    "description": "Ticker symbol, e.g. 'btc'"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Display name, e.g. 'Bitcoin'"
+                  },
+                  "image": {
+                    "type": "string",
+                    "description": "URL to the coin's logo image"
+                  },
+                  "currentPrice": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Current price in USD, or null if unavailable"
+                  },
+                  "marketCap": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Market capitalization in USD, or null if unavailable"
+                  },
+                  "marketCapRank": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Market cap rank, or null if unranked"
+                  },
+                  "totalVolume": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "24h trading volume in USD, or null if unavailable"
+                  },
+                  "priceChangePercentage1h": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "1h price change percentage, or null if unavailable"
+                  },
+                  "priceChangePercentage24h": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "24h price change percentage, or null if unavailable"
+                  },
+                  "priceChangePercentage7d": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "7d price change percentage, or null if unavailable"
+                  },
+                  "priceChangePercentage30d": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "30d price change percentage, or null if unavailable"
+                  },
+                  "athChangePercentage": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Percentage below the all-time high (negative), or null if unavailable"
+                  },
+                  "volumeToMarketCap": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Derived liquidity ratio: 24h volume divided by market cap, or null if either is unavailable"
+                  },
+                  "marketCapVsLargest": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Derived: this coin's market cap divided by the largest in the set (1.0 for the largest), or null if unavailable"
+                  },
+                  "fullyDilutedValuation": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Fully diluted valuation in USD, or null if unavailable"
+                  },
+                  "circulatingSupply": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Circulating supply in coin units, or null if unavailable"
+                  },
+                  "maxSupply": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Max supply in coin units, or null if uncapped/unavailable"
+                  },
+                  "sparkline7d": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "description": "7-day price series in USD (downsampled, oldest first)"
+                  }
+                },
+                "required": [
+                  "id",
+                  "symbol",
+                  "name",
+                  "image",
+                  "currentPrice",
+                  "marketCap",
+                  "marketCapRank",
+                  "totalVolume",
+                  "priceChangePercentage1h",
+                  "priceChangePercentage24h",
+                  "priceChangePercentage7d",
+                  "priceChangePercentage30d",
+                  "athChangePercentage",
+                  "volumeToMarketCap",
+                  "marketCapVsLargest",
+                  "fullyDilutedValuation",
+                  "circulatingSupply",
+                  "maxSupply",
+                  "sparkline7d"
+                ],
+                "additionalProperties": false
+              },
+              "description": "The compared coins, in the order requested (2–4)"
+            }
+          },
+          "required": [
+            "coins"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "get-coin-market-chart",
+        "title": "Get coin market chart",
+        "description": "Get a single coin's historical price over a date range and display it as an interactive chart widget (filled area chart with a price/market-cap toggle and a 24h–Max range selector). Use this whenever the user wants a chart, graph, or price history for one coin — e.g. 'bitcoin chart', 'ETH price last 90 days', 'how has SOL moved this year'. Not for the current spot price of one or more coins (use get-coin-markets) and not financial advice.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]{1,100}$",
+              "description": "CoinGecko coin id, e.g. 'bitcoin'"
+            },
+            "days": {
+              "type": "string",
+              "enum": [
+                "1",
+                "7",
+                "30",
+                "90",
+                "365",
+                "max",
+                "ytd"
+              ],
+              "description": "Chart date range: 1=24h, 7=7d, 30=1m, 90=3m, 365=1Y, max=all-time, ytd=year-to-date"
+            }
+          },
+          "required": [
+            "id",
+            "days"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "ui/resourceUri": "ui://views/coin-chart.html",
+          "ui": {
+            "resourceUri": "ui://views/coin-chart.html"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "CoinGecko coin id the chart data belongs to"
+            },
+            "days": {
+              "type": "string",
+              "description": "Date range used for this chart's price series"
+            },
+            "prices": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "description": "Price series in USD, oldest first"
+            },
+            "marketCaps": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "description": "Market cap series in USD, oldest first (parallel to prices)"
+            },
+            "startTs": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Unix ms timestamp of the first price point, or null if empty"
+            },
+            "endTs": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Unix ms timestamp of the last price point, or null if empty"
+            }
+          },
+          "required": [
+            "id",
+            "days",
+            "prices",
+            "marketCaps",
+            "startTs",
+            "endTs"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "get-coin-history",
+        "title": "Get coin history",
+        "description": "Get a coin's price, market cap and 24h volume on a specific past date (snapshot at 00:00 UTC). Use this when the user asks what a coin was worth on a given date, e.g. 'BTC price on Jan 1 2024'. Not for current prices (use get-coin-markets) or price ranges over time (use get-coin-market-chart), and not financial advice.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]{1,100}$",
+              "description": "CoinGecko coin id, e.g. 'bitcoin'"
+            },
+            "date": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Snapshot date, YYYY-MM-DD (UTC). Must be a past date on or after 2013-04-28; for today's price use get-coin-markets."
+            },
+            "vsCurrency": {
+              "type": "string",
+              "enum": [
+                "usd",
+                "eur",
+                "gbp",
+                "jpy",
+                "aud",
+                "cad",
+                "chf",
+                "cny",
+                "inr",
+                "krw"
+              ],
+              "description": "Fiat quote currency (lowercase ISO code). Defaults to usd."
+            }
+          },
+          "required": [
+            "id",
+            "date"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "CoinGecko coin id"
+            },
+            "symbol": {
+              "type": "string",
+              "description": "Ticker symbol"
+            },
+            "name": {
+              "type": "string",
+              "description": "Display name"
+            },
+            "date": {
+              "type": "string",
+              "description": "Snapshot date (YYYY-MM-DD, 00:00 UTC)"
+            },
+            "vsCurrency": {
+              "type": "string",
+              "description": "Fiat currency the monetary fields are denominated in"
+            },
+            "price": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Price at the snapshot, or null if unavailable"
+            },
+            "marketCap": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Market cap at the snapshot, or null"
+            },
+            "totalVolume": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "24h volume at the snapshot, or null"
+            }
+          },
+          "required": [
+            "id",
+            "symbol",
+            "name",
+            "date",
+            "vsCurrency",
+            "price",
+            "marketCap",
+            "totalVolume"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "get-coin-info",
+        "title": "Get coin info",
+        "description": "Get descriptive project information about a coin: what it is (a short description), its categories/sectors, official links (website, explorer, Twitter/X, Reddit, GitHub, Telegram) and launch date. Use this when the user asks what a coin *is* or wants background on a project, e.g. 'what is Chainlink?' or 'tell me about Solana'. Not for prices or market data (use get-coin-markets) and not financial advice.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]{1,100}$",
+              "description": "CoinGecko coin id, e.g. 'bitcoin'"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "CoinGecko coin id"
+            },
+            "name": {
+              "type": "string",
+              "description": "Display name, e.g. 'Bitcoin'"
+            },
+            "symbol": {
+              "type": "string",
+              "description": "Ticker symbol, e.g. 'btc'"
+            },
+            "image": {
+              "type": "string",
+              "description": "URL to the coin's logo image ('' if none)"
+            },
+            "descriptionExcerpt": {
+              "type": "string",
+              "description": "Plain-text project description, HTML-stripped and clamped ('' if none)"
+            },
+            "categories": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Sector/narrative labels this coin belongs to"
+            },
+            "links": {
+              "type": "object",
+              "properties": {
+                "website": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Official homepage URL, or null"
+                },
+                "explorer": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Block explorer URL, or null"
+                },
+                "twitter": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Twitter/X profile URL, or null"
+                },
+                "reddit": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Subreddit URL, or null"
+                },
+                "github": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Source repository URL, or null"
+                },
+                "telegram": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Telegram channel URL, or null"
+                }
+              },
+              "required": [
+                "website",
+                "explorer",
+                "twitter",
+                "reddit",
+                "github",
+                "telegram"
+              ],
+              "additionalProperties": false,
+              "description": "Official project links (each nullable)"
+            },
+            "genesisDate": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Launch date (YYYY-MM-DD), or null if unknown"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "symbol",
+            "image",
+            "descriptionExcerpt",
+            "categories",
+            "links",
+            "genesisDate"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "search-coins",
+        "title": "Search coins",
+        "description": "Search CoinGecko for coins by name or ticker and return their coin ids. Use this when the user names a coin you cannot confidently map to a CoinGecko id, or when a ticker is ambiguous. Prefer the highest-ranked match. Not for prices — call get-coin-markets with the resolved id.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "description": "Coin name or ticker to search, e.g. 'bitcoin' or 'ethereum'"
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "coins": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "CoinGecko coin id to use with other tools"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "symbol": {
+                    "type": "string"
+                  },
+                  "marketCapRank": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Market cap rank, or null if unranked"
+                  },
+                  "thumb": {
+                    "type": "string",
+                    "description": "URL to a small coin logo image"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "symbol",
+                  "marketCapRank",
+                  "thumb"
+                ],
+                "additionalProperties": false
+              },
+              "description": "Top matches, best first (max 10)"
+            }
+          },
+          "required": [
+            "coins"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "get-trending",
+        "title": "Get trending coins",
+        "description": "Get the coins trending on CoinGecko in the last 24 hours and display them in a visual widget. Use this when the user asks what's hot, trending, or popular right now. Not for prices of specific coins (use get-coin-markets) and not financial advice.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "properties": {}
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "ui/resourceUri": "ui://views/trending-coins.html",
+          "ui": {
+            "resourceUri": "ui://views/trending-coins.html"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "coins": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "CoinGecko coin id, e.g. 'dogecoin'"
+                  },
+                  "symbol": {
+                    "type": "string",
+                    "description": "Ticker symbol, e.g. 'doge'"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Display name, e.g. 'Dogecoin'"
+                  },
+                  "image": {
+                    "type": "string",
+                    "description": "URL to the coin's logo image"
+                  },
+                  "marketCapRank": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Market cap rank, or null if unranked"
+                  },
+                  "price": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Current price in USD, or null if unavailable"
+                  },
+                  "priceChangePercentage24h": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "24h price change percentage, or null if unavailable"
+                  }
+                },
+                "required": [
+                  "id",
+                  "symbol",
+                  "name",
+                  "image",
+                  "marketCapRank",
+                  "price",
+                  "priceChangePercentage24h"
+                ],
+                "additionalProperties": false
+              },
+              "description": "Coins trending on CoinGecko in the last 24 hours"
+            }
+          },
+          "required": [
+            "coins"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "get-categories",
+        "title": "Get crypto categories",
+        "description": "Get a ranked leaderboard of crypto categories (sectors/narratives like DeFi, Layer 1, memes, AI, RWA) by total market cap and 24h change, and display it in a visual widget. Use this when the user asks which sectors, narratives, or themes are hot, big, or moving. Order by market cap (default) or 24h change. Not for individual trending coins (use get-trending) or overall market health (use get-global-market), and not financial advice.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "properties": {
+            "order": {
+              "description": "Sort dimension: 'market_cap' for the largest sectors (default), 'market_cap_change_24h' for the hottest sectors by 24h change.",
+              "type": "string",
+              "enum": [
+                "market_cap",
+                "market_cap_change_24h"
+              ]
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "ui/resourceUri": "ui://views/categories.html",
+          "ui": {
+            "resourceUri": "ui://views/categories.html"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "categories": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "CoinGecko category id, e.g. 'decentralized-finance-defi'"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Display name, e.g. 'Decentralized Finance (DeFi)'"
+                  },
+                  "marketCap": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Total market cap of the category in USD, or null if unavailable"
+                  },
+                  "marketCapChange24h": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "24h market cap change percentage, or null if unavailable"
+                  },
+                  "volume24h": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "24h trading volume of the category in USD, or null if unavailable"
+                  },
+                  "topCoins": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "description": "CoinGecko coin id of a top coin in this category"
+                        },
+                        "image": {
+                          "type": "string",
+                          "description": "URL to that coin's logo image"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "image"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "description": "Up to three of the category's largest coins (id + logo)"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "marketCap",
+                  "marketCapChange24h",
+                  "volume24h",
+                  "topCoins"
+                ],
+                "additionalProperties": false
+              },
+              "description": "Crypto sectors/narratives, ranked by the requested order"
+            }
+          },
+          "required": [
+            "categories"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "get-global-market",
+        "title": "Get global market data",
+        "description": "Get a snapshot of the overall crypto market: total market cap, 24h change, total volume, BTC/ETH dominance, plus current price and 24h change for the top-cap coins (BTC, ETH, SOL, BNB, XRP). Use this when the user asks how the crypto market is doing overall. For prices of other/arbitrary coins, use get-coin-markets.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "properties": {}
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "ui/resourceUri": "ui://views/global-market.html",
+          "ui": {
+            "resourceUri": "ui://views/global-market.html"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "totalMarketCapUsd": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Total cryptocurrency market cap in USD, or null if unavailable"
+            },
+            "marketCapChangePercentage24hUsd": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "24h market cap change percentage in USD, or null if unavailable"
+            },
+            "totalVolumeUsd": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Total 24h trading volume in USD, or null if unavailable"
+            },
+            "btcDominancePct": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Bitcoin's share of total market cap, or null if unavailable"
+            },
+            "ethDominancePct": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Ethereum's share of total market cap, or null if unavailable"
+            },
+            "coins": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "CoinGecko coin id, e.g. 'bitcoin'"
+                  },
+                  "symbol": {
+                    "type": "string",
+                    "description": "Ticker symbol, e.g. 'btc'"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Display name, e.g. 'Bitcoin'"
+                  },
+                  "image": {
+                    "type": "string",
+                    "description": "URL to the coin's logo image"
+                  },
+                  "currentPrice": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Current price in USD, or null if unavailable"
+                  },
+                  "priceChangePercentage24h": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "24h price change percentage, or null if unavailable"
+                  }
+                },
+                "required": [
+                  "id",
+                  "symbol",
+                  "name",
+                  "image",
+                  "currentPrice",
+                  "priceChangePercentage24h"
+                ],
+                "additionalProperties": false
+              },
+              "description": "Top-cap coins (BTC, ETH, SOL, BNB, XRP) with price and 24h change"
+            }
+          },
+          "required": [
+            "totalMarketCapUsd",
+            "marketCapChangePercentage24hUsd",
+            "totalVolumeUsd",
+            "btcDominancePct",
+            "ethDominancePct",
+            "coins"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "get-top-gainers-losers",
+        "title": "Get top gainers and losers",
+        "description": "Get the top gaining and top losing coins over a time window and display them in a visual widget. Use this when the user asks what's pumping, dumping, or moving today. Not for a single coin's price (use get-coin-markets). Data only — never frame as a buy/sell signal. Requires a CoinGecko Pro API key.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "properties": {
+            "duration": {
+              "description": "Time window for the ranking; defaults to 24h",
+              "type": "string",
+              "enum": [
+                "1h",
+                "24h",
+                "7d"
+              ]
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "ui/resourceUri": "ui://views/gainers-losers.html",
+          "ui": {
+            "resourceUri": "ui://views/gainers-losers.html"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "duration": {
+              "type": "string",
+              "description": "Time window used for this ranking"
+            },
+            "topGainers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "CoinGecko coin id, e.g. 'bitcoin'"
+                  },
+                  "symbol": {
+                    "type": "string",
+                    "description": "Ticker symbol, e.g. 'btc'"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Display name, e.g. 'Bitcoin'"
+                  },
+                  "image": {
+                    "type": "string",
+                    "description": "URL to the coin's logo image"
+                  },
+                  "price": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Current price in USD, or null if unavailable"
+                  },
+                  "changePct": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Price change percentage over the requested duration, or null if unavailable"
+                  },
+                  "marketCapRank": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Market cap rank, or null if unranked"
+                  }
+                },
+                "required": [
+                  "id",
+                  "symbol",
+                  "name",
+                  "image",
+                  "price",
+                  "changePct",
+                  "marketCapRank"
+                ],
+                "additionalProperties": false
+              },
+              "description": "Top gaining coins (max 6)"
+            },
+            "topLosers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "CoinGecko coin id, e.g. 'bitcoin'"
+                  },
+                  "symbol": {
+                    "type": "string",
+                    "description": "Ticker symbol, e.g. 'btc'"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Display name, e.g. 'Bitcoin'"
+                  },
+                  "image": {
+                    "type": "string",
+                    "description": "URL to the coin's logo image"
+                  },
+                  "price": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Current price in USD, or null if unavailable"
+                  },
+                  "changePct": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Price change percentage over the requested duration, or null if unavailable"
+                  },
+                  "marketCapRank": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Market cap rank, or null if unranked"
+                  }
+                },
+                "required": [
+                  "id",
+                  "symbol",
+                  "name",
+                  "image",
+                  "price",
+                  "changePct",
+                  "marketCapRank"
+                ],
+                "additionalProperties": false
+              },
+              "description": "Top losing coins (max 6)"
+            }
+          },
+          "required": [
+            "duration",
+            "topGainers",
+            "topLosers"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "get-crypto-news",
+        "title": "Get crypto news",
+        "description": "Get recent crypto news headlines — global, or filtered to one coin via coinId. Use this when the user asks for the latest news, headlines, or updates about crypto in general or about a specific coin. Headlines and links are presented verbatim; never summarized as bullish/bearish and never financial advice. Not for what a coin is (use get-coin-info) or price data (use get-coin-markets).",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "properties": {
+            "coinId": {
+              "description": "CoinGecko coin id to filter news to, e.g. 'bitcoin'. Omit for global headlines. Map user tickers/names to ids yourself.",
+              "type": "string",
+              "pattern": "^[a-z0-9-]{1,100}$"
+            },
+            "limit": {
+              "description": "How many articles to return, 1–20, default 10",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "articles": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "Article headline"
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "Link to the full article"
+                  },
+                  "source": {
+                    "type": "string",
+                    "description": "Publisher/source name"
+                  },
+                  "postedAt": {
+                    "type": "string",
+                    "description": "ISO 8601 publish timestamp"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "news",
+                      "guide"
+                    ],
+                    "description": "Whether this is a news item or an educational guide"
+                  }
+                },
+                "required": [
+                  "title",
+                  "url",
+                  "source",
+                  "postedAt",
+                  "type"
+                ],
+                "additionalProperties": false
+              },
+              "description": "News headlines, most recent first"
+            }
+          },
+          "required": [
+            "articles"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:23:25.843Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:23:26.895Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:23:27.945Z",
+        "status": 204
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:23:28.995Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 11,
+    "tools_hash": "sha256:c8f47f1e388fa051279913672c24848a9bd6bea956442f109822b9fb28ded7af",
+    "static_tool_tokens": 3714,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [],
+    "severity_counts": {
+      "high": 0,
+      "medium": 0,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "get-coin-markets",
+          "path": "inputSchema.properties.topN",
+          "name": "topN",
+          "description": "Return the top N coins by market cap (1–20). Provide either ids or topN, not both; ids wins if both are given.",
+          "mentions_size_or_cost": false,
+          "maximum": 20
+        },
+        {
+          "tool": "get-top-gainers-losers",
+          "path": "inputSchema.properties.duration",
+          "name": "duration",
+          "description": "Time window for the ranking; defaults to 24h",
+          "mentions_size_or_cost": false,
+          "described_default": 24
+        },
+        {
+          "tool": "get-crypto-news",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "How many articles to return, 1–20, default 10",
+          "mentions_size_or_cost": true,
+          "described_default": 10,
+          "maximum": 20
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get-coin-markets"
+          ],
+          "path": "inputSchema.properties.topN",
+          "description": "Return the top N coins by market cap (1–20). Provide either ids or topN, not both; ids wins if both are given.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "compare-coins"
+          ],
+          "description": "Compare 2–4 coins side by side — price, market cap, FDV, multi-window price change (1h/24h/7d/30d), volume, supply, distance from all-time high — in a visual widget. Use this when the user asks to compare, contrast, or pit specific coins against each other (phrasing like 'compare', 'vs', 'versus', 'against', e.g. 'BTC vs ETH vs SOL'). Map tickers to ids yourself. Not for a single coin (use get-coin-markets) and not financial advice.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get-top-gainers-losers"
+          ],
+          "path": "inputSchema.properties.duration",
+          "description": "Time window for the ranking; defaults to 24h",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get-coin-market-chart",
+            "get-coin-info"
+          ],
+          "hypothesis": "Read tools share resource terms (coin), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get-coin-market-chart",
+            "search-coins"
+          ],
+          "hypothesis": "Read tools share resource terms (coin), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get-coin-market-chart",
+            "get-global-market"
+          ],
+          "hypothesis": "Read tools share resource terms (market), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get-coin-history",
+            "get-coin-info"
+          ],
+          "hypothesis": "Read tools share resource terms (coin), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get-coin-history",
+            "search-coins"
+          ],
+          "hypothesis": "Read tools share resource terms (coin), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get-coin-info",
+            "search-coins"
+          ],
+          "hypothesis": "Read tools share resource terms (coin), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "get-coin-markets",
+      "compare-coins",
+      "get-coin-market-chart",
+      "get-coin-history",
+      "get-coin-info",
+      "search-coins",
+      "get-trending",
+      "get-categories",
+      "get-global-market",
+      "get-top-gainers-losers",
+      "get-crypto-news"
+    ]
+  }
+}

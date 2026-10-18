@@ -1,0 +1,674 @@
+{
+  "slug": "muju",
+  "source_url": "https://manufact.com/mcp-catalog/muju",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:24:21.831Z",
+    "endpoint": "https://mujucommunity.com/mcp/MU_MUJU_UJJ",
+    "transport": "streamable",
+    "server": {
+      "name": "muju-mcp-server",
+      "version": "1.0.0"
+    },
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "get_restaurants",
+            "title": "Get Restaurants",
+            "description": "Fetches Muju Cafe and all local partner restaurants available for order placement.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {}
+            },
+            "annotations": {
+              "title": "Get Restaurants",
+              "readOnlyHint": true,
+              "openWorldHint": false,
+              "destructiveHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_restaurant_menu",
+            "title": "Get Restaurant Menu",
+            "description": "Retrieves active food, momos, beverages, and pricing catalog for a specific restaurant. Note that items may include 'addonGroups' representing customization choices (e.g. fillings, options) that must or can be selected, each with potential price offsets that should be confirmed with the customer.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "restaurantId": {
+                  "type": "string",
+                  "description": "Restaurant ID, e.g. 'muju' or a partner ID"
+                }
+              },
+              "required": [
+                "restaurantId"
+              ]
+            },
+            "annotations": {
+              "title": "Get Restaurant Menu",
+              "readOnlyHint": true,
+              "openWorldHint": false,
+              "destructiveHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "submit_mcp_order",
+            "title": "Submit MCP Order",
+            "description": "Submits a new pickup order draft to Muju or partner restaurants. Immediately sends a 6-digit verification code (OTP) to the customer's email. Returns orderNumber and pending_verification status. The customer must provide the 6-digit OTP code, which must be submitted via verify_mcp_order to finalize the order and push it to the kitchen. Note: Delivery orders are currently not supported via MCP APIs; only pickup orders are accepted.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "restaurantId": {
+                  "description": "Leave empty or use 'muju' for Muju Cafe",
+                  "type": "string"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "Name of the menu item (e.g. 'Milk Tea', 'Mango Milk Tea', 'Chilli Momo', 'Chicken Chilli Momo')"
+                      },
+                      "quantity": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 99,
+                        "description": "Quantity of this item (must be positive integer, min 1)"
+                      },
+                      "selectedChoices": {
+                        "description": "Optional list of customer-selected choices or add-ons for this menu item",
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "groupTitle": {
+                              "description": "The customization group title (e.g. 'Filling' or 'Flavor'). Optional.",
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string",
+                              "description": "The name of the chosen option (e.g. 'Mango', 'Chicken', 'Classic')"
+                            }
+                          },
+                          "required": [
+                            "name"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "quantity"
+                    ]
+                  }
+                },
+                "pickupTime": {
+                  "type": "string",
+                  "description": "Specific target pickup time (e.g., '5:30 PM'). Required for all MCP pickup orders."
+                },
+                "orderType": {
+                  "description": "Order type: only 'pickup' is currently supported for MCP APIs",
+                  "type": "string",
+                  "enum": [
+                    "pickup"
+                  ]
+                },
+                "customerEmail": {
+                  "type": "string",
+                  "description": "Customer email address, required for receipts and sending the 6-digit verification OTP"
+                },
+                "phoneNumber": {
+                  "type": "string",
+                  "description": "Customer phone number with country code (e.g. +1 315-555-0199 for US/Canada or +[country code] for international), required for SMS confirmation"
+                },
+                "specialNote": {
+                  "description": "Optional dietary requests or special kitchen instructions",
+                  "type": "string"
+                },
+                "paymentPreference": {
+                  "type": "string",
+                  "enum": [
+                    "online",
+                    "in_store"
+                  ],
+                  "description": "Payment method. MUST use 'online' for partner restaurants. Muju Cafe supports both 'online' and 'in_store'."
+                }
+              },
+              "required": [
+                "items",
+                "pickupTime",
+                "customerEmail",
+                "phoneNumber",
+                "paymentPreference"
+              ]
+            },
+            "annotations": {
+              "title": "Submit MCP Order",
+              "readOnlyHint": false,
+              "openWorldHint": true,
+              "destructiveHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "verify_mcp_order",
+            "title": "Verify MCP Order",
+            "description": "Verifies the customer's identity by submitting the 6-digit OTP code sent to their email. Finalizes the order, pushes it to the kitchen, and returns the unguessable orderSecretToken needed to track order status.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "orderNumber": {
+                  "type": "string",
+                  "description": "Order number reference, e.g. ORD-252910"
+                },
+                "otp": {
+                  "type": "string",
+                  "description": "The 6-digit verification code sent to the customer's email"
+                }
+              },
+              "required": [
+                "orderNumber",
+                "otp"
+              ]
+            },
+            "annotations": {
+              "title": "Verify MCP Order",
+              "readOnlyHint": false,
+              "openWorldHint": true,
+              "destructiveHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "verify_order",
+            "title": "Verify Order",
+            "description": "Verifies the 6-digit OTP code sent to customer email to finalize and commit the order to the kitchen.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "orderNumber": {
+                  "type": "string",
+                  "description": "Order number reference, e.g. ORD-252910"
+                },
+                "otp": {
+                  "type": "string",
+                  "description": "The 6-digit verification code sent to the customer's email"
+                }
+              },
+              "required": [
+                "orderNumber",
+                "otp"
+              ]
+            },
+            "annotations": {
+              "title": "Verify Order",
+              "readOnlyHint": false,
+              "openWorldHint": true,
+              "destructiveHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_order_status",
+            "title": "Get Order Status",
+            "description": "Checks status of an order (payment status, kitchen status, delivery tracking). Requires the unguessable orderSecretToken generated when the order was submitted.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "orderNumber": {
+                  "type": "string",
+                  "description": "Order number reference, e.g. ORD-252910"
+                },
+                "orderSecretToken": {
+                  "type": "string",
+                  "description": "The secret security token returned when the order was created (e.g. sec_8f9a2b...)"
+                }
+              },
+              "required": [
+                "orderNumber",
+                "orderSecretToken"
+              ]
+            },
+            "annotations": {
+              "title": "Get Order Status",
+              "readOnlyHint": true,
+              "openWorldHint": false,
+              "destructiveHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_restaurants",
+        "title": "Get Restaurants",
+        "description": "Fetches Muju Cafe and all local partner restaurants available for order placement.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "annotations": {
+          "title": "Get Restaurants",
+          "readOnlyHint": true,
+          "openWorldHint": false,
+          "destructiveHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_restaurant_menu",
+        "title": "Get Restaurant Menu",
+        "description": "Retrieves active food, momos, beverages, and pricing catalog for a specific restaurant. Note that items may include 'addonGroups' representing customization choices (e.g. fillings, options) that must or can be selected, each with potential price offsets that should be confirmed with the customer.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "restaurantId": {
+              "type": "string",
+              "description": "Restaurant ID, e.g. 'muju' or a partner ID"
+            }
+          },
+          "required": [
+            "restaurantId"
+          ]
+        },
+        "annotations": {
+          "title": "Get Restaurant Menu",
+          "readOnlyHint": true,
+          "openWorldHint": false,
+          "destructiveHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "submit_mcp_order",
+        "title": "Submit MCP Order",
+        "description": "Submits a new pickup order draft to Muju or partner restaurants. Immediately sends a 6-digit verification code (OTP) to the customer's email. Returns orderNumber and pending_verification status. The customer must provide the 6-digit OTP code, which must be submitted via verify_mcp_order to finalize the order and push it to the kitchen. Note: Delivery orders are currently not supported via MCP APIs; only pickup orders are accepted.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "restaurantId": {
+              "description": "Leave empty or use 'muju' for Muju Cafe",
+              "type": "string"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the menu item (e.g. 'Milk Tea', 'Mango Milk Tea', 'Chilli Momo', 'Chicken Chilli Momo')"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 99,
+                    "description": "Quantity of this item (must be positive integer, min 1)"
+                  },
+                  "selectedChoices": {
+                    "description": "Optional list of customer-selected choices or add-ons for this menu item",
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "groupTitle": {
+                          "description": "The customization group title (e.g. 'Filling' or 'Flavor'). Optional.",
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string",
+                          "description": "The name of the chosen option (e.g. 'Mango', 'Chicken', 'Classic')"
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "quantity"
+                ]
+              }
+            },
+            "pickupTime": {
+              "type": "string",
+              "description": "Specific target pickup time (e.g., '5:30 PM'). Required for all MCP pickup orders."
+            },
+            "orderType": {
+              "description": "Order type: only 'pickup' is currently supported for MCP APIs",
+              "type": "string",
+              "enum": [
+                "pickup"
+              ]
+            },
+            "customerEmail": {
+              "type": "string",
+              "description": "Customer email address, required for receipts and sending the 6-digit verification OTP"
+            },
+            "phoneNumber": {
+              "type": "string",
+              "description": "Customer phone number with country code (e.g. +1 315-555-0199 for US/Canada or +[country code] for international), required for SMS confirmation"
+            },
+            "specialNote": {
+              "description": "Optional dietary requests or special kitchen instructions",
+              "type": "string"
+            },
+            "paymentPreference": {
+              "type": "string",
+              "enum": [
+                "online",
+                "in_store"
+              ],
+              "description": "Payment method. MUST use 'online' for partner restaurants. Muju Cafe supports both 'online' and 'in_store'."
+            }
+          },
+          "required": [
+            "items",
+            "pickupTime",
+            "customerEmail",
+            "phoneNumber",
+            "paymentPreference"
+          ]
+        },
+        "annotations": {
+          "title": "Submit MCP Order",
+          "readOnlyHint": false,
+          "openWorldHint": true,
+          "destructiveHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "verify_mcp_order",
+        "title": "Verify MCP Order",
+        "description": "Verifies the customer's identity by submitting the 6-digit OTP code sent to their email. Finalizes the order, pushes it to the kitchen, and returns the unguessable orderSecretToken needed to track order status.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "orderNumber": {
+              "type": "string",
+              "description": "Order number reference, e.g. ORD-252910"
+            },
+            "otp": {
+              "type": "string",
+              "description": "The 6-digit verification code sent to the customer's email"
+            }
+          },
+          "required": [
+            "orderNumber",
+            "otp"
+          ]
+        },
+        "annotations": {
+          "title": "Verify MCP Order",
+          "readOnlyHint": false,
+          "openWorldHint": true,
+          "destructiveHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "verify_order",
+        "title": "Verify Order",
+        "description": "Verifies the 6-digit OTP code sent to customer email to finalize and commit the order to the kitchen.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "orderNumber": {
+              "type": "string",
+              "description": "Order number reference, e.g. ORD-252910"
+            },
+            "otp": {
+              "type": "string",
+              "description": "The 6-digit verification code sent to the customer's email"
+            }
+          },
+          "required": [
+            "orderNumber",
+            "otp"
+          ]
+        },
+        "annotations": {
+          "title": "Verify Order",
+          "readOnlyHint": false,
+          "openWorldHint": true,
+          "destructiveHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_order_status",
+        "title": "Get Order Status",
+        "description": "Checks status of an order (payment status, kitchen status, delivery tracking). Requires the unguessable orderSecretToken generated when the order was submitted.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "orderNumber": {
+              "type": "string",
+              "description": "Order number reference, e.g. ORD-252910"
+            },
+            "orderSecretToken": {
+              "type": "string",
+              "description": "The secret security token returned when the order was created (e.g. sec_8f9a2b...)"
+            }
+          },
+          "required": [
+            "orderNumber",
+            "orderSecretToken"
+          ]
+        },
+        "annotations": {
+          "title": "Get Order Status",
+          "readOnlyHint": true,
+          "openWorldHint": false,
+          "destructiveHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:24:18.600Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:24:19.651Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:24:20.702Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:24:21.753Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 6,
+    "tools_hash": "sha256:40725b86d568dd10fc15f08f1fcd5690abc97dcc0ac8907ed663c72f1a2308d3",
+    "static_tool_tokens": 2222,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_restaurants",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_restaurants",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_restaurant_menu",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_restaurant_menu",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "submit_mcp_order",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "submit_mcp_order",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_mcp_order",
+        "message": "Parameter has no description.",
+        "param": "items"
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "verify_mcp_order",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "verify_mcp_order",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "verify_order",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "verify_order",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_order_status",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 12,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_restaurants"
+          ],
+          "description": "Fetches Muju Cafe and all local partner restaurants available for order placement.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_restaurants",
+            "get_restaurant_menu"
+          ],
+          "hypothesis": "Read tools share resource terms (restaurant), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "get_restaurants",
+      "get_restaurant_menu",
+      "get_order_status"
+    ]
+  }
+}

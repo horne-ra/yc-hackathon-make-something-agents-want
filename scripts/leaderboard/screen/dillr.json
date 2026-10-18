@@ -1,0 +1,3494 @@
+{
+  "slug": "dillr",
+  "source_url": "https://manufact.com/mcp-catalog/dillr",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:38:04.801Z",
+    "endpoint": "https://mcp.dillr.ai/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "Dillr",
+      "icons": [
+        {
+          "src": "https://dillr.ai/Favicon.svg",
+          "mimeType": "image/svg+xml"
+        },
+        {
+          "src": "https://dillr.ai/app-icon.png",
+          "mimeType": "image/png",
+          "sizes": [
+            "1080x1080"
+          ]
+        }
+      ],
+      "version": "1.0.0",
+      "description": "Cooking, recipes, and meal planning — shared kitchen memory for the whole family"
+    },
+    "capabilities": {
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "You are Dillr — a personal cooking assistant. Load get_kitchen_context early to ground your suggestions — it has the user's pantry, dietary restrictions, household, cooking history, and preferences. Prefer looking up information over asking the user. Present recipes in their original language — do not translate. Suggest before saving — get user approval before calling write tools. When you include a Dillr link in your reply, write the full URL by prefixing the app origin https://app.dillr.ai (e.g. https://app.dillr.ai/recipes/abc123) — never a bare /recipes/... path, which would open the wrong site. Make meal plans cookable: when you plan meals, write the actual recipe for each new dish — present the full plan (meals and recipes) to the user first, get their go-ahead, and then save it in one save_menu call: put each new dish's full recipe in a fenced ```recipe block under its meal bullet (save_menu saves it and links it for you), and link dishes the user already has by their /recipes/{id} link. Don't save a plan of bare names and offer to fill in recipes later, and don't propose and save in the same turn. Authoring these recipes is your job: when the user approves the plan, write the full recipe for each new dish yourself and save — that's ordinary recipe writing, not fabricating data. Never refuse to save because the recipes aren't written yet, and never ask the user to supply them; if a proposed dish is still just a name, write its recipe now and include it in the save. After saving, offer to make a shopping list. When you produce or surface a recipe or menu, present it by calling the tool (present_recipe for a new recipe, get_recipe or get_menu for a saved one) rather than writing it out as plain text — even when you already have the content or the user only says \"show me\". Keep your own reply brief and in plain, human language — don't narrate a tool's internal fields or how it rendered.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "search_recipes",
+            "title": "Search Recipes",
+            "description": "Search the user's recipe library. Returns CSV with a `link` column — copy a `[title](/recipes/{id})` cell verbatim into `get_recipe`.\n\nWHERE clause examples:\n  Equality:       {\"cuisines\":\"italian\"}\n  Array member:   {\"tags\":{\"contains\":\"vegetarian\"}}\n  Any-of:         {\"tags\":{\"contains_any\":[\"vegetarian\",\"vegan\"]}}\n  Comparison:     {\"cook_time_minutes\":{\"lte\":30}}\n  AND (implicit): {\"cuisines\":\"italian\",\"cook_time_minutes\":{\"lte\":30}}\n  OR:             {\"or\":[{\"cuisines\":\"italian\"},{\"cuisines\":\"mexican\"}]}\n  NOT:            {\"not\":{\"tags\":{\"contains\":\"dessert\"}}}\n  Title search:   {\"title\":{\"contains\":\"lasagna\"}}\n  Nutrition:      {\"nutrition_calories\":{\"lte\":400}}, {\"nutrition_protein_g\":{\"gte\":30}}\n\nOperators: eq, gt, gte, lt, lte (comparison); contains, contains_any, contains_all (arrays); and, or, not (logical).\nIMPORTANT: All indexed values including titles are normalized to English, lowercase, singular. Use \"chicken\" not \"Chicken\", \"pancake\" not \"Pannkakor\".\nget_recipe_stats helps discover available filter values.\nOmit where entirely to list all recipes.\nNote: recently saved recipes may take a moment to appear in search results.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "from": {
+                  "description": "Resource type to search (default: \"recipe\")",
+                  "type": "string",
+                  "enum": [
+                    "recipe",
+                    "collection"
+                  ]
+                },
+                "where": {
+                  "description": "JSON query string. Example: '{\"cuisines\":\"italian\",\"cook_time_minutes\":{\"lte\":30}}'",
+                  "type": "string"
+                },
+                "sort": {
+                  "description": "Sort field or object. Example: \"rating\" or {\"field\":\"cook_time_minutes\",\"direction\":\"asc\"}",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "field": {
+                          "type": "string"
+                        },
+                        "direction": {
+                          "type": "string",
+                          "enum": [
+                            "asc",
+                            "desc"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "field"
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2"
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2"
+              }
+            ]
+          },
+          {
+            "name": "get_recipe_stats",
+            "title": "Get Recipe Stats",
+            "description": "Frequency stats for your recipe library — how often each ingredient, cuisine, technique, or tag appears across saved recipes. Use this to discover available filter values before calling search_recipes, or to understand cooking patterns.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Which facet to get stats for",
+                  "type": "string",
+                  "enum": [
+                    "ingredients",
+                    "cuisines",
+                    "techniques",
+                    "tags"
+                  ]
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2"
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2"
+              }
+            ]
+          },
+          {
+            "name": "get_kitchen_context",
+            "title": "Get Kitchen Context",
+            "description": "Get the user's full kitchen context: inventory, kitchen state (leftovers, equipment), recent cooking history, current and upcoming menus, active shopping lists, occasions, and user memory. Load this early to ground your suggestions in the user's kitchen.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {}
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2"
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2"
+              }
+            ]
+          },
+          {
+            "name": "get_guide",
+            "title": "Get Guide",
+            "description": "Load a specialist guide for a specific task. Available guides: recipe_creation, library_discovery, kitchen_assistant. Reading a guide before starting a task produces significantly better results. Load \"recipe_creation\" before writing recipes, \"library_discovery\" for complex searches.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "name": {
+                  "description": "Guide to load: \"recipe_creation\", \"library_discovery\", \"kitchen_assistant\"",
+                  "type": "string",
+                  "enum": [
+                    "recipe_creation",
+                    "library_discovery",
+                    "kitchen_assistant"
+                  ]
+                }
+              },
+              "required": [
+                "name"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "noauth"
+                },
+                {
+                  "type": "oauth2"
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "noauth"
+              },
+              {
+                "type": "oauth2"
+              }
+            ]
+          },
+          {
+            "name": "update_kitchen",
+            "title": "Update Kitchen",
+            "description": "Save details about the physical kitchen — equipment, layout, location, nearby stores, growing space, anything that affects what and how the user cooks here. This is kitchen-specific: it changes when switching kitchens. For personal preferences and dietary needs, use update_profile. For food inventory, use update_inventory.\n\nTwo modes:\n- **content**: Full replace — provide the complete kitchen description as markdown.\n- **changes**: Edit existing kitchen info with SEARCH/REPLACE blocks.\n\nSEARCH/REPLACE format:\n<<<<<<< SEARCH\n(exact text)\n=======\n(replacement)\n>>>>>>> REPLACE",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "content": {
+                  "description": "Full kitchen description as markdown. Mutually exclusive with changes.",
+                  "type": "string"
+                },
+                "changes": {
+                  "description": "SEARCH/REPLACE blocks to edit existing kitchen info. Mutually exclusive with content.",
+                  "type": "string"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2"
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2"
+              }
+            ]
+          },
+          {
+            "name": "update_profile",
+            "title": "Update Profile",
+            "description": "Save what you learn about the user — household, dietary restrictions, taste preferences, cooking patterns, routines, goals. This persists across conversations and kitchens. For kitchen-specific info (equipment, location, stores), use update_kitchen. For food inventory, use update_inventory.\n\nTwo modes:\n- **content**: Full replace — provide the complete user profile as markdown with `## kind` headers and `- fact` bullets.\n- **changes**: Edit existing profile with SEARCH/REPLACE blocks.\n\nWrite `## kind` headers in the user's language.\n\nSEARCH/REPLACE format:\n<<<<<<< SEARCH\n(exact text)\n=======\n(replacement)\n>>>>>>> REPLACE",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "content": {
+                  "description": "Full user profile as markdown (## kind headers + - fact bullets). Mutually exclusive with changes.",
+                  "type": "string"
+                },
+                "changes": {
+                  "description": "SEARCH/REPLACE blocks to edit existing profile. Mutually exclusive with content.",
+                  "type": "string"
+                },
+                "timezone": {
+                  "description": "IANA timezone identifier (e.g. 'Europe/Stockholm'). Persisted for date calculations.",
+                  "type": "string"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2"
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2"
+              }
+            ]
+          },
+          {
+            "name": "get_menu",
+            "title": "Get Menu",
+            "description": "Show the user a saved meal plan. Pass menu_id to present a specific menu's planned meals; omit menu_id to list all menus with their date range and meal count. Call this whenever the user wants to see a menu, even if you already have it from earlier in the conversation — calling the tool is how the menu is presented to them; don't reproduce it as plain text. Refer to a menu by its name (or date range) in your reply — never show the user the menu_id; it's only an identifier for tool calls.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "menu_id": {
+                  "description": "Generated menu id returned by save_menu or get_menu. Omit to list all menus in this kitchen.",
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": {}
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://dillr/menu.html"
+              },
+              "securitySchemes": [
+                {
+                  "type": "oauth2"
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "saved": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "menu_id": {
+                  "type": "string"
+                },
+                "start_date": {
+                  "type": "string"
+                },
+                "end_date": {
+                  "type": "string"
+                },
+                "days": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "day": {
+                        "type": "string"
+                      },
+                      "date": {
+                        "type": "string"
+                      },
+                      "meals": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "slot": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "recipe_id": {
+                              "type": "string"
+                            },
+                            "cook_time_minutes": {
+                              "type": "number"
+                            },
+                            "has_recipe": {
+                              "type": "boolean"
+                            },
+                            "image_url": {
+                              "type": "string"
+                            },
+                            "image_pending": {
+                              "type": "boolean"
+                            },
+                            "image_status_reason": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "title"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "day",
+                      "meals"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "deep_link": {
+                  "type": "string"
+                },
+                "menus": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "start_date": {
+                        "type": "string"
+                      },
+                      "end_date": {
+                        "type": "string"
+                      },
+                      "meal_count": {
+                        "type": "number"
+                      },
+                      "deep_link": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "start_date",
+                      "end_date",
+                      "meal_count",
+                      "deep_link"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2"
+              }
+            ]
+          },
+          {
+            "name": "save_menu",
+            "title": "Save Menu",
+            "description": "Create or update a menu for the kitchen.\n\n**Get the user's go-ahead on the plan before you call this.** Saving a menu commits it, and each fenced ```recipe block also adds that recipe to the user's library — so present the full plan first (the meals AND the recipes you're proposing) in your reply, and call save_menu only once the user has approved. Don't propose a plan and save it in the same turn.\n\nTwo modes:\n- **content**: Full replace — provide the complete list of meals as markdown. Requires start_date (defaults end_date to start_date + 6 days).\n- A menu covers at most 7 nights. For a longer plan, save one menu per week, as separate save_menu calls.\n- **changes**: Edit an existing menu with SEARCH/REPLACE blocks on its markdown.\n\nMenu format (one bullet per meal):\n```\n- Monday Dinner [Miso Glazed Tofu](/recipes/abc123) — Family weekday favorite\n  - Double the glaze\n- Tuesday [Quick Stir Fry](/recipes/xyz789)\n- Dinner [Spaghetti Carbonara](/recipes/def456) — Pantry meal\n- [Grandma's pot roast](/recipes/ghi101)\n- Monday **Morning Pancakes** — Fluffy banana pancakes\n```\n\n**Every meal should be cookable — give it a real recipe, don't just name it.** For each meal, do one of:\n1. **Link** a recipe the user already has — find it with search_recipes and link it by id: `[title](/recipes/{id})`.\n2. **Attach a new recipe** (the default for any new dish you're proposing) — write the meal as a **bold** title and put the FULL recipe in a fenced ` ```recipe ` block directly under the meal bullet. Dillr saves it to the library and links it automatically — no separate save_recipe call. Write the actual recipe (ingredients + steps), same markdown as save_recipe — do not just name the dish:\n````\n- Monday Dinner **Miso Glazed Tofu** — Family favorite\n```recipe\n# Miso Glazed Tofu\n## Ingredients\n- 400g firm tofu\n## Instructions\n- Press the tofu, then sear.\n```\n````\nA bare **bold** title with NO recipe block is only for a meal that genuinely has no recipe (leftovers, eating out) — never use it as a shortcut to skip writing a recipe the user will want to cook. Don't save a names-only plan and offer to add recipes later; write them now.\n\n- Weekday and slot (Breakfast/Lunch/Dinner) prefixes are optional and case-insensitive.\n- Linked meals use `[title](/recipes/{id})` from search_recipes. Menu-scoped links `[title](/menus/{menu_id}/recipes/{id})` are also accepted.\n- Bare-title meals (no link) require **bold** title: `- Monday **Morning Pancakes**`. Linked meals already have bracket delimiters.\n- Weekday and slot values must be in English (Monday–Sunday, Breakfast/Lunch/Dinner). Titles and descriptions can be any language.\n- Optional description after ` — ` (space, em-dash, space).\n- Optional indented `  - …` bullets become the meal's notes.\n\nOnly call save_menu once the user has approved the plan (see the note above).\n\nRefer to the menu by its name (or date range) in your reply — never show the user the menu_id; it's only an identifier for tool calls.\n\nSEARCH/REPLACE format:\n<<<<<<< SEARCH\n(exact text)\n=======\n(replacement)\n>>>>>>> REPLACE",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "menu_id": {
+                  "description": "Generated menu id returned by save_menu or get_menu. Provide only when replacing or editing an existing menu; omit when creating a menu.",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "display_name": {
+                  "description": "Menu display name — required when creating a new menu. Short and descriptive: anchor a regular/weekly menu in absolute time (not relative phrasing that goes stale), and a special-occasion menu in its theme or event. When editing an existing menu, omit to preserve the current name; null clears it.",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "content": {
+                  "description": "Full menu as markdown (list of meal bullets). Mutually exclusive with changes.",
+                  "type": "string"
+                },
+                "changes": {
+                  "description": "SEARCH/REPLACE blocks to edit an existing menu. Mutually exclusive with content.",
+                  "type": "string"
+                },
+                "start_date": {
+                  "description": "Menu start date (YYYY-MM-DD). Required when creating with content and no menu_id.",
+                  "type": "string"
+                },
+                "end_date": {
+                  "description": "Menu end date (YYYY-MM-DD). Defaults to start_date + 6 days when creating with content and no menu_id.",
+                  "type": "string"
+                },
+                "allow_duplicate": {
+                  "description": "When creating with no menu_id, set true to create a second menu for a date range that already has a menu.",
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": {}
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://dillr/menu.html"
+              },
+              "securitySchemes": [
+                {
+                  "type": "oauth2"
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "saved": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "menu_id": {
+                  "type": "string"
+                },
+                "start_date": {
+                  "type": "string"
+                },
+                "end_date": {
+                  "type": "string"
+                },
+                "days": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "day": {
+                        "type": "string"
+                      },
+                      "date": {
+                        "type": "string"
+                      },
+                      "meals": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "slot": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "recipe_id": {
+                              "type": "string"
+                            },
+                            "cook_time_minutes": {
+                              "type": "number"
+                            },
+                            "has_recipe": {
+                              "type": "boolean"
+                            },
+                            "image_url": {
+                              "type": "string"
+                            },
+                            "image_pending": {
+                              "type": "boolean"
+                            },
+                            "image_status_reason": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "title"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "day",
+                      "meals"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "deep_link": {
+                  "type": "string"
+                },
+                "menus": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "start_date": {
+                        "type": "string"
+                      },
+                      "end_date": {
+                        "type": "string"
+                      },
+                      "meal_count": {
+                        "type": "number"
+                      },
+                      "deep_link": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "start_date",
+                      "end_date",
+                      "meal_count",
+                      "deep_link"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2"
+              }
+            ]
+          },
+          {
+            "name": "get_shopping_list",
+            "title": "Get Shopping List",
+            "description": "Get a shopping list. Omit list_id to get the default list.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "list_id": {
+                  "description": "Shopping list ID. Omit to get the default list.",
+                  "type": "string"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://dillr/shopping_list.html"
+              },
+              "securitySchemes": [
+                {
+                  "type": "oauth2"
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "saved": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "list_id": {
+                  "type": "string"
+                },
+                "categories": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "quantity": {
+                              "type": "string"
+                            },
+                            "recipe": {
+                              "type": "string"
+                            },
+                            "checked": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "checked"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "items"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "item_count": {
+                  "type": "number"
+                },
+                "recipe_count": {
+                  "type": "number"
+                },
+                "deep_link": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "saved",
+                "name",
+                "list_id",
+                "categories",
+                "item_count"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2"
+              }
+            ]
+          },
+          {
+            "name": "save_shopping_list",
+            "title": "Save Shopping List",
+            "description": "Update the shopping list. Three modes (mutually exclusive):\n- **content**: Full replace — provide the complete shopping list as markdown with checkboxes.\n- **changes**: Edit existing list with SEARCH/REPLACE blocks on its markdown.\n- **check**: Check or uncheck a single item by id (e.g. as it's picked up while shopping).\n\nBefore building a new list, check get_inventory and get_recipe_stats(type: 'ingredients') — only list what's actually missing.\n\nFormat:\n```\n**Category**\n- [ ] Item (qty) → recipe\n- [x] Checked item\n```\n\nGroup items under `**Category**` headers. Write category names in the user's language. Order categories from fresh to shelf-stable. Checkbox format: `- [ ] item (qty) → recipe` (legacy `— for recipe` is also accepted) or `- [x] item`.\nSEARCH/REPLACE format:\n<<<<<<< SEARCH\n(exact text)\n=======\n(replacement)\n>>>>>>> REPLACE",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "list_id": {
+                  "description": "Shopping list ID. Omit to use the default list.",
+                  "type": "string"
+                },
+                "content": {
+                  "description": "Full shopping list as markdown with checkboxes. Mutually exclusive with changes/check.",
+                  "type": "string"
+                },
+                "changes": {
+                  "description": "SEARCH/REPLACE blocks to edit an existing list. Mutually exclusive with content/check.",
+                  "type": "string"
+                },
+                "check": {
+                  "description": "Toggle one item's checked state by id. Mutually exclusive with content/changes.",
+                  "type": "object",
+                  "properties": {
+                    "item_id": {
+                      "description": "ID of the item to toggle (from get_shopping_list).",
+                      "type": "string"
+                    },
+                    "checked": {
+                      "description": "true to check the item off, false to uncheck it.",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "item_id",
+                    "checked"
+                  ]
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://dillr/shopping_list.html"
+              },
+              "securitySchemes": [
+                {
+                  "type": "oauth2"
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "saved": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "list_id": {
+                  "type": "string"
+                },
+                "categories": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "quantity": {
+                              "type": "string"
+                            },
+                            "recipe": {
+                              "type": "string"
+                            },
+                            "checked": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "checked"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "items"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "item_count": {
+                  "type": "number"
+                },
+                "recipe_count": {
+                  "type": "number"
+                },
+                "deep_link": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "saved",
+                "name",
+                "list_id",
+                "categories",
+                "item_count"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2"
+              }
+            ]
+          },
+          {
+            "name": "complete_shopping_list",
+            "title": "Done Shopping",
+            "description": "Done shopping — removes all checked items from the shopping list. The list stays active.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "list_id": {
+                  "description": "Shopping list ID. Omit to use the default list.",
+                  "type": "string"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://dillr/shopping_list.html"
+              },
+              "securitySchemes": [
+                {
+                  "type": "oauth2"
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "saved": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "list_id": {
+                  "type": "string"
+                },
+                "categories": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "quantity": {
+                              "type": "string"
+                            },
+                            "recipe": {
+                              "type": "string"
+                            },
+                            "checked": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "checked"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "items"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "item_count": {
+                  "type": "number"
+                },
+                "recipe_count": {
+                  "type": "number"
+                },
+                "deep_link": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "saved",
+                "name",
+                "list_id",
+                "categories",
+                "item_count"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2"
+              }
+            ]
+          },
+          {
+            "name": "get_recipe",
+            "title": "Get Recipe",
+            "description": "Show the user a recipe that already exists — a saved library recipe or an inline snapshot — by its link. Call this whenever they want to view, open, or cook one of these, even if you already have its content from earlier in the conversation (calling the tool is how the recipe is presented to them; don't reproduce it as plain text instead). For a NEW recipe you just wrote that isn't saved yet, use present_recipe instead. Returns the recipe as markdown in its original language — do not translate or modify. Accepts three link forms, all emitted verbatim by other tools (`search_recipes`, `get_menu`, `get_cooking_history`, `get_kitchen_context`):\n  - `/recipes/{recipeId}` — a saved recipe in the personal library\n  - `/menus/{menuId}/recipes/{recipeId}` — the inline snapshot inside a menu\n  - `/cooking_history/{historyId}` — the inline snapshot inside a cooking history entry\nCopy the link substring from the source tool verbatim — no decomposition needed.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "link": {
+                  "description": "Recipe link (e.g. '/recipes/abc123', '/menus/2026-W16/recipes/abc123', '/cooking_history/xyz789').",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "link"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://dillr/recipe.html"
+              },
+              "securitySchemes": [
+                {
+                  "type": "oauth2"
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "saved": {
+                  "type": "boolean"
+                },
+                "recipe_id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "servings": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "prep_time_minutes": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "cook_time_minutes": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "ingredients": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "quantity": {
+                        "type": "string"
+                      },
+                      "unit": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "image_url": {
+                  "type": "string"
+                },
+                "image_pending": {
+                  "type": "boolean"
+                },
+                "image_status_reason": {
+                  "type": "string"
+                },
+                "source_url": {
+                  "type": "string"
+                },
+                "deep_link": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "saved",
+                "title",
+                "ingredients",
+                "steps"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2"
+              }
+            ]
+          },
+          {
+            "name": "save_recipe",
+            "title": "Save Recipe",
+            "description": "Save a new recipe or edit an existing one. Two modes:\n- **content**: Save a new recipe — provide the full recipe as markdown. Only save after the user approves.\n- **changes**: Edit an existing recipe — uses SEARCH/REPLACE blocks on the recipe's markdown.\n\nIdentify the recipe by its `link` — the same link returned by `get_recipe`, `search_recipes`, and `get_menu` (e.g. `/recipes/{id}` or `/menus/{menu_id}/recipes/{id}`).\n\nFor best results, call get_guide(\"recipe_creation\") before writing a recipe.\n\nRecipe format:\n```\n# Recipe Title\n\n## Ingredients\nGroup name: (optional)\n- ingredient 1\n- ingredient 2\n\n## Instructions\n- Step text\n    - Timer: Label (Xs)\n    - Starter: \"Question?\"\n    - Tip: tip text\n\n## Details\nSummary: Brief description\nLabel: Short name\nTime: 30 minutes\nYield: 4 servings\n\n## Nutrition (optional)\n- Calories: 450 kcal\n\n## Tips (optional)\n- Tip text\n```\n\nSEARCH/REPLACE format:\n<<<<<<< SEARCH\n(exact text)\n=======\n(replacement)\n>>>>>>> REPLACE",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "recipe_id": {
+                  "type": "string"
+                },
+                "link": {
+                  "description": "Recipe link (e.g. '/recipes/abc123', '/menus/2026-W16/recipes/abc123'). Copy from search_recipes, get_recipe, or get_menu output.",
+                  "type": "string"
+                },
+                "content": {
+                  "description": "Full recipe as markdown (new recipe). Mutually exclusive with changes.",
+                  "type": "string"
+                },
+                "changes": {
+                  "description": "SEARCH/REPLACE blocks to edit an existing recipe. Mutually exclusive with content.",
+                  "type": "string"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://dillr/recipe.html"
+              },
+              "securitySchemes": [
+                {
+                  "type": "oauth2"
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "saved": {
+                  "type": "boolean"
+                },
+                "recipe_id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "servings": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "prep_time_minutes": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "cook_time_minutes": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "ingredients": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "quantity": {
+                        "type": "string"
+                      },
+                      "unit": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "image_url": {
+                  "type": "string"
+                },
+                "image_pending": {
+                  "type": "boolean"
+                },
+                "image_status_reason": {
+                  "type": "string"
+                },
+                "source_url": {
+                  "type": "string"
+                },
+                "deep_link": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "saved",
+                "title",
+                "ingredients",
+                "steps"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2"
+              }
+            ]
+          },
+          {
+            "name": "log_meal",
+            "title": "Log Meal",
+            "description": "Append a cooked meal to the user's cooking history. Use after the user says they cooked something, to capture ratings and notes (e.g. substitutions, what to improve, portion adjustments) for future pattern recognition. Optionally link to a saved recipe via its `link` (from search_recipes). Does not modify the recipe itself — for that, use save_recipe.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "recipe_title": {
+                  "description": "What was cooked",
+                  "type": "string"
+                },
+                "date": {
+                  "description": "When it was cooked (YYYY-MM-DD). Defaults to today.",
+                  "type": "string"
+                },
+                "rating": {
+                  "description": "How it went",
+                  "type": "string",
+                  "enum": [
+                    "great",
+                    "good",
+                    "not_great"
+                  ]
+                },
+                "notes": {
+                  "description": "Observations, tweaks, what to change next time",
+                  "type": "string"
+                },
+                "link": {
+                  "description": "Recipe link (e.g. '/recipes/abc123'). Copy from search_recipes output.",
+                  "type": "string"
+                },
+                "recipe_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "recipe_title"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2"
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2"
+              }
+            ]
+          },
+          {
+            "name": "present_recipe",
+            "title": "Present Recipe",
+            "description": "Show the user a NEW recipe you just wrote or found that is NOT yet saved in their library — you pass the full recipe content here and it is presented as an interactive card with step-by-step cook mode. Call this whenever the user wants to see, show, open, or cook such a recipe (including right after you generate one, and when they just say “show me” or “show it in Dillr”), and prefer it over writing the recipe out as plain text. Presenting only DISPLAYS the recipe — it does NOT save it; saving is a separate, explicit step (the card's Save action / save_recipe) that the user takes when they want to keep it. No account is required to view or cook from the card. For a recipe that already exists in the library, use get_recipe with its link instead.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "servings": {
+                  "type": "number"
+                },
+                "prep_time_minutes": {
+                  "type": "number"
+                },
+                "cook_time_minutes": {
+                  "type": "number"
+                },
+                "ingredients": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "quantity": {
+                        "type": "string"
+                      },
+                      "unit": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ]
+                  }
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "image_url": {
+                  "type": "string"
+                },
+                "source_url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "title",
+                "ingredients",
+                "steps"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://dillr/recipe.html"
+              },
+              "securitySchemes": [
+                {
+                  "type": "noauth"
+                },
+                {
+                  "type": "oauth2"
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "saved": {
+                  "type": "boolean"
+                },
+                "recipe_id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "servings": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "prep_time_minutes": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "cook_time_minutes": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "ingredients": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "quantity": {
+                        "type": "string"
+                      },
+                      "unit": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "image_url": {
+                  "type": "string"
+                },
+                "image_pending": {
+                  "type": "boolean"
+                },
+                "image_status_reason": {
+                  "type": "string"
+                },
+                "source_url": {
+                  "type": "string"
+                },
+                "deep_link": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "saved",
+                "title",
+                "ingredients",
+                "steps"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "noauth"
+              },
+              {
+                "type": "oauth2"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "search_recipes",
+        "title": "Search Recipes",
+        "description": "Search the user's recipe library. Returns CSV with a `link` column — copy a `[title](/recipes/{id})` cell verbatim into `get_recipe`.\n\nWHERE clause examples:\n  Equality:       {\"cuisines\":\"italian\"}\n  Array member:   {\"tags\":{\"contains\":\"vegetarian\"}}\n  Any-of:         {\"tags\":{\"contains_any\":[\"vegetarian\",\"vegan\"]}}\n  Comparison:     {\"cook_time_minutes\":{\"lte\":30}}\n  AND (implicit): {\"cuisines\":\"italian\",\"cook_time_minutes\":{\"lte\":30}}\n  OR:             {\"or\":[{\"cuisines\":\"italian\"},{\"cuisines\":\"mexican\"}]}\n  NOT:            {\"not\":{\"tags\":{\"contains\":\"dessert\"}}}\n  Title search:   {\"title\":{\"contains\":\"lasagna\"}}\n  Nutrition:      {\"nutrition_calories\":{\"lte\":400}}, {\"nutrition_protein_g\":{\"gte\":30}}\n\nOperators: eq, gt, gte, lt, lte (comparison); contains, contains_any, contains_all (arrays); and, or, not (logical).\nIMPORTANT: All indexed values including titles are normalized to English, lowercase, singular. Use \"chicken\" not \"Chicken\", \"pancake\" not \"Pannkakor\".\nget_recipe_stats helps discover available filter values.\nOmit where entirely to list all recipes.\nNote: recently saved recipes may take a moment to appear in search results.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "from": {
+              "description": "Resource type to search (default: \"recipe\")",
+              "type": "string",
+              "enum": [
+                "recipe",
+                "collection"
+              ]
+            },
+            "where": {
+              "description": "JSON query string. Example: '{\"cuisines\":\"italian\",\"cook_time_minutes\":{\"lte\":30}}'",
+              "type": "string"
+            },
+            "sort": {
+              "description": "Sort field or object. Example: \"rating\" or {\"field\":\"cook_time_minutes\",\"direction\":\"asc\"}",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "field": {
+                      "type": "string"
+                    },
+                    "direction": {
+                      "type": "string",
+                      "enum": [
+                        "asc",
+                        "desc"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "field"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2"
+          }
+        ]
+      },
+      {
+        "name": "get_recipe_stats",
+        "title": "Get Recipe Stats",
+        "description": "Frequency stats for your recipe library — how often each ingredient, cuisine, technique, or tag appears across saved recipes. Use this to discover available filter values before calling search_recipes, or to understand cooking patterns.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "type": {
+              "description": "Which facet to get stats for",
+              "type": "string",
+              "enum": [
+                "ingredients",
+                "cuisines",
+                "techniques",
+                "tags"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2"
+          }
+        ]
+      },
+      {
+        "name": "get_kitchen_context",
+        "title": "Get Kitchen Context",
+        "description": "Get the user's full kitchen context: inventory, kitchen state (leftovers, equipment), recent cooking history, current and upcoming menus, active shopping lists, occasions, and user memory. Load this early to ground your suggestions in the user's kitchen.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2"
+          }
+        ]
+      },
+      {
+        "name": "get_guide",
+        "title": "Get Guide",
+        "description": "Load a specialist guide for a specific task. Available guides: recipe_creation, library_discovery, kitchen_assistant. Reading a guide before starting a task produces significantly better results. Load \"recipe_creation\" before writing recipes, \"library_discovery\" for complex searches.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "name": {
+              "description": "Guide to load: \"recipe_creation\", \"library_discovery\", \"kitchen_assistant\"",
+              "type": "string",
+              "enum": [
+                "recipe_creation",
+                "library_discovery",
+                "kitchen_assistant"
+              ]
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "noauth"
+            },
+            {
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "noauth"
+          },
+          {
+            "type": "oauth2"
+          }
+        ]
+      },
+      {
+        "name": "update_kitchen",
+        "title": "Update Kitchen",
+        "description": "Save details about the physical kitchen — equipment, layout, location, nearby stores, growing space, anything that affects what and how the user cooks here. This is kitchen-specific: it changes when switching kitchens. For personal preferences and dietary needs, use update_profile. For food inventory, use update_inventory.\n\nTwo modes:\n- **content**: Full replace — provide the complete kitchen description as markdown.\n- **changes**: Edit existing kitchen info with SEARCH/REPLACE blocks.\n\nSEARCH/REPLACE format:\n<<<<<<< SEARCH\n(exact text)\n=======\n(replacement)\n>>>>>>> REPLACE",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "content": {
+              "description": "Full kitchen description as markdown. Mutually exclusive with changes.",
+              "type": "string"
+            },
+            "changes": {
+              "description": "SEARCH/REPLACE blocks to edit existing kitchen info. Mutually exclusive with content.",
+              "type": "string"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2"
+          }
+        ]
+      },
+      {
+        "name": "update_profile",
+        "title": "Update Profile",
+        "description": "Save what you learn about the user — household, dietary restrictions, taste preferences, cooking patterns, routines, goals. This persists across conversations and kitchens. For kitchen-specific info (equipment, location, stores), use update_kitchen. For food inventory, use update_inventory.\n\nTwo modes:\n- **content**: Full replace — provide the complete user profile as markdown with `## kind` headers and `- fact` bullets.\n- **changes**: Edit existing profile with SEARCH/REPLACE blocks.\n\nWrite `## kind` headers in the user's language.\n\nSEARCH/REPLACE format:\n<<<<<<< SEARCH\n(exact text)\n=======\n(replacement)\n>>>>>>> REPLACE",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "content": {
+              "description": "Full user profile as markdown (## kind headers + - fact bullets). Mutually exclusive with changes.",
+              "type": "string"
+            },
+            "changes": {
+              "description": "SEARCH/REPLACE blocks to edit existing profile. Mutually exclusive with content.",
+              "type": "string"
+            },
+            "timezone": {
+              "description": "IANA timezone identifier (e.g. 'Europe/Stockholm'). Persisted for date calculations.",
+              "type": "string"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2"
+          }
+        ]
+      },
+      {
+        "name": "get_menu",
+        "title": "Get Menu",
+        "description": "Show the user a saved meal plan. Pass menu_id to present a specific menu's planned meals; omit menu_id to list all menus with their date range and meal count. Call this whenever the user wants to see a menu, even if you already have it from earlier in the conversation — calling the tool is how the menu is presented to them; don't reproduce it as plain text. Refer to a menu by its name (or date range) in your reply — never show the user the menu_id; it's only an identifier for tool calls.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "menu_id": {
+              "description": "Generated menu id returned by save_menu or get_menu. Omit to list all menus in this kitchen.",
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": {}
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://dillr/menu.html"
+          },
+          "securitySchemes": [
+            {
+              "type": "oauth2"
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "saved": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "menu_id": {
+              "type": "string"
+            },
+            "start_date": {
+              "type": "string"
+            },
+            "end_date": {
+              "type": "string"
+            },
+            "days": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "day": {
+                    "type": "string"
+                  },
+                  "date": {
+                    "type": "string"
+                  },
+                  "meals": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "slot": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "recipe_id": {
+                          "type": "string"
+                        },
+                        "cook_time_minutes": {
+                          "type": "number"
+                        },
+                        "has_recipe": {
+                          "type": "boolean"
+                        },
+                        "image_url": {
+                          "type": "string"
+                        },
+                        "image_pending": {
+                          "type": "boolean"
+                        },
+                        "image_status_reason": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "title"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "day",
+                  "meals"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "deep_link": {
+              "type": "string"
+            },
+            "menus": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "start_date": {
+                    "type": "string"
+                  },
+                  "end_date": {
+                    "type": "string"
+                  },
+                  "meal_count": {
+                    "type": "number"
+                  },
+                  "deep_link": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "start_date",
+                  "end_date",
+                  "meal_count",
+                  "deep_link"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2"
+          }
+        ]
+      },
+      {
+        "name": "save_menu",
+        "title": "Save Menu",
+        "description": "Create or update a menu for the kitchen.\n\n**Get the user's go-ahead on the plan before you call this.** Saving a menu commits it, and each fenced ```recipe block also adds that recipe to the user's library — so present the full plan first (the meals AND the recipes you're proposing) in your reply, and call save_menu only once the user has approved. Don't propose a plan and save it in the same turn.\n\nTwo modes:\n- **content**: Full replace — provide the complete list of meals as markdown. Requires start_date (defaults end_date to start_date + 6 days).\n- A menu covers at most 7 nights. For a longer plan, save one menu per week, as separate save_menu calls.\n- **changes**: Edit an existing menu with SEARCH/REPLACE blocks on its markdown.\n\nMenu format (one bullet per meal):\n```\n- Monday Dinner [Miso Glazed Tofu](/recipes/abc123) — Family weekday favorite\n  - Double the glaze\n- Tuesday [Quick Stir Fry](/recipes/xyz789)\n- Dinner [Spaghetti Carbonara](/recipes/def456) — Pantry meal\n- [Grandma's pot roast](/recipes/ghi101)\n- Monday **Morning Pancakes** — Fluffy banana pancakes\n```\n\n**Every meal should be cookable — give it a real recipe, don't just name it.** For each meal, do one of:\n1. **Link** a recipe the user already has — find it with search_recipes and link it by id: `[title](/recipes/{id})`.\n2. **Attach a new recipe** (the default for any new dish you're proposing) — write the meal as a **bold** title and put the FULL recipe in a fenced ` ```recipe ` block directly under the meal bullet. Dillr saves it to the library and links it automatically — no separate save_recipe call. Write the actual recipe (ingredients + steps), same markdown as save_recipe — do not just name the dish:\n````\n- Monday Dinner **Miso Glazed Tofu** — Family favorite\n```recipe\n# Miso Glazed Tofu\n## Ingredients\n- 400g firm tofu\n## Instructions\n- Press the tofu, then sear.\n```\n````\nA bare **bold** title with NO recipe block is only for a meal that genuinely has no recipe (leftovers, eating out) — never use it as a shortcut to skip writing a recipe the user will want to cook. Don't save a names-only plan and offer to add recipes later; write them now.\n\n- Weekday and slot (Breakfast/Lunch/Dinner) prefixes are optional and case-insensitive.\n- Linked meals use `[title](/recipes/{id})` from search_recipes. Menu-scoped links `[title](/menus/{menu_id}/recipes/{id})` are also accepted.\n- Bare-title meals (no link) require **bold** title: `- Monday **Morning Pancakes**`. Linked meals already have bracket delimiters.\n- Weekday and slot values must be in English (Monday–Sunday, Breakfast/Lunch/Dinner). Titles and descriptions can be any language.\n- Optional description after ` — ` (space, em-dash, space).\n- Optional indented `  - …` bullets become the meal's notes.\n\nOnly call save_menu once the user has approved the plan (see the note above).\n\nRefer to the menu by its name (or date range) in your reply — never show the user the menu_id; it's only an identifier for tool calls.\n\nSEARCH/REPLACE format:\n<<<<<<< SEARCH\n(exact text)\n=======\n(replacement)\n>>>>>>> REPLACE",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "menu_id": {
+              "description": "Generated menu id returned by save_menu or get_menu. Provide only when replacing or editing an existing menu; omit when creating a menu.",
+              "type": "string",
+              "minLength": 1
+            },
+            "display_name": {
+              "description": "Menu display name — required when creating a new menu. Short and descriptive: anchor a regular/weekly menu in absolute time (not relative phrasing that goes stale), and a special-occasion menu in its theme or event. When editing an existing menu, omit to preserve the current name; null clears it.",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "content": {
+              "description": "Full menu as markdown (list of meal bullets). Mutually exclusive with changes.",
+              "type": "string"
+            },
+            "changes": {
+              "description": "SEARCH/REPLACE blocks to edit an existing menu. Mutually exclusive with content.",
+              "type": "string"
+            },
+            "start_date": {
+              "description": "Menu start date (YYYY-MM-DD). Required when creating with content and no menu_id.",
+              "type": "string"
+            },
+            "end_date": {
+              "description": "Menu end date (YYYY-MM-DD). Defaults to start_date + 6 days when creating with content and no menu_id.",
+              "type": "string"
+            },
+            "allow_duplicate": {
+              "description": "When creating with no menu_id, set true to create a second menu for a date range that already has a menu.",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": {}
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://dillr/menu.html"
+          },
+          "securitySchemes": [
+            {
+              "type": "oauth2"
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "saved": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "menu_id": {
+              "type": "string"
+            },
+            "start_date": {
+              "type": "string"
+            },
+            "end_date": {
+              "type": "string"
+            },
+            "days": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "day": {
+                    "type": "string"
+                  },
+                  "date": {
+                    "type": "string"
+                  },
+                  "meals": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "slot": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "recipe_id": {
+                          "type": "string"
+                        },
+                        "cook_time_minutes": {
+                          "type": "number"
+                        },
+                        "has_recipe": {
+                          "type": "boolean"
+                        },
+                        "image_url": {
+                          "type": "string"
+                        },
+                        "image_pending": {
+                          "type": "boolean"
+                        },
+                        "image_status_reason": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "title"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "day",
+                  "meals"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "deep_link": {
+              "type": "string"
+            },
+            "menus": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "start_date": {
+                    "type": "string"
+                  },
+                  "end_date": {
+                    "type": "string"
+                  },
+                  "meal_count": {
+                    "type": "number"
+                  },
+                  "deep_link": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "start_date",
+                  "end_date",
+                  "meal_count",
+                  "deep_link"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2"
+          }
+        ]
+      },
+      {
+        "name": "get_shopping_list",
+        "title": "Get Shopping List",
+        "description": "Get a shopping list. Omit list_id to get the default list.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "list_id": {
+              "description": "Shopping list ID. Omit to get the default list.",
+              "type": "string"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://dillr/shopping_list.html"
+          },
+          "securitySchemes": [
+            {
+              "type": "oauth2"
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "saved": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "list_id": {
+              "type": "string"
+            },
+            "categories": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "string"
+                        },
+                        "recipe": {
+                          "type": "string"
+                        },
+                        "checked": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "checked"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "items"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "item_count": {
+              "type": "number"
+            },
+            "recipe_count": {
+              "type": "number"
+            },
+            "deep_link": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "saved",
+            "name",
+            "list_id",
+            "categories",
+            "item_count"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2"
+          }
+        ]
+      },
+      {
+        "name": "save_shopping_list",
+        "title": "Save Shopping List",
+        "description": "Update the shopping list. Three modes (mutually exclusive):\n- **content**: Full replace — provide the complete shopping list as markdown with checkboxes.\n- **changes**: Edit existing list with SEARCH/REPLACE blocks on its markdown.\n- **check**: Check or uncheck a single item by id (e.g. as it's picked up while shopping).\n\nBefore building a new list, check get_inventory and get_recipe_stats(type: 'ingredients') — only list what's actually missing.\n\nFormat:\n```\n**Category**\n- [ ] Item (qty) → recipe\n- [x] Checked item\n```\n\nGroup items under `**Category**` headers. Write category names in the user's language. Order categories from fresh to shelf-stable. Checkbox format: `- [ ] item (qty) → recipe` (legacy `— for recipe` is also accepted) or `- [x] item`.\nSEARCH/REPLACE format:\n<<<<<<< SEARCH\n(exact text)\n=======\n(replacement)\n>>>>>>> REPLACE",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "list_id": {
+              "description": "Shopping list ID. Omit to use the default list.",
+              "type": "string"
+            },
+            "content": {
+              "description": "Full shopping list as markdown with checkboxes. Mutually exclusive with changes/check.",
+              "type": "string"
+            },
+            "changes": {
+              "description": "SEARCH/REPLACE blocks to edit an existing list. Mutually exclusive with content/check.",
+              "type": "string"
+            },
+            "check": {
+              "description": "Toggle one item's checked state by id. Mutually exclusive with content/changes.",
+              "type": "object",
+              "properties": {
+                "item_id": {
+                  "description": "ID of the item to toggle (from get_shopping_list).",
+                  "type": "string"
+                },
+                "checked": {
+                  "description": "true to check the item off, false to uncheck it.",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "item_id",
+                "checked"
+              ]
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://dillr/shopping_list.html"
+          },
+          "securitySchemes": [
+            {
+              "type": "oauth2"
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "saved": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "list_id": {
+              "type": "string"
+            },
+            "categories": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "string"
+                        },
+                        "recipe": {
+                          "type": "string"
+                        },
+                        "checked": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "checked"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "items"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "item_count": {
+              "type": "number"
+            },
+            "recipe_count": {
+              "type": "number"
+            },
+            "deep_link": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "saved",
+            "name",
+            "list_id",
+            "categories",
+            "item_count"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2"
+          }
+        ]
+      },
+      {
+        "name": "complete_shopping_list",
+        "title": "Done Shopping",
+        "description": "Done shopping — removes all checked items from the shopping list. The list stays active.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "list_id": {
+              "description": "Shopping list ID. Omit to use the default list.",
+              "type": "string"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://dillr/shopping_list.html"
+          },
+          "securitySchemes": [
+            {
+              "type": "oauth2"
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "saved": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "list_id": {
+              "type": "string"
+            },
+            "categories": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "string"
+                        },
+                        "recipe": {
+                          "type": "string"
+                        },
+                        "checked": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "checked"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "items"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "item_count": {
+              "type": "number"
+            },
+            "recipe_count": {
+              "type": "number"
+            },
+            "deep_link": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "saved",
+            "name",
+            "list_id",
+            "categories",
+            "item_count"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2"
+          }
+        ]
+      },
+      {
+        "name": "get_recipe",
+        "title": "Get Recipe",
+        "description": "Show the user a recipe that already exists — a saved library recipe or an inline snapshot — by its link. Call this whenever they want to view, open, or cook one of these, even if you already have its content from earlier in the conversation (calling the tool is how the recipe is presented to them; don't reproduce it as plain text instead). For a NEW recipe you just wrote that isn't saved yet, use present_recipe instead. Returns the recipe as markdown in its original language — do not translate or modify. Accepts three link forms, all emitted verbatim by other tools (`search_recipes`, `get_menu`, `get_cooking_history`, `get_kitchen_context`):\n  - `/recipes/{recipeId}` — a saved recipe in the personal library\n  - `/menus/{menuId}/recipes/{recipeId}` — the inline snapshot inside a menu\n  - `/cooking_history/{historyId}` — the inline snapshot inside a cooking history entry\nCopy the link substring from the source tool verbatim — no decomposition needed.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "link": {
+              "description": "Recipe link (e.g. '/recipes/abc123', '/menus/2026-W16/recipes/abc123', '/cooking_history/xyz789').",
+              "type": "string"
+            }
+          },
+          "required": [
+            "link"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://dillr/recipe.html"
+          },
+          "securitySchemes": [
+            {
+              "type": "oauth2"
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "saved": {
+              "type": "boolean"
+            },
+            "recipe_id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "servings": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "prep_time_minutes": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "cook_time_minutes": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ingredients": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "type": "string"
+                  },
+                  "unit": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "image_url": {
+              "type": "string"
+            },
+            "image_pending": {
+              "type": "boolean"
+            },
+            "image_status_reason": {
+              "type": "string"
+            },
+            "source_url": {
+              "type": "string"
+            },
+            "deep_link": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "saved",
+            "title",
+            "ingredients",
+            "steps"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2"
+          }
+        ]
+      },
+      {
+        "name": "save_recipe",
+        "title": "Save Recipe",
+        "description": "Save a new recipe or edit an existing one. Two modes:\n- **content**: Save a new recipe — provide the full recipe as markdown. Only save after the user approves.\n- **changes**: Edit an existing recipe — uses SEARCH/REPLACE blocks on the recipe's markdown.\n\nIdentify the recipe by its `link` — the same link returned by `get_recipe`, `search_recipes`, and `get_menu` (e.g. `/recipes/{id}` or `/menus/{menu_id}/recipes/{id}`).\n\nFor best results, call get_guide(\"recipe_creation\") before writing a recipe.\n\nRecipe format:\n```\n# Recipe Title\n\n## Ingredients\nGroup name: (optional)\n- ingredient 1\n- ingredient 2\n\n## Instructions\n- Step text\n    - Timer: Label (Xs)\n    - Starter: \"Question?\"\n    - Tip: tip text\n\n## Details\nSummary: Brief description\nLabel: Short name\nTime: 30 minutes\nYield: 4 servings\n\n## Nutrition (optional)\n- Calories: 450 kcal\n\n## Tips (optional)\n- Tip text\n```\n\nSEARCH/REPLACE format:\n<<<<<<< SEARCH\n(exact text)\n=======\n(replacement)\n>>>>>>> REPLACE",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "recipe_id": {
+              "type": "string"
+            },
+            "link": {
+              "description": "Recipe link (e.g. '/recipes/abc123', '/menus/2026-W16/recipes/abc123'). Copy from search_recipes, get_recipe, or get_menu output.",
+              "type": "string"
+            },
+            "content": {
+              "description": "Full recipe as markdown (new recipe). Mutually exclusive with changes.",
+              "type": "string"
+            },
+            "changes": {
+              "description": "SEARCH/REPLACE blocks to edit an existing recipe. Mutually exclusive with content.",
+              "type": "string"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://dillr/recipe.html"
+          },
+          "securitySchemes": [
+            {
+              "type": "oauth2"
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "saved": {
+              "type": "boolean"
+            },
+            "recipe_id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "servings": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "prep_time_minutes": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "cook_time_minutes": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ingredients": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "type": "string"
+                  },
+                  "unit": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "image_url": {
+              "type": "string"
+            },
+            "image_pending": {
+              "type": "boolean"
+            },
+            "image_status_reason": {
+              "type": "string"
+            },
+            "source_url": {
+              "type": "string"
+            },
+            "deep_link": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "saved",
+            "title",
+            "ingredients",
+            "steps"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2"
+          }
+        ]
+      },
+      {
+        "name": "log_meal",
+        "title": "Log Meal",
+        "description": "Append a cooked meal to the user's cooking history. Use after the user says they cooked something, to capture ratings and notes (e.g. substitutions, what to improve, portion adjustments) for future pattern recognition. Optionally link to a saved recipe via its `link` (from search_recipes). Does not modify the recipe itself — for that, use save_recipe.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "recipe_title": {
+              "description": "What was cooked",
+              "type": "string"
+            },
+            "date": {
+              "description": "When it was cooked (YYYY-MM-DD). Defaults to today.",
+              "type": "string"
+            },
+            "rating": {
+              "description": "How it went",
+              "type": "string",
+              "enum": [
+                "great",
+                "good",
+                "not_great"
+              ]
+            },
+            "notes": {
+              "description": "Observations, tweaks, what to change next time",
+              "type": "string"
+            },
+            "link": {
+              "description": "Recipe link (e.g. '/recipes/abc123'). Copy from search_recipes output.",
+              "type": "string"
+            },
+            "recipe_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "recipe_title"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2"
+          }
+        ]
+      },
+      {
+        "name": "present_recipe",
+        "title": "Present Recipe",
+        "description": "Show the user a NEW recipe you just wrote or found that is NOT yet saved in their library — you pass the full recipe content here and it is presented as an interactive card with step-by-step cook mode. Call this whenever the user wants to see, show, open, or cook such a recipe (including right after you generate one, and when they just say “show me” or “show it in Dillr”), and prefer it over writing the recipe out as plain text. Presenting only DISPLAYS the recipe — it does NOT save it; saving is a separate, explicit step (the card's Save action / save_recipe) that the user takes when they want to keep it. No account is required to view or cook from the card. For a recipe that already exists in the library, use get_recipe with its link instead.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "servings": {
+              "type": "number"
+            },
+            "prep_time_minutes": {
+              "type": "number"
+            },
+            "cook_time_minutes": {
+              "type": "number"
+            },
+            "ingredients": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "type": "string"
+                  },
+                  "unit": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            },
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "image_url": {
+              "type": "string"
+            },
+            "source_url": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "title",
+            "ingredients",
+            "steps"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://dillr/recipe.html"
+          },
+          "securitySchemes": [
+            {
+              "type": "noauth"
+            },
+            {
+              "type": "oauth2"
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "saved": {
+              "type": "boolean"
+            },
+            "recipe_id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "servings": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "prep_time_minutes": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "cook_time_minutes": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ingredients": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "type": "string"
+                  },
+                  "unit": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "image_url": {
+              "type": "string"
+            },
+            "image_pending": {
+              "type": "boolean"
+            },
+            "image_status_reason": {
+              "type": "string"
+            },
+            "source_url": {
+              "type": "string"
+            },
+            "deep_link": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "saved",
+            "title",
+            "ingredients",
+            "steps"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "noauth"
+          },
+          {
+            "type": "oauth2"
+          }
+        ]
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:38:01.389Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:38:02.441Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:38:03.491Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:38:04.543Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 15,
+    "tools_hash": "sha256:d364abc68bbb53f279203252a44cc374c45ada2e178d7a229db94321d03cbfde",
+    "static_tool_tokens": 7965,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F2",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "save_recipe",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "recipe_id"
+      },
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_recipes",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_recipes",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_recipe_stats",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_kitchen_context",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_kitchen_context",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_guide",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_guide",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "update_kitchen",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "update_profile",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_menu",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F14",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "save_menu",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_shopping_list",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "save_shopping_list",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "complete_shopping_list",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "save_recipe",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "save_recipe",
+        "message": "Parameter has no description.",
+        "param": "recipe_id"
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "log_meal",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "log_meal",
+        "message": "Parameter has no description.",
+        "param": "recipe_id"
+      },
+      {
+        "id": "F22",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "log_meal",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "recipe_id"
+      },
+      {
+        "id": "F23",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "present_recipe",
+        "message": "Parameter has no description.",
+        "param": "title"
+      },
+      {
+        "id": "F24",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "present_recipe",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "title"
+      },
+      {
+        "id": "F25",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "present_recipe",
+        "message": "Parameter has no description.",
+        "param": "servings"
+      },
+      {
+        "id": "F26",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "present_recipe",
+        "message": "Parameter has no description.",
+        "param": "prep_time_minutes"
+      },
+      {
+        "id": "F27",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "present_recipe",
+        "message": "Parameter has no description.",
+        "param": "cook_time_minutes"
+      },
+      {
+        "id": "F28",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "present_recipe",
+        "message": "Parameter has no description.",
+        "param": "ingredients"
+      },
+      {
+        "id": "F29",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "present_recipe",
+        "message": "Parameter has no description.",
+        "param": "steps"
+      },
+      {
+        "id": "F30",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "present_recipe",
+        "message": "Parameter has no description.",
+        "param": "tags"
+      },
+      {
+        "id": "F31",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "present_recipe",
+        "message": "Parameter has no description.",
+        "param": "image_url"
+      },
+      {
+        "id": "F32",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "present_recipe",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "image_url"
+      },
+      {
+        "id": "F33",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "present_recipe",
+        "message": "Parameter has no description.",
+        "param": "source_url"
+      },
+      {
+        "id": "F34",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "present_recipe",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "source_url"
+      }
+    ],
+    "severity_counts": {
+      "high": 5,
+      "medium": 25,
+      "warning": 2
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "search_recipes"
+          ],
+          "description": "Search the user's recipe library. Returns CSV with a `link` column — copy a `[title](/recipes/{id})` cell verbatim into `get_recipe`.\n\nWHERE clause examples:\n  Equality:       {\"cuisines\":\"italian\"}\n  Array member:   {\"tags\":{\"contains\":\"vegetarian\"}}\n  Any-of:         {\"tags\":{\"contains_any\":[\"vegetarian\",\"vegan\"]}}\n  Comparison:     {\"cook_time_minutes\":{\"lte\":30}}\n  AND (implicit): {\"cuisines\":\"italian\",\"cook_time_minutes\":{\"lte\":30}}\n  OR:             {\"or\":[{\"cuisines\":\"italian\"},{\"cuisines\":\"mexican\"}]}\n  NOT:            {\"not\":{\"tags\":{\"contains\":\"dessert\"}}}\n  Title search:   {\"title\":{\"contains\":\"lasagna\"}}\n  Nutrition:      {\"nutrition_calories\":{\"lte\":400}}, {\"nutrition_protein_g\":{\"gte\":30}}\n\nOperators: eq, gt, gte, lt, lte (comparison); contains, contains_any, contains_all (arrays); and, or, not (logical).\nIMPORTANT: All indexed values including titles are normalized to English, lowercase, singular. Use \"chicken\" not \"Chicken\", \"pancake\" not \"Pannkakor\".\nget_recipe_stats helps discover available filter values.\nOmit where entirely to list all recipes.\nNote: recently saved recipes may take a moment to appear in search results.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "update_kitchen"
+          ],
+          "description": "Save details about the physical kitchen — equipment, layout, location, nearby stores, growing space, anything that affects what and how the user cooks here. This is kitchen-specific: it changes when switching kitchens. For personal preferences and dietary needs, use update_profile. For food inventory, use update_inventory.\n\nTwo modes:\n- **content**: Full replace — provide the complete kitchen description as markdown.\n- **changes**: Edit existing kitchen info with SEARCH/REPLACE blocks.\n\nSEARCH/REPLACE format:\n<<<<<<< SEARCH\n(exact text)\n=======\n(replacement)\n>>>>>>> REPLACE",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "update_profile"
+          ],
+          "description": "Save what you learn about the user — household, dietary restrictions, taste preferences, cooking patterns, routines, goals. This persists across conversations and kitchens. For kitchen-specific info (equipment, location, stores), use update_kitchen. For food inventory, use update_inventory.\n\nTwo modes:\n- **content**: Full replace — provide the complete user profile as markdown with `## kind` headers and `- fact` bullets.\n- **changes**: Edit existing profile with SEARCH/REPLACE blocks.\n\nWrite `## kind` headers in the user's language.\n\nSEARCH/REPLACE format:\n<<<<<<< SEARCH\n(exact text)\n=======\n(replacement)\n>>>>>>> REPLACE",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_menu"
+          ],
+          "description": "Show the user a saved meal plan. Pass menu_id to present a specific menu's planned meals; omit menu_id to list all menus with their date range and meal count. Call this whenever the user wants to see a menu, even if you already have it from earlier in the conversation — calling the tool is how the menu is presented to them; don't reproduce it as plain text. Refer to a menu by its name (or date range) in your reply — never show the user the menu_id; it's only an identifier for tool calls.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "save_menu"
+          ],
+          "description": "Create or update a menu for the kitchen.\n\n**Get the user's go-ahead on the plan before you call this.** Saving a menu commits it, and each fenced ```recipe block also adds that recipe to the user's library — so present the full plan first (the meals AND the recipes you're proposing) in your reply, and call save_menu only once the user has approved. Don't propose a plan and save it in the same turn.\n\nTwo modes:\n- **content**: Full replace — provide the complete list of meals as markdown. Requires start_date (defaults end_date to start_date + 6 days).\n- A menu covers at most 7 nights. For a longer plan, save one menu per week, as separate save_menu calls.\n- **changes**: Edit an existing menu with SEARCH/REPLACE blocks on its markdown.\n\nMenu format (one bullet per meal):\n```\n- Monday Dinner [Miso Glazed Tofu](/recipes/abc123) — Family weekday favorite\n  - Double the glaze\n- Tuesday [Quick Stir Fry](/recipes/xyz789)\n- Dinner [Spaghetti Carbonara](/recipes/def456) — Pantry meal\n- [Grandma's pot roast](/recipes/ghi101)\n- Monday **Morning Pancakes** — Fluffy banana pancakes\n```\n\n**Every meal should be cookable — give it a real recipe, don't just name it.** For each meal, do one of:\n1. **Link** a recipe the user already has — find it with search_recipes and link it by id: `[title](/recipes/{id})`.\n2. **Attach a new recipe** (the default for any new dish you're proposing) — write the meal as a **bold** title and put the FULL recipe in a fenced ` ```recipe ` block directly under the meal bullet. Dillr saves it to the library and links it automatically — no separate save_recipe call. Write the actual recipe (ingredients + steps), same markdown as save_recipe — do not just name the dish:\n````\n- Monday Dinner **Miso Glazed Tofu** — Family favorite\n```recipe\n# Miso Glazed Tofu\n## Ingredients\n- 400g firm tofu\n## Instructions\n- Press the tofu, then sear.\n```\n````\nA bare **bold** title with NO recipe block is only for a meal that genuinely has no recipe (leftovers, eating out) — never use it as a shortcut to skip writing a recipe the user will want to cook. Don't save a names-only plan and offer to add recipes later; write them now.\n\n- Weekday and slot (Breakfast/Lunch/Dinner) prefixes are optional and case-insensitive.\n- Linked meals use `[title](/recipes/{id})` from search_recipes. Menu-scoped links `[title](/menus/{menu_id}/recipes/{id})` are also accepted.\n- Bare-title meals (no link) require **bold** title: `- Monday **Morning Pancakes**`. Linked meals already have bracket delimiters.\n- Weekday and slot values must be in English (Monday–Sunday, Breakfast/Lunch/Dinner). Titles and descriptions can be any language.\n- Optional description after ` — ` (space, em-dash, space).\n- Optional indented `  - …` bullets become the meal's notes.\n\nOnly call save_menu once the user has approved the plan (see the note above).\n\nRefer to the menu by its name (or date range) in your reply — never show the user the menu_id; it's only an identifier for tool calls.\n\nSEARCH/REPLACE format:\n<<<<<<< SEARCH\n(exact text)\n=======\n(replacement)\n>>>>>>> REPLACE",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "save_shopping_list"
+          ],
+          "description": "Update the shopping list. Three modes (mutually exclusive):\n- **content**: Full replace — provide the complete shopping list as markdown with checkboxes.\n- **changes**: Edit existing list with SEARCH/REPLACE blocks on its markdown.\n- **check**: Check or uncheck a single item by id (e.g. as it's picked up while shopping).\n\nBefore building a new list, check get_inventory and get_recipe_stats(type: 'ingredients') — only list what's actually missing.\n\nFormat:\n```\n**Category**\n- [ ] Item (qty) → recipe\n- [x] Checked item\n```\n\nGroup items under `**Category**` headers. Write category names in the user's language. Order categories from fresh to shelf-stable. Checkbox format: `- [ ] item (qty) → recipe` (legacy `— for recipe` is also accepted) or `- [x] item`.\nSEARCH/REPLACE format:\n<<<<<<< SEARCH\n(exact text)\n=======\n(replacement)\n>>>>>>> REPLACE",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "complete_shopping_list"
+          ],
+          "description": "Done shopping — removes all checked items from the shopping list. The list stays active.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_recipe"
+          ],
+          "description": "Show the user a recipe that already exists — a saved library recipe or an inline snapshot — by its link. Call this whenever they want to view, open, or cook one of these, even if you already have its content from earlier in the conversation (calling the tool is how the recipe is presented to them; don't reproduce it as plain text instead). For a NEW recipe you just wrote that isn't saved yet, use present_recipe instead. Returns the recipe as markdown in its original language — do not translate or modify. Accepts three link forms, all emitted verbatim by other tools (`search_recipes`, `get_menu`, `get_cooking_history`, `get_kitchen_context`):\n  - `/recipes/{recipeId}` — a saved recipe in the personal library\n  - `/menus/{menuId}/recipes/{recipeId}` — the inline snapshot inside a menu\n  - `/cooking_history/{historyId}` — the inline snapshot inside a cooking history entry\nCopy the link substring from the source tool verbatim — no decomposition needed.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_recipe_stats",
+            "get_recipe"
+          ],
+          "hypothesis": "Read tools share resource terms (recipe), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "search_recipes",
+      "get_recipe_stats",
+      "get_kitchen_context",
+      "get_guide",
+      "get_menu",
+      "get_shopping_list",
+      "get_recipe",
+      "present_recipe"
+    ]
+  }
+}

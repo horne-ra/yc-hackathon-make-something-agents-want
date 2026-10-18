@@ -1,0 +1,1656 @@
+{
+  "slug": "almatar",
+  "source_url": "https://manufact.com/mcp-catalog/almatar",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:25:41.783Z",
+    "endpoint": "https://almai.almatar.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "almatar-mcp",
+      "version": "0.1.0"
+    },
+    "capabilities": {
+      "resources": {},
+      "tools": {}
+    },
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "searchHotels",
+            "title": "Search Hotels",
+            "description": "Search Almatar hotel inventory by destination and dates.\n\nUse this tool first in the hotel booking flow. Returns up to 10 best-value hotels (ranked by combined price, rating, and review count).\n\nOPTIONAL FILTERS:\nWhen the user asks to refine results (\"only 4-star hotels\", \"under SAR 1500 per night\", \"in Marina\"), re-call this tool with the appropriate optional fields:\n- minRating: 4 for \"4 star and above\"\n- maxPricePerNight: 1500 for \"under SAR 1500 per night\"\n- locationContains: \"Marina\" for \"in Marina\" (case-insensitive substring)\nCombine filters freely. Each refinement is a fresh API call.\n\nOUTPUT HANDLING (important):\nThis tool renders an interactive widget that displays hotels as cards. Each card has two buttons: \"View more about this hotel\" (opens an in-widget detail blow-out with a left list of the other stays) and \"View on Almatar.com\" (opens the booking page). The user browses and books entirely through the widget and almatar.com.\n\n- When the widget IS displayed (a normal chat): do NOT repeat, paraphrase, or summarise the hotel list - the widget IS the display. A single brief sentence such as \"Here are the stays - tap a card to see more.\" is enough, and only if you must say anything at all.\n- When the interactive widget is NOT shown to the user (e.g. ChatGPT agent / \"Work\" mode, or any surface that does not render app components): the tool result ALSO contains a ready-to-use text list with per-hotel \"View on Almatar.com\" markdown links. In that case present the top stays as that text (name, location, rating, price, and the booking links) so the user can still act. Do NOT say the search \"failed to render\" or \"failed to load\" and do NOT silently retry - the data is in the result; surface it.\n\nThis is the only hotel tool. There is no in-chat rooms/cart/payment step - booking happens on almatar.com via the card's \"View on Almatar.com\" button. Do not attempt to call any getHotelRooms / addHotelToCart / createBooking tools (they are intentionally not available).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "destinationName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Free-form destination name, for example \"Dubai\""
+                },
+                "lat": {
+                  "type": "number",
+                  "description": "Latitude of the destination"
+                },
+                "lng": {
+                  "type": "number",
+                  "description": "Longitude of the destination"
+                },
+                "checkIn": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "Check-in date as ISO YYYY-MM-DD"
+                },
+                "checkOut": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "Check-out date as ISO YYYY-MM-DD"
+                },
+                "adults": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "description": "Number of adult guests, at least 1"
+                },
+                "children": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "default": 0,
+                  "description": "Number of children, defaults to 0"
+                },
+                "minRating": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 5,
+                  "description": "Minimum star rating, e.g. 4 for \"4 star and above\""
+                },
+                "maxPricePerNight": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Maximum price per night in SAR. Excludes options above this cap."
+                },
+                "locationContains": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Case-insensitive substring of the hotel location, e.g. \"Marina\" or \"Downtown\"."
+                }
+              },
+              "required": [
+                "destinationName",
+                "lat",
+                "lng",
+                "checkIn",
+                "checkOut",
+                "adults"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "destinationName": {
+                  "type": "string"
+                },
+                "dates": {
+                  "type": "object",
+                  "properties": {
+                    "checkIn": {
+                      "type": "string"
+                    },
+                    "checkOut": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "checkIn",
+                    "checkOut"
+                  ],
+                  "additionalProperties": false
+                },
+                "guests": {
+                  "type": "object",
+                  "properties": {
+                    "adults": {
+                      "type": "number"
+                    },
+                    "children": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "adults",
+                    "children"
+                  ],
+                  "additionalProperties": false
+                },
+                "results": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "hotelId": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "location": {
+                        "type": "string"
+                      },
+                      "rating": {
+                        "type": "number"
+                      },
+                      "reviewsCount": {
+                        "type": "number"
+                      },
+                      "mainImage": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number"
+                      },
+                      "currency": {
+                        "type": "string",
+                        "const": "SAR"
+                      },
+                      "perNight": {
+                        "type": "boolean"
+                      },
+                      "refundable": {
+                        "type": "boolean"
+                      },
+                      "amenities": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "viewUrl": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "hotelId",
+                      "name",
+                      "location",
+                      "rating",
+                      "reviewsCount",
+                      "mainImage",
+                      "price",
+                      "currency"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "hotels": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "hotelId": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "location": {
+                        "type": "string"
+                      },
+                      "rating": {
+                        "type": "number"
+                      },
+                      "reviewsCount": {
+                        "type": "number"
+                      },
+                      "mainImage": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number"
+                      },
+                      "currency": {
+                        "type": "string",
+                        "const": "SAR"
+                      },
+                      "perNight": {
+                        "type": "boolean"
+                      },
+                      "refundable": {
+                        "type": "boolean"
+                      },
+                      "amenities": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "viewUrl": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "hotelId",
+                      "name",
+                      "location",
+                      "rating",
+                      "reviewsCount",
+                      "mainImage",
+                      "price",
+                      "currency"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "viewMoreUrl": {
+                  "type": "string"
+                },
+                "totalAvailable": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "destinationName",
+                "dates",
+                "guests",
+                "results",
+                "hotels",
+                "viewMoreUrl"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://almatar/hotel-list.html",
+              "openai/toolInvocation/invoking": "Searching hotels with Almatar",
+              "openai/toolInvocation/invoked": "Showing the best matching hotels",
+              "openai/widgetAccessible": true,
+              "ui": {
+                "resourceUri": "ui://almatar/hotel-list.app.html",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              }
+            },
+            "annotations": {
+              "title": "Search Hotels",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "getHotelDetails",
+            "title": "Get Hotel Details",
+            "description": "Fetch a single hotel's photo gallery and details for the stay-detail view.\n\nThis is called by the Stays widget when the user opens \"View more about this hotel\" — it returns the hotel's image gallery and review score so the detail blow-out can show real photos instead of the single search thumbnail. It does NOT render its own widget and does NOT book anything (booking is on almatar.com).\n\nPass the hotelId from searchHotels plus the same checkIn/checkOut/adults.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "hotelId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "hotelId returned by searchHotels"
+                },
+                "checkIn": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "checkOut": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "adults": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "children": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "default": 0
+                }
+              },
+              "required": [
+                "hotelId",
+                "checkIn",
+                "checkOut",
+                "adults"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Get Hotel Details",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "searchFlights",
+            "title": "Search Flights",
+            "description": "Search Almatar flight inventory for a one-way OR round-trip itinerary.\n\nReturns the best-value options (ranked by price). For round-trip, supply the optional returnDate - each result is one itinerary combining the outbound and return flights with a single price. For one-way, omit returnDate.\n\nOPTIONAL FILTERS:\nWhen the user asks to refine results (\"direct only\", \"only Emirates\", \"under SAR 2000\"), re-call this tool with the appropriate optional fields:\n- maxPrice, maxStops (0 = direct), airlines (partial match), departTimeWindow (\"morning\"/\"afternoon\"/\"evening\"/\"night\"), maxDurationMinutes.\nEach refinement is a fresh API call.\n\nOUTPUT HANDLING (important):\nThis tool renders an interactive widget that displays the flights as cards. Each card has a single \"View on Almatar\" button that opens that exact fare's booking page on almatar.com. There is no in-chat fare/passenger/booking step - booking happens on almatar.com.\n\n- When the widget IS displayed (a normal chat): do NOT repeat, paraphrase, or summarise the flight list - the widget IS the display. A single brief sentence like \"Here are your flight options - tap View on Almatar to book.\" is enough, and only if you must say anything at all.\n- When the interactive widget is NOT shown to the user (e.g. ChatGPT agent / \"Work\" mode, or any surface that does not render app components): the tool result ALSO contains a ready-to-use text list with per-flight \"View on Almatar\" markdown links. In that case present the top options as that text (prices, route, stops, and the booking links) so the user can still act. Do NOT say the search \"failed to render\" or \"failed to load\" and do NOT silently retry - the data is in the result; surface it.\n\nThis is the only flight tool. Do not attempt to call any viewFlightPrice / checkFlightPrice / chooseFlight / confirmFlightBooking / round-trip pricing tools (they are intentionally not available).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "originCode": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z]{3}$",
+                  "description": "Departure airport IATA code, e.g. RUH"
+                },
+                "destinationCode": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z]{3}$",
+                  "description": "Arrival airport IATA code, e.g. DXB"
+                },
+                "departDate": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "Departure date as ISO YYYY-MM-DD"
+                },
+                "returnDate": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "Optional return date as ISO YYYY-MM-DD. Supply for round-trip; omit for one-way."
+                },
+                "adults": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0
+                },
+                "children": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "lapInfant": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "infantOnChair": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "classType": {
+                  "type": "string",
+                  "enum": [
+                    "Economy",
+                    "PremiumEconomy",
+                    "Business",
+                    "First"
+                  ],
+                  "default": "Economy"
+                },
+                "maxPrice": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Maximum total fare in SAR. Excludes options above this cap."
+                },
+                "maxStops": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Maximum number of stops. 0 = direct only, 1 = up to one stop."
+                },
+                "airlines": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Preferred airline names. Case-insensitive partial match against carrier, e.g. [\"Emirates\", \"Qatar Airways\"]."
+                },
+                "departTimeWindow": {
+                  "type": "string",
+                  "enum": [
+                    "night",
+                    "morning",
+                    "afternoon",
+                    "evening"
+                  ],
+                  "description": "Departure time bucket: night (00-06), morning (06-12), afternoon (12-18), evening (18-24)."
+                },
+                "maxDurationMinutes": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "description": "Maximum total leg duration in minutes."
+                }
+              },
+              "required": [
+                "originCode",
+                "destinationCode",
+                "departDate",
+                "adults"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "tripType": {
+                  "type": "string",
+                  "enum": [
+                    "oneway",
+                    "roundtrip"
+                  ]
+                },
+                "origin": {
+                  "type": "string"
+                },
+                "destination": {
+                  "type": "string"
+                },
+                "departDate": {
+                  "type": "string"
+                },
+                "returnDate": {
+                  "type": "string"
+                },
+                "results": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "legCount": {
+                        "type": "number"
+                      },
+                      "outbound": {
+                        "type": "object",
+                        "properties": {
+                          "origin": {
+                            "type": "string"
+                          },
+                          "destination": {
+                            "type": "string"
+                          },
+                          "departIso": {
+                            "type": "string"
+                          },
+                          "arriveIso": {
+                            "type": "string"
+                          },
+                          "durationMinutes": {
+                            "type": "number"
+                          },
+                          "stops": {
+                            "type": "number"
+                          },
+                          "stopAirports": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "airlineCode": {
+                            "type": "string"
+                          },
+                          "currency": {
+                            "type": "string",
+                            "const": "SAR"
+                          }
+                        },
+                        "required": [
+                          "origin",
+                          "destination",
+                          "stops",
+                          "currency"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "return": {
+                        "type": "object",
+                        "properties": {
+                          "origin": {
+                            "type": "string"
+                          },
+                          "destination": {
+                            "type": "string"
+                          },
+                          "departIso": {
+                            "type": "string"
+                          },
+                          "arriveIso": {
+                            "type": "string"
+                          },
+                          "durationMinutes": {
+                            "type": "number"
+                          },
+                          "stops": {
+                            "type": "number"
+                          },
+                          "stopAirports": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "airlineCode": {
+                            "type": "string"
+                          },
+                          "currency": {
+                            "type": "string",
+                            "const": "SAR"
+                          }
+                        },
+                        "required": [
+                          "origin",
+                          "destination",
+                          "stops",
+                          "currency"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "price": {
+                        "type": "number"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "refundable": {
+                        "type": "boolean"
+                      },
+                      "deeplinkUrl": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "legCount",
+                      "outbound",
+                      "price",
+                      "currency",
+                      "deeplinkUrl"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "legCount": {
+                        "type": "number"
+                      },
+                      "outbound": {
+                        "type": "object",
+                        "properties": {
+                          "origin": {
+                            "type": "string"
+                          },
+                          "destination": {
+                            "type": "string"
+                          },
+                          "departIso": {
+                            "type": "string"
+                          },
+                          "arriveIso": {
+                            "type": "string"
+                          },
+                          "durationMinutes": {
+                            "type": "number"
+                          },
+                          "stops": {
+                            "type": "number"
+                          },
+                          "stopAirports": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "airlineCode": {
+                            "type": "string"
+                          },
+                          "currency": {
+                            "type": "string",
+                            "const": "SAR"
+                          }
+                        },
+                        "required": [
+                          "origin",
+                          "destination",
+                          "stops",
+                          "currency"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "return": {
+                        "type": "object",
+                        "properties": {
+                          "origin": {
+                            "type": "string"
+                          },
+                          "destination": {
+                            "type": "string"
+                          },
+                          "departIso": {
+                            "type": "string"
+                          },
+                          "arriveIso": {
+                            "type": "string"
+                          },
+                          "durationMinutes": {
+                            "type": "number"
+                          },
+                          "stops": {
+                            "type": "number"
+                          },
+                          "stopAirports": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "airlineCode": {
+                            "type": "string"
+                          },
+                          "currency": {
+                            "type": "string",
+                            "const": "SAR"
+                          }
+                        },
+                        "required": [
+                          "origin",
+                          "destination",
+                          "stops",
+                          "currency"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "price": {
+                        "type": "number"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "refundable": {
+                        "type": "boolean"
+                      },
+                      "deeplinkUrl": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "legCount",
+                      "outbound",
+                      "price",
+                      "currency",
+                      "deeplinkUrl"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "viewMoreUrl": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tripType",
+                "origin",
+                "destination",
+                "departDate",
+                "results",
+                "options",
+                "viewMoreUrl"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://almatar/flight-options.html",
+              "openai/toolInvocation/invoking": "Searching flights with Almatar",
+              "openai/toolInvocation/invoked": "Showing the best matching flights",
+              "openai/widgetAccessible": true,
+              "ui": {
+                "resourceUri": "ui://almatar/flight-options.app.html",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              }
+            },
+            "annotations": {
+              "title": "Search Flights",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "searchHotels",
+        "title": "Search Hotels",
+        "description": "Search Almatar hotel inventory by destination and dates.\n\nUse this tool first in the hotel booking flow. Returns up to 10 best-value hotels (ranked by combined price, rating, and review count).\n\nOPTIONAL FILTERS:\nWhen the user asks to refine results (\"only 4-star hotels\", \"under SAR 1500 per night\", \"in Marina\"), re-call this tool with the appropriate optional fields:\n- minRating: 4 for \"4 star and above\"\n- maxPricePerNight: 1500 for \"under SAR 1500 per night\"\n- locationContains: \"Marina\" for \"in Marina\" (case-insensitive substring)\nCombine filters freely. Each refinement is a fresh API call.\n\nOUTPUT HANDLING (important):\nThis tool renders an interactive widget that displays hotels as cards. Each card has two buttons: \"View more about this hotel\" (opens an in-widget detail blow-out with a left list of the other stays) and \"View on Almatar.com\" (opens the booking page). The user browses and books entirely through the widget and almatar.com.\n\n- When the widget IS displayed (a normal chat): do NOT repeat, paraphrase, or summarise the hotel list - the widget IS the display. A single brief sentence such as \"Here are the stays - tap a card to see more.\" is enough, and only if you must say anything at all.\n- When the interactive widget is NOT shown to the user (e.g. ChatGPT agent / \"Work\" mode, or any surface that does not render app components): the tool result ALSO contains a ready-to-use text list with per-hotel \"View on Almatar.com\" markdown links. In that case present the top stays as that text (name, location, rating, price, and the booking links) so the user can still act. Do NOT say the search \"failed to render\" or \"failed to load\" and do NOT silently retry - the data is in the result; surface it.\n\nThis is the only hotel tool. There is no in-chat rooms/cart/payment step - booking happens on almatar.com via the card's \"View on Almatar.com\" button. Do not attempt to call any getHotelRooms / addHotelToCart / createBooking tools (they are intentionally not available).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "destinationName": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Free-form destination name, for example \"Dubai\""
+            },
+            "lat": {
+              "type": "number",
+              "description": "Latitude of the destination"
+            },
+            "lng": {
+              "type": "number",
+              "description": "Longitude of the destination"
+            },
+            "checkIn": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Check-in date as ISO YYYY-MM-DD"
+            },
+            "checkOut": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Check-out date as ISO YYYY-MM-DD"
+            },
+            "adults": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "Number of adult guests, at least 1"
+            },
+            "children": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "description": "Number of children, defaults to 0"
+            },
+            "minRating": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 5,
+              "description": "Minimum star rating, e.g. 4 for \"4 star and above\""
+            },
+            "maxPricePerNight": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Maximum price per night in SAR. Excludes options above this cap."
+            },
+            "locationContains": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Case-insensitive substring of the hotel location, e.g. \"Marina\" or \"Downtown\"."
+            }
+          },
+          "required": [
+            "destinationName",
+            "lat",
+            "lng",
+            "checkIn",
+            "checkOut",
+            "adults"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "destinationName": {
+              "type": "string"
+            },
+            "dates": {
+              "type": "object",
+              "properties": {
+                "checkIn": {
+                  "type": "string"
+                },
+                "checkOut": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "checkIn",
+                "checkOut"
+              ],
+              "additionalProperties": false
+            },
+            "guests": {
+              "type": "object",
+              "properties": {
+                "adults": {
+                  "type": "number"
+                },
+                "children": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "adults",
+                "children"
+              ],
+              "additionalProperties": false
+            },
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "hotelId": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "rating": {
+                    "type": "number"
+                  },
+                  "reviewsCount": {
+                    "type": "number"
+                  },
+                  "mainImage": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "number"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "const": "SAR"
+                  },
+                  "perNight": {
+                    "type": "boolean"
+                  },
+                  "refundable": {
+                    "type": "boolean"
+                  },
+                  "amenities": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "viewUrl": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "hotelId",
+                  "name",
+                  "location",
+                  "rating",
+                  "reviewsCount",
+                  "mainImage",
+                  "price",
+                  "currency"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "hotels": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "hotelId": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "rating": {
+                    "type": "number"
+                  },
+                  "reviewsCount": {
+                    "type": "number"
+                  },
+                  "mainImage": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "number"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "const": "SAR"
+                  },
+                  "perNight": {
+                    "type": "boolean"
+                  },
+                  "refundable": {
+                    "type": "boolean"
+                  },
+                  "amenities": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "viewUrl": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "hotelId",
+                  "name",
+                  "location",
+                  "rating",
+                  "reviewsCount",
+                  "mainImage",
+                  "price",
+                  "currency"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "viewMoreUrl": {
+              "type": "string"
+            },
+            "totalAvailable": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "destinationName",
+            "dates",
+            "guests",
+            "results",
+            "hotels",
+            "viewMoreUrl"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://almatar/hotel-list.html",
+          "openai/toolInvocation/invoking": "Searching hotels with Almatar",
+          "openai/toolInvocation/invoked": "Showing the best matching hotels",
+          "openai/widgetAccessible": true,
+          "ui": {
+            "resourceUri": "ui://almatar/hotel-list.app.html",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          }
+        },
+        "annotations": {
+          "title": "Search Hotels",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "getHotelDetails",
+        "title": "Get Hotel Details",
+        "description": "Fetch a single hotel's photo gallery and details for the stay-detail view.\n\nThis is called by the Stays widget when the user opens \"View more about this hotel\" — it returns the hotel's image gallery and review score so the detail blow-out can show real photos instead of the single search thumbnail. It does NOT render its own widget and does NOT book anything (booking is on almatar.com).\n\nPass the hotelId from searchHotels plus the same checkIn/checkOut/adults.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "hotelId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "hotelId returned by searchHotels"
+            },
+            "checkIn": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "checkOut": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "adults": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "children": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          "required": [
+            "hotelId",
+            "checkIn",
+            "checkOut",
+            "adults"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Get Hotel Details",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "searchFlights",
+        "title": "Search Flights",
+        "description": "Search Almatar flight inventory for a one-way OR round-trip itinerary.\n\nReturns the best-value options (ranked by price). For round-trip, supply the optional returnDate - each result is one itinerary combining the outbound and return flights with a single price. For one-way, omit returnDate.\n\nOPTIONAL FILTERS:\nWhen the user asks to refine results (\"direct only\", \"only Emirates\", \"under SAR 2000\"), re-call this tool with the appropriate optional fields:\n- maxPrice, maxStops (0 = direct), airlines (partial match), departTimeWindow (\"morning\"/\"afternoon\"/\"evening\"/\"night\"), maxDurationMinutes.\nEach refinement is a fresh API call.\n\nOUTPUT HANDLING (important):\nThis tool renders an interactive widget that displays the flights as cards. Each card has a single \"View on Almatar\" button that opens that exact fare's booking page on almatar.com. There is no in-chat fare/passenger/booking step - booking happens on almatar.com.\n\n- When the widget IS displayed (a normal chat): do NOT repeat, paraphrase, or summarise the flight list - the widget IS the display. A single brief sentence like \"Here are your flight options - tap View on Almatar to book.\" is enough, and only if you must say anything at all.\n- When the interactive widget is NOT shown to the user (e.g. ChatGPT agent / \"Work\" mode, or any surface that does not render app components): the tool result ALSO contains a ready-to-use text list with per-flight \"View on Almatar\" markdown links. In that case present the top options as that text (prices, route, stops, and the booking links) so the user can still act. Do NOT say the search \"failed to render\" or \"failed to load\" and do NOT silently retry - the data is in the result; surface it.\n\nThis is the only flight tool. Do not attempt to call any viewFlightPrice / checkFlightPrice / chooseFlight / confirmFlightBooking / round-trip pricing tools (they are intentionally not available).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "originCode": {
+              "type": "string",
+              "pattern": "^[A-Za-z]{3}$",
+              "description": "Departure airport IATA code, e.g. RUH"
+            },
+            "destinationCode": {
+              "type": "string",
+              "pattern": "^[A-Za-z]{3}$",
+              "description": "Arrival airport IATA code, e.g. DXB"
+            },
+            "departDate": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Departure date as ISO YYYY-MM-DD"
+            },
+            "returnDate": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Optional return date as ISO YYYY-MM-DD. Supply for round-trip; omit for one-way."
+            },
+            "adults": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "children": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "lapInfant": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "infantOnChair": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "classType": {
+              "type": "string",
+              "enum": [
+                "Economy",
+                "PremiumEconomy",
+                "Business",
+                "First"
+              ],
+              "default": "Economy"
+            },
+            "maxPrice": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Maximum total fare in SAR. Excludes options above this cap."
+            },
+            "maxStops": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Maximum number of stops. 0 = direct only, 1 = up to one stop."
+            },
+            "airlines": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Preferred airline names. Case-insensitive partial match against carrier, e.g. [\"Emirates\", \"Qatar Airways\"]."
+            },
+            "departTimeWindow": {
+              "type": "string",
+              "enum": [
+                "night",
+                "morning",
+                "afternoon",
+                "evening"
+              ],
+              "description": "Departure time bucket: night (00-06), morning (06-12), afternoon (12-18), evening (18-24)."
+            },
+            "maxDurationMinutes": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "Maximum total leg duration in minutes."
+            }
+          },
+          "required": [
+            "originCode",
+            "destinationCode",
+            "departDate",
+            "adults"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "tripType": {
+              "type": "string",
+              "enum": [
+                "oneway",
+                "roundtrip"
+              ]
+            },
+            "origin": {
+              "type": "string"
+            },
+            "destination": {
+              "type": "string"
+            },
+            "departDate": {
+              "type": "string"
+            },
+            "returnDate": {
+              "type": "string"
+            },
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "legCount": {
+                    "type": "number"
+                  },
+                  "outbound": {
+                    "type": "object",
+                    "properties": {
+                      "origin": {
+                        "type": "string"
+                      },
+                      "destination": {
+                        "type": "string"
+                      },
+                      "departIso": {
+                        "type": "string"
+                      },
+                      "arriveIso": {
+                        "type": "string"
+                      },
+                      "durationMinutes": {
+                        "type": "number"
+                      },
+                      "stops": {
+                        "type": "number"
+                      },
+                      "stopAirports": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "airlineCode": {
+                        "type": "string"
+                      },
+                      "currency": {
+                        "type": "string",
+                        "const": "SAR"
+                      }
+                    },
+                    "required": [
+                      "origin",
+                      "destination",
+                      "stops",
+                      "currency"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "return": {
+                    "type": "object",
+                    "properties": {
+                      "origin": {
+                        "type": "string"
+                      },
+                      "destination": {
+                        "type": "string"
+                      },
+                      "departIso": {
+                        "type": "string"
+                      },
+                      "arriveIso": {
+                        "type": "string"
+                      },
+                      "durationMinutes": {
+                        "type": "number"
+                      },
+                      "stops": {
+                        "type": "number"
+                      },
+                      "stopAirports": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "airlineCode": {
+                        "type": "string"
+                      },
+                      "currency": {
+                        "type": "string",
+                        "const": "SAR"
+                      }
+                    },
+                    "required": [
+                      "origin",
+                      "destination",
+                      "stops",
+                      "currency"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "price": {
+                    "type": "number"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "refundable": {
+                    "type": "boolean"
+                  },
+                  "deeplinkUrl": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "legCount",
+                  "outbound",
+                  "price",
+                  "currency",
+                  "deeplinkUrl"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "options": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "legCount": {
+                    "type": "number"
+                  },
+                  "outbound": {
+                    "type": "object",
+                    "properties": {
+                      "origin": {
+                        "type": "string"
+                      },
+                      "destination": {
+                        "type": "string"
+                      },
+                      "departIso": {
+                        "type": "string"
+                      },
+                      "arriveIso": {
+                        "type": "string"
+                      },
+                      "durationMinutes": {
+                        "type": "number"
+                      },
+                      "stops": {
+                        "type": "number"
+                      },
+                      "stopAirports": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "airlineCode": {
+                        "type": "string"
+                      },
+                      "currency": {
+                        "type": "string",
+                        "const": "SAR"
+                      }
+                    },
+                    "required": [
+                      "origin",
+                      "destination",
+                      "stops",
+                      "currency"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "return": {
+                    "type": "object",
+                    "properties": {
+                      "origin": {
+                        "type": "string"
+                      },
+                      "destination": {
+                        "type": "string"
+                      },
+                      "departIso": {
+                        "type": "string"
+                      },
+                      "arriveIso": {
+                        "type": "string"
+                      },
+                      "durationMinutes": {
+                        "type": "number"
+                      },
+                      "stops": {
+                        "type": "number"
+                      },
+                      "stopAirports": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "airlineCode": {
+                        "type": "string"
+                      },
+                      "currency": {
+                        "type": "string",
+                        "const": "SAR"
+                      }
+                    },
+                    "required": [
+                      "origin",
+                      "destination",
+                      "stops",
+                      "currency"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "price": {
+                    "type": "number"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "refundable": {
+                    "type": "boolean"
+                  },
+                  "deeplinkUrl": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "legCount",
+                  "outbound",
+                  "price",
+                  "currency",
+                  "deeplinkUrl"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "viewMoreUrl": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "tripType",
+            "origin",
+            "destination",
+            "departDate",
+            "results",
+            "options",
+            "viewMoreUrl"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://almatar/flight-options.html",
+          "openai/toolInvocation/invoking": "Searching flights with Almatar",
+          "openai/toolInvocation/invoked": "Showing the best matching flights",
+          "openai/widgetAccessible": true,
+          "ui": {
+            "resourceUri": "ui://almatar/flight-options.app.html",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          }
+        },
+        "annotations": {
+          "title": "Search Flights",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:25:38.040Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:25:39.091Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:25:40.142Z"
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:25:41.194Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 3,
+    "tools_hash": "sha256:51d0ad52c11c7f692635c8f33f4783d27d15c27ca1cead1c6b337ff465aec0b5",
+    "static_tool_tokens": 3702,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F2",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "getHotelDetails",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "checkIn"
+      },
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "searchHotels",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "getHotelDetails",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "getHotelDetails",
+        "message": "Parameter has no description.",
+        "param": "checkIn"
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "getHotelDetails",
+        "message": "Parameter has no description.",
+        "param": "checkOut"
+      },
+      {
+        "id": "F8",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "getHotelDetails",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "checkOut"
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "getHotelDetails",
+        "message": "Parameter has no description.",
+        "param": "adults"
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "getHotelDetails",
+        "message": "Parameter has no description.",
+        "param": "children"
+      },
+      {
+        "id": "F11",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "searchFlights",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "searchFlights",
+        "message": "Parameter has no description.",
+        "param": "adults"
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "searchFlights",
+        "message": "Parameter has no description.",
+        "param": "children"
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "searchFlights",
+        "message": "Parameter has no description.",
+        "param": "lapInfant"
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "searchFlights",
+        "message": "Parameter has no description.",
+        "param": "infantOnChair"
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "searchFlights",
+        "message": "Parameter has no description.",
+        "param": "classType"
+      }
+    ],
+    "severity_counts": {
+      "high": 2,
+      "medium": 10,
+      "warning": 2
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "searchHotels",
+          "path": "inputSchema.properties.maxPricePerNight",
+          "name": "maxPricePerNight",
+          "description": "Maximum price per night in SAR. Excludes options above this cap.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "searchFlights",
+          "path": "inputSchema.properties.returnDate",
+          "name": "returnDate",
+          "description": "Optional return date as ISO YYYY-MM-DD. Supply for round-trip; omit for one-way.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "searchFlights",
+          "path": "inputSchema.properties.maxPrice",
+          "name": "maxPrice",
+          "description": "Maximum total fare in SAR. Excludes options above this cap.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "searchFlights",
+          "path": "inputSchema.properties.maxStops",
+          "name": "maxStops",
+          "description": "Maximum number of stops. 0 = direct only, 1 = up to one stop.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "searchFlights",
+          "path": "inputSchema.properties.maxDurationMinutes",
+          "name": "maxDurationMinutes",
+          "description": "Maximum total leg duration in minutes.",
+          "mentions_size_or_cost": true
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "searchHotels"
+          ],
+          "description": "Search Almatar hotel inventory by destination and dates.\n\nUse this tool first in the hotel booking flow. Returns up to 10 best-value hotels (ranked by combined price, rating, and review count).\n\nOPTIONAL FILTERS:\nWhen the user asks to refine results (\"only 4-star hotels\", \"under SAR 1500 per night\", \"in Marina\"), re-call this tool with the appropriate optional fields:\n- minRating: 4 for \"4 star and above\"\n- maxPricePerNight: 1500 for \"under SAR 1500 per night\"\n- locationContains: \"Marina\" for \"in Marina\" (case-insensitive substring)\nCombine filters freely. Each refinement is a fresh API call.\n\nOUTPUT HANDLING (important):\nThis tool renders an interactive widget that displays hotels as cards. Each card has two buttons: \"View more about this hotel\" (opens an in-widget detail blow-out with a left list of the other stays) and \"View on Almatar.com\" (opens the booking page). The user browses and books entirely through the widget and almatar.com.\n\n- When the widget IS displayed (a normal chat): do NOT repeat, paraphrase, or summarise the hotel list - the widget IS the display. A single brief sentence such as \"Here are the stays - tap a card to see more.\" is enough, and only if you must say anything at all.\n- When the interactive widget is NOT shown to the user (e.g. ChatGPT agent / \"Work\" mode, or any surface that does not render app components): the tool result ALSO contains a ready-to-use text list with per-hotel \"View on Almatar.com\" markdown links. In that case present the top stays as that text (name, location, rating, price, and the booking links) so the user can still act. Do NOT say the search \"failed to render\" or \"failed to load\" and do NOT silently retry - the data is in the result; surface it.\n\nThis is the only hotel tool. There is no in-chat rooms/cart/payment step - booking happens on almatar.com via the card's \"View on Almatar.com\" button. Do not attempt to call any getHotelRooms / addHotelToCart / createBooking tools (they are intentionally not available).",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "searchFlights"
+          ],
+          "description": "Search Almatar flight inventory for a one-way OR round-trip itinerary.\n\nReturns the best-value options (ranked by price). For round-trip, supply the optional returnDate - each result is one itinerary combining the outbound and return flights with a single price. For one-way, omit returnDate.\n\nOPTIONAL FILTERS:\nWhen the user asks to refine results (\"direct only\", \"only Emirates\", \"under SAR 2000\"), re-call this tool with the appropriate optional fields:\n- maxPrice, maxStops (0 = direct), airlines (partial match), departTimeWindow (\"morning\"/\"afternoon\"/\"evening\"/\"night\"), maxDurationMinutes.\nEach refinement is a fresh API call.\n\nOUTPUT HANDLING (important):\nThis tool renders an interactive widget that displays the flights as cards. Each card has a single \"View on Almatar\" button that opens that exact fare's booking page on almatar.com. There is no in-chat fare/passenger/booking step - booking happens on almatar.com.\n\n- When the widget IS displayed (a normal chat): do NOT repeat, paraphrase, or summarise the flight list - the widget IS the display. A single brief sentence like \"Here are your flight options - tap View on Almatar to book.\" is enough, and only if you must say anything at all.\n- When the interactive widget is NOT shown to the user (e.g. ChatGPT agent / \"Work\" mode, or any surface that does not render app components): the tool result ALSO contains a ready-to-use text list with per-flight \"View on Almatar\" markdown links. In that case present the top options as that text (prices, route, stops, and the booking links) so the user can still act. Do NOT say the search \"failed to render\" or \"failed to load\" and do NOT silently retry - the data is in the result; surface it.\n\nThis is the only flight tool. Do not attempt to call any viewFlightPrice / checkFlightPrice / chooseFlight / confirmFlightBooking / round-trip pricing tools (they are intentionally not available).",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "searchHotels",
+      "getHotelDetails",
+      "searchFlights"
+    ]
+  }
+}

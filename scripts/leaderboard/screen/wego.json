@@ -1,0 +1,1410 @@
+{
+  "slug": "wego",
+  "source_url": "https://manufact.com/mcp-catalog/wego",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:25:17.699Z",
+    "endpoint": "https://mcp.wego.com/claude-app/v1/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "mcp-typescript server on vercel",
+      "version": "0.1.0"
+    },
+    "capabilities": {
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "flights_search",
+            "title": "Search Flights",
+            "description": "Searches for flights between airports or cities. Not for flight status, price tracking, visa information, bookings, or reservation management. Returns results from a Wego metasearch in a single call.\n\nParameters:\n- newSearch: Route (from/to as IATA codes), dates (fromDate, toDate in YYYY-MM-DD), passengers, and cabin class. Omit toDate for one-way trips.\n- Defaults when not specified: 1 adult, 0 children, 0 infants, economy cabin.\n- filters: Include only when the user mentions specific preferences (airlines, stops, times, price range, etc.).\n- sorting: A single string value. Options: score_desc (recommended, default), price_asc (cheapest), duration_asc (fastest), leg1_departure_time_asc/desc (outbound departure), leg2_departure_time_asc/desc (return departure, round-trip only).\n\nTime filtering (time ranges in minutes from midnight, 0-1440):\n- Format: {min: minutesFromMidnight, max: minutesFromMidnight}\n- Example: \"flights after 10pm\" → outboundDepartureTimeRange: {min: 1320, max: 1440}\n- Example: \"depart 8am-1pm\" → outboundDepartureTimeRange: {min: 480, max: 780}\n- Supports wraparound: {min: 1380, max: 60} = 11pm-1am (crosses midnight)\n\nRefinement: Provide the searchId from a previous response with updated filters or sorting. Refinement replaces all previous filters and sorting entirely — include existing values alongside new ones to preserve them.\n\nExample — changing return to after 10pm while keeping existing airlines [\"SQ\", \"KE\"], outbound 6am-8am, and price_asc sorting:\n{ \"searchId\": \"abc\", \"filters\": { \"airlines\": [\"SQ\", \"KE\"], \"outboundDepartureTimeRange\": { \"min\": 360, \"max\": 480 }, \"inboundDepartureTimeRange\": { \"min\": 1320, \"max\": 1440 } }, \"sorting\": \"price_asc\" }\n\nDefault behavior:\n- One date provided → one-way trip\n- Return date mentioned → round-trip\n- No preferences stated → omit filters\n- City name without specific airport → use the city IATA code (e.g., \"London\" → LON, \"New York\" → NYC, \"Tokyo\" → TYO). City codes automatically search all airports in that city.\n\nWhere the user is, and which currency to price in:\n- countryCode: the user's own country, as an ISO 3166-1 alpha-2 code (IN, SA, SG). Set it whenever the conversation shows where the user is. It picks which Wego site the booking link opens, and the currency prices are shown in. Do not take it from the departure or arrival city — someone in India searching London flights is still IN. Leave it out when you do not know.\n- currencyCode: set it only when the user names a currency themselves. Otherwise leave it out and prices follow countryCode.\n- When you refine with searchId, also pass the sessionToken from that same response. Without it the refined results revert to the default country and currency.\n- The currency is locked in when a search starts. To show a different one, run this tool again with the new currencyCode and the same route, dates and passengers. Do not reuse searchId.\n\nFormat URLs as markdown links: [text](url).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "searchId": {
+                  "type": "string",
+                  "description": "Reuse the searchId from a previous search when refining, filtering, or sorting."
+                },
+                "newSearch": {
+                  "type": "object",
+                  "properties": {
+                    "from": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Departure IATA code (e.g., 'SIN', 'DXB', 'NYC'). Required for new search."
+                    },
+                    "to": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Arrival IATA code (e.g., 'NRT', 'LHR', 'CDG'). Required for new search."
+                    },
+                    "fromDate": {
+                      "type": "string",
+                      "minLength": 1,
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "description": "Departure date in YYYY-MM-DD. Required for new search."
+                    },
+                    "toDate": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "description": "Return date in YYYY-MM-DD for round-trip. Omit for one-way."
+                    },
+                    "adultsCount": {
+                      "type": "number",
+                      "minimum": 1,
+                      "maximum": 9,
+                      "default": 1,
+                      "description": "Number of adults (e.g., 'my wife and I' = 2). Default: 1."
+                    },
+                    "childrenCount": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 8,
+                      "default": 0,
+                      "description": "Number of children aged 2-17 (e.g., 'with my 5-year-old' = 1). Default: 0."
+                    },
+                    "infantsCount": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 8,
+                      "default": 0,
+                      "description": "Number of infants under 2 (lap seat). Default: 0."
+                    },
+                    "cabinClass": {
+                      "type": "string",
+                      "enum": [
+                        "economy",
+                        "premium_economy",
+                        "business",
+                        "first"
+                      ],
+                      "description": "Cabin class (e.g., 'business class' = 'business'). Default: economy.",
+                      "default": "economy"
+                    }
+                  },
+                  "required": [
+                    "from",
+                    "to",
+                    "fromDate"
+                  ],
+                  "additionalProperties": false,
+                  "description": "New flight search parameters. Include route, dates, and passengers. Omit when refining via searchId."
+                },
+                "filters": {
+                  "type": "object",
+                  "properties": {
+                    "airlines": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 2
+                      },
+                      "description": "2-letter IATA airline codes (e.g., 'Singapore Airlines' = ['SQ'], 'Emirates or Qatar' = ['EK', 'QR'])."
+                    },
+                    "alliances": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "star_alliance",
+                          "oneworld",
+                          "skyteam"
+                        ]
+                      },
+                      "description": "Filter by alliance (e.g., 'Star Alliance flights' = ['star_alliance'], 'oneworld', 'skyteam')."
+                    },
+                    "stops": {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      },
+                      "description": "Number of stops (e.g., 'direct only' = [0], 'max one stop' = [0, 1], '1 stop' = [1])."
+                    },
+                    "flightExperiences": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "no_overnight_flight",
+                          "no_long_stopover"
+                        ]
+                      },
+                      "description": "Flight experience preferences (e.g., 'no red-eye' = ['no_overnight_flight'], 'no long layovers' = ['no_long_stopover'])."
+                    },
+                    "priceRange": {
+                      "type": "object",
+                      "properties": {
+                        "min": {
+                          "type": "number"
+                        },
+                        "max": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "Budget filter (e.g., 'under $500' = {max: 500}, '$200-$800' = {min: 200, max: 800}). Per-person price."
+                    },
+                    "outboundDepartureTimeRange": {
+                      "type": "object",
+                      "properties": {
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1439,
+                          "description": "Start time in minutes from midnight (0-1439). Example: 480 = 8:00 AM"
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1440,
+                          "description": "End time in minutes from midnight (0-1440). Example: 780 = 1:00 PM. Supports max=1440 for end-of-day (midnight). For midnight wraparound (e.g., 11pm-1am), max can be less than min."
+                        }
+                      },
+                      "required": [
+                        "min",
+                        "max"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Filter departure time (e.g., 'after 8am' = {min: 480, max: 1440}, 'before 2pm' = {min: 0, max: 840}). Minutes from midnight."
+                    },
+                    "outboundArrivalTimeRange": {
+                      "$ref": "#/properties/filters/properties/outboundDepartureTimeRange",
+                      "description": "Filter arrival time at destination (e.g., 'arrive by noon' = {min: 0, max: 720}). Minutes from midnight."
+                    },
+                    "inboundDepartureTimeRange": {
+                      "$ref": "#/properties/filters/properties/outboundDepartureTimeRange",
+                      "description": "Filter return flight departure time (e.g., 'return after 6pm' = {min: 1080, max: 1440}). Minutes from midnight. Round-trip only."
+                    },
+                    "inboundArrivalTimeRange": {
+                      "$ref": "#/properties/filters/properties/outboundDepartureTimeRange",
+                      "description": "Filter return arrival time (e.g., 'land before midnight' = {min: 0, max: 1440}). Minutes from midnight. Round-trip only."
+                    },
+                    "outboundTotalDurationRange": {
+                      "$ref": "#/properties/filters/properties/priceRange",
+                      "description": "Outbound flight duration filter (e.g., 'under 3 hours' = {max: 180}). Minutes."
+                    },
+                    "inboundTotalDurationRange": {
+                      "$ref": "#/properties/filters/properties/priceRange",
+                      "description": "Return flight duration filter (e.g., 'under 5 hours' = {max: 300}). Minutes. Round-trip only."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Flight filters. On refinement, filters replace all previous filters — re-include existing ones to preserve them."
+                },
+                "sorting": {
+                  "type": "string",
+                  "enum": [
+                    "score_desc",
+                    "price_asc",
+                    "duration_asc",
+                    "leg1_departure_time_asc",
+                    "leg1_departure_time_desc",
+                    "leg2_departure_time_asc",
+                    "leg2_departure_time_desc"
+                  ],
+                  "default": "score_desc",
+                  "description": "Sort order for results. Pass a single string value. Options: score_desc (recommended, default), price_asc (cheapest), duration_asc (fastest), leg1_departure_time_asc/desc (outbound departure), leg2_departure_time_asc/desc (return departure, round-trip only)."
+                },
+                "countryCode": {
+                  "type": "string",
+                  "description": "The user's OWN country as an ISO 3166-1 alpha-2 code (e.g. 'IN', 'SA', 'SG'), when it is known from the conversation or the user's stated location. Sets the Wego site the booking hand-off opens and the default pricing currency. Do NOT derive it from the departure or arrival city — a user in India searching London flights is still 'IN'. Omit it when the user's country is genuinely unknown."
+                },
+                "currencyCode": {
+                  "type": "string",
+                  "description": "Currency for prices (e.g. 'INR', 'AED'). Set this ONLY when the user explicitly names a currency; otherwise omit it and the currency follows countryCode. Currency is fixed when a search is created — to change it, call this tool again with the new currencyCode and the same route, dates and passengers as a fresh search (do NOT reuse searchId)."
+                },
+                "locale": {
+                  "type": "string",
+                  "description": "Locale for results (e.g. 'en', 'ar'). BCP 47 with a region is accepted ('en-IN'). Omit unless the user's language is known."
+                },
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Pass the sessionToken from the previous response on any follow-up in the same conversation — refining with searchId, or starting a related search. It carries the country and currency already in use, so follow-up results keep the same currency and booking site. An explicit countryCode or currencyCode always wins over it."
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://wego/claude-app/v1/flights"
+              }
+            }
+          },
+          {
+            "name": "flights_poll",
+            "title": "Poll Flight Results",
+            "description": "Internal. Invoked automatically by the flight results widget after flights_search to progressively load more results. Do not call directly.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sessionToken": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Rolling session token returned by flights_search or a previous flights_poll call. Required."
+                }
+              },
+              "required": [
+                "sessionToken"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://wego/claude-app/v1/flights"
+              }
+            }
+          },
+          {
+            "name": "hotels_search",
+            "title": "Search Hotels",
+            "description": "Searches for hotel accommodations by city, geo-location, or hotel ID. Not for restaurants, activities, car rentals, or non-travel queries. Returns paginated results in a single call. Common city codes (DXB, PAR, SIN, TYO, LON, NYC) can be used directly; use places_find_location for specific hotels, POI coordinates, or ambiguous locations.\n\nRefinement: When changing filters or sorting, provide the searchId from a previous response along with updated parameters. Search type objects are not needed for refinements.\nExample: { searchId: \"abc123\", filters: { amenities: [\"wifi\"], starRating: { min: 4 } } }\n\nSearch types (one per new search):\n1. citySearch — Hotels in a city. Suitable for generic proximity queries (e.g., \"near airports\" or \"downtown\") when combined with sorting.\n2. geoSearch — Hotels near a specific location (airport, landmark, POI). Requires latitude and longitude coordinates. Use places_find_location to get coordinates for landmarks. Recommended radius: 10km for landmarks, 20km for airports.\n3. hotelSearch — Single hotel by ID.\n\nChildren ages: When children are included, their ages affect pricing and availability. Missing or incorrect ages produce unreliable pricing and may return zero results.\n\nParameter format: All field names are camelCase (checkIn, checkOut, adultsCount, childrenCount). Coordinates go inside the geoSearch object, not as top-level parameters.\n\nProximity guidance:\n- Generic proximity (e.g., \"hotels near airport\") → citySearch + distance_from_nearest_airport_asc sorting\n- Generic city center (e.g., \"downtown hotels\") → citySearch + distance_from_center_asc sorting\n- Named location (e.g., \"hotels near Changi Airport\") → geoSearch with POI coordinates\n- Explicit radius (e.g., \"hotels within 15km of Eiffel Tower\") → geoSearch with POI coordinates and radius\n\nIntegration with places_find_location:\n- citySearch: get cityCode with types=[\"city\"]\n- geoSearch: get coordinates with types=[\"poi\"]\n\nExamples:\nNew search: { citySearch: { cityCode: \"DXB\" }, checkIn: \"2025-11-06\", checkOut: \"2025-11-07\", rooms: [{ adultsCount: 2, childrenCount: 0 }] }\nWith amenity filter: { citySearch: { cityCode: \"DXB\" }, filters: { amenities: [\"wifi\", \"pool\"] }, ... }\nRefinement: { searchId: \"abc123\", filters: { amenities: [\"pool\"], starRating: { min: 4 } } }\nNear airports: { citySearch: { cityCode: \"SIN\" }, sorting: \"distance_from_nearest_airport_asc\", ... }\nNear city center: { citySearch: { cityCode: \"PAR\" }, sorting: \"distance_from_center_asc\", ... }\nNear specific airport: { geoSearch: { latitude: 1.3644, longitude: 103.9915, radius: 20, name: \"Changi Airport\" }, ... }\nNear specific landmark: { geoSearch: { latitude: 48.8584, longitude: 2.2945, name: \"Eiffel Tower\" }, ... }\n\nRefinements use the searchId from the previous response with new filters or sorting parameters.\n\nWhere the user is, and which currency to price in:\n- countryCode: the user's own country, as an ISO 3166-1 alpha-2 code (IN, SA, SG). Set it whenever the conversation shows where the user is. It picks which Wego site the booking link opens, and the currency prices are shown in. Do not take it from the destination — someone in India searching Dubai hotels is still IN. Leave it out when you do not know.\n- currencyCode: set it only when the user names a currency themselves. Otherwise leave it out and prices follow countryCode.\n- When you refine with searchId, also pass the sessionToken from that same response. Without it the refined results revert to the default country and currency.\n- The currency is locked in when a search starts. To show a different one, run this tool again with the new currencyCode and the same destination, dates and guests. Do not reuse searchId.\n\nFormat URLs as markdown links: [text](url).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "searchId": {
+                  "type": "string",
+                  "description": "Reuse the searchId from a previous search when refining filters or sorting."
+                },
+                "citySearch": {
+                  "type": "object",
+                  "properties": {
+                    "cityCode": {
+                      "type": "string",
+                      "description": "City code (IATA format, e.g., 'DXB', 'SIN')"
+                    }
+                  },
+                  "required": [
+                    "cityCode"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Hotels in a city (e.g., 'hotels in Dubai' = {cityCode: 'DXB'})."
+                },
+                "geoSearch": {
+                  "type": "object",
+                  "properties": {
+                    "longitude": {
+                      "type": "number",
+                      "description": "Longitude coordinate (will be clamped to -180 to 180 range)"
+                    },
+                    "latitude": {
+                      "type": "number",
+                      "description": "Latitude coordinate (will be clamped to -90 to 90 range)"
+                    },
+                    "radius": {
+                      "type": "number",
+                      "description": "Search radius in kilometers (minimum 10km enforced). Recommended values: 10km for city landmarks, 20km for airports, 30km for rural areas"
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Name of the reference point for display (e.g., 'Burj Khalifa', 'Mall of the Emirates')"
+                    }
+                  },
+                  "required": [
+                    "longitude",
+                    "latitude"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Hotels near a location (e.g., 'near Eiffel Tower' = {latitude: 48.8584, longitude: 2.2945}). Use places_find_location for coordinates."
+                },
+                "hotelSearch": {
+                  "type": "object",
+                  "properties": {
+                    "hotelId": {
+                      "type": "integer",
+                      "description": "Hotel ID for single hotel search"
+                    }
+                  },
+                  "required": [
+                    "hotelId"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Single hotel by ID (e.g., {hotelId: 12345})."
+                },
+                "checkIn": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "Check-in date in YYYY-MM-DD."
+                },
+                "checkOut": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "Check-out date in YYYY-MM-DD."
+                },
+                "rooms": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "adultsCount": {
+                        "type": "integer",
+                        "description": "Number of adults in the room (will be clamped to minimum 1)"
+                      },
+                      "childrenCount": {
+                        "type": "integer",
+                        "description": "Number of children in the room (will be clamped to minimum 0)"
+                      },
+                      "childrenAges": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer"
+                        },
+                        "description": "Ages of each child (0-17). REQUIRED when childrenCount > 0 — if the user hasn't specified ages, ask them before searching. Do NOT guess or infer ages from other numbers like dates. Array format even for one child, e.g., [8] not 8."
+                      }
+                    },
+                    "required": [
+                      "adultsCount",
+                      "childrenCount"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "minItems": 1,
+                  "description": "Room config for pricing (e.g., 'family of 4' = [{adultsCount: 2, childrenCount: 2, childrenAges: [8, 5]}])."
+                },
+                "filters": {
+                  "type": "object",
+                  "properties": {
+                    "amenities": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Hotel property amenities — all must match (AND logic). Covers wifi, pool, parking, gym, spa, beach, restaurant, pet-friendly, etc. This is where wifi belongs — it is a property amenity, not a room feature. Short terms match best (e.g., 'wifi' not 'Free WiFi', 'pool' not 'Swimming Pool'). Fuzzy matching finds the closest match. Examples: 'wifi' = ['wifi'], 'wifi and pool' = ['wifi', 'pool']."
+                    },
+                    "starRating": {
+                      "type": "object",
+                      "properties": {
+                        "min": {
+                          "type": "integer",
+                          "description": "Minimum star rating (will be clamped to 0-5 range)"
+                        },
+                        "max": {
+                          "type": "integer",
+                          "description": "Maximum star rating (will be clamped to 0-5 range)"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "Hotel class filter. A bare 'N-star' / 'N stars' means N-or-above = {min: N} — set ONLY min, never max. Set max only for an explicit range or upper bound (e.g., '3 to 4 stars' = {min: 3, max: 4}, 'up to 3 stars' = {max: 3}, '4-star or above' = {min: 4})."
+                    },
+                    "reviewScore": {
+                      "type": "object",
+                      "properties": {
+                        "min": {
+                          "type": "number",
+                          "description": "Minimum guest review score (will be clamped to 0-10 range)"
+                        },
+                        "max": {
+                          "type": "number",
+                          "description": "Maximum guest review score (will be clamped to 0-10 range)"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "Guest satisfaction filter on 0-10 scale (e.g., 'highly rated' = {min: 8})."
+                    },
+                    "propertyTypes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Accommodation type filter (e.g., 'resorts only' = ['Resort'], 'hotel or apartment' = ['Hotel', 'Apartment']). Short terms match best (e.g., 'Hotel' not 'Boutique Hotel', 'Hostel' not 'Hostel / Backpacker', 'Apartment' not 'Serviced Apartment')."
+                    },
+                    "priceRange": {
+                      "type": "object",
+                      "properties": {
+                        "min": {
+                          "type": "number",
+                          "description": "Minimum price per night per room (will be clamped to 0 if negative)"
+                        },
+                        "max": {
+                          "type": "number",
+                          "description": "Maximum price per night per room (will be clamped to 0 if negative)"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "Budget filter per night (e.g., 'under $200/night' = {max: 200}). Per-room price. Recalculate when users ask for multiple nights (e.g., '$600 for 3 nights' = {max: 200})."
+                    },
+                    "roomAmenities": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Room-level and booking amenities — all must match (AND logic). Covers features of the specific room or rate (e.g., 'bathtub', 'balcony', 'minibar', 'tv', 'kitchen', 'safe', 'free cancellation'). NOT for property-wide facilities like wifi, pool, gym, parking, spa, beach — those go in amenities. Short terms match best. Fuzzy matching finds the closest match. Examples: 'bathtub' = ['bathtub'], 'balcony and kitchen' = ['balcony', 'kitchen']."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Filters to apply to search results."
+                },
+                "sorting": {
+                  "type": "string",
+                  "enum": [
+                    "relevance",
+                    "price_asc",
+                    "price_desc",
+                    "star_rating_asc",
+                    "star_rating_desc",
+                    "review_score_asc",
+                    "review_score_desc",
+                    "distance_asc",
+                    "distance_from_center_asc",
+                    "distance_from_nearest_airport_asc"
+                  ],
+                  "default": "relevance",
+                  "description": "Sort order (e.g., 'cheapest first' = 'price_asc', 'closest to center' = 'distance_from_center_asc'). Default: relevance."
+                },
+                "countryCode": {
+                  "type": "string",
+                  "description": "The user's OWN country as an ISO 3166-1 alpha-2 code (e.g. 'IN', 'SA', 'SG'), when it is known from the conversation or the user's stated location. Sets the Wego site the booking hand-off opens and the default pricing currency. Do NOT derive it from the departure or arrival city — a user in India searching London flights is still 'IN'. Omit it when the user's country is genuinely unknown."
+                },
+                "currencyCode": {
+                  "type": "string",
+                  "description": "Currency for prices (e.g. 'INR', 'AED'). Set this ONLY when the user explicitly names a currency; otherwise omit it and the currency follows countryCode. Currency is fixed when a search is created — to change it, call this tool again with the new currencyCode and the same route, dates and passengers as a fresh search (do NOT reuse searchId)."
+                },
+                "locale": {
+                  "type": "string",
+                  "description": "Locale for results (e.g. 'en', 'ar'). BCP 47 with a region is accepted ('en-IN'). Omit unless the user's language is known."
+                },
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Pass the sessionToken from the previous response on any follow-up in the same conversation — refining with searchId, or starting a related search. It carries the country and currency already in use, so follow-up results keep the same currency and booking site. An explicit countryCode or currencyCode always wins over it."
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://wego/claude-app/v1/hotels"
+              }
+            }
+          },
+          {
+            "name": "hotels_poll",
+            "title": "Poll Hotel Results",
+            "description": "Internal. Invoked automatically by the hotel results widget after hotels_search. Do not call directly.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sessionToken": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Rolling session token returned by hotels_search or a previous hotels_poll call. Required."
+                }
+              },
+              "required": [
+                "sessionToken"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://wego/claude-app/v1/hotels"
+              }
+            }
+          },
+          {
+            "name": "places_find_location",
+            "title": "Find Location",
+            "description": "Optional helper to resolve travel location identifiers for hotels and flights (cityCode, hotelId, airport IATA codes, coordinates). Returns location codes, IDs, and coordinates.\n\nPURPOSE:\nProvides specific identifiers for other tools:\n- Coordinates for hotels_search geoSearch (e.g., \"Eiffel Tower\" → latitude, longitude) - geoSearch requires coordinates for landmarks\n- hotelId for hotels_search hotelSearch (e.g., \"Burj Al Arab\" → hotelId)\n- City code when needed (e.g., \"Kota Kinabalu\" → cityCode)\n- Airport IATA codes when needed (e.g., \"New York airports\" → JFK, LGA, EWR)\n\nNot for restaurants, shops, recipes, or general non-travel queries.\n\nPLACE TYPES:\nFilter by specific types using the 'types' parameter:\n- city: Major cities (returns cityCode like \"DXB\", \"PAR\")\n- airport: Airports (returns IATA codes like \"JFK\", \"LHR\")\n- district: Neighborhoods within cities (returns districtId)\n- state: States, provinces, regions\n- hotel: Individual hotels (returns hotelId)\n- poi: Points of interest, landmarks (returns coordinates)\n\nIf 'types' is omitted, returns all matching place types.\n\nPOI SEARCH WITH LOCATION BIAS:\nFor POI searches, locationBias (approximate coordinates) can optionally improve result relevance when geographic context is known.\n\nWhen to provide locationBias:\n- User mentions a city: \"Eiffel Tower in Paris\" (provide Paris coordinates)\n- Previous conversation context provides location\n- The landmark location is recognized\n\nWhen locationBias is not needed:\n- No geographic context available\n- Uncertain about location\n- Global/ambiguous landmarks\n\nEXAMPLES:\nResolve city: { query: \"Kota Kinabalu\", types: [\"city\"] } → cityCode\nResolve district: { query: \"Downtown Dubai\", types: [\"district\"] } → districtId\nResolve airports: { query: \"New York\", types: [\"airport\"] } → JFK, LGA, EWR\nResolve hotel: { query: \"Burj Al Arab\", types: [\"hotel\"] } → hotelId\nResolve POI with bias: { query: \"Eiffel Tower\", types: [\"poi\"], locationBias: { latitude: 48.85, longitude: 2.35 } }\nResolve POI without bias: { query: \"Marina Bay Sands\", types: [\"poi\"] }\n\nAMBIGUITY HANDLING:\nWhen multiple locations match, response includes hasAmbiguity: true and disambiguationHint. Ask user to specify which location.\n\nNOTES:\n- locationBias is optional (text search works without it)\n- Approximate coordinates are fine (city-level accuracy)\n- Location bias improves relevance but doesn't exclude other regions",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Location name to search (e.g., 'Kota Kinabalu', 'Eiffel Tower')."
+                },
+                "types": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "city",
+                      "airport",
+                      "state",
+                      "district",
+                      "hotel",
+                      "poi"
+                    ]
+                  },
+                  "description": "Place types to filter (e.g., 'find the city code' = ['city'], 'find coordinates' = ['poi']). If omitted, returns all types."
+                },
+                "locationBias": {
+                  "type": "object",
+                  "properties": {
+                    "latitude": {
+                      "type": "number",
+                      "minimum": -90,
+                      "maximum": 90,
+                      "description": "Latitude for location bias (helps narrow POI search results)"
+                    },
+                    "longitude": {
+                      "type": "number",
+                      "minimum": -180,
+                      "maximum": 180,
+                      "description": "Longitude for location bias (helps narrow POI search results)"
+                    }
+                  },
+                  "required": [
+                    "latitude",
+                    "longitude"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Approximate coordinates to improve POI search relevance (e.g., Paris coords when searching 'Eiffel Tower')."
+                }
+              },
+              "required": [
+                "query"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "flights_search",
+        "title": "Search Flights",
+        "description": "Searches for flights between airports or cities. Not for flight status, price tracking, visa information, bookings, or reservation management. Returns results from a Wego metasearch in a single call.\n\nParameters:\n- newSearch: Route (from/to as IATA codes), dates (fromDate, toDate in YYYY-MM-DD), passengers, and cabin class. Omit toDate for one-way trips.\n- Defaults when not specified: 1 adult, 0 children, 0 infants, economy cabin.\n- filters: Include only when the user mentions specific preferences (airlines, stops, times, price range, etc.).\n- sorting: A single string value. Options: score_desc (recommended, default), price_asc (cheapest), duration_asc (fastest), leg1_departure_time_asc/desc (outbound departure), leg2_departure_time_asc/desc (return departure, round-trip only).\n\nTime filtering (time ranges in minutes from midnight, 0-1440):\n- Format: {min: minutesFromMidnight, max: minutesFromMidnight}\n- Example: \"flights after 10pm\" → outboundDepartureTimeRange: {min: 1320, max: 1440}\n- Example: \"depart 8am-1pm\" → outboundDepartureTimeRange: {min: 480, max: 780}\n- Supports wraparound: {min: 1380, max: 60} = 11pm-1am (crosses midnight)\n\nRefinement: Provide the searchId from a previous response with updated filters or sorting. Refinement replaces all previous filters and sorting entirely — include existing values alongside new ones to preserve them.\n\nExample — changing return to after 10pm while keeping existing airlines [\"SQ\", \"KE\"], outbound 6am-8am, and price_asc sorting:\n{ \"searchId\": \"abc\", \"filters\": { \"airlines\": [\"SQ\", \"KE\"], \"outboundDepartureTimeRange\": { \"min\": 360, \"max\": 480 }, \"inboundDepartureTimeRange\": { \"min\": 1320, \"max\": 1440 } }, \"sorting\": \"price_asc\" }\n\nDefault behavior:\n- One date provided → one-way trip\n- Return date mentioned → round-trip\n- No preferences stated → omit filters\n- City name without specific airport → use the city IATA code (e.g., \"London\" → LON, \"New York\" → NYC, \"Tokyo\" → TYO). City codes automatically search all airports in that city.\n\nWhere the user is, and which currency to price in:\n- countryCode: the user's own country, as an ISO 3166-1 alpha-2 code (IN, SA, SG). Set it whenever the conversation shows where the user is. It picks which Wego site the booking link opens, and the currency prices are shown in. Do not take it from the departure or arrival city — someone in India searching London flights is still IN. Leave it out when you do not know.\n- currencyCode: set it only when the user names a currency themselves. Otherwise leave it out and prices follow countryCode.\n- When you refine with searchId, also pass the sessionToken from that same response. Without it the refined results revert to the default country and currency.\n- The currency is locked in when a search starts. To show a different one, run this tool again with the new currencyCode and the same route, dates and passengers. Do not reuse searchId.\n\nFormat URLs as markdown links: [text](url).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "searchId": {
+              "type": "string",
+              "description": "Reuse the searchId from a previous search when refining, filtering, or sorting."
+            },
+            "newSearch": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Departure IATA code (e.g., 'SIN', 'DXB', 'NYC'). Required for new search."
+                },
+                "to": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Arrival IATA code (e.g., 'NRT', 'LHR', 'CDG'). Required for new search."
+                },
+                "fromDate": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "Departure date in YYYY-MM-DD. Required for new search."
+                },
+                "toDate": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "Return date in YYYY-MM-DD for round-trip. Omit for one-way."
+                },
+                "adultsCount": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 9,
+                  "default": 1,
+                  "description": "Number of adults (e.g., 'my wife and I' = 2). Default: 1."
+                },
+                "childrenCount": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 8,
+                  "default": 0,
+                  "description": "Number of children aged 2-17 (e.g., 'with my 5-year-old' = 1). Default: 0."
+                },
+                "infantsCount": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 8,
+                  "default": 0,
+                  "description": "Number of infants under 2 (lap seat). Default: 0."
+                },
+                "cabinClass": {
+                  "type": "string",
+                  "enum": [
+                    "economy",
+                    "premium_economy",
+                    "business",
+                    "first"
+                  ],
+                  "description": "Cabin class (e.g., 'business class' = 'business'). Default: economy.",
+                  "default": "economy"
+                }
+              },
+              "required": [
+                "from",
+                "to",
+                "fromDate"
+              ],
+              "additionalProperties": false,
+              "description": "New flight search parameters. Include route, dates, and passengers. Omit when refining via searchId."
+            },
+            "filters": {
+              "type": "object",
+              "properties": {
+                "airlines": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 2
+                  },
+                  "description": "2-letter IATA airline codes (e.g., 'Singapore Airlines' = ['SQ'], 'Emirates or Qatar' = ['EK', 'QR'])."
+                },
+                "alliances": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "star_alliance",
+                      "oneworld",
+                      "skyteam"
+                    ]
+                  },
+                  "description": "Filter by alliance (e.g., 'Star Alliance flights' = ['star_alliance'], 'oneworld', 'skyteam')."
+                },
+                "stops": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "description": "Number of stops (e.g., 'direct only' = [0], 'max one stop' = [0, 1], '1 stop' = [1])."
+                },
+                "flightExperiences": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "no_overnight_flight",
+                      "no_long_stopover"
+                    ]
+                  },
+                  "description": "Flight experience preferences (e.g., 'no red-eye' = ['no_overnight_flight'], 'no long layovers' = ['no_long_stopover'])."
+                },
+                "priceRange": {
+                  "type": "object",
+                  "properties": {
+                    "min": {
+                      "type": "number"
+                    },
+                    "max": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Budget filter (e.g., 'under $500' = {max: 500}, '$200-$800' = {min: 200, max: 800}). Per-person price."
+                },
+                "outboundDepartureTimeRange": {
+                  "type": "object",
+                  "properties": {
+                    "min": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1439,
+                      "description": "Start time in minutes from midnight (0-1439). Example: 480 = 8:00 AM"
+                    },
+                    "max": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1440,
+                      "description": "End time in minutes from midnight (0-1440). Example: 780 = 1:00 PM. Supports max=1440 for end-of-day (midnight). For midnight wraparound (e.g., 11pm-1am), max can be less than min."
+                    }
+                  },
+                  "required": [
+                    "min",
+                    "max"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Filter departure time (e.g., 'after 8am' = {min: 480, max: 1440}, 'before 2pm' = {min: 0, max: 840}). Minutes from midnight."
+                },
+                "outboundArrivalTimeRange": {
+                  "$ref": "#/properties/filters/properties/outboundDepartureTimeRange",
+                  "description": "Filter arrival time at destination (e.g., 'arrive by noon' = {min: 0, max: 720}). Minutes from midnight."
+                },
+                "inboundDepartureTimeRange": {
+                  "$ref": "#/properties/filters/properties/outboundDepartureTimeRange",
+                  "description": "Filter return flight departure time (e.g., 'return after 6pm' = {min: 1080, max: 1440}). Minutes from midnight. Round-trip only."
+                },
+                "inboundArrivalTimeRange": {
+                  "$ref": "#/properties/filters/properties/outboundDepartureTimeRange",
+                  "description": "Filter return arrival time (e.g., 'land before midnight' = {min: 0, max: 1440}). Minutes from midnight. Round-trip only."
+                },
+                "outboundTotalDurationRange": {
+                  "$ref": "#/properties/filters/properties/priceRange",
+                  "description": "Outbound flight duration filter (e.g., 'under 3 hours' = {max: 180}). Minutes."
+                },
+                "inboundTotalDurationRange": {
+                  "$ref": "#/properties/filters/properties/priceRange",
+                  "description": "Return flight duration filter (e.g., 'under 5 hours' = {max: 300}). Minutes. Round-trip only."
+                }
+              },
+              "additionalProperties": false,
+              "description": "Flight filters. On refinement, filters replace all previous filters — re-include existing ones to preserve them."
+            },
+            "sorting": {
+              "type": "string",
+              "enum": [
+                "score_desc",
+                "price_asc",
+                "duration_asc",
+                "leg1_departure_time_asc",
+                "leg1_departure_time_desc",
+                "leg2_departure_time_asc",
+                "leg2_departure_time_desc"
+              ],
+              "default": "score_desc",
+              "description": "Sort order for results. Pass a single string value. Options: score_desc (recommended, default), price_asc (cheapest), duration_asc (fastest), leg1_departure_time_asc/desc (outbound departure), leg2_departure_time_asc/desc (return departure, round-trip only)."
+            },
+            "countryCode": {
+              "type": "string",
+              "description": "The user's OWN country as an ISO 3166-1 alpha-2 code (e.g. 'IN', 'SA', 'SG'), when it is known from the conversation or the user's stated location. Sets the Wego site the booking hand-off opens and the default pricing currency. Do NOT derive it from the departure or arrival city — a user in India searching London flights is still 'IN'. Omit it when the user's country is genuinely unknown."
+            },
+            "currencyCode": {
+              "type": "string",
+              "description": "Currency for prices (e.g. 'INR', 'AED'). Set this ONLY when the user explicitly names a currency; otherwise omit it and the currency follows countryCode. Currency is fixed when a search is created — to change it, call this tool again with the new currencyCode and the same route, dates and passengers as a fresh search (do NOT reuse searchId)."
+            },
+            "locale": {
+              "type": "string",
+              "description": "Locale for results (e.g. 'en', 'ar'). BCP 47 with a region is accepted ('en-IN'). Omit unless the user's language is known."
+            },
+            "sessionToken": {
+              "type": "string",
+              "description": "Pass the sessionToken from the previous response on any follow-up in the same conversation — refining with searchId, or starting a related search. It carries the country and currency already in use, so follow-up results keep the same currency and booking site. An explicit countryCode or currencyCode always wins over it."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://wego/claude-app/v1/flights"
+          }
+        }
+      },
+      {
+        "name": "flights_poll",
+        "title": "Poll Flight Results",
+        "description": "Internal. Invoked automatically by the flight results widget after flights_search to progressively load more results. Do not call directly.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sessionToken": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Rolling session token returned by flights_search or a previous flights_poll call. Required."
+            }
+          },
+          "required": [
+            "sessionToken"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://wego/claude-app/v1/flights"
+          }
+        }
+      },
+      {
+        "name": "hotels_search",
+        "title": "Search Hotels",
+        "description": "Searches for hotel accommodations by city, geo-location, or hotel ID. Not for restaurants, activities, car rentals, or non-travel queries. Returns paginated results in a single call. Common city codes (DXB, PAR, SIN, TYO, LON, NYC) can be used directly; use places_find_location for specific hotels, POI coordinates, or ambiguous locations.\n\nRefinement: When changing filters or sorting, provide the searchId from a previous response along with updated parameters. Search type objects are not needed for refinements.\nExample: { searchId: \"abc123\", filters: { amenities: [\"wifi\"], starRating: { min: 4 } } }\n\nSearch types (one per new search):\n1. citySearch — Hotels in a city. Suitable for generic proximity queries (e.g., \"near airports\" or \"downtown\") when combined with sorting.\n2. geoSearch — Hotels near a specific location (airport, landmark, POI). Requires latitude and longitude coordinates. Use places_find_location to get coordinates for landmarks. Recommended radius: 10km for landmarks, 20km for airports.\n3. hotelSearch — Single hotel by ID.\n\nChildren ages: When children are included, their ages affect pricing and availability. Missing or incorrect ages produce unreliable pricing and may return zero results.\n\nParameter format: All field names are camelCase (checkIn, checkOut, adultsCount, childrenCount). Coordinates go inside the geoSearch object, not as top-level parameters.\n\nProximity guidance:\n- Generic proximity (e.g., \"hotels near airport\") → citySearch + distance_from_nearest_airport_asc sorting\n- Generic city center (e.g., \"downtown hotels\") → citySearch + distance_from_center_asc sorting\n- Named location (e.g., \"hotels near Changi Airport\") → geoSearch with POI coordinates\n- Explicit radius (e.g., \"hotels within 15km of Eiffel Tower\") → geoSearch with POI coordinates and radius\n\nIntegration with places_find_location:\n- citySearch: get cityCode with types=[\"city\"]\n- geoSearch: get coordinates with types=[\"poi\"]\n\nExamples:\nNew search: { citySearch: { cityCode: \"DXB\" }, checkIn: \"2025-11-06\", checkOut: \"2025-11-07\", rooms: [{ adultsCount: 2, childrenCount: 0 }] }\nWith amenity filter: { citySearch: { cityCode: \"DXB\" }, filters: { amenities: [\"wifi\", \"pool\"] }, ... }\nRefinement: { searchId: \"abc123\", filters: { amenities: [\"pool\"], starRating: { min: 4 } } }\nNear airports: { citySearch: { cityCode: \"SIN\" }, sorting: \"distance_from_nearest_airport_asc\", ... }\nNear city center: { citySearch: { cityCode: \"PAR\" }, sorting: \"distance_from_center_asc\", ... }\nNear specific airport: { geoSearch: { latitude: 1.3644, longitude: 103.9915, radius: 20, name: \"Changi Airport\" }, ... }\nNear specific landmark: { geoSearch: { latitude: 48.8584, longitude: 2.2945, name: \"Eiffel Tower\" }, ... }\n\nRefinements use the searchId from the previous response with new filters or sorting parameters.\n\nWhere the user is, and which currency to price in:\n- countryCode: the user's own country, as an ISO 3166-1 alpha-2 code (IN, SA, SG). Set it whenever the conversation shows where the user is. It picks which Wego site the booking link opens, and the currency prices are shown in. Do not take it from the destination — someone in India searching Dubai hotels is still IN. Leave it out when you do not know.\n- currencyCode: set it only when the user names a currency themselves. Otherwise leave it out and prices follow countryCode.\n- When you refine with searchId, also pass the sessionToken from that same response. Without it the refined results revert to the default country and currency.\n- The currency is locked in when a search starts. To show a different one, run this tool again with the new currencyCode and the same destination, dates and guests. Do not reuse searchId.\n\nFormat URLs as markdown links: [text](url).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "searchId": {
+              "type": "string",
+              "description": "Reuse the searchId from a previous search when refining filters or sorting."
+            },
+            "citySearch": {
+              "type": "object",
+              "properties": {
+                "cityCode": {
+                  "type": "string",
+                  "description": "City code (IATA format, e.g., 'DXB', 'SIN')"
+                }
+              },
+              "required": [
+                "cityCode"
+              ],
+              "additionalProperties": false,
+              "description": "Hotels in a city (e.g., 'hotels in Dubai' = {cityCode: 'DXB'})."
+            },
+            "geoSearch": {
+              "type": "object",
+              "properties": {
+                "longitude": {
+                  "type": "number",
+                  "description": "Longitude coordinate (will be clamped to -180 to 180 range)"
+                },
+                "latitude": {
+                  "type": "number",
+                  "description": "Latitude coordinate (will be clamped to -90 to 90 range)"
+                },
+                "radius": {
+                  "type": "number",
+                  "description": "Search radius in kilometers (minimum 10km enforced). Recommended values: 10km for city landmarks, 20km for airports, 30km for rural areas"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Name of the reference point for display (e.g., 'Burj Khalifa', 'Mall of the Emirates')"
+                }
+              },
+              "required": [
+                "longitude",
+                "latitude"
+              ],
+              "additionalProperties": false,
+              "description": "Hotels near a location (e.g., 'near Eiffel Tower' = {latitude: 48.8584, longitude: 2.2945}). Use places_find_location for coordinates."
+            },
+            "hotelSearch": {
+              "type": "object",
+              "properties": {
+                "hotelId": {
+                  "type": "integer",
+                  "description": "Hotel ID for single hotel search"
+                }
+              },
+              "required": [
+                "hotelId"
+              ],
+              "additionalProperties": false,
+              "description": "Single hotel by ID (e.g., {hotelId: 12345})."
+            },
+            "checkIn": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Check-in date in YYYY-MM-DD."
+            },
+            "checkOut": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Check-out date in YYYY-MM-DD."
+            },
+            "rooms": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "adultsCount": {
+                    "type": "integer",
+                    "description": "Number of adults in the room (will be clamped to minimum 1)"
+                  },
+                  "childrenCount": {
+                    "type": "integer",
+                    "description": "Number of children in the room (will be clamped to minimum 0)"
+                  },
+                  "childrenAges": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "description": "Ages of each child (0-17). REQUIRED when childrenCount > 0 — if the user hasn't specified ages, ask them before searching. Do NOT guess or infer ages from other numbers like dates. Array format even for one child, e.g., [8] not 8."
+                  }
+                },
+                "required": [
+                  "adultsCount",
+                  "childrenCount"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "description": "Room config for pricing (e.g., 'family of 4' = [{adultsCount: 2, childrenCount: 2, childrenAges: [8, 5]}])."
+            },
+            "filters": {
+              "type": "object",
+              "properties": {
+                "amenities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Hotel property amenities — all must match (AND logic). Covers wifi, pool, parking, gym, spa, beach, restaurant, pet-friendly, etc. This is where wifi belongs — it is a property amenity, not a room feature. Short terms match best (e.g., 'wifi' not 'Free WiFi', 'pool' not 'Swimming Pool'). Fuzzy matching finds the closest match. Examples: 'wifi' = ['wifi'], 'wifi and pool' = ['wifi', 'pool']."
+                },
+                "starRating": {
+                  "type": "object",
+                  "properties": {
+                    "min": {
+                      "type": "integer",
+                      "description": "Minimum star rating (will be clamped to 0-5 range)"
+                    },
+                    "max": {
+                      "type": "integer",
+                      "description": "Maximum star rating (will be clamped to 0-5 range)"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Hotel class filter. A bare 'N-star' / 'N stars' means N-or-above = {min: N} — set ONLY min, never max. Set max only for an explicit range or upper bound (e.g., '3 to 4 stars' = {min: 3, max: 4}, 'up to 3 stars' = {max: 3}, '4-star or above' = {min: 4})."
+                },
+                "reviewScore": {
+                  "type": "object",
+                  "properties": {
+                    "min": {
+                      "type": "number",
+                      "description": "Minimum guest review score (will be clamped to 0-10 range)"
+                    },
+                    "max": {
+                      "type": "number",
+                      "description": "Maximum guest review score (will be clamped to 0-10 range)"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Guest satisfaction filter on 0-10 scale (e.g., 'highly rated' = {min: 8})."
+                },
+                "propertyTypes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Accommodation type filter (e.g., 'resorts only' = ['Resort'], 'hotel or apartment' = ['Hotel', 'Apartment']). Short terms match best (e.g., 'Hotel' not 'Boutique Hotel', 'Hostel' not 'Hostel / Backpacker', 'Apartment' not 'Serviced Apartment')."
+                },
+                "priceRange": {
+                  "type": "object",
+                  "properties": {
+                    "min": {
+                      "type": "number",
+                      "description": "Minimum price per night per room (will be clamped to 0 if negative)"
+                    },
+                    "max": {
+                      "type": "number",
+                      "description": "Maximum price per night per room (will be clamped to 0 if negative)"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Budget filter per night (e.g., 'under $200/night' = {max: 200}). Per-room price. Recalculate when users ask for multiple nights (e.g., '$600 for 3 nights' = {max: 200})."
+                },
+                "roomAmenities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Room-level and booking amenities — all must match (AND logic). Covers features of the specific room or rate (e.g., 'bathtub', 'balcony', 'minibar', 'tv', 'kitchen', 'safe', 'free cancellation'). NOT for property-wide facilities like wifi, pool, gym, parking, spa, beach — those go in amenities. Short terms match best. Fuzzy matching finds the closest match. Examples: 'bathtub' = ['bathtub'], 'balcony and kitchen' = ['balcony', 'kitchen']."
+                }
+              },
+              "additionalProperties": false,
+              "description": "Filters to apply to search results."
+            },
+            "sorting": {
+              "type": "string",
+              "enum": [
+                "relevance",
+                "price_asc",
+                "price_desc",
+                "star_rating_asc",
+                "star_rating_desc",
+                "review_score_asc",
+                "review_score_desc",
+                "distance_asc",
+                "distance_from_center_asc",
+                "distance_from_nearest_airport_asc"
+              ],
+              "default": "relevance",
+              "description": "Sort order (e.g., 'cheapest first' = 'price_asc', 'closest to center' = 'distance_from_center_asc'). Default: relevance."
+            },
+            "countryCode": {
+              "type": "string",
+              "description": "The user's OWN country as an ISO 3166-1 alpha-2 code (e.g. 'IN', 'SA', 'SG'), when it is known from the conversation or the user's stated location. Sets the Wego site the booking hand-off opens and the default pricing currency. Do NOT derive it from the departure or arrival city — a user in India searching London flights is still 'IN'. Omit it when the user's country is genuinely unknown."
+            },
+            "currencyCode": {
+              "type": "string",
+              "description": "Currency for prices (e.g. 'INR', 'AED'). Set this ONLY when the user explicitly names a currency; otherwise omit it and the currency follows countryCode. Currency is fixed when a search is created — to change it, call this tool again with the new currencyCode and the same route, dates and passengers as a fresh search (do NOT reuse searchId)."
+            },
+            "locale": {
+              "type": "string",
+              "description": "Locale for results (e.g. 'en', 'ar'). BCP 47 with a region is accepted ('en-IN'). Omit unless the user's language is known."
+            },
+            "sessionToken": {
+              "type": "string",
+              "description": "Pass the sessionToken from the previous response on any follow-up in the same conversation — refining with searchId, or starting a related search. It carries the country and currency already in use, so follow-up results keep the same currency and booking site. An explicit countryCode or currencyCode always wins over it."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://wego/claude-app/v1/hotels"
+          }
+        }
+      },
+      {
+        "name": "hotels_poll",
+        "title": "Poll Hotel Results",
+        "description": "Internal. Invoked automatically by the hotel results widget after hotels_search. Do not call directly.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sessionToken": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Rolling session token returned by hotels_search or a previous hotels_poll call. Required."
+            }
+          },
+          "required": [
+            "sessionToken"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://wego/claude-app/v1/hotels"
+          }
+        }
+      },
+      {
+        "name": "places_find_location",
+        "title": "Find Location",
+        "description": "Optional helper to resolve travel location identifiers for hotels and flights (cityCode, hotelId, airport IATA codes, coordinates). Returns location codes, IDs, and coordinates.\n\nPURPOSE:\nProvides specific identifiers for other tools:\n- Coordinates for hotels_search geoSearch (e.g., \"Eiffel Tower\" → latitude, longitude) - geoSearch requires coordinates for landmarks\n- hotelId for hotels_search hotelSearch (e.g., \"Burj Al Arab\" → hotelId)\n- City code when needed (e.g., \"Kota Kinabalu\" → cityCode)\n- Airport IATA codes when needed (e.g., \"New York airports\" → JFK, LGA, EWR)\n\nNot for restaurants, shops, recipes, or general non-travel queries.\n\nPLACE TYPES:\nFilter by specific types using the 'types' parameter:\n- city: Major cities (returns cityCode like \"DXB\", \"PAR\")\n- airport: Airports (returns IATA codes like \"JFK\", \"LHR\")\n- district: Neighborhoods within cities (returns districtId)\n- state: States, provinces, regions\n- hotel: Individual hotels (returns hotelId)\n- poi: Points of interest, landmarks (returns coordinates)\n\nIf 'types' is omitted, returns all matching place types.\n\nPOI SEARCH WITH LOCATION BIAS:\nFor POI searches, locationBias (approximate coordinates) can optionally improve result relevance when geographic context is known.\n\nWhen to provide locationBias:\n- User mentions a city: \"Eiffel Tower in Paris\" (provide Paris coordinates)\n- Previous conversation context provides location\n- The landmark location is recognized\n\nWhen locationBias is not needed:\n- No geographic context available\n- Uncertain about location\n- Global/ambiguous landmarks\n\nEXAMPLES:\nResolve city: { query: \"Kota Kinabalu\", types: [\"city\"] } → cityCode\nResolve district: { query: \"Downtown Dubai\", types: [\"district\"] } → districtId\nResolve airports: { query: \"New York\", types: [\"airport\"] } → JFK, LGA, EWR\nResolve hotel: { query: \"Burj Al Arab\", types: [\"hotel\"] } → hotelId\nResolve POI with bias: { query: \"Eiffel Tower\", types: [\"poi\"], locationBias: { latitude: 48.85, longitude: 2.35 } }\nResolve POI without bias: { query: \"Marina Bay Sands\", types: [\"poi\"] }\n\nAMBIGUITY HANDLING:\nWhen multiple locations match, response includes hasAmbiguity: true and disambiguationHint. Ask user to specify which location.\n\nNOTES:\n- locationBias is optional (text search works without it)\n- Approximate coordinates are fine (city-level accuracy)\n- Location bias improves relevance but doesn't exclude other regions",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Location name to search (e.g., 'Kota Kinabalu', 'Eiffel Tower')."
+            },
+            "types": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "city",
+                  "airport",
+                  "state",
+                  "district",
+                  "hotel",
+                  "poi"
+                ]
+              },
+              "description": "Place types to filter (e.g., 'find the city code' = ['city'], 'find coordinates' = ['poi']). If omitted, returns all types."
+            },
+            "locationBias": {
+              "type": "object",
+              "properties": {
+                "latitude": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90,
+                  "description": "Latitude for location bias (helps narrow POI search results)"
+                },
+                "longitude": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180,
+                  "description": "Longitude for location bias (helps narrow POI search results)"
+                }
+              },
+              "required": [
+                "latitude",
+                "longitude"
+              ],
+              "additionalProperties": false,
+              "description": "Approximate coordinates to improve POI search relevance (e.g., Paris coords when searching 'Eiffel Tower')."
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:25:14.374Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:25:15.424Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:25:16.475Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:25:17.526Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 5,
+    "tools_hash": "sha256:bf1d26ed2f5a1abebd60a94939cd3d4c14f924c873a8fa4dbe2cf3669c89c6a2",
+    "static_tool_tokens": 10684,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "flights_search",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "flights_search",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "flights_poll",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "flights_poll",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F8",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "hotels_search",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "hotels_search",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "hotels_poll",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "hotels_poll",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "places_find_location",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "places_find_location",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 7,
+      "warning": 3
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "flights_search",
+          "path": "inputSchema.properties.filters.properties.priceRange.properties.max",
+          "name": "max",
+          "description": "",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "flights_search",
+          "path": "inputSchema.properties.filters.properties.outboundDepartureTimeRange.properties.max",
+          "name": "max",
+          "description": "End time in minutes from midnight (0-1440). Example: 780 = 1:00 PM. Supports max=1440 for end-of-day (midnight). For midnight wraparound (e.g., 11pm-1am), max can be less than min.",
+          "mentions_size_or_cost": true,
+          "maximum": 1440
+        },
+        {
+          "tool": "hotels_search",
+          "path": "inputSchema.properties.filters.properties.starRating.properties.max",
+          "name": "max",
+          "description": "Maximum star rating (will be clamped to 0-5 range)",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "hotels_search",
+          "path": "inputSchema.properties.filters.properties.reviewScore.properties.max",
+          "name": "max",
+          "description": "Maximum guest review score (will be clamped to 0-10 range)",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "hotels_search",
+          "path": "inputSchema.properties.filters.properties.priceRange.properties.max",
+          "name": "max",
+          "description": "Maximum price per night per room (will be clamped to 0 if negative)",
+          "mentions_size_or_cost": true
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "flights_search"
+          ],
+          "path": "inputSchema.properties.filters.properties.priceRange.properties.max",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "flights_search"
+          ],
+          "description": "Searches for flights between airports or cities. Not for flight status, price tracking, visa information, bookings, or reservation management. Returns results from a Wego metasearch in a single call.\n\nParameters:\n- newSearch: Route (from/to as IATA codes), dates (fromDate, toDate in YYYY-MM-DD), passengers, and cabin class. Omit toDate for one-way trips.\n- Defaults when not specified: 1 adult, 0 children, 0 infants, economy cabin.\n- filters: Include only when the user mentions specific preferences (airlines, stops, times, price range, etc.).\n- sorting: A single string value. Options: score_desc (recommended, default), price_asc (cheapest), duration_asc (fastest), leg1_departure_time_asc/desc (outbound departure), leg2_departure_time_asc/desc (return departure, round-trip only).\n\nTime filtering (time ranges in minutes from midnight, 0-1440):\n- Format: {min: minutesFromMidnight, max: minutesFromMidnight}\n- Example: \"flights after 10pm\" → outboundDepartureTimeRange: {min: 1320, max: 1440}\n- Example: \"depart 8am-1pm\" → outboundDepartureTimeRange: {min: 480, max: 780}\n- Supports wraparound: {min: 1380, max: 60} = 11pm-1am (crosses midnight)\n\nRefinement: Provide the searchId from a previous response with updated filters or sorting. Refinement replaces all previous filters and sorting entirely — include existing values alongside new ones to preserve them.\n\nExample — changing return to after 10pm while keeping existing airlines [\"SQ\", \"KE\"], outbound 6am-8am, and price_asc sorting:\n{ \"searchId\": \"abc\", \"filters\": { \"airlines\": [\"SQ\", \"KE\"], \"outboundDepartureTimeRange\": { \"min\": 360, \"max\": 480 }, \"inboundDepartureTimeRange\": { \"min\": 1320, \"max\": 1440 } }, \"sorting\": \"price_asc\" }\n\nDefault behavior:\n- One date provided → one-way trip\n- Return date mentioned → round-trip\n- No preferences stated → omit filters\n- City name without specific airport → use the city IATA code (e.g., \"London\" → LON, \"New York\" → NYC, \"Tokyo\" → TYO). City codes automatically search all airports in that city.\n\nWhere the user is, and which currency to price in:\n- countryCode: the user's own country, as an ISO 3166-1 alpha-2 code (IN, SA, SG). Set it whenever the conversation shows where the user is. It picks which Wego site the booking link opens, and the currency prices are shown in. Do not take it from the departure or arrival city — someone in India searching London flights is still IN. Leave it out when you do not know.\n- currencyCode: set it only when the user names a currency themselves. Otherwise leave it out and prices follow countryCode.\n- When you refine with searchId, also pass the sessionToken from that same response. Without it the refined results revert to the default country and currency.\n- The currency is locked in when a search starts. To show a different one, run this tool again with the new currencyCode and the same route, dates and passengers. Do not reuse searchId.\n\nFormat URLs as markdown links: [text](url).",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "hotels_search"
+          ],
+          "description": "Searches for hotel accommodations by city, geo-location, or hotel ID. Not for restaurants, activities, car rentals, or non-travel queries. Returns paginated results in a single call. Common city codes (DXB, PAR, SIN, TYO, LON, NYC) can be used directly; use places_find_location for specific hotels, POI coordinates, or ambiguous locations.\n\nRefinement: When changing filters or sorting, provide the searchId from a previous response along with updated parameters. Search type objects are not needed for refinements.\nExample: { searchId: \"abc123\", filters: { amenities: [\"wifi\"], starRating: { min: 4 } } }\n\nSearch types (one per new search):\n1. citySearch — Hotels in a city. Suitable for generic proximity queries (e.g., \"near airports\" or \"downtown\") when combined with sorting.\n2. geoSearch — Hotels near a specific location (airport, landmark, POI). Requires latitude and longitude coordinates. Use places_find_location to get coordinates for landmarks. Recommended radius: 10km for landmarks, 20km for airports.\n3. hotelSearch — Single hotel by ID.\n\nChildren ages: When children are included, their ages affect pricing and availability. Missing or incorrect ages produce unreliable pricing and may return zero results.\n\nParameter format: All field names are camelCase (checkIn, checkOut, adultsCount, childrenCount). Coordinates go inside the geoSearch object, not as top-level parameters.\n\nProximity guidance:\n- Generic proximity (e.g., \"hotels near airport\") → citySearch + distance_from_nearest_airport_asc sorting\n- Generic city center (e.g., \"downtown hotels\") → citySearch + distance_from_center_asc sorting\n- Named location (e.g., \"hotels near Changi Airport\") → geoSearch with POI coordinates\n- Explicit radius (e.g., \"hotels within 15km of Eiffel Tower\") → geoSearch with POI coordinates and radius\n\nIntegration with places_find_location:\n- citySearch: get cityCode with types=[\"city\"]\n- geoSearch: get coordinates with types=[\"poi\"]\n\nExamples:\nNew search: { citySearch: { cityCode: \"DXB\" }, checkIn: \"2025-11-06\", checkOut: \"2025-11-07\", rooms: [{ adultsCount: 2, childrenCount: 0 }] }\nWith amenity filter: { citySearch: { cityCode: \"DXB\" }, filters: { amenities: [\"wifi\", \"pool\"] }, ... }\nRefinement: { searchId: \"abc123\", filters: { amenities: [\"pool\"], starRating: { min: 4 } } }\nNear airports: { citySearch: { cityCode: \"SIN\" }, sorting: \"distance_from_nearest_airport_asc\", ... }\nNear city center: { citySearch: { cityCode: \"PAR\" }, sorting: \"distance_from_center_asc\", ... }\nNear specific airport: { geoSearch: { latitude: 1.3644, longitude: 103.9915, radius: 20, name: \"Changi Airport\" }, ... }\nNear specific landmark: { geoSearch: { latitude: 48.8584, longitude: 2.2945, name: \"Eiffel Tower\" }, ... }\n\nRefinements use the searchId from the previous response with new filters or sorting parameters.\n\nWhere the user is, and which currency to price in:\n- countryCode: the user's own country, as an ISO 3166-1 alpha-2 code (IN, SA, SG). Set it whenever the conversation shows where the user is. It picks which Wego site the booking link opens, and the currency prices are shown in. Do not take it from the destination — someone in India searching Dubai hotels is still IN. Leave it out when you do not know.\n- currencyCode: set it only when the user names a currency themselves. Otherwise leave it out and prices follow countryCode.\n- When you refine with searchId, also pass the sessionToken from that same response. Without it the refined results revert to the default country and currency.\n- The currency is locked in when a search starts. To show a different one, run this tool again with the new currencyCode and the same destination, dates and guests. Do not reuse searchId.\n\nFormat URLs as markdown links: [text](url).",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "places_find_location"
+          ],
+          "description": "Optional helper to resolve travel location identifiers for hotels and flights (cityCode, hotelId, airport IATA codes, coordinates). Returns location codes, IDs, and coordinates.\n\nPURPOSE:\nProvides specific identifiers for other tools:\n- Coordinates for hotels_search geoSearch (e.g., \"Eiffel Tower\" → latitude, longitude) - geoSearch requires coordinates for landmarks\n- hotelId for hotels_search hotelSearch (e.g., \"Burj Al Arab\" → hotelId)\n- City code when needed (e.g., \"Kota Kinabalu\" → cityCode)\n- Airport IATA codes when needed (e.g., \"New York airports\" → JFK, LGA, EWR)\n\nNot for restaurants, shops, recipes, or general non-travel queries.\n\nPLACE TYPES:\nFilter by specific types using the 'types' parameter:\n- city: Major cities (returns cityCode like \"DXB\", \"PAR\")\n- airport: Airports (returns IATA codes like \"JFK\", \"LHR\")\n- district: Neighborhoods within cities (returns districtId)\n- state: States, provinces, regions\n- hotel: Individual hotels (returns hotelId)\n- poi: Points of interest, landmarks (returns coordinates)\n\nIf 'types' is omitted, returns all matching place types.\n\nPOI SEARCH WITH LOCATION BIAS:\nFor POI searches, locationBias (approximate coordinates) can optionally improve result relevance when geographic context is known.\n\nWhen to provide locationBias:\n- User mentions a city: \"Eiffel Tower in Paris\" (provide Paris coordinates)\n- Previous conversation context provides location\n- The landmark location is recognized\n\nWhen locationBias is not needed:\n- No geographic context available\n- Uncertain about location\n- Global/ambiguous landmarks\n\nEXAMPLES:\nResolve city: { query: \"Kota Kinabalu\", types: [\"city\"] } → cityCode\nResolve district: { query: \"Downtown Dubai\", types: [\"district\"] } → districtId\nResolve airports: { query: \"New York\", types: [\"airport\"] } → JFK, LGA, EWR\nResolve hotel: { query: \"Burj Al Arab\", types: [\"hotel\"] } → hotelId\nResolve POI with bias: { query: \"Eiffel Tower\", types: [\"poi\"], locationBias: { latitude: 48.85, longitude: 2.35 } }\nResolve POI without bias: { query: \"Marina Bay Sands\", types: [\"poi\"] }\n\nAMBIGUITY HANDLING:\nWhen multiple locations match, response includes hasAmbiguity: true and disambiguationHint. Ask user to specify which location.\n\nNOTES:\n- locationBias is optional (text search works without it)\n- Approximate coordinates are fine (city-level accuracy)\n- Location bias improves relevance but doesn't exclude other regions",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "flights_search",
+      "flights_poll",
+      "hotels_search",
+      "hotels_poll",
+      "places_find_location"
+    ]
+  }
+}

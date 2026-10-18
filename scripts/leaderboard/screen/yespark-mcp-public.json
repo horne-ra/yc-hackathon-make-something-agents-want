@@ -1,0 +1,836 @@
+{
+  "slug": "yespark-mcp-public",
+  "source_url": "https://manufact.com/mcp-catalog/yespark-mcp-public",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-18T00:15:27.893Z",
+    "endpoint": "https://mcp-public.yespark.fr/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "yespark-public",
+      "version": "0.1.0"
+    },
+    "capabilities": {
+      "resources": {},
+      "tools": {}
+    },
+    "instructions": "Ce serveur cherche des parkings Yespark réservables en courte durée (de quelques heures à quelques jours), en France, via l'outil search_parkings.\n\nAvant l'appel\n- Seul un lieu manquant justifie une question à l'utilisateur. Ne jamais demander la date ni l'heure : appliquer la première règle qui correspond, en heure de Paris (Europe/Paris).\n  1. Date et heure données : les utiliser, en convertissant les dates relatives (« vendredi prochain ») en dates absolues.\n  2. « Ce week-end » sans heure : du samedi 08:00 au dimanche 23:00.\n  3. Une date sans heure : de 08:00 à 18:00 ce jour-là.\n  4. Une heure sans date : aujourd'hui si elle n'est pas passée, sinon demain ; fin 4 heures plus tard, sauf durée ou heure de fin donnée.\n  5. Rien, « maintenant » ou « aujourd'hui » : début dans 15 minutes, fin 4 heures plus tard.\n- Passer le lieu dans location.address avec les mots de l'utilisateur, ou ses coordonnées si elles sont connues. Préférer un lieu précis (gare, adresse, salle, stade) à un quartier.\n\nAprès l'appel\n- Si search_parkings répond AMBIGUOUS_LOCATION, présenter les lieux proposés, demander lequel est visé, puis relancer avec location.latitude et location.longitude du lieu choisi. Ne pas en choisir un soi-même.\n- Annoncer le créneau retenu dans la réponse, jamais sous forme de question avant de chercher. Quand searchedLocation est présent, nommer ce lieu : c'est celui qui a réellement été cherché.\n- N'utiliser que les champs renvoyés : aucun prix, disponibilité, distance ou lien inventé. price est le prix total TTC du créneau, pas un tarif horaire.\n- Présenter le bookingUrl du parking recommandé : il ouvre le checkout avec le parking et le créneau déjà remplis.\n- Relayer reservationWarning quand il est présent, et l'échéance freeCancellationUntil quand elle l'est ; sans elle, prévenir que la réservation ne sera pas annulable.\n- rating est la moyenne de tous les avis du parking : la citer avec son nombre d'avis, sans l'arrondir.\n- Quand l'hôte affiche les résultats sous forme de cartes, se limiter au parking recommandé, à la raison du choix et à son lien, sans recopier la liste.\n- Aucun résultat : proposer un autre créneau ou un lieu voisin.\n- Pour un stationnement au mois, cet outil ne convient pas : orienter vers https://www.yespark.fr.\n",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "search_parkings",
+            "title": "Recherche de parkings réservables",
+            "description": "Recherche les parkings Yespark disponibles à la réservation courte durée autour d'une position, sur une plage de dates précise. À utiliser quand l'utilisateur veut se garer ponctuellement (de quelques heures à quelques jours) près d'un lieu. Retourne les parkings correspondants (10 par page par défaut), triés par distance (ou prix), avec le prix total pour la période, la distance en mètres et le temps de marche à pied, l'échéance d'annulation gratuite (`freeCancellationUntil`) et la note moyenne de tous les avis (`rating`). Chaque parking porte un `bookingUrl` : checkout de la réservation avec le créneau déjà rempli — le présenter à l'utilisateur pour qu'il finalise, sinon il devra ressaisir ses dates. Les champs `photos` (URLs d'images) et `location` (latitude/longitude) permettent d'illustrer ou de cartographier les résultats. La zone de recherche se donne en coordonnées, en rectangle, ou en texte libre via `location.address` (adresse, gare, lieu — géocodé côté serveur, France). Ne pas utiliser pour un abonnement mensuel.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "object",
+                  "description": "Zone de recherche : fournir SOIT un point (latitude + longitude), SOIT un rectangle (locationBounds), SOIT une adresse en texte libre (address).",
+                  "properties": {
+                    "latitude": {
+                      "type": "number",
+                      "minimum": -90,
+                      "maximum": 90,
+                      "description": "Latitude du point (ex : 48.8566)."
+                    },
+                    "longitude": {
+                      "type": "number",
+                      "minimum": -180,
+                      "maximum": 180,
+                      "description": "Longitude du point (ex : 2.3522)."
+                    },
+                    "address": {
+                      "type": "string",
+                      "description": "Adresse, gare ou lieu en texte libre (ex : \"12 rue de Rivoli, Paris\", \"Gare de Lyon\"), géocodé côté serveur. France uniquement. Alternative à latitude/longitude : préférer les coordonnées quand elles sont connues."
+                    },
+                    "locationBounds": {
+                      "type": "object",
+                      "description": "Rectangle géographique, alternative au point latitude/longitude.",
+                      "properties": {
+                        "northLatitude": {
+                          "type": "number"
+                        },
+                        "southLatitude": {
+                          "type": "number"
+                        },
+                        "eastLongitude": {
+                          "type": "number"
+                        },
+                        "westLongitude": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "northLatitude",
+                        "southLatitude",
+                        "eastLongitude",
+                        "westLongitude"
+                      ]
+                    }
+                  }
+                },
+                "beginDate": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "Début de la réservation, ISO 8601 avec fuseau (ex : 2026-06-10T09:00:00+02:00). Dans le futur."
+                },
+                "endDate": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "Fin de la réservation, ISO 8601 avec fuseau (ex : 2026-06-10T18:00:00+02:00). Après beginDate."
+                },
+                "vehicleTypes": {
+                  "type": "string",
+                  "enum": [
+                    "Car",
+                    "Moto"
+                  ],
+                  "description": "Type de véhicule. \"Moto\" pour une place deux-roues, sinon \"Car\" (défaut)."
+                },
+                "pagination": {
+                  "type": "object",
+                  "description": "Tri et pagination des résultats.",
+                  "properties": {
+                    "sortField": {
+                      "type": "string",
+                      "enum": [
+                        "distance",
+                        "price"
+                      ],
+                      "description": "Critère de tri (défaut : distance)."
+                    },
+                    "sortDirection": {
+                      "type": "string",
+                      "enum": [
+                        "asc",
+                        "desc"
+                      ],
+                      "description": "Sens du tri (défaut : asc)."
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 100,
+                      "description": "Résultats par page (défaut 10, max 100)."
+                    },
+                    "pageNumber": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Numéro de page (défaut 1)."
+                    }
+                  }
+                }
+              },
+              "required": [
+                "location",
+                "beginDate",
+                "endDate"
+              ]
+            },
+            "annotations": {
+              "scope": "public:parkings:search",
+              "title": "Recherche de parkings réservables",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "securitySchemes": [
+              {
+                "type": "noauth"
+              },
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "public:parkings:search"
+                ]
+              }
+            ],
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "searchedLocation": {
+                  "type": "object",
+                  "description": "Lieu réellement cherché quand la zone a été donnée en texte libre : à nommer à l'utilisateur.",
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "postcode": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "count": {
+                  "type": "integer",
+                  "description": "Nombre de parkings dans cette page (au plus `pageSize`)."
+                },
+                "pagination": {
+                  "type": "object",
+                  "description": "Page servie et parkings restants — à relire avant de proposer une page suivante.",
+                  "properties": {
+                    "page_number": {
+                      "type": "integer",
+                      "description": "Numéro de la page servie."
+                    },
+                    "page_size": {
+                      "type": "integer",
+                      "description": "Taille de page appliquée (bornée à 100)."
+                    },
+                    "has_more": {
+                      "type": "boolean",
+                      "description": "Vrai s'il reste des parkings après cette page."
+                    },
+                    "total_count": {
+                      "type": "integer",
+                      "description": "Nombre total de parkings trouvés. Absent quand le tri par distance s'est arrêté à cette page : lire `has_more`."
+                    },
+                    "sort_field": {
+                      "type": "string",
+                      "enum": [
+                        "distance",
+                        "price"
+                      ],
+                      "description": "Critère de tri appliqué."
+                    },
+                    "sort_direction": {
+                      "type": "string",
+                      "enum": [
+                        "asc",
+                        "desc"
+                      ],
+                      "description": "Sens du tri appliqué."
+                    }
+                  }
+                },
+                "parkings": {
+                  "type": "array",
+                  "description": "Parkings disponibles sur toute la période demandée, triés par distance ou par prix.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "parking": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string",
+                            "description": "Page du parking sur yespark.fr."
+                          },
+                          "bookingUrl": {
+                            "type": "string",
+                            "description": "Checkout de la réservation, parking et créneau déjà remplis : c'est ce lien qu'il faut présenter."
+                          },
+                          "location": {
+                            "type": "object",
+                            "description": "Coordonnées du parking, pour le cartographier.",
+                            "properties": {
+                              "latitude": {
+                                "type": "number"
+                              },
+                              "longitude": {
+                                "type": "number"
+                              }
+                            }
+                          },
+                          "address": {
+                            "type": "object",
+                            "properties": {
+                              "street": {
+                                "type": "string"
+                              },
+                              "postcode": {
+                                "type": "string"
+                              },
+                              "city": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "availability": {
+                            "type": "object",
+                            "properties": {
+                              "reservation": {
+                                "type": "integer",
+                                "description": "Places réservables restantes."
+                              }
+                            }
+                          },
+                          "photos": {
+                            "type": "array",
+                            "description": "URL de la photo principale du parking.",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "localizeParking": {
+                            "type": "string",
+                            "description": "Informations pratiques pour trouver l'entrée, en texte brut."
+                          },
+                          "characteristics": {
+                            "type": "object",
+                            "properties": {
+                              "maxHeight": {
+                                "type": "number",
+                                "description": "Hauteur maximale admise, en mètres."
+                              },
+                              "underground": {
+                                "type": "boolean",
+                                "description": "Parking couvert (souterrain ou en ouvrage)."
+                              },
+                              "lift": {
+                                "type": "boolean"
+                              },
+                              "videosurveillance": {
+                                "type": "boolean"
+                              },
+                              "buildingManager": {
+                                "type": "boolean",
+                                "description": "Gardien sur place."
+                              }
+                            }
+                          },
+                          "accessTypes": {
+                            "type": "string",
+                            "description": "Moyens d'accès séparés par « , » : Application, Ticket, Receptionist, Anpr."
+                          },
+                          "vehicleTypes": {
+                            "type": "string",
+                            "description": "Gabarits recommandés séparés par « , » : Moto, Small, Medium, Large, Tall, Very Tall."
+                          },
+                          "rating": {
+                            "type": "object",
+                            "description": "Note moyenne sur 5 de tous les avis notés du parking, sans filtre, et leur nombre. Absent sans avis.",
+                            "properties": {
+                              "average": {
+                                "type": "number"
+                              },
+                              "count": {
+                                "type": "integer"
+                              }
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "location",
+                          "address"
+                        ]
+                      },
+                      "price": {
+                        "type": "number",
+                        "description": "Prix total TTC en euros pour toute la période demandée — jamais un tarif horaire. C'est le prix facturé au checkout ouvert par `bookingUrl`, remise de réservation anticipée comprise (-10 % dès 7 jours d'avance, selon le parking)."
+                      },
+                      "distanceMeters": {
+                        "type": "integer",
+                        "description": "Distance à vol d'oiseau depuis le lieu cherché, en mètres."
+                      },
+                      "travelTime": {
+                        "type": "integer",
+                        "description": "Temps de marche estimé en minutes."
+                      },
+                      "reservationWarning": {
+                        "type": "string",
+                        "description": "Consigne à relayer à l'utilisateur, quand le parking en porte une."
+                      },
+                      "freeCancellationUntil": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Annulation gratuite jusqu'à cette date (ISO 8601). Absent : la réservation ne sera plus annulable."
+                      }
+                    },
+                    "required": [
+                      "parking",
+                      "price"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "count",
+                "pagination",
+                "parkings"
+              ]
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "noauth"
+                },
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "public:parkings:search"
+                  ]
+                }
+              ],
+              "ui": {
+                "resourceUri": "ui://widget/search-parkings-v2.html"
+              },
+              "ui/resourceUri": "ui://widget/search-parkings-v2.html",
+              "openai/outputTemplate": "ui://widget/search-parkings-v2.html",
+              "openai/widgetDescription": "Cartes des parkings trouvés : photo, adresse, temps de marche, prix total et bouton de réservation.",
+              "openai/toolInvocation/invoking": "Recherche de parkings",
+              "openai/toolInvocation/invoked": "Parkings trouvés",
+              "openai/widgetPrefersBorder": true
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "search_parkings",
+        "title": "Recherche de parkings réservables",
+        "description": "Recherche les parkings Yespark disponibles à la réservation courte durée autour d'une position, sur une plage de dates précise. À utiliser quand l'utilisateur veut se garer ponctuellement (de quelques heures à quelques jours) près d'un lieu. Retourne les parkings correspondants (10 par page par défaut), triés par distance (ou prix), avec le prix total pour la période, la distance en mètres et le temps de marche à pied, l'échéance d'annulation gratuite (`freeCancellationUntil`) et la note moyenne de tous les avis (`rating`). Chaque parking porte un `bookingUrl` : checkout de la réservation avec le créneau déjà rempli — le présenter à l'utilisateur pour qu'il finalise, sinon il devra ressaisir ses dates. Les champs `photos` (URLs d'images) et `location` (latitude/longitude) permettent d'illustrer ou de cartographier les résultats. La zone de recherche se donne en coordonnées, en rectangle, ou en texte libre via `location.address` (adresse, gare, lieu — géocodé côté serveur, France). Ne pas utiliser pour un abonnement mensuel.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "object",
+              "description": "Zone de recherche : fournir SOIT un point (latitude + longitude), SOIT un rectangle (locationBounds), SOIT une adresse en texte libre (address).",
+              "properties": {
+                "latitude": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90,
+                  "description": "Latitude du point (ex : 48.8566)."
+                },
+                "longitude": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180,
+                  "description": "Longitude du point (ex : 2.3522)."
+                },
+                "address": {
+                  "type": "string",
+                  "description": "Adresse, gare ou lieu en texte libre (ex : \"12 rue de Rivoli, Paris\", \"Gare de Lyon\"), géocodé côté serveur. France uniquement. Alternative à latitude/longitude : préférer les coordonnées quand elles sont connues."
+                },
+                "locationBounds": {
+                  "type": "object",
+                  "description": "Rectangle géographique, alternative au point latitude/longitude.",
+                  "properties": {
+                    "northLatitude": {
+                      "type": "number"
+                    },
+                    "southLatitude": {
+                      "type": "number"
+                    },
+                    "eastLongitude": {
+                      "type": "number"
+                    },
+                    "westLongitude": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "northLatitude",
+                    "southLatitude",
+                    "eastLongitude",
+                    "westLongitude"
+                  ]
+                }
+              }
+            },
+            "beginDate": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Début de la réservation, ISO 8601 avec fuseau (ex : 2026-06-10T09:00:00+02:00). Dans le futur."
+            },
+            "endDate": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Fin de la réservation, ISO 8601 avec fuseau (ex : 2026-06-10T18:00:00+02:00). Après beginDate."
+            },
+            "vehicleTypes": {
+              "type": "string",
+              "enum": [
+                "Car",
+                "Moto"
+              ],
+              "description": "Type de véhicule. \"Moto\" pour une place deux-roues, sinon \"Car\" (défaut)."
+            },
+            "pagination": {
+              "type": "object",
+              "description": "Tri et pagination des résultats.",
+              "properties": {
+                "sortField": {
+                  "type": "string",
+                  "enum": [
+                    "distance",
+                    "price"
+                  ],
+                  "description": "Critère de tri (défaut : distance)."
+                },
+                "sortDirection": {
+                  "type": "string",
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ],
+                  "description": "Sens du tri (défaut : asc)."
+                },
+                "pageSize": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100,
+                  "description": "Résultats par page (défaut 10, max 100)."
+                },
+                "pageNumber": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Numéro de page (défaut 1)."
+                }
+              }
+            }
+          },
+          "required": [
+            "location",
+            "beginDate",
+            "endDate"
+          ]
+        },
+        "annotations": {
+          "scope": "public:parkings:search",
+          "title": "Recherche de parkings réservables",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "securitySchemes": [
+          {
+            "type": "noauth"
+          },
+          {
+            "type": "oauth2",
+            "scopes": [
+              "public:parkings:search"
+            ]
+          }
+        ],
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "searchedLocation": {
+              "type": "object",
+              "description": "Lieu réellement cherché quand la zone a été donnée en texte libre : à nommer à l'utilisateur.",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "postcode": {
+                  "type": "string"
+                }
+              }
+            },
+            "count": {
+              "type": "integer",
+              "description": "Nombre de parkings dans cette page (au plus `pageSize`)."
+            },
+            "pagination": {
+              "type": "object",
+              "description": "Page servie et parkings restants — à relire avant de proposer une page suivante.",
+              "properties": {
+                "page_number": {
+                  "type": "integer",
+                  "description": "Numéro de la page servie."
+                },
+                "page_size": {
+                  "type": "integer",
+                  "description": "Taille de page appliquée (bornée à 100)."
+                },
+                "has_more": {
+                  "type": "boolean",
+                  "description": "Vrai s'il reste des parkings après cette page."
+                },
+                "total_count": {
+                  "type": "integer",
+                  "description": "Nombre total de parkings trouvés. Absent quand le tri par distance s'est arrêté à cette page : lire `has_more`."
+                },
+                "sort_field": {
+                  "type": "string",
+                  "enum": [
+                    "distance",
+                    "price"
+                  ],
+                  "description": "Critère de tri appliqué."
+                },
+                "sort_direction": {
+                  "type": "string",
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ],
+                  "description": "Sens du tri appliqué."
+                }
+              }
+            },
+            "parkings": {
+              "type": "array",
+              "description": "Parkings disponibles sur toute la période demandée, triés par distance ou par prix.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "parking": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string",
+                        "description": "Page du parking sur yespark.fr."
+                      },
+                      "bookingUrl": {
+                        "type": "string",
+                        "description": "Checkout de la réservation, parking et créneau déjà remplis : c'est ce lien qu'il faut présenter."
+                      },
+                      "location": {
+                        "type": "object",
+                        "description": "Coordonnées du parking, pour le cartographier.",
+                        "properties": {
+                          "latitude": {
+                            "type": "number"
+                          },
+                          "longitude": {
+                            "type": "number"
+                          }
+                        }
+                      },
+                      "address": {
+                        "type": "object",
+                        "properties": {
+                          "street": {
+                            "type": "string"
+                          },
+                          "postcode": {
+                            "type": "string"
+                          },
+                          "city": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "availability": {
+                        "type": "object",
+                        "properties": {
+                          "reservation": {
+                            "type": "integer",
+                            "description": "Places réservables restantes."
+                          }
+                        }
+                      },
+                      "photos": {
+                        "type": "array",
+                        "description": "URL de la photo principale du parking.",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "localizeParking": {
+                        "type": "string",
+                        "description": "Informations pratiques pour trouver l'entrée, en texte brut."
+                      },
+                      "characteristics": {
+                        "type": "object",
+                        "properties": {
+                          "maxHeight": {
+                            "type": "number",
+                            "description": "Hauteur maximale admise, en mètres."
+                          },
+                          "underground": {
+                            "type": "boolean",
+                            "description": "Parking couvert (souterrain ou en ouvrage)."
+                          },
+                          "lift": {
+                            "type": "boolean"
+                          },
+                          "videosurveillance": {
+                            "type": "boolean"
+                          },
+                          "buildingManager": {
+                            "type": "boolean",
+                            "description": "Gardien sur place."
+                          }
+                        }
+                      },
+                      "accessTypes": {
+                        "type": "string",
+                        "description": "Moyens d'accès séparés par « , » : Application, Ticket, Receptionist, Anpr."
+                      },
+                      "vehicleTypes": {
+                        "type": "string",
+                        "description": "Gabarits recommandés séparés par « , » : Moto, Small, Medium, Large, Tall, Very Tall."
+                      },
+                      "rating": {
+                        "type": "object",
+                        "description": "Note moyenne sur 5 de tous les avis notés du parking, sans filtre, et leur nombre. Absent sans avis.",
+                        "properties": {
+                          "average": {
+                            "type": "number"
+                          },
+                          "count": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "location",
+                      "address"
+                    ]
+                  },
+                  "price": {
+                    "type": "number",
+                    "description": "Prix total TTC en euros pour toute la période demandée — jamais un tarif horaire. C'est le prix facturé au checkout ouvert par `bookingUrl`, remise de réservation anticipée comprise (-10 % dès 7 jours d'avance, selon le parking)."
+                  },
+                  "distanceMeters": {
+                    "type": "integer",
+                    "description": "Distance à vol d'oiseau depuis le lieu cherché, en mètres."
+                  },
+                  "travelTime": {
+                    "type": "integer",
+                    "description": "Temps de marche estimé en minutes."
+                  },
+                  "reservationWarning": {
+                    "type": "string",
+                    "description": "Consigne à relayer à l'utilisateur, quand le parking en porte une."
+                  },
+                  "freeCancellationUntil": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Annulation gratuite jusqu'à cette date (ISO 8601). Absent : la réservation ne sera plus annulable."
+                  }
+                },
+                "required": [
+                  "parking",
+                  "price"
+                ]
+              }
+            }
+          },
+          "required": [
+            "count",
+            "pagination",
+            "parkings"
+          ]
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "noauth"
+            },
+            {
+              "type": "oauth2",
+              "scopes": [
+                "public:parkings:search"
+              ]
+            }
+          ],
+          "ui": {
+            "resourceUri": "ui://widget/search-parkings-v2.html"
+          },
+          "ui/resourceUri": "ui://widget/search-parkings-v2.html",
+          "openai/outputTemplate": "ui://widget/search-parkings-v2.html",
+          "openai/widgetDescription": "Cartes des parkings trouvés : photo, adresse, temps de marche, prix total et bouton de réservation.",
+          "openai/toolInvocation/invoking": "Recherche de parkings",
+          "openai/toolInvocation/invoked": "Parkings trouvés",
+          "openai/widgetPrefersBorder": true
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-18T00:15:24.506Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-18T00:15:25.557Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-18T00:15:26.608Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-18T00:15:27.660Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 1,
+    "tools_hash": "sha256:c72f0be2c53d0a5a04896b1fa37f1a43591dcaf0fab797f85f8e488e350f3839",
+    "static_tool_tokens": 1663,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "search_parkings",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_parkings",
+        "message": "Description exceeds 1,000 characters."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 1,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_parkings",
+          "path": "inputSchema.properties.pagination.properties.pageSize",
+          "name": "pageSize",
+          "description": "Résultats par page (défaut 10, max 100).",
+          "mentions_size_or_cost": true,
+          "maximum": 100
+        }
+      ],
+      "flags": []
+    },
+    "read_only_allowlist": [
+      "search_parkings"
+    ]
+  }
+}

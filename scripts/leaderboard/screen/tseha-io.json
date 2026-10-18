@@ -1,0 +1,596 @@
+{
+  "slug": "tseha-io",
+  "source_url": "https://manufact.com/mcp-catalog/tseha-io",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-18T00:12:13.680Z",
+    "endpoint": "https://tseha.io/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "tseha-mcp",
+      "version": "1.0.2"
+    },
+    "capabilities": {
+      "prompts": {},
+      "tools": {}
+    },
+    "instructions": "You are talking to Tseha - a design system and development standards source of truth - but this request carried no credentials, so no tools can be called.\n\n## What to do\n\nTell the user, in your own words:\n\n1. The Tseha MCP server is reachable and this client is compatible with it.\n2. Nothing can be fetched until the connection is authenticated. Every tool requires a bearer token.\n3. Connection instructions are at https://tseha.io/docs.\n4. If they have no Tseha account yet, they can create one at https://tseha.io/login.\n\nDo not call any tool until the connection is authenticated - each one will refuse.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "list_projects",
+            "title": "List projects",
+            "description": "Lists the projects in this organization, each with its id, name, and framework. Read-only, takes no arguments, and returns only the projects the calling credential may see. Call it first in a session: the returned id is the project_id that every other tool in this server requires, and guessing that id fails. It does not return components, packages, or tokens - use list_components, list_packages, or get_style_tokens for those.",
+            "annotations": {
+              "readOnlyHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          {
+            "name": "list_packages",
+            "title": "List component packages",
+            "description": "Lists the component packages assigned to a project, each with its name, version, and description, and marks which one is active. Read-only. Use it to decide which npm package to import from, or to read the installed version before calling get_component_updates. It lists packages, not their contents - use list_components to enumerate components and get_component for one component API. project_id is the only argument and it does more than filter output: assignment and active-package status are per project, so one organization package can be listed as active here and absent from a sibling project.",
+            "annotations": {
+              "readOnlyHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "project_id": {
+                  "type": "string",
+                  "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. Assignment and active-package status are per project, so one organization package can be active here and absent from a sibling project."
+                }
+              },
+              "required": [
+                "project_id"
+              ]
+            }
+          },
+          {
+            "name": "list_components",
+            "title": "List UI components",
+            "description": "Lists every UI component in the project's design system, each with its name, source package, import path, and a short note on its intended use. Read-only and unpaginated: it returns the whole catalog across all packages assigned to the project, so expect a large response on big design systems. Use it to see what exists before building UI, and to get the exact component name other tools need. Do not use it to find a component by need - search_components ranks by description - and do not use it for props, examples, or Figma data, which only get_component returns. project_id is not a display filter: it selects the assigned packages, so two projects in one organization legitimately return different catalogs.",
+            "annotations": {
+              "readOnlyHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "project_id": {
+                  "type": "string",
+                  "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. It selects the assigned packages that are enumerated, so two projects in one organization legitimately return different catalogs."
+                }
+              },
+              "required": [
+                "project_id"
+              ]
+            }
+          },
+          {
+            "name": "get_component",
+            "title": "Get component spec",
+            "description": "Returns the full specification for one component: import path, props schema, usage example, anti-patterns, when-to-use and when-not-to-use notes, Figma spec, and dependencies. Read-only. Call it before writing code that uses a component, so props and import path come from the design system instead of memory. The name argument must be the exact component name as returned by list_components or search_components (case-sensitive, no package prefix); an unknown name returns a not-found error rather than a near match, so resolve the name first with search_components if you are guessing. The result may carry a provenance warning when the record was LLM-generated and not yet reviewed - treat those fields as unverified. It covers one component at a time; use list_components to enumerate and get_component_updates for version-to-version changes.",
+            "annotations": {
+              "readOnlyHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Exact component name, e.g. \"Button\""
+                },
+                "project_id": {
+                  "type": "string",
+                  "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. The component must belong to a package assigned to this project; a name that exists elsewhere in the organization is still not found here."
+                }
+              },
+              "required": [
+                "name",
+                "project_id"
+              ]
+            }
+          },
+          {
+            "name": "search_components",
+            "title": "Search components",
+            "description": "Searches the components of every package assigned to the project by use case, behavior, or description, and returns up to 10 ranked matches with a relevance score. Read-only. Use it when you can describe what the UI must do but do not know the component name. The query is free-text describing the need, such as \"date range picker\" or \"dismissible inline warning\" - not a component name, not a glob, and not a props expression. Do not use it when the exact name is known (get_component is direct and returns the full spec) or when you want the complete catalog (list_components). Semantic ranking needs AI features on the Team plan or above; on other plans it falls back to name and import-path matching and the score is null. No close match returns an empty result list, not an error. Null scores or no results do not mean the component is missing: in that mode a use-case phrase often matches nothing, so choose from list_components by name and use note, or retry with a plain component word such as \"button\".",
+            "annotations": {
+              "readOnlyHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "Free-text description of the need - a use case, behavior, or purpose, e.g. \"date range picker\". Not a component name and not a glob."
+                },
+                "project_id": {
+                  "type": "string",
+                  "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. It bounds the search to the packages assigned to this project, so the same query returns different matches for different projects."
+                }
+              },
+              "required": [
+                "query",
+                "project_id"
+              ]
+            }
+          },
+          {
+            "name": "get_style",
+            "title": "Get style metadata",
+            "description": "Returns metadata for the project's active style: the style name, its Figma file key, when it was last synced, and a token count per available category (such as color, typography, spacing). Read-only and small - it names categories but returns no token values. Use it to inspect the project theme, or to learn which categories are populated before requesting values; call get_style_tokens for the values themselves. project_id is the only argument and it is not a plain filter: a style is assigned per project and there is no organization-level fallback, so sibling projects can report different style names and different populated categories, and a project with no style assigned returns a null style with a note rather than an error.",
+            "annotations": {
+              "readOnlyHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "project_id": {
+                  "type": "string",
+                  "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. A style is assigned per project and there is no organization-level fallback, so sibling projects can report different styles and different populated categories, and a project with no style assigned returns a null style."
+                }
+              },
+              "required": [
+                "project_id"
+              ]
+            }
+          },
+          {
+            "name": "get_style_tokens",
+            "title": "Get design tokens",
+            "description": "Returns the project's design tokens with their names, values, and token paths. Read-only. Use it to source exact visual values for styling instead of inventing hex codes, spacing, or radii. The category argument takes exactly one of: color, typography, spacing, radius, shadow, blur, all; omitting it behaves the same as \"all\". Pass a single category when you know which one you need - \"all\" returns the largest response this server produces. Use get_style first if you only need to know which categories exist, and get_standards for coding conventions, which are not tokens. A project with no style configured returns an empty token list with a note, not an error.",
+            "annotations": {
+              "readOnlyHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "category": {
+                  "type": "string",
+                  "description": "One of: color, typography, spacing, radius, shadow, blur, all"
+                },
+                "project_id": {
+                  "type": "string",
+                  "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. Tokens come from the style assigned to this project. A style is assigned per project with no organization-level fallback, so a project with no style assigned returns an empty token list, not the tokens of a sibling project."
+                }
+              },
+              "required": [
+                "project_id"
+              ]
+            }
+          },
+          {
+            "name": "get_standards",
+            "title": "Get development standards",
+            "description": "Returns the organization's development standards: coding conventions, project structure, and framework-specific rules. Read-only. Call it before writing or reviewing code, so the result follows this organization's rules rather than general defaults. Call it first without a section to get an index of available sections, each with a note on what it covers, then call again with one section id copied from that index; inventing a section id returns a not-found error naming that step. Request only the sections a task needs - the full content of one section can be long. The framework argument is deprecated: use section with the \"framework:\" prefix instead. It returns prose rules, not data - use get_style_tokens for visual values and get_component for component APIs.",
+            "annotations": {
+              "readOnlyHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "project_id": {
+                  "type": "string",
+                  "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. It resolves the organization whose standards are returned and decides which framework sections appear in the index."
+                },
+                "section": {
+                  "type": "string",
+                  "description": "Section identifier from the index, e.g. \"global\", \"project_structure\", \"framework:react\", \"cicd\". Omit to get the index."
+                },
+                "framework": {
+                  "type": "string",
+                  "description": "Deprecated - use section instead. e.g. \"react\", \"nextjs\""
+                }
+              },
+              "required": [
+                "project_id"
+              ]
+            }
+          },
+          {
+            "name": "get_component_updates",
+            "title": "Get component updates",
+            "description": "Returns per-component breaking changes and a migration guide between an installed version of the project's active component package and the latest published version. Read-only: it reports an upgrade, it never performs one. Use it when planning or reviewing a component-library upgrade, or before bumping the package version in a manifest. current_version is the exact semver currently installed, e.g. \"1.0.0\" - not a range, so no leading \"v\", \"^\", or \"~\"; read it from list_packages when unsure. Passing the latest version returns an empty change set. It is not a per-component changelog and not a current spec - use get_component for one component today, and list_packages for what is installed. Requires update tracking, a Team plan feature; on lower plans it returns an upgrade-required error instead of data.",
+            "annotations": {
+              "readOnlyHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "current_version": {
+                  "type": "string",
+                  "description": "The version currently installed, e.g. \"1.0.0\""
+                },
+                "project_id": {
+                  "type": "string",
+                  "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. Changes are computed against this project's active package, so current_version must be the version of that package and not of some other dependency."
+                }
+              },
+              "required": [
+                "current_version",
+                "project_id"
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "list_projects",
+        "title": "List projects",
+        "description": "Lists the projects in this organization, each with its id, name, and framework. Read-only, takes no arguments, and returns only the projects the calling credential may see. Call it first in a session: the returned id is the project_id that every other tool in this server requires, and guessing that id fails. It does not return components, packages, or tokens - use list_components, list_packages, or get_style_tokens for those.",
+        "annotations": {
+          "readOnlyHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "list_packages",
+        "title": "List component packages",
+        "description": "Lists the component packages assigned to a project, each with its name, version, and description, and marks which one is active. Read-only. Use it to decide which npm package to import from, or to read the installed version before calling get_component_updates. It lists packages, not their contents - use list_components to enumerate components and get_component for one component API. project_id is the only argument and it does more than filter output: assignment and active-package status are per project, so one organization package can be listed as active here and absent from a sibling project.",
+        "annotations": {
+          "readOnlyHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "project_id": {
+              "type": "string",
+              "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. Assignment and active-package status are per project, so one organization package can be active here and absent from a sibling project."
+            }
+          },
+          "required": [
+            "project_id"
+          ]
+        }
+      },
+      {
+        "name": "list_components",
+        "title": "List UI components",
+        "description": "Lists every UI component in the project's design system, each with its name, source package, import path, and a short note on its intended use. Read-only and unpaginated: it returns the whole catalog across all packages assigned to the project, so expect a large response on big design systems. Use it to see what exists before building UI, and to get the exact component name other tools need. Do not use it to find a component by need - search_components ranks by description - and do not use it for props, examples, or Figma data, which only get_component returns. project_id is not a display filter: it selects the assigned packages, so two projects in one organization legitimately return different catalogs.",
+        "annotations": {
+          "readOnlyHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "project_id": {
+              "type": "string",
+              "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. It selects the assigned packages that are enumerated, so two projects in one organization legitimately return different catalogs."
+            }
+          },
+          "required": [
+            "project_id"
+          ]
+        }
+      },
+      {
+        "name": "get_component",
+        "title": "Get component spec",
+        "description": "Returns the full specification for one component: import path, props schema, usage example, anti-patterns, when-to-use and when-not-to-use notes, Figma spec, and dependencies. Read-only. Call it before writing code that uses a component, so props and import path come from the design system instead of memory. The name argument must be the exact component name as returned by list_components or search_components (case-sensitive, no package prefix); an unknown name returns a not-found error rather than a near match, so resolve the name first with search_components if you are guessing. The result may carry a provenance warning when the record was LLM-generated and not yet reviewed - treat those fields as unverified. It covers one component at a time; use list_components to enumerate and get_component_updates for version-to-version changes.",
+        "annotations": {
+          "readOnlyHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Exact component name, e.g. \"Button\""
+            },
+            "project_id": {
+              "type": "string",
+              "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. The component must belong to a package assigned to this project; a name that exists elsewhere in the organization is still not found here."
+            }
+          },
+          "required": [
+            "name",
+            "project_id"
+          ]
+        }
+      },
+      {
+        "name": "search_components",
+        "title": "Search components",
+        "description": "Searches the components of every package assigned to the project by use case, behavior, or description, and returns up to 10 ranked matches with a relevance score. Read-only. Use it when you can describe what the UI must do but do not know the component name. The query is free-text describing the need, such as \"date range picker\" or \"dismissible inline warning\" - not a component name, not a glob, and not a props expression. Do not use it when the exact name is known (get_component is direct and returns the full spec) or when you want the complete catalog (list_components). Semantic ranking needs AI features on the Team plan or above; on other plans it falls back to name and import-path matching and the score is null. No close match returns an empty result list, not an error. Null scores or no results do not mean the component is missing: in that mode a use-case phrase often matches nothing, so choose from list_components by name and use note, or retry with a plain component word such as \"button\".",
+        "annotations": {
+          "readOnlyHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Free-text description of the need - a use case, behavior, or purpose, e.g. \"date range picker\". Not a component name and not a glob."
+            },
+            "project_id": {
+              "type": "string",
+              "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. It bounds the search to the packages assigned to this project, so the same query returns different matches for different projects."
+            }
+          },
+          "required": [
+            "query",
+            "project_id"
+          ]
+        }
+      },
+      {
+        "name": "get_style",
+        "title": "Get style metadata",
+        "description": "Returns metadata for the project's active style: the style name, its Figma file key, when it was last synced, and a token count per available category (such as color, typography, spacing). Read-only and small - it names categories but returns no token values. Use it to inspect the project theme, or to learn which categories are populated before requesting values; call get_style_tokens for the values themselves. project_id is the only argument and it is not a plain filter: a style is assigned per project and there is no organization-level fallback, so sibling projects can report different style names and different populated categories, and a project with no style assigned returns a null style with a note rather than an error.",
+        "annotations": {
+          "readOnlyHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "project_id": {
+              "type": "string",
+              "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. A style is assigned per project and there is no organization-level fallback, so sibling projects can report different styles and different populated categories, and a project with no style assigned returns a null style."
+            }
+          },
+          "required": [
+            "project_id"
+          ]
+        }
+      },
+      {
+        "name": "get_style_tokens",
+        "title": "Get design tokens",
+        "description": "Returns the project's design tokens with their names, values, and token paths. Read-only. Use it to source exact visual values for styling instead of inventing hex codes, spacing, or radii. The category argument takes exactly one of: color, typography, spacing, radius, shadow, blur, all; omitting it behaves the same as \"all\". Pass a single category when you know which one you need - \"all\" returns the largest response this server produces. Use get_style first if you only need to know which categories exist, and get_standards for coding conventions, which are not tokens. A project with no style configured returns an empty token list with a note, not an error.",
+        "annotations": {
+          "readOnlyHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "category": {
+              "type": "string",
+              "description": "One of: color, typography, spacing, radius, shadow, blur, all"
+            },
+            "project_id": {
+              "type": "string",
+              "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. Tokens come from the style assigned to this project. A style is assigned per project with no organization-level fallback, so a project with no style assigned returns an empty token list, not the tokens of a sibling project."
+            }
+          },
+          "required": [
+            "project_id"
+          ]
+        }
+      },
+      {
+        "name": "get_standards",
+        "title": "Get development standards",
+        "description": "Returns the organization's development standards: coding conventions, project structure, and framework-specific rules. Read-only. Call it before writing or reviewing code, so the result follows this organization's rules rather than general defaults. Call it first without a section to get an index of available sections, each with a note on what it covers, then call again with one section id copied from that index; inventing a section id returns a not-found error naming that step. Request only the sections a task needs - the full content of one section can be long. The framework argument is deprecated: use section with the \"framework:\" prefix instead. It returns prose rules, not data - use get_style_tokens for visual values and get_component for component APIs.",
+        "annotations": {
+          "readOnlyHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "project_id": {
+              "type": "string",
+              "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. It resolves the organization whose standards are returned and decides which framework sections appear in the index."
+            },
+            "section": {
+              "type": "string",
+              "description": "Section identifier from the index, e.g. \"global\", \"project_structure\", \"framework:react\", \"cicd\". Omit to get the index."
+            },
+            "framework": {
+              "type": "string",
+              "description": "Deprecated - use section instead. e.g. \"react\", \"nextjs\""
+            }
+          },
+          "required": [
+            "project_id"
+          ]
+        }
+      },
+      {
+        "name": "get_component_updates",
+        "title": "Get component updates",
+        "description": "Returns per-component breaking changes and a migration guide between an installed version of the project's active component package and the latest published version. Read-only: it reports an upgrade, it never performs one. Use it when planning or reviewing a component-library upgrade, or before bumping the package version in a manifest. current_version is the exact semver currently installed, e.g. \"1.0.0\" - not a range, so no leading \"v\", \"^\", or \"~\"; read it from list_packages when unsure. Passing the latest version returns an empty change set. It is not a per-component changelog and not a current spec - use get_component for one component today, and list_packages for what is installed. Requires update tracking, a Team plan feature; on lower plans it returns an upgrade-required error instead of data.",
+        "annotations": {
+          "readOnlyHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "current_version": {
+              "type": "string",
+              "description": "The version currently installed, e.g. \"1.0.0\""
+            },
+            "project_id": {
+              "type": "string",
+              "description": "UUID as returned by list_projects - not the project name, title, or slug, and not guessable. Fetch it once and reuse the same id across tools. An id outside the caller's organization returns \"Project not found or access denied\" rather than empty data, and a project withheld by a plan limit returns a plan error that retrying cannot clear. Changes are computed against this project's active package, so current_version must be the version of that package and not of some other dependency."
+            }
+          },
+          "required": [
+            "current_version",
+            "project_id"
+          ]
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-18T00:12:10.192Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-18T00:12:11.243Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-18T00:12:12.295Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-18T00:12:13.347Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 9,
+    "tools_hash": "sha256:e3862c792be0061e28a8322761bb57836a99e6801c783e2021bf99ca22195b85",
+    "static_tool_tokens": 4164,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_projects",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_packages",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_components",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_component",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F8",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_components",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_components",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_style",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_style_tokens",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_standards",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_component_updates",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 9,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "list_components"
+          ],
+          "description": "Lists every UI component in the project's design system, each with its name, source package, import path, and a short note on its intended use. Read-only and unpaginated: it returns the whole catalog across all packages assigned to the project, so expect a large response on big design systems. Use it to see what exists before building UI, and to get the exact component name other tools need. Do not use it to find a component by need - search_components ranks by description - and do not use it for props, examples, or Figma data, which only get_component returns. project_id is not a display filter: it selects the assigned packages, so two projects in one organization legitimately return different catalogs.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "search_components"
+          ],
+          "description": "Searches the components of every package assigned to the project by use case, behavior, or description, and returns up to 10 ranked matches with a relevance score. Read-only. Use it when you can describe what the UI must do but do not know the component name. The query is free-text describing the need, such as \"date range picker\" or \"dismissible inline warning\" - not a component name, not a glob, and not a props expression. Do not use it when the exact name is known (get_component is direct and returns the full spec) or when you want the complete catalog (list_components). Semantic ranking needs AI features on the Team plan or above; on other plans it falls back to name and import-path matching and the score is null. No close match returns an empty result list, not an error. Null scores or no results do not mean the component is missing: in that mode a use-case phrase often matches nothing, so choose from list_components by name and use note, or retry with a plain component word such as \"button\".",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_style_tokens"
+          ],
+          "description": "Returns the project's design tokens with their names, values, and token paths. Read-only. Use it to source exact visual values for styling instead of inventing hex codes, spacing, or radii. The category argument takes exactly one of: color, typography, spacing, radius, shadow, blur, all; omitting it behaves the same as \"all\". Pass a single category when you know which one you need - \"all\" returns the largest response this server produces. Use get_style first if you only need to know which categories exist, and get_standards for coding conventions, which are not tokens. A project with no style configured returns an empty token list with a note, not an error.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_components",
+            "get_component_updates"
+          ],
+          "hypothesis": "Read tools share resource terms (component), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "search_components",
+            "get_component_updates"
+          ],
+          "hypothesis": "Read tools share resource terms (component), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "list_projects",
+      "list_packages",
+      "list_components",
+      "get_component",
+      "search_components",
+      "get_style",
+      "get_style_tokens",
+      "get_standards",
+      "get_component_updates"
+    ]
+  }
+}

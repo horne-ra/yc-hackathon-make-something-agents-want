@@ -1,0 +1,3123 @@
+{
+  "slug": "slideforge",
+  "source_url": "https://manufact.com/mcp-catalog/slideforge",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-18T00:08:11.923Z",
+    "endpoint": "https://api.slideforge.dev/mcp-connectors",
+    "transport": "streamable",
+    "server": {
+      "name": "slideforge",
+      "version": "5.0.0",
+      "description": "Agent-first PowerPoint engine. Default path: a structured slide intent (pick a form from the create_slide menu, supply typed fields/data) renders to editable .pptx with no LLM on the typed path. Prose briefs auto-route; mode=code is the python-pptx escape for forms the menu can't express. Native .pptx, brand theming, inline preview cards."
+    },
+    "capabilities": {
+      "prompts": {},
+      "resources": {
+        "subscribe": false,
+        "listChanged": false
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "SlideForge renders native, editable PowerPoint (.pptx) — real text boxes and shapes, not a picture of a slide. For any request for a presentation, a slide deck or a single slide as .pptx, or to convert a PDF or an image of a slide into .pptx, call these tools rather than writing python-pptx or pptxgenjs code. The caller supplies the wording and numbers; SlideForge lays them out from 200+ layouts in under a second, binds them verbatim and authors no figures unless allow_fabrication is set. Every result carries a preview image and a per-field fidelity report. plan_slide and browse_catalog are free; accounts start with 60 free slides, and each result reports what it billed.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "browse_catalog",
+            "title": "Browse the Catalog",
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "cost": {
+                "usd": 0,
+                "note": "free"
+              },
+              "title": "Browse the Catalog"
+            },
+            "description": "200+ slide layouts: forms, variants, per-form schema, examples — all free. No args -> form overview (when-to-use, bound fields, variant counts). family=<form> -> variant one-liners. q=<text> -> ranked search. variant=/prior_id= -> example payload. type=schema + family -> a compact family-level variant chooser (not a sendable contract); type=schema + family + variant -> that variant's exact payload contract (JSON Schema, capacity, field mapping, examples). Free. Code path: type=widgets = the add_widget() catalog (name=<widget> for its contract + thumbnail); type=helpers = python-pptx helper signatures. type=themes + an uploaded theme_id -> that template's branded FURNITURE layouts (its own cover/agenda/divider/closing slides + fill schemas + previews) — render via create_slide(form=template_layout, theme_id, data={layout, fills}).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "family": {
+                  "type": "string"
+                },
+                "variant": {
+                  "type": "string"
+                },
+                "prior_id": {
+                  "type": "string"
+                },
+                "q": {
+                  "type": "string",
+                  "description": "Semantic search across all variants; returns ranked form/variant matches with scores."
+                },
+                "limit": {
+                  "type": "integer",
+                  "description": "Max results (with q= or family=)."
+                },
+                "offset": {
+                  "type": "integer",
+                  "description": "Pagination offset (with q= or family=)."
+                },
+                "type": {
+                  "type": "string",
+                  "description": "Omit for the form overview (or family=/q= to drill in). schema (+family, optionally +variant=) = schema-first discovery: family only returns a compact variant chooser; family+variant returns that variant's exact machine-readable payload contract (JSON Schema for data, capacity limits, intent-field mapping, examples). widgets = the add_widget() catalog for mode=code (name=<widget> for its contract). helpers = python-pptx helper signatures. themes = list themes (built-in + your saved); Default appears first and can be omitted, or use any returned id as theme_id. brands = your brand kits with versions (theme_id=<slug> renders the default version, <slug>@<n> pins n)."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Widget name (with type=widgets): returns the full contract + worked example + a rendered thumbnail."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "all",
+                    "default",
+                    "custom",
+                    "saved",
+                    "uploaded"
+                  ],
+                  "description": "Theme source filter (with type=themes). Default all (built-in + your saved)."
+                },
+                "top": {
+                  "type": "integer",
+                  "description": "Max results (with type=themes)."
+                },
+                "theme_id": {
+                  "type": "string",
+                  "description": "With type=themes: an uploaded theme's id -> its branded furniture layouts + fill schemas (render via create_slide(form=template_layout))."
+                }
+              }
+            }
+          },
+          {
+            "name": "plan_slide",
+            "title": "Plan a Slide - Form + Variant Candidates",
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "cost": {
+                "usd": 0,
+                "note": "free"
+              },
+              "title": "Plan a Slide - Form + Variant Candidates"
+            },
+            "description": "Free routing preview: brief to ranked forms, creates nothing, charges nothing.\n\nReturns ranked candidates + a separated verdict — route (which slide: selected|needs_confirmation|ambiguous), input (can it render: ready|extractable_from_brief|needs_structured_data) and next_action. Free (one embedding). Then call create_slide with the chosen form(+variant). route.confidence: calibrated = measured P(route correct) with label high/medium/low cut on it; retrieval_score/retrieval_margin = the raw family-aggregated classifier values (not probabilities; margin can be negative when families contest); source = jev (calibrated router, took the route at >=0.9) | classifier | structural_router (LLM-rescued). candidate_margin on the top candidate = literal gap between the two shown scores.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "brief": {
+                  "type": "string"
+                },
+                "top": {
+                  "type": "integer"
+                },
+                "escalate": {
+                  "type": "boolean",
+                  "description": "Default true: on a low-confidence route the plan runs the SAME LLM rescue create_slide would (small COGS on that tail only), so plan and create always agree. Set false for a classifier-only, fully free plan (response then flags will_escalate + create_slide_behavior)."
+                },
+                "variant_policy": {
+                  "type": "string",
+                  "enum": [
+                    "best_semantic_match",
+                    "production_safe"
+                  ],
+                  "description": "production_safe: if the top routed variant is draft/beta, the family's demo-safe sibling leads and route reports both best_semantic and best_production_safe."
+                }
+              },
+              "required": [
+                "brief"
+              ]
+            }
+          },
+          {
+            "name": "create_slide",
+            "title": "Create a Slide",
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true,
+              "title": "Create a Slide"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://slideforge/result-card/v19"
+              },
+              "openai/outputTemplate": "ui://slideforge/result-card/skybridge/v19",
+              "openai/widgetAccessible": true,
+              "openai/toolInvocation/invoking": "Generating…",
+              "openai/toolInvocation/invoked": "Done"
+            },
+            "description": "Create one editable PowerPoint slide (.pptx) from a brief or typed fields.\n\nPick a `form` from the menu and put your content in the typed fields (placed on the slide as given), or pass a `brief` and let the server route it. Fields tagged (per-form) bind only where the form has that slot — ignored-with-warning elsewhere; see each form's `binds` in browse_catalog.\n\nBLOCKED (not billed)? If an error has `can_autofix:true`, merge its `patch` into the args at `patch_target`. Unchanged retries repeat the block. New form: browse_catalog(type=schema) first.\n\n\nFORM MENU:\n  agenda_list: an ordered list of sections/topics or learning objectives to walk through\n  bar_rank_chart: bars comparing magnitudes across categories\n  calendar_grid: events on a real calendar - week planner (day x hour) or month grid with event chips (data.events)\n  card_grid: several equal, unordered peer blocks (features, options, pillars, a concept's defined parts, rules/guidelines/common mistakes)\n  case_story: one named story told as evidence, proven by measured results (data.results = figures)\n  comparison_matrix: options x criteria grid: data.columns x data.rows\n  cycle_flow: a closed loop of ordered stages where the last feeds the first (recurring process)\n  data_table: a plain factual table of records by fields\n  editorial_split: two side-by-side halves: contrast (before/after, problem/solution) or copy/numbered steps beside a picture (image_src)\n  exercise_prompt: an exercise/practice/discussion prompt: instruction + hints; optional problem items with blank answer boxes\n  funnel: a quantity narrowing through ordered stages\n  gantt_plan: tasks as bars across named periods on a schedule grid\n  gauge_score: one score on a dial against a scale\n  hero_statement: a statement slide: covers (title/image-led/exec), from->to/thesis-quote transitions, statement/contact/next-steps closings; supporting points -> takeaway_stack, contacts -> data.contacts, next steps -> data.next_steps\n  hub_spoke: one central element with several elements connected around it\n  image_story: a picture shown WHOLE (uncropped) + prose and up to 4 labelled blocks beside it, or a 1-6 picture/placeholder gallery (data.images)\n  kpi_metrics: a metrics dashboard: headline metric cards; data.sections (Highlights/Risks/Asks) makes it an exec summary / QBR snapshot\n  layer_stack: stacked layers where higher sits on, and depends on, lower\n  linear_flow: ordered process stages read left to right (or inputs to process to outputs)\n  maturity_staircase: ascending levels climbing to a higher state\n  nested_magnitude: nested containment - each level contains the next\n  org_structure: a reporting hierarchy / org tree\n  position_map: items placed by two axes - named 2x2 cells or scatter positions\n  pyramid_hierarchy: a triangle of stacked tiers, foundation to apex\n  ramp_curve: a continuous rising wedge split into phases - effort or value accumulating over time\n  section_divider: a section-break: big section number + title; blocks = agenda progress chips (emphasis=primary = current)\n  segment_wheel: a wheel of equal segments around a center - peer categories in the round (composition, not flow)\n  status_dashboard: initiatives/workstreams tracked by status, owner, progress\n  strategic_fork: one origin splitting into two mutually exclusive paths, one recommended\n  swimlane_flow: actor/function lanes by phases, task cells, handoffs across lanes\n  swot: the four-quadrant strengths / weaknesses / opportunities / threats grid\n  system_flow_map: architecture/system components: panels with internals (edges optional) or nodes wired by directed arrows\n  takeaway_stack: a title plus a few supporting points, each with one line of detail (executive summary, key findings); optional closing ask\n  timeline_roadmap: milestones/phases laid out along a time axis\n  trend_chart: one or more series plotted over time\n  value_chain: support bands over primary activity columns flowing into a goal arrowhead (data.support = the bands)\n  visual_showcase: one dominant screenshot/image with numbered callouts pointing into it\n  waterfall_bridge: a start value bridged to an end value by plus/minus contributions\n\nExact per-form data shapes: browse_catalog(type=schema, family=<form>) — the generated,always-current JSON Schema + a worked example. (List-shaped forms take `blocks`: [{\"label\",\"sub\",\"detail\":[str],\"emphasis\"}]; structured forms take typed `data`.)\n\nEscape modes: mode=code (caller-supplied python-pptx in sandbox — use for forms the menu cannot express: calendars, custom diagrams).\nImage-led asks (photo covers, full-bleed visuals): hero_statement + image_src.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "form": {
+                  "type": "string",
+                  "description": "the form menu pick (see description) — the routing field"
+                },
+                "form_description": {
+                  "type": "string"
+                },
+                "headline": {
+                  "type": "string",
+                  "description": "the assertion-style slide title"
+                },
+                "context": {
+                  "type": "string",
+                  "description": "one-line subtitle/standfirst"
+                },
+                "subject": {
+                  "type": "string",
+                  "description": "central entity for forms that have one — hub label, org root, section #, fork origin, media label (per-form)."
+                },
+                "blocks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  },
+                  "description": "list: [{\"label\",\"sub\",\"detail\":[str],\"emphasis\",\"icon\":lucide-name,\"metric\":{value,label}}]"
+                },
+                "metric": {
+                  "type": "object"
+                },
+                "data": {
+                  "type": "object",
+                  "description": "family-specific payload — see the documented shapes"
+                },
+                "takeaway": {
+                  "type": "string",
+                  "description": "optional verdict band (per-form). Put the so-what in the headline; add only for a verdict the title can't carry — not every slide."
+                },
+                "caution": {
+                  "type": "string",
+                  "description": "one-line risk / caveat callout (per-form)."
+                },
+                "highlight": {
+                  "type": "string",
+                  "description": "one-line emphasis callout (per-form)."
+                },
+                "source_note": {
+                  "type": "string",
+                  "description": "source / footnote line (per-form)."
+                },
+                "date": {
+                  "type": "string",
+                  "description": "date callout (per-form)."
+                },
+                "notes": {
+                  "type": "string",
+                  "description": "Speaker notes for the presenter; never drawn on the slide."
+                },
+                "image_src": {
+                  "type": "string",
+                  "description": "https URL | asset:<id> for image-bearing forms"
+                },
+                "brief": {
+                  "type": "string",
+                  "description": "prose fallback / extra context for fills"
+                },
+                "theme_id": {
+                  "type": "string",
+                  "description": "Optional theme id from browse_catalog(type=themes). Omit for Default (slideforge_standard)."
+                },
+                "name": {
+                  "type": "string"
+                },
+                "variant": {
+                  "type": "string",
+                  "description": "pin a specific variant within the form (list them via browse_catalog). Unknown variant -> rejected ($0) with the valid list; set allow_variant_fallback to render the family default instead."
+                },
+                "allow_variant_fallback": {
+                  "type": "boolean",
+                  "description": "If the pinned variant is unknown, render the form's default variant (with a warning) instead of rejecting. Default false."
+                },
+                "variant_policy": {
+                  "type": "string",
+                  "enum": [
+                    "best_semantic_match",
+                    "production_safe"
+                  ],
+                  "description": "Routed-variant maturity policy: production_safe = if the ROUTED variant is draft/beta, render the family's demo-safe sibling instead (warning names both). Never overrides an explicit variant=. Default best_semantic_match."
+                },
+                "allow_low_confidence": {
+                  "type": "boolean",
+                  "description": "Brief routing only: by default a brief that doesn't match a form clearly returns status=needs_confirmation + candidates at cost:0 (no guessed render). Set true to render the top guess and bill it. Default false."
+                },
+                "allow_fabrication": {
+                  "type": "boolean",
+                  "description": "Brief mode only: a bare brief on a DATA form (kpi/funnel/comparison/…) returns would_fabricate at $0 rather than INVENT numbers. Send typed fields for verbatim, or true to let the brief author them (fidelity=ai_completed). Default false."
+                },
+                "allow_truncation": {
+                  "type": "boolean",
+                  "description": "More items than the form holds blocks (it would drop your data); the response names the dropped count + a suggested_split. true renders the capacity subset (fidelity=verbatim_truncated). Default false."
+                },
+                "dry_run": {
+                  "type": "boolean",
+                  "description": "Free pre-commit check (intent or mode=code), cost:0, no PPTX: status + warnings/errors, plus fidelity_forecast (verbatim|mixed|ai_completed|would_reject) and which fields bind vs get authored. Fix errors, re-call with dry_run=false to render."
+                },
+                "quality_profile": {
+                  "type": "string",
+                  "enum": [
+                    "executive",
+                    "technical",
+                    "appendix"
+                  ],
+                  "description": "Thresholds layout.presentation_ready is judged against (executive strictest). Measurement only — never blocks a render or changes cost."
+                },
+                "min_font_pt": {
+                  "type": "number",
+                  "minimum": 6,
+                  "maximum": 40,
+                  "description": "Binding type floor for prose (exhibit furniture has its own). Type grows to meet it; content that can't fit is a $0 min_font_not_met naming the size needed. Typical: 12."
+                },
+                "direction": {
+                  "type": "string",
+                  "enum": [
+                    "ltr",
+                    "rtl"
+                  ],
+                  "description": "rtl typesets AND mirrors the slide right-to-left (Arabic/Hebrew). Never inferred — pass it."
+                },
+                "imagery": {
+                  "type": "string",
+                  "enum": [
+                    "photo",
+                    "wash",
+                    "off"
+                  ],
+                  "description": "Cover/section-divider imagery: photo (default — curated stock photo, half-bleed), wash (abstract color wash), off (plain panel, no photo — only when asked). Content slides are never photo-decorated."
+                },
+                "imagery_tag": {
+                  "type": "string",
+                  "enum": [
+                    "general",
+                    "agriculture",
+                    "construction",
+                    "education",
+                    "energy",
+                    "finance",
+                    "government",
+                    "healthcare",
+                    "logistics",
+                    "manufacturing",
+                    "retail",
+                    "technology",
+                    "travel"
+                  ],
+                  "description": "Subject/industry: steers library photos (covers, sections, picture slides) AND the topical palette. Omit = general; `education` = teaching."
+                },
+                "styling": {
+                  "type": "string",
+                  "enum": [
+                    "topical",
+                    "clean"
+                  ],
+                  "description": "Topical design on default themes (default on; the note names it): designed cover + a subject palette (from imagery_tag, or the brief). clean = neutral. Pins never take it."
+                },
+                "force_render": {
+                  "type": "boolean",
+                  "description": "On completed_with_errors, pptx_url is null (broken slide). Set true to get it anyway. No cost/status effect."
+                },
+                "code": {
+                  "type": "string",
+                  "description": "Python code defining build(prs). Canvas 13.33×7.5\", coords in inches. Pre-imported: Presentation, Inches, Pt, Emu, RGBColor, MSO_ANCHOR, PP_ALIGN. Helpers: add_text_box(slide, left, top, w, h, text, font_size=12, bold=False, color=None), add_box(slide, left, top, w, h, fill_color=None, line_color=None, corner_radius=0.05), add_icon, add_image (src = path or https://); theme_color(name) → RGBColor. add_widget(slide, name, x, y, w, h, params=|content=, theme=THEME) draws board-grade SSG widgets/charts (cards, waterfall, gantt, funnel…) — names via `browse_catalog(type=widgets)`. Use font_size=, not size=; use fill_color=, not fill=. When chrome is supplied, use `build(prs, slide)` — chrome is pre-rendered. Helper signatures: `browse_catalog(type=helpers)`."
+                },
+                "job_id": {
+                  "type": "string",
+                  "description": "Previous job ID (for mode=code patching)"
+                },
+                "replacements": {
+                  "type": "array",
+                  "description": "String replacements on loaded code [{old, new}] (for mode=code with job_id)",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "old": {
+                        "type": "string",
+                        "description": "Exact string to find"
+                      },
+                      "new": {
+                        "type": "string",
+                        "description": "Replacement string"
+                      }
+                    },
+                    "required": [
+                      "old",
+                      "new"
+                    ]
+                  }
+                },
+                "language": {
+                  "type": "string",
+                  "enum": [
+                    "bg",
+                    "ca",
+                    "cs",
+                    "da",
+                    "de",
+                    "el",
+                    "en",
+                    "es",
+                    "et",
+                    "fi",
+                    "fr",
+                    "gl",
+                    "hr",
+                    "hu",
+                    "id",
+                    "is",
+                    "it",
+                    "ja",
+                    "ko",
+                    "lt",
+                    "lv",
+                    "nl",
+                    "no",
+                    "pl",
+                    "pt",
+                    "ro",
+                    "ru",
+                    "sk",
+                    "sl",
+                    "sr",
+                    "sv",
+                    "tr",
+                    "uk",
+                    "vi",
+                    "zh"
+                  ],
+                  "description": "ISO 639-1 (default en): furniture labels and authored fills follow it."
+                },
+                "include_preview": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "small",
+                    "default",
+                    "full"
+                  ],
+                  "description": "Inline-preview PAYLOAD only (not execution). Default: default (768px). none omits the inline image and returns just the URLs — it does NOT change sync/async. Use `wait` to control execution."
+                },
+                "detail": {
+                  "type": "string",
+                  "enum": [
+                    "compact",
+                    "full"
+                  ],
+                  "description": "Response verbosity. Default `compact`: status, form/variant, fidelity (verbatim|mixed|ai_completed), warnings[]/errors[] (only when present), urls, cost. `full` adds a debug object (engine internals, verify events, latency buckets)."
+                },
+                "verify": {
+                  "type": "string",
+                  "enum": [
+                    "off",
+                    "lint",
+                    "lint+vlm",
+                    "full"
+                  ],
+                  "description": "mode=code. Default `lint`: static geometry + content checks, no LLM. `lint+vlm` adds a VLM second look (~+3s); a blank render is then a $0 error, not a billed warning. `off` skips checks."
+                },
+                "wait": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "true",
+                    "false"
+                  ],
+                  "description": "`false` returns a job_id for a long render instead of blocking; fetch it via manage_account(action=job) (mode=brief)."
+                },
+                "logo_id": {
+                  "type": "string",
+                  "description": "Optional brand logo (from upload_asset purpose=logo) drawn as chrome on content slides; covers/section breaks stay clean."
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "safe",
+                    "brief",
+                    "code"
+                  ],
+                  "description": "Default: structured intent / brief. safe = validate-then-render in ONE call (renders + bills only if faithful; else $0 invalid report with the fix — recommended, no dry_run round-trip). code = python-pptx escape."
+                }
+              }
+            }
+          },
+          {
+            "name": "create_deck",
+            "title": "Create Multi-Slide Deck",
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true,
+              "title": "Create Multi-Slide Deck"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://slideforge/result-card/v19"
+              },
+              "openai/outputTemplate": "ui://slideforge/result-card/skybridge/v19",
+              "openai/widgetAccessible": true,
+              "openai/toolInvocation/invoking": "Generating…",
+              "openai/toolInvocation/invoked": "Done"
+            },
+            "description": "One call renders a whole PowerPoint presentation (.pptx), every slide editable. `slides` is a list of create_slide intents (same form menu + data shapes — see create_slide). Slides fill in parallel and merge into one themed PPTX with page numbers. Include furniture: a hero_statement cover, section_divider breaks, and a closing (hero_statement variant=contact_closing via blocks-free slots).\n\nBLOCKED (not billed)? If an error has `can_autofix:true`, merge its `patch` into the args at `patch_target`. Unchanged retries repeat the block. New form: browse_catalog(type=schema) first.\n\n\n\nAlso: mode=assemble merges existing slide job_ids as-rendered (free; theme_id does NOT re-theme them — render with create_deck(slides=[…], theme_id=…) for a unified theme); mode=fork clones a deck (free).\nPolling: deck_id == job_id — manage_account(action=job, job_id=<deck_id>).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "slides": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  },
+                  "description": "each item is a create_slide intent (same form menu, typed fields, and data shapes as create_slide)."
+                },
+                "theme_id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "styling": {
+                  "type": "string",
+                  "enum": [
+                    "topical",
+                    "clean"
+                  ],
+                  "description": "Deck-level topical-design switch, inherited by every slide (a slide-level styling wins). See create_slide.styling."
+                },
+                "imagery": {
+                  "type": "string",
+                  "enum": [
+                    "photo",
+                    "wash",
+                    "off"
+                  ],
+                  "description": "Deck-level imagery mode, inherited by every slide (a slide-level imagery wins). See create_slide.imagery."
+                },
+                "imagery_tag": {
+                  "type": "string",
+                  "enum": [
+                    "general",
+                    "agriculture",
+                    "construction",
+                    "education",
+                    "energy",
+                    "finance",
+                    "government",
+                    "healthcare",
+                    "logistics",
+                    "manufacturing",
+                    "retail",
+                    "technology",
+                    "travel"
+                  ],
+                  "description": "Deck-level subject declaration, inherited by every slide (a slide-level imagery_tag wins). Declare it once for a whole deck. See create_slide.imagery_tag."
+                },
+                "direction": {
+                  "type": "string",
+                  "enum": [
+                    "ltr",
+                    "rtl"
+                  ],
+                  "description": "Deck-level writing direction, inherited by every slide (a slide-level direction wins) — set it once for an Arabic/Hebrew deck. Covers/dividers rendered on an UPLOADED brand template keep that template's own layout direction. See create_slide.direction."
+                },
+                "force_render": {
+                  "type": "boolean",
+                  "description": "IGNORED (deck-level). pptx_url is always returned when at least one slide rendered, so there is nothing to force. Still meaningful on create_slide."
+                },
+                "allow_partial": {
+                  "type": "boolean",
+                  "description": "IGNORED. A deck bills per rendered slide and always returns its pptx; slides that failed or rendered badly are free and named in repair_actions."
+                },
+                "strict_policy": {
+                  "type": "object",
+                  "properties": {
+                    "reject_ai_completed": {
+                      "type": "boolean",
+                      "description": "Reject slides whose content was fully AI-completed."
+                    },
+                    "reject_mixed": {
+                      "type": "boolean",
+                      "description": "Reject slides with mixed verbatim and AI-completed content."
+                    },
+                    "reject_truncated": {
+                      "type": "boolean",
+                      "description": "Reject slides with truncated supplied content."
+                    },
+                    "reject_ignored_fields": {
+                      "type": "boolean",
+                      "description": "Reject slides whose supplied fields were not rendered (fidelity=partial / field_ignored)."
+                    },
+                    "reject_field_warnings": {
+                      "type": "boolean",
+                      "description": "Reject slides carrying any field-binding warning (field_ignored, input_shape_hint, normalized, variant_fallback, form_rerouted)."
+                    },
+                    "reject_draft_variants": {
+                      "type": "boolean",
+                      "description": "Reject slides rendered by a draft-maturity variant (see each slide's variant_maturity warning)."
+                    },
+                    "min_font_pt": {
+                      "type": "number",
+                      "description": "Reject slides whose reported minimum font size is below this point size."
+                    },
+                    "max_density": {
+                      "type": "string",
+                      "enum": [
+                        "good",
+                        "medium",
+                        "high"
+                      ],
+                      "description": "Reject slides whose quality.density is above this level."
+                    }
+                  },
+                  "description": "Optional CI-style gate for automated report pipelines. dry_run returns policy_result; render returns rejected/cost:0 if the policy fails."
+                },
+                "job_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Slide job IDs to merge (for mode=assemble)"
+                },
+                "deck_id": {
+                  "type": "string",
+                  "description": "Existing deck ID (for mode=fork, or mode=render to update)"
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Deck title (PowerPoint metadata)"
+                },
+                "language": {
+                  "type": "string",
+                  "enum": [
+                    "bg",
+                    "ca",
+                    "cs",
+                    "da",
+                    "de",
+                    "el",
+                    "en",
+                    "es",
+                    "et",
+                    "fi",
+                    "fr",
+                    "gl",
+                    "hr",
+                    "hu",
+                    "id",
+                    "is",
+                    "it",
+                    "ja",
+                    "ko",
+                    "lt",
+                    "lv",
+                    "nl",
+                    "no",
+                    "pl",
+                    "pt",
+                    "ro",
+                    "ru",
+                    "sk",
+                    "sl",
+                    "sr",
+                    "sv",
+                    "tr",
+                    "uk",
+                    "vi",
+                    "zh"
+                  ],
+                  "description": "ISO 639-1 (default en) for every slide: furniture labels and authored fills follow it."
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "render",
+                    "assemble",
+                    "fork"
+                  ],
+                  "description": "Default render. assemble/fork are free deck plumbing."
+                },
+                "dry_run": {
+                  "type": "boolean",
+                  "description": "Deck-level free pre-flight (cost:0, NO render/PPTX): returns a per-slide validation manifest [{i, form, fidelity_forecast, status, errors}] so you can fix bad slides before spending. A deck is one artifact, so validation is all-or-nothing — put dry_run here, not on individual slides. Resend without dry_run to render."
+                },
+                "logo_id": {
+                  "type": "string",
+                  "description": "Optional brand logo (from upload_asset purpose=logo) applied as chrome to every content slide in the deck."
+                }
+              },
+              "required": []
+            }
+          },
+          {
+            "name": "edit_slide",
+            "title": "Edit a rendered slide",
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": true,
+              "title": "Edit a rendered slide"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://slideforge/result-card/v19"
+              },
+              "openai/outputTemplate": "ui://slideforge/result-card/skybridge/v19",
+              "openai/widgetAccessible": true,
+              "openai/toolInvocation/invoking": "Editing…",
+              "openai/toolInvocation/invoked": "Done"
+            },
+            "description": "Change a slide you already rendered, in place and free: the job keeps its id and links. Send the job_id and a patch of the fields to change. Never runs a model: a brief or a picture request is refused (make a new slide for those). The response carries the slide's full current spec as `intent`. Up to 20 edits per slide.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "job_id": {
+                  "type": "string",
+                  "description": "the rendered slide's job_id"
+                },
+                "patch": {
+                  "type": "object",
+                  "description": "the slide fields to change (same fields as create_slide). A field left out keeps its value, a field sent as null is removed, a list replaces the whole list, `data` merges key by key. Send only `notes` to add or replace speaker notes without a re-render.",
+                  "properties": {
+                    "form": {
+                      "type": "string",
+                      "description": "the form menu pick (see description) — the routing field"
+                    },
+                    "headline": {
+                      "type": "string",
+                      "description": "the assertion-style slide title"
+                    },
+                    "context": {
+                      "type": "string",
+                      "description": "one-line subtitle/standfirst"
+                    },
+                    "subject": {
+                      "type": "string",
+                      "description": "central entity for forms that have one — hub label, org root, section #, fork origin, media label (per-form)."
+                    },
+                    "blocks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      },
+                      "description": "list: [{\"label\",\"sub\",\"detail\":[str],\"emphasis\",\"icon\":lucide-name,\"metric\":{value,label}}]"
+                    },
+                    "metric": {
+                      "type": "object"
+                    },
+                    "data": {
+                      "type": "object",
+                      "description": "family-specific payload — see the documented shapes"
+                    },
+                    "takeaway": {
+                      "type": "string",
+                      "description": "optional verdict band (per-form). Put the so-what in the headline; add only for a verdict the title can't carry — not every slide."
+                    },
+                    "caution": {
+                      "type": "string",
+                      "description": "one-line risk / caveat callout (per-form)."
+                    },
+                    "highlight": {
+                      "type": "string",
+                      "description": "one-line emphasis callout (per-form)."
+                    },
+                    "source_note": {
+                      "type": "string",
+                      "description": "source / footnote line (per-form)."
+                    },
+                    "date": {
+                      "type": "string",
+                      "description": "date callout (per-form)."
+                    },
+                    "notes": {
+                      "type": "string",
+                      "description": "Speaker notes for the presenter; never drawn on the slide."
+                    },
+                    "image_src": {
+                      "type": "string",
+                      "description": "https URL | asset:<id> for image-bearing forms"
+                    },
+                    "theme_id": {
+                      "type": "string"
+                    },
+                    "variant": {
+                      "type": "string",
+                      "description": "pin a specific variant within the form (list them via browse_catalog). Unknown variant -> rejected with the valid list; null unpins."
+                    },
+                    "allow_variant_fallback": {
+                      "type": "boolean",
+                      "description": "If the pinned variant is unknown, render the form's default variant (with a warning) instead of rejecting. Default false."
+                    },
+                    "variant_policy": {
+                      "type": "string",
+                      "enum": [
+                        "best_semantic_match",
+                        "production_safe"
+                      ],
+                      "description": "Routed-variant maturity policy: production_safe = if the ROUTED variant is draft/beta, render the family's demo-safe sibling instead (warning names both). Never overrides an explicit variant=. Default best_semantic_match."
+                    },
+                    "allow_truncation": {
+                      "type": "boolean",
+                      "description": "More items than the form holds blocks (it would drop your data); the response names the dropped count + a suggested_split. true renders the capacity subset (fidelity=verbatim_truncated). Default false."
+                    },
+                    "quality_profile": {
+                      "type": "string",
+                      "enum": [
+                        "executive",
+                        "technical",
+                        "appendix"
+                      ],
+                      "description": "Thresholds layout.presentation_ready is judged against (executive strictest). Measurement only — never blocks a render or changes cost."
+                    },
+                    "min_font_pt": {
+                      "type": "number",
+                      "minimum": 6,
+                      "maximum": 40,
+                      "description": "Binding type floor for prose. Content that can't fit is refused as min_font_not_met naming the size needed. Typical: 12."
+                    },
+                    "direction": {
+                      "type": "string",
+                      "enum": [
+                        "ltr",
+                        "rtl"
+                      ],
+                      "description": "rtl typesets AND mirrors the slide right-to-left (Arabic/Hebrew). Never inferred — pass it."
+                    },
+                    "imagery": {
+                      "type": "string",
+                      "enum": [
+                        "photo",
+                        "wash",
+                        "off"
+                      ],
+                      "description": "Cover/section-divider imagery: photo (default — curated stock photo, half-bleed), wash (abstract color wash), off (plain panel, no photo — only when asked). Content slides are never photo-decorated."
+                    },
+                    "imagery_tag": {
+                      "type": "string",
+                      "enum": [
+                        "general",
+                        "agriculture",
+                        "construction",
+                        "education",
+                        "energy",
+                        "finance",
+                        "government",
+                        "healthcare",
+                        "logistics",
+                        "manufacturing",
+                        "retail",
+                        "technology",
+                        "travel"
+                      ],
+                      "description": "Subject/industry: steers library photos (covers, sections, picture slides) AND the topical palette. Omit = general; `education` = teaching."
+                    },
+                    "styling": {
+                      "type": "string",
+                      "enum": [
+                        "topical",
+                        "clean"
+                      ],
+                      "description": "Topical design on default themes (default on; the note names it): designed cover + a subject palette (from imagery_tag, or the brief). clean = neutral. Pins never take it."
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              },
+              "required": [
+                "job_id",
+                "patch"
+              ]
+            }
+          },
+          {
+            "name": "edit_deck",
+            "title": "Edit slides of a rendered deck",
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": true,
+              "title": "Edit slides of a rendered deck"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://slideforge/result-card/v19"
+              },
+              "openai/outputTemplate": "ui://slideforge/result-card/skybridge/v19",
+              "openai/widgetAccessible": true,
+              "openai/toolInvocation/invoking": "Editing…",
+              "openai/toolInvocation/invoked": "Done"
+            },
+            "description": "Change one or more slides of a deck you already rendered, in place and free: only the patched slides re-render, the deck is re-merged and keeps its id and links. Never runs a model: a brief or a picture request is refused. Each edited slide's entry carries its full current spec as `intent`. Up to 20 edits per deck.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "job_id": {
+                  "type": "string",
+                  "description": "the deck's job_id"
+                },
+                "slides": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "slide": {
+                        "type": "integer",
+                        "description": "0-based index, as slides[].i in the create_deck response"
+                      },
+                      "patch": {
+                        "type": "object",
+                        "description": "the slide fields to change (same fields as create_slide). A field left out keeps its value, a field sent as null is removed, a list replaces the whole list, `data` merges key by key. Send only `notes` to add or replace speaker notes without a re-render.",
+                        "properties": {
+                          "form": {
+                            "type": "string",
+                            "description": "the form menu pick (see description) — the routing field"
+                          },
+                          "headline": {
+                            "type": "string",
+                            "description": "the assertion-style slide title"
+                          },
+                          "context": {
+                            "type": "string",
+                            "description": "one-line subtitle/standfirst"
+                          },
+                          "subject": {
+                            "type": "string",
+                            "description": "central entity for forms that have one — hub label, org root, section #, fork origin, media label (per-form)."
+                          },
+                          "blocks": {
+                            "type": "array",
+                            "items": {
+                              "type": "object"
+                            },
+                            "description": "list: [{\"label\",\"sub\",\"detail\":[str],\"emphasis\",\"icon\":lucide-name,\"metric\":{value,label}}]"
+                          },
+                          "metric": {
+                            "type": "object"
+                          },
+                          "data": {
+                            "type": "object",
+                            "description": "family-specific payload — see the documented shapes"
+                          },
+                          "takeaway": {
+                            "type": "string",
+                            "description": "optional verdict band (per-form). Put the so-what in the headline; add only for a verdict the title can't carry — not every slide."
+                          },
+                          "caution": {
+                            "type": "string",
+                            "description": "one-line risk / caveat callout (per-form)."
+                          },
+                          "highlight": {
+                            "type": "string",
+                            "description": "one-line emphasis callout (per-form)."
+                          },
+                          "source_note": {
+                            "type": "string",
+                            "description": "source / footnote line (per-form)."
+                          },
+                          "date": {
+                            "type": "string",
+                            "description": "date callout (per-form)."
+                          },
+                          "notes": {
+                            "type": "string",
+                            "description": "Speaker notes for the presenter; never drawn on the slide."
+                          },
+                          "image_src": {
+                            "type": "string",
+                            "description": "https URL | asset:<id> for image-bearing forms"
+                          },
+                          "theme_id": {
+                            "type": "string"
+                          },
+                          "variant": {
+                            "type": "string",
+                            "description": "pin a specific variant within the form (list them via browse_catalog). Unknown variant -> rejected with the valid list; null unpins."
+                          },
+                          "allow_variant_fallback": {
+                            "type": "boolean",
+                            "description": "If the pinned variant is unknown, render the form's default variant (with a warning) instead of rejecting. Default false."
+                          },
+                          "variant_policy": {
+                            "type": "string",
+                            "enum": [
+                              "best_semantic_match",
+                              "production_safe"
+                            ],
+                            "description": "Routed-variant maturity policy: production_safe = if the ROUTED variant is draft/beta, render the family's demo-safe sibling instead (warning names both). Never overrides an explicit variant=. Default best_semantic_match."
+                          },
+                          "allow_truncation": {
+                            "type": "boolean",
+                            "description": "More items than the form holds blocks (it would drop your data); the response names the dropped count + a suggested_split. true renders the capacity subset (fidelity=verbatim_truncated). Default false."
+                          },
+                          "quality_profile": {
+                            "type": "string",
+                            "enum": [
+                              "executive",
+                              "technical",
+                              "appendix"
+                            ],
+                            "description": "Thresholds layout.presentation_ready is judged against (executive strictest). Measurement only — never blocks a render or changes cost."
+                          },
+                          "min_font_pt": {
+                            "type": "number",
+                            "minimum": 6,
+                            "maximum": 40,
+                            "description": "Binding type floor for prose. Content that can't fit is refused as min_font_not_met naming the size needed. Typical: 12."
+                          },
+                          "direction": {
+                            "type": "string",
+                            "enum": [
+                              "ltr",
+                              "rtl"
+                            ],
+                            "description": "rtl typesets AND mirrors the slide right-to-left (Arabic/Hebrew). Never inferred — pass it."
+                          },
+                          "imagery": {
+                            "type": "string",
+                            "enum": [
+                              "photo",
+                              "wash",
+                              "off"
+                            ],
+                            "description": "Cover/section-divider imagery: photo (default — curated stock photo, half-bleed), wash (abstract color wash), off (plain panel, no photo — only when asked). Content slides are never photo-decorated."
+                          },
+                          "imagery_tag": {
+                            "type": "string",
+                            "enum": [
+                              "general",
+                              "agriculture",
+                              "construction",
+                              "education",
+                              "energy",
+                              "finance",
+                              "government",
+                              "healthcare",
+                              "logistics",
+                              "manufacturing",
+                              "retail",
+                              "technology",
+                              "travel"
+                            ],
+                            "description": "Subject/industry: steers library photos (covers, sections, picture slides) AND the topical palette. Omit = general; `education` = teaching."
+                          },
+                          "styling": {
+                            "type": "string",
+                            "enum": [
+                              "topical",
+                              "clean"
+                            ],
+                            "description": "Topical design on default themes (default on; the note names it): designed cover + a subject palette (from imagery_tag, or the brief). clean = neutral. Pins never take it."
+                          }
+                        },
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": [
+                      "slide",
+                      "patch"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "job_id",
+                "slides"
+              ]
+            }
+          },
+          {
+            "name": "translate_deck",
+            "title": "Translate PPTX",
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": false,
+              "title": "Translate PPTX"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://slideforge/result-card/v19"
+              },
+              "openai/outputTemplate": "ui://slideforge/result-card/skybridge/v19",
+              "openai/widgetAccessible": true,
+              "openai/toolInvocation/invoking": "Generating…",
+              "openai/toolInvocation/invoked": "Done"
+            },
+            "description": "Deck to 35 languages, layout and formatting preserved. Supports 35 languages (Latin, Cyrillic, Greek, Chinese, Japanese, Korean). Provide job_id (from a previous create_slide/create_deck), pptx_url, or pptx_base64.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "target_language": {
+                  "type": "string",
+                  "enum": [
+                    "en",
+                    "de",
+                    "fr",
+                    "es",
+                    "it",
+                    "pt",
+                    "nl",
+                    "sv",
+                    "da",
+                    "no",
+                    "fi",
+                    "is",
+                    "pl",
+                    "cs",
+                    "sk",
+                    "hu",
+                    "ro",
+                    "hr",
+                    "sl",
+                    "et",
+                    "lt",
+                    "lv",
+                    "ru",
+                    "uk",
+                    "bg",
+                    "sr",
+                    "tr",
+                    "ca",
+                    "gl",
+                    "id",
+                    "vi",
+                    "el",
+                    "zh",
+                    "ja",
+                    "ko"
+                  ],
+                  "description": "Target language (required)"
+                },
+                "source_language": {
+                  "type": "string",
+                  "description": "Source language or 'auto' (default auto)"
+                },
+                "job_id": {
+                  "type": "string",
+                  "description": "Source: previous slide/deck job ID (preferred — no file transfer needed)"
+                },
+                "pptx_url": {
+                  "type": "string",
+                  "description": "Source: HTTPS URL to .pptx"
+                },
+                "pptx_base64": {
+                  "type": "string",
+                  "description": "Source: Base64-encoded .pptx (max ~10 MB)"
+                },
+                "include_notes": {
+                  "type": "boolean",
+                  "description": "Translate speaker notes (default false)"
+                },
+                "include_tables": {
+                  "type": "boolean",
+                  "description": "Translate table cells (default true)"
+                },
+                "concise_mode": {
+                  "type": "boolean",
+                  "description": "Prefer shorter translations for tight text boxes"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Job name"
+                },
+                "include_preview": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "small",
+                    "default"
+                  ],
+                  "description": "Wait+embed preview (default=wait)"
+                }
+              },
+              "required": [
+                "target_language"
+              ]
+            }
+          },
+          {
+            "name": "upload_asset",
+            "title": "Upload an Asset",
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": false,
+              "title": "Upload an Asset"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://slideforge/result-card/v19"
+              },
+              "openai/outputTemplate": "ui://slideforge/result-card/skybridge/v19",
+              "openai/widgetAccessible": true,
+              "openai/toolInvocation/invoking": "Generating…",
+              "openai/toolInvocation/invoked": "Done"
+            },
+            "description": "Convert PDF or slide image to editable .pptx; upload template, logo, image.\n\nPurposes:\n• logo — company logo for chrome (PNG/JPG/SVG, max 5MB) → logo_id\n• image — image for the Image component (max 10MB) → asset_id\n• theme — company template PPTX → theme_id; slides with it render NATIVELY on the template (masters/layouts/chrome)\n• translate — PPTX to translate → deck job_id (requires `target_language`)\n• pdf — PDF → editable slides; pass `target_language` to also translate\n• recreate — image OF a slide → editable PPTX slide (honest annotate/preserve fallback). Use `image` to just place a picture\n\nFiles >3MB (pdf/translate/theme) — and recreate on chat hosts — omit `data`: a drop-zone appears in the result card; bytes never pass through the agent.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "purpose": {
+                  "type": "string",
+                  "enum": [
+                    "logo",
+                    "image",
+                    "theme",
+                    "brand",
+                    "translate",
+                    "pdf",
+                    "recreate"
+                  ],
+                  "description": "Asset type (required). brand = a .pptx/.potx corporate template imported as your brand kit (theme is the same thing under its old name)."
+                },
+                "data": {
+                  "type": "string",
+                  "description": "Base64-encoded file content. Required for logo/image/theme/translate. Optional for pdf — omit to get a drop-zone (recommended for files >3MB)."
+                },
+                "filename": {
+                  "type": "string",
+                  "description": "Original filename (for type detection)"
+                },
+                "position": {
+                  "type": "string",
+                  "description": "Logo position: top-left / top-right / bottom-left / bottom-right"
+                },
+                "theme_name": {
+                  "type": "string",
+                  "description": "Name for extracted theme (purpose=theme)"
+                },
+                "theme_id": {
+                  "type": "string",
+                  "description": "For purpose=recreate: the brand kit or built-in theme to render the recreated slide in — your kit slug, `slug@version`, or a built-in id. Omit to keep the look of the source image."
+                },
+                "job_id": {
+                  "type": "string",
+                  "description": "For purpose=brand: keep the look a recreate rendered in — pass that recreate's job_id and its exact kit is saved as yours (no upload, no charge)."
+                },
+                "target_language": {
+                  "type": "string",
+                  "enum": [
+                    "en",
+                    "de",
+                    "fr",
+                    "es",
+                    "it",
+                    "pt",
+                    "nl",
+                    "sv",
+                    "da",
+                    "no",
+                    "fi",
+                    "is",
+                    "pl",
+                    "cs",
+                    "sk",
+                    "hu",
+                    "ro",
+                    "hr",
+                    "sl",
+                    "et",
+                    "lt",
+                    "lv",
+                    "ru",
+                    "uk",
+                    "bg",
+                    "sr",
+                    "tr",
+                    "ca",
+                    "gl",
+                    "id",
+                    "vi",
+                    "el",
+                    "zh",
+                    "ja",
+                    "ko"
+                  ],
+                  "description": "Required for purpose=translate. Optional for purpose=pdf — chains pdf→pptx→translate in one call."
+                }
+              },
+              "required": [
+                "purpose"
+              ]
+            }
+          },
+          {
+            "name": "manage_account",
+            "title": "Account & History",
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true,
+              "cost": {
+                "usd": 0,
+                "note": "free"
+              },
+              "title": "Account & History"
+            },
+            "description": "Balance, usage, job history, top-up link.\nActions: status (balance+plan), usage (spend breakdown), jobs (history), job (single job detail — slide jobs include `quality_warnings[]`; deck jobs add `slides_completed/slides_failed/failed_slides[]`), download_url (mint a fresh short-TTL single-use PPTX download link for an owned job — use when a result carries no inline URL), topup (mint a checkout link the user opens to add credit to their own account; payment happens on slideforge.dev, nothing is charged here), onboarding (capabilities overview), security_status (retention + access-model + deletion posture).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "status",
+                    "usage",
+                    "jobs",
+                    "job",
+                    "download_url",
+                    "onboarding",
+                    "topup",
+                    "security_status"
+                  ],
+                  "description": "Operation (required)."
+                },
+                "job_id": {
+                  "type": "string",
+                  "description": "Job ID (for action=job / download_url)"
+                },
+                "limit": {
+                  "type": "integer",
+                  "description": "Max rows (action=jobs default 10; action=feedback_list default 50, max 100)"
+                },
+                "status": {
+                  "type": "string",
+                  "description": "Filter — action=jobs: queued/generating/complete/failed; action=feedback_list: open/resolved"
+                },
+                "include_children": {
+                  "type": "boolean",
+                  "description": "For action=jobs: include deck child slides (each carries parent_deck_id) so a deck's slides are discoverable by listing. Default false (parents only). Deck rows roll child cost up to the deck."
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "bug",
+                    "quality",
+                    "suggestion"
+                  ],
+                  "description": "For action=feedback: `bug` = it is broken, `quality` = it rendered but reads poorly, `suggestion` = a request. Defaults to suggestion, so file real defects explicitly or they are triaged as wishes."
+                },
+                "days": {
+                  "type": "integer",
+                  "description": "Lookback period (for action=usage, default 30)"
+                },
+                "amount": {
+                  "type": "number",
+                  "description": "USD top-up amount (for action=topup, default 10, min 10, max 1000). Volume bonus: $50→+10%, $100→+15%, $200→+20%."
+                },
+                "detail": {
+                  "type": "boolean",
+                  "description": "For action=status only: default false masks identity fields; true returns full email/user_id diagnostics for the authenticated user."
+                },
+                "include_preview": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "small",
+                    "default",
+                    "full"
+                  ],
+                  "description": "Preview (for action=job)"
+                }
+              },
+              "required": [
+                "action"
+              ]
+            },
+            "_meta": {
+              "openai/widgetAccessible": true
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "browse_catalog",
+        "title": "Browse the Catalog",
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "cost": {
+            "usd": 0,
+            "note": "free"
+          },
+          "title": "Browse the Catalog"
+        },
+        "description": "200+ slide layouts: forms, variants, per-form schema, examples — all free. No args -> form overview (when-to-use, bound fields, variant counts). family=<form> -> variant one-liners. q=<text> -> ranked search. variant=/prior_id= -> example payload. type=schema + family -> a compact family-level variant chooser (not a sendable contract); type=schema + family + variant -> that variant's exact payload contract (JSON Schema, capacity, field mapping, examples). Free. Code path: type=widgets = the add_widget() catalog (name=<widget> for its contract + thumbnail); type=helpers = python-pptx helper signatures. type=themes + an uploaded theme_id -> that template's branded FURNITURE layouts (its own cover/agenda/divider/closing slides + fill schemas + previews) — render via create_slide(form=template_layout, theme_id, data={layout, fills}).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "family": {
+              "type": "string"
+            },
+            "variant": {
+              "type": "string"
+            },
+            "prior_id": {
+              "type": "string"
+            },
+            "q": {
+              "type": "string",
+              "description": "Semantic search across all variants; returns ranked form/variant matches with scores."
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Max results (with q= or family=)."
+            },
+            "offset": {
+              "type": "integer",
+              "description": "Pagination offset (with q= or family=)."
+            },
+            "type": {
+              "type": "string",
+              "description": "Omit for the form overview (or family=/q= to drill in). schema (+family, optionally +variant=) = schema-first discovery: family only returns a compact variant chooser; family+variant returns that variant's exact machine-readable payload contract (JSON Schema for data, capacity limits, intent-field mapping, examples). widgets = the add_widget() catalog for mode=code (name=<widget> for its contract). helpers = python-pptx helper signatures. themes = list themes (built-in + your saved); Default appears first and can be omitted, or use any returned id as theme_id. brands = your brand kits with versions (theme_id=<slug> renders the default version, <slug>@<n> pins n)."
+            },
+            "name": {
+              "type": "string",
+              "description": "Widget name (with type=widgets): returns the full contract + worked example + a rendered thumbnail."
+            },
+            "source": {
+              "type": "string",
+              "enum": [
+                "all",
+                "default",
+                "custom",
+                "saved",
+                "uploaded"
+              ],
+              "description": "Theme source filter (with type=themes). Default all (built-in + your saved)."
+            },
+            "top": {
+              "type": "integer",
+              "description": "Max results (with type=themes)."
+            },
+            "theme_id": {
+              "type": "string",
+              "description": "With type=themes: an uploaded theme's id -> its branded furniture layouts + fill schemas (render via create_slide(form=template_layout))."
+            }
+          }
+        }
+      },
+      {
+        "name": "plan_slide",
+        "title": "Plan a Slide - Form + Variant Candidates",
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "cost": {
+            "usd": 0,
+            "note": "free"
+          },
+          "title": "Plan a Slide - Form + Variant Candidates"
+        },
+        "description": "Free routing preview: brief to ranked forms, creates nothing, charges nothing.\n\nReturns ranked candidates + a separated verdict — route (which slide: selected|needs_confirmation|ambiguous), input (can it render: ready|extractable_from_brief|needs_structured_data) and next_action. Free (one embedding). Then call create_slide with the chosen form(+variant). route.confidence: calibrated = measured P(route correct) with label high/medium/low cut on it; retrieval_score/retrieval_margin = the raw family-aggregated classifier values (not probabilities; margin can be negative when families contest); source = jev (calibrated router, took the route at >=0.9) | classifier | structural_router (LLM-rescued). candidate_margin on the top candidate = literal gap between the two shown scores.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "brief": {
+              "type": "string"
+            },
+            "top": {
+              "type": "integer"
+            },
+            "escalate": {
+              "type": "boolean",
+              "description": "Default true: on a low-confidence route the plan runs the SAME LLM rescue create_slide would (small COGS on that tail only), so plan and create always agree. Set false for a classifier-only, fully free plan (response then flags will_escalate + create_slide_behavior)."
+            },
+            "variant_policy": {
+              "type": "string",
+              "enum": [
+                "best_semantic_match",
+                "production_safe"
+              ],
+              "description": "production_safe: if the top routed variant is draft/beta, the family's demo-safe sibling leads and route reports both best_semantic and best_production_safe."
+            }
+          },
+          "required": [
+            "brief"
+          ]
+        }
+      },
+      {
+        "name": "create_slide",
+        "title": "Create a Slide",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true,
+          "title": "Create a Slide"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://slideforge/result-card/v19"
+          },
+          "openai/outputTemplate": "ui://slideforge/result-card/skybridge/v19",
+          "openai/widgetAccessible": true,
+          "openai/toolInvocation/invoking": "Generating…",
+          "openai/toolInvocation/invoked": "Done"
+        },
+        "description": "Create one editable PowerPoint slide (.pptx) from a brief or typed fields.\n\nPick a `form` from the menu and put your content in the typed fields (placed on the slide as given), or pass a `brief` and let the server route it. Fields tagged (per-form) bind only where the form has that slot — ignored-with-warning elsewhere; see each form's `binds` in browse_catalog.\n\nBLOCKED (not billed)? If an error has `can_autofix:true`, merge its `patch` into the args at `patch_target`. Unchanged retries repeat the block. New form: browse_catalog(type=schema) first.\n\n\nFORM MENU:\n  agenda_list: an ordered list of sections/topics or learning objectives to walk through\n  bar_rank_chart: bars comparing magnitudes across categories\n  calendar_grid: events on a real calendar - week planner (day x hour) or month grid with event chips (data.events)\n  card_grid: several equal, unordered peer blocks (features, options, pillars, a concept's defined parts, rules/guidelines/common mistakes)\n  case_story: one named story told as evidence, proven by measured results (data.results = figures)\n  comparison_matrix: options x criteria grid: data.columns x data.rows\n  cycle_flow: a closed loop of ordered stages where the last feeds the first (recurring process)\n  data_table: a plain factual table of records by fields\n  editorial_split: two side-by-side halves: contrast (before/after, problem/solution) or copy/numbered steps beside a picture (image_src)\n  exercise_prompt: an exercise/practice/discussion prompt: instruction + hints; optional problem items with blank answer boxes\n  funnel: a quantity narrowing through ordered stages\n  gantt_plan: tasks as bars across named periods on a schedule grid\n  gauge_score: one score on a dial against a scale\n  hero_statement: a statement slide: covers (title/image-led/exec), from->to/thesis-quote transitions, statement/contact/next-steps closings; supporting points -> takeaway_stack, contacts -> data.contacts, next steps -> data.next_steps\n  hub_spoke: one central element with several elements connected around it\n  image_story: a picture shown WHOLE (uncropped) + prose and up to 4 labelled blocks beside it, or a 1-6 picture/placeholder gallery (data.images)\n  kpi_metrics: a metrics dashboard: headline metric cards; data.sections (Highlights/Risks/Asks) makes it an exec summary / QBR snapshot\n  layer_stack: stacked layers where higher sits on, and depends on, lower\n  linear_flow: ordered process stages read left to right (or inputs to process to outputs)\n  maturity_staircase: ascending levels climbing to a higher state\n  nested_magnitude: nested containment - each level contains the next\n  org_structure: a reporting hierarchy / org tree\n  position_map: items placed by two axes - named 2x2 cells or scatter positions\n  pyramid_hierarchy: a triangle of stacked tiers, foundation to apex\n  ramp_curve: a continuous rising wedge split into phases - effort or value accumulating over time\n  section_divider: a section-break: big section number + title; blocks = agenda progress chips (emphasis=primary = current)\n  segment_wheel: a wheel of equal segments around a center - peer categories in the round (composition, not flow)\n  status_dashboard: initiatives/workstreams tracked by status, owner, progress\n  strategic_fork: one origin splitting into two mutually exclusive paths, one recommended\n  swimlane_flow: actor/function lanes by phases, task cells, handoffs across lanes\n  swot: the four-quadrant strengths / weaknesses / opportunities / threats grid\n  system_flow_map: architecture/system components: panels with internals (edges optional) or nodes wired by directed arrows\n  takeaway_stack: a title plus a few supporting points, each with one line of detail (executive summary, key findings); optional closing ask\n  timeline_roadmap: milestones/phases laid out along a time axis\n  trend_chart: one or more series plotted over time\n  value_chain: support bands over primary activity columns flowing into a goal arrowhead (data.support = the bands)\n  visual_showcase: one dominant screenshot/image with numbered callouts pointing into it\n  waterfall_bridge: a start value bridged to an end value by plus/minus contributions\n\nExact per-form data shapes: browse_catalog(type=schema, family=<form>) — the generated,always-current JSON Schema + a worked example. (List-shaped forms take `blocks`: [{\"label\",\"sub\",\"detail\":[str],\"emphasis\"}]; structured forms take typed `data`.)\n\nEscape modes: mode=code (caller-supplied python-pptx in sandbox — use for forms the menu cannot express: calendars, custom diagrams).\nImage-led asks (photo covers, full-bleed visuals): hero_statement + image_src.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "form": {
+              "type": "string",
+              "description": "the form menu pick (see description) — the routing field"
+            },
+            "form_description": {
+              "type": "string"
+            },
+            "headline": {
+              "type": "string",
+              "description": "the assertion-style slide title"
+            },
+            "context": {
+              "type": "string",
+              "description": "one-line subtitle/standfirst"
+            },
+            "subject": {
+              "type": "string",
+              "description": "central entity for forms that have one — hub label, org root, section #, fork origin, media label (per-form)."
+            },
+            "blocks": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              },
+              "description": "list: [{\"label\",\"sub\",\"detail\":[str],\"emphasis\",\"icon\":lucide-name,\"metric\":{value,label}}]"
+            },
+            "metric": {
+              "type": "object"
+            },
+            "data": {
+              "type": "object",
+              "description": "family-specific payload — see the documented shapes"
+            },
+            "takeaway": {
+              "type": "string",
+              "description": "optional verdict band (per-form). Put the so-what in the headline; add only for a verdict the title can't carry — not every slide."
+            },
+            "caution": {
+              "type": "string",
+              "description": "one-line risk / caveat callout (per-form)."
+            },
+            "highlight": {
+              "type": "string",
+              "description": "one-line emphasis callout (per-form)."
+            },
+            "source_note": {
+              "type": "string",
+              "description": "source / footnote line (per-form)."
+            },
+            "date": {
+              "type": "string",
+              "description": "date callout (per-form)."
+            },
+            "notes": {
+              "type": "string",
+              "description": "Speaker notes for the presenter; never drawn on the slide."
+            },
+            "image_src": {
+              "type": "string",
+              "description": "https URL | asset:<id> for image-bearing forms"
+            },
+            "brief": {
+              "type": "string",
+              "description": "prose fallback / extra context for fills"
+            },
+            "theme_id": {
+              "type": "string",
+              "description": "Optional theme id from browse_catalog(type=themes). Omit for Default (slideforge_standard)."
+            },
+            "name": {
+              "type": "string"
+            },
+            "variant": {
+              "type": "string",
+              "description": "pin a specific variant within the form (list them via browse_catalog). Unknown variant -> rejected ($0) with the valid list; set allow_variant_fallback to render the family default instead."
+            },
+            "allow_variant_fallback": {
+              "type": "boolean",
+              "description": "If the pinned variant is unknown, render the form's default variant (with a warning) instead of rejecting. Default false."
+            },
+            "variant_policy": {
+              "type": "string",
+              "enum": [
+                "best_semantic_match",
+                "production_safe"
+              ],
+              "description": "Routed-variant maturity policy: production_safe = if the ROUTED variant is draft/beta, render the family's demo-safe sibling instead (warning names both). Never overrides an explicit variant=. Default best_semantic_match."
+            },
+            "allow_low_confidence": {
+              "type": "boolean",
+              "description": "Brief routing only: by default a brief that doesn't match a form clearly returns status=needs_confirmation + candidates at cost:0 (no guessed render). Set true to render the top guess and bill it. Default false."
+            },
+            "allow_fabrication": {
+              "type": "boolean",
+              "description": "Brief mode only: a bare brief on a DATA form (kpi/funnel/comparison/…) returns would_fabricate at $0 rather than INVENT numbers. Send typed fields for verbatim, or true to let the brief author them (fidelity=ai_completed). Default false."
+            },
+            "allow_truncation": {
+              "type": "boolean",
+              "description": "More items than the form holds blocks (it would drop your data); the response names the dropped count + a suggested_split. true renders the capacity subset (fidelity=verbatim_truncated). Default false."
+            },
+            "dry_run": {
+              "type": "boolean",
+              "description": "Free pre-commit check (intent or mode=code), cost:0, no PPTX: status + warnings/errors, plus fidelity_forecast (verbatim|mixed|ai_completed|would_reject) and which fields bind vs get authored. Fix errors, re-call with dry_run=false to render."
+            },
+            "quality_profile": {
+              "type": "string",
+              "enum": [
+                "executive",
+                "technical",
+                "appendix"
+              ],
+              "description": "Thresholds layout.presentation_ready is judged against (executive strictest). Measurement only — never blocks a render or changes cost."
+            },
+            "min_font_pt": {
+              "type": "number",
+              "minimum": 6,
+              "maximum": 40,
+              "description": "Binding type floor for prose (exhibit furniture has its own). Type grows to meet it; content that can't fit is a $0 min_font_not_met naming the size needed. Typical: 12."
+            },
+            "direction": {
+              "type": "string",
+              "enum": [
+                "ltr",
+                "rtl"
+              ],
+              "description": "rtl typesets AND mirrors the slide right-to-left (Arabic/Hebrew). Never inferred — pass it."
+            },
+            "imagery": {
+              "type": "string",
+              "enum": [
+                "photo",
+                "wash",
+                "off"
+              ],
+              "description": "Cover/section-divider imagery: photo (default — curated stock photo, half-bleed), wash (abstract color wash), off (plain panel, no photo — only when asked). Content slides are never photo-decorated."
+            },
+            "imagery_tag": {
+              "type": "string",
+              "enum": [
+                "general",
+                "agriculture",
+                "construction",
+                "education",
+                "energy",
+                "finance",
+                "government",
+                "healthcare",
+                "logistics",
+                "manufacturing",
+                "retail",
+                "technology",
+                "travel"
+              ],
+              "description": "Subject/industry: steers library photos (covers, sections, picture slides) AND the topical palette. Omit = general; `education` = teaching."
+            },
+            "styling": {
+              "type": "string",
+              "enum": [
+                "topical",
+                "clean"
+              ],
+              "description": "Topical design on default themes (default on; the note names it): designed cover + a subject palette (from imagery_tag, or the brief). clean = neutral. Pins never take it."
+            },
+            "force_render": {
+              "type": "boolean",
+              "description": "On completed_with_errors, pptx_url is null (broken slide). Set true to get it anyway. No cost/status effect."
+            },
+            "code": {
+              "type": "string",
+              "description": "Python code defining build(prs). Canvas 13.33×7.5\", coords in inches. Pre-imported: Presentation, Inches, Pt, Emu, RGBColor, MSO_ANCHOR, PP_ALIGN. Helpers: add_text_box(slide, left, top, w, h, text, font_size=12, bold=False, color=None), add_box(slide, left, top, w, h, fill_color=None, line_color=None, corner_radius=0.05), add_icon, add_image (src = path or https://); theme_color(name) → RGBColor. add_widget(slide, name, x, y, w, h, params=|content=, theme=THEME) draws board-grade SSG widgets/charts (cards, waterfall, gantt, funnel…) — names via `browse_catalog(type=widgets)`. Use font_size=, not size=; use fill_color=, not fill=. When chrome is supplied, use `build(prs, slide)` — chrome is pre-rendered. Helper signatures: `browse_catalog(type=helpers)`."
+            },
+            "job_id": {
+              "type": "string",
+              "description": "Previous job ID (for mode=code patching)"
+            },
+            "replacements": {
+              "type": "array",
+              "description": "String replacements on loaded code [{old, new}] (for mode=code with job_id)",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "old": {
+                    "type": "string",
+                    "description": "Exact string to find"
+                  },
+                  "new": {
+                    "type": "string",
+                    "description": "Replacement string"
+                  }
+                },
+                "required": [
+                  "old",
+                  "new"
+                ]
+              }
+            },
+            "language": {
+              "type": "string",
+              "enum": [
+                "bg",
+                "ca",
+                "cs",
+                "da",
+                "de",
+                "el",
+                "en",
+                "es",
+                "et",
+                "fi",
+                "fr",
+                "gl",
+                "hr",
+                "hu",
+                "id",
+                "is",
+                "it",
+                "ja",
+                "ko",
+                "lt",
+                "lv",
+                "nl",
+                "no",
+                "pl",
+                "pt",
+                "ro",
+                "ru",
+                "sk",
+                "sl",
+                "sr",
+                "sv",
+                "tr",
+                "uk",
+                "vi",
+                "zh"
+              ],
+              "description": "ISO 639-1 (default en): furniture labels and authored fills follow it."
+            },
+            "include_preview": {
+              "type": "string",
+              "enum": [
+                "none",
+                "small",
+                "default",
+                "full"
+              ],
+              "description": "Inline-preview PAYLOAD only (not execution). Default: default (768px). none omits the inline image and returns just the URLs — it does NOT change sync/async. Use `wait` to control execution."
+            },
+            "detail": {
+              "type": "string",
+              "enum": [
+                "compact",
+                "full"
+              ],
+              "description": "Response verbosity. Default `compact`: status, form/variant, fidelity (verbatim|mixed|ai_completed), warnings[]/errors[] (only when present), urls, cost. `full` adds a debug object (engine internals, verify events, latency buckets)."
+            },
+            "verify": {
+              "type": "string",
+              "enum": [
+                "off",
+                "lint",
+                "lint+vlm",
+                "full"
+              ],
+              "description": "mode=code. Default `lint`: static geometry + content checks, no LLM. `lint+vlm` adds a VLM second look (~+3s); a blank render is then a $0 error, not a billed warning. `off` skips checks."
+            },
+            "wait": {
+              "type": "string",
+              "enum": [
+                "auto",
+                "true",
+                "false"
+              ],
+              "description": "`false` returns a job_id for a long render instead of blocking; fetch it via manage_account(action=job) (mode=brief)."
+            },
+            "logo_id": {
+              "type": "string",
+              "description": "Optional brand logo (from upload_asset purpose=logo) drawn as chrome on content slides; covers/section breaks stay clean."
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "safe",
+                "brief",
+                "code"
+              ],
+              "description": "Default: structured intent / brief. safe = validate-then-render in ONE call (renders + bills only if faithful; else $0 invalid report with the fix — recommended, no dry_run round-trip). code = python-pptx escape."
+            }
+          }
+        }
+      },
+      {
+        "name": "create_deck",
+        "title": "Create Multi-Slide Deck",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true,
+          "title": "Create Multi-Slide Deck"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://slideforge/result-card/v19"
+          },
+          "openai/outputTemplate": "ui://slideforge/result-card/skybridge/v19",
+          "openai/widgetAccessible": true,
+          "openai/toolInvocation/invoking": "Generating…",
+          "openai/toolInvocation/invoked": "Done"
+        },
+        "description": "One call renders a whole PowerPoint presentation (.pptx), every slide editable. `slides` is a list of create_slide intents (same form menu + data shapes — see create_slide). Slides fill in parallel and merge into one themed PPTX with page numbers. Include furniture: a hero_statement cover, section_divider breaks, and a closing (hero_statement variant=contact_closing via blocks-free slots).\n\nBLOCKED (not billed)? If an error has `can_autofix:true`, merge its `patch` into the args at `patch_target`. Unchanged retries repeat the block. New form: browse_catalog(type=schema) first.\n\n\n\nAlso: mode=assemble merges existing slide job_ids as-rendered (free; theme_id does NOT re-theme them — render with create_deck(slides=[…], theme_id=…) for a unified theme); mode=fork clones a deck (free).\nPolling: deck_id == job_id — manage_account(action=job, job_id=<deck_id>).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "slides": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              },
+              "description": "each item is a create_slide intent (same form menu, typed fields, and data shapes as create_slide)."
+            },
+            "theme_id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "styling": {
+              "type": "string",
+              "enum": [
+                "topical",
+                "clean"
+              ],
+              "description": "Deck-level topical-design switch, inherited by every slide (a slide-level styling wins). See create_slide.styling."
+            },
+            "imagery": {
+              "type": "string",
+              "enum": [
+                "photo",
+                "wash",
+                "off"
+              ],
+              "description": "Deck-level imagery mode, inherited by every slide (a slide-level imagery wins). See create_slide.imagery."
+            },
+            "imagery_tag": {
+              "type": "string",
+              "enum": [
+                "general",
+                "agriculture",
+                "construction",
+                "education",
+                "energy",
+                "finance",
+                "government",
+                "healthcare",
+                "logistics",
+                "manufacturing",
+                "retail",
+                "technology",
+                "travel"
+              ],
+              "description": "Deck-level subject declaration, inherited by every slide (a slide-level imagery_tag wins). Declare it once for a whole deck. See create_slide.imagery_tag."
+            },
+            "direction": {
+              "type": "string",
+              "enum": [
+                "ltr",
+                "rtl"
+              ],
+              "description": "Deck-level writing direction, inherited by every slide (a slide-level direction wins) — set it once for an Arabic/Hebrew deck. Covers/dividers rendered on an UPLOADED brand template keep that template's own layout direction. See create_slide.direction."
+            },
+            "force_render": {
+              "type": "boolean",
+              "description": "IGNORED (deck-level). pptx_url is always returned when at least one slide rendered, so there is nothing to force. Still meaningful on create_slide."
+            },
+            "allow_partial": {
+              "type": "boolean",
+              "description": "IGNORED. A deck bills per rendered slide and always returns its pptx; slides that failed or rendered badly are free and named in repair_actions."
+            },
+            "strict_policy": {
+              "type": "object",
+              "properties": {
+                "reject_ai_completed": {
+                  "type": "boolean",
+                  "description": "Reject slides whose content was fully AI-completed."
+                },
+                "reject_mixed": {
+                  "type": "boolean",
+                  "description": "Reject slides with mixed verbatim and AI-completed content."
+                },
+                "reject_truncated": {
+                  "type": "boolean",
+                  "description": "Reject slides with truncated supplied content."
+                },
+                "reject_ignored_fields": {
+                  "type": "boolean",
+                  "description": "Reject slides whose supplied fields were not rendered (fidelity=partial / field_ignored)."
+                },
+                "reject_field_warnings": {
+                  "type": "boolean",
+                  "description": "Reject slides carrying any field-binding warning (field_ignored, input_shape_hint, normalized, variant_fallback, form_rerouted)."
+                },
+                "reject_draft_variants": {
+                  "type": "boolean",
+                  "description": "Reject slides rendered by a draft-maturity variant (see each slide's variant_maturity warning)."
+                },
+                "min_font_pt": {
+                  "type": "number",
+                  "description": "Reject slides whose reported minimum font size is below this point size."
+                },
+                "max_density": {
+                  "type": "string",
+                  "enum": [
+                    "good",
+                    "medium",
+                    "high"
+                  ],
+                  "description": "Reject slides whose quality.density is above this level."
+                }
+              },
+              "description": "Optional CI-style gate for automated report pipelines. dry_run returns policy_result; render returns rejected/cost:0 if the policy fails."
+            },
+            "job_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Slide job IDs to merge (for mode=assemble)"
+            },
+            "deck_id": {
+              "type": "string",
+              "description": "Existing deck ID (for mode=fork, or mode=render to update)"
+            },
+            "title": {
+              "type": "string",
+              "description": "Deck title (PowerPoint metadata)"
+            },
+            "language": {
+              "type": "string",
+              "enum": [
+                "bg",
+                "ca",
+                "cs",
+                "da",
+                "de",
+                "el",
+                "en",
+                "es",
+                "et",
+                "fi",
+                "fr",
+                "gl",
+                "hr",
+                "hu",
+                "id",
+                "is",
+                "it",
+                "ja",
+                "ko",
+                "lt",
+                "lv",
+                "nl",
+                "no",
+                "pl",
+                "pt",
+                "ro",
+                "ru",
+                "sk",
+                "sl",
+                "sr",
+                "sv",
+                "tr",
+                "uk",
+                "vi",
+                "zh"
+              ],
+              "description": "ISO 639-1 (default en) for every slide: furniture labels and authored fills follow it."
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "render",
+                "assemble",
+                "fork"
+              ],
+              "description": "Default render. assemble/fork are free deck plumbing."
+            },
+            "dry_run": {
+              "type": "boolean",
+              "description": "Deck-level free pre-flight (cost:0, NO render/PPTX): returns a per-slide validation manifest [{i, form, fidelity_forecast, status, errors}] so you can fix bad slides before spending. A deck is one artifact, so validation is all-or-nothing — put dry_run here, not on individual slides. Resend without dry_run to render."
+            },
+            "logo_id": {
+              "type": "string",
+              "description": "Optional brand logo (from upload_asset purpose=logo) applied as chrome to every content slide in the deck."
+            }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "edit_slide",
+        "title": "Edit a rendered slide",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true,
+          "title": "Edit a rendered slide"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://slideforge/result-card/v19"
+          },
+          "openai/outputTemplate": "ui://slideforge/result-card/skybridge/v19",
+          "openai/widgetAccessible": true,
+          "openai/toolInvocation/invoking": "Editing…",
+          "openai/toolInvocation/invoked": "Done"
+        },
+        "description": "Change a slide you already rendered, in place and free: the job keeps its id and links. Send the job_id and a patch of the fields to change. Never runs a model: a brief or a picture request is refused (make a new slide for those). The response carries the slide's full current spec as `intent`. Up to 20 edits per slide.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "job_id": {
+              "type": "string",
+              "description": "the rendered slide's job_id"
+            },
+            "patch": {
+              "type": "object",
+              "description": "the slide fields to change (same fields as create_slide). A field left out keeps its value, a field sent as null is removed, a list replaces the whole list, `data` merges key by key. Send only `notes` to add or replace speaker notes without a re-render.",
+              "properties": {
+                "form": {
+                  "type": "string",
+                  "description": "the form menu pick (see description) — the routing field"
+                },
+                "headline": {
+                  "type": "string",
+                  "description": "the assertion-style slide title"
+                },
+                "context": {
+                  "type": "string",
+                  "description": "one-line subtitle/standfirst"
+                },
+                "subject": {
+                  "type": "string",
+                  "description": "central entity for forms that have one — hub label, org root, section #, fork origin, media label (per-form)."
+                },
+                "blocks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  },
+                  "description": "list: [{\"label\",\"sub\",\"detail\":[str],\"emphasis\",\"icon\":lucide-name,\"metric\":{value,label}}]"
+                },
+                "metric": {
+                  "type": "object"
+                },
+                "data": {
+                  "type": "object",
+                  "description": "family-specific payload — see the documented shapes"
+                },
+                "takeaway": {
+                  "type": "string",
+                  "description": "optional verdict band (per-form). Put the so-what in the headline; add only for a verdict the title can't carry — not every slide."
+                },
+                "caution": {
+                  "type": "string",
+                  "description": "one-line risk / caveat callout (per-form)."
+                },
+                "highlight": {
+                  "type": "string",
+                  "description": "one-line emphasis callout (per-form)."
+                },
+                "source_note": {
+                  "type": "string",
+                  "description": "source / footnote line (per-form)."
+                },
+                "date": {
+                  "type": "string",
+                  "description": "date callout (per-form)."
+                },
+                "notes": {
+                  "type": "string",
+                  "description": "Speaker notes for the presenter; never drawn on the slide."
+                },
+                "image_src": {
+                  "type": "string",
+                  "description": "https URL | asset:<id> for image-bearing forms"
+                },
+                "theme_id": {
+                  "type": "string"
+                },
+                "variant": {
+                  "type": "string",
+                  "description": "pin a specific variant within the form (list them via browse_catalog). Unknown variant -> rejected with the valid list; null unpins."
+                },
+                "allow_variant_fallback": {
+                  "type": "boolean",
+                  "description": "If the pinned variant is unknown, render the form's default variant (with a warning) instead of rejecting. Default false."
+                },
+                "variant_policy": {
+                  "type": "string",
+                  "enum": [
+                    "best_semantic_match",
+                    "production_safe"
+                  ],
+                  "description": "Routed-variant maturity policy: production_safe = if the ROUTED variant is draft/beta, render the family's demo-safe sibling instead (warning names both). Never overrides an explicit variant=. Default best_semantic_match."
+                },
+                "allow_truncation": {
+                  "type": "boolean",
+                  "description": "More items than the form holds blocks (it would drop your data); the response names the dropped count + a suggested_split. true renders the capacity subset (fidelity=verbatim_truncated). Default false."
+                },
+                "quality_profile": {
+                  "type": "string",
+                  "enum": [
+                    "executive",
+                    "technical",
+                    "appendix"
+                  ],
+                  "description": "Thresholds layout.presentation_ready is judged against (executive strictest). Measurement only — never blocks a render or changes cost."
+                },
+                "min_font_pt": {
+                  "type": "number",
+                  "minimum": 6,
+                  "maximum": 40,
+                  "description": "Binding type floor for prose. Content that can't fit is refused as min_font_not_met naming the size needed. Typical: 12."
+                },
+                "direction": {
+                  "type": "string",
+                  "enum": [
+                    "ltr",
+                    "rtl"
+                  ],
+                  "description": "rtl typesets AND mirrors the slide right-to-left (Arabic/Hebrew). Never inferred — pass it."
+                },
+                "imagery": {
+                  "type": "string",
+                  "enum": [
+                    "photo",
+                    "wash",
+                    "off"
+                  ],
+                  "description": "Cover/section-divider imagery: photo (default — curated stock photo, half-bleed), wash (abstract color wash), off (plain panel, no photo — only when asked). Content slides are never photo-decorated."
+                },
+                "imagery_tag": {
+                  "type": "string",
+                  "enum": [
+                    "general",
+                    "agriculture",
+                    "construction",
+                    "education",
+                    "energy",
+                    "finance",
+                    "government",
+                    "healthcare",
+                    "logistics",
+                    "manufacturing",
+                    "retail",
+                    "technology",
+                    "travel"
+                  ],
+                  "description": "Subject/industry: steers library photos (covers, sections, picture slides) AND the topical palette. Omit = general; `education` = teaching."
+                },
+                "styling": {
+                  "type": "string",
+                  "enum": [
+                    "topical",
+                    "clean"
+                  ],
+                  "description": "Topical design on default themes (default on; the note names it): designed cover + a subject palette (from imagery_tag, or the brief). clean = neutral. Pins never take it."
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "job_id",
+            "patch"
+          ]
+        }
+      },
+      {
+        "name": "edit_deck",
+        "title": "Edit slides of a rendered deck",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true,
+          "title": "Edit slides of a rendered deck"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://slideforge/result-card/v19"
+          },
+          "openai/outputTemplate": "ui://slideforge/result-card/skybridge/v19",
+          "openai/widgetAccessible": true,
+          "openai/toolInvocation/invoking": "Editing…",
+          "openai/toolInvocation/invoked": "Done"
+        },
+        "description": "Change one or more slides of a deck you already rendered, in place and free: only the patched slides re-render, the deck is re-merged and keeps its id and links. Never runs a model: a brief or a picture request is refused. Each edited slide's entry carries its full current spec as `intent`. Up to 20 edits per deck.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "job_id": {
+              "type": "string",
+              "description": "the deck's job_id"
+            },
+            "slides": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "slide": {
+                    "type": "integer",
+                    "description": "0-based index, as slides[].i in the create_deck response"
+                  },
+                  "patch": {
+                    "type": "object",
+                    "description": "the slide fields to change (same fields as create_slide). A field left out keeps its value, a field sent as null is removed, a list replaces the whole list, `data` merges key by key. Send only `notes` to add or replace speaker notes without a re-render.",
+                    "properties": {
+                      "form": {
+                        "type": "string",
+                        "description": "the form menu pick (see description) — the routing field"
+                      },
+                      "headline": {
+                        "type": "string",
+                        "description": "the assertion-style slide title"
+                      },
+                      "context": {
+                        "type": "string",
+                        "description": "one-line subtitle/standfirst"
+                      },
+                      "subject": {
+                        "type": "string",
+                        "description": "central entity for forms that have one — hub label, org root, section #, fork origin, media label (per-form)."
+                      },
+                      "blocks": {
+                        "type": "array",
+                        "items": {
+                          "type": "object"
+                        },
+                        "description": "list: [{\"label\",\"sub\",\"detail\":[str],\"emphasis\",\"icon\":lucide-name,\"metric\":{value,label}}]"
+                      },
+                      "metric": {
+                        "type": "object"
+                      },
+                      "data": {
+                        "type": "object",
+                        "description": "family-specific payload — see the documented shapes"
+                      },
+                      "takeaway": {
+                        "type": "string",
+                        "description": "optional verdict band (per-form). Put the so-what in the headline; add only for a verdict the title can't carry — not every slide."
+                      },
+                      "caution": {
+                        "type": "string",
+                        "description": "one-line risk / caveat callout (per-form)."
+                      },
+                      "highlight": {
+                        "type": "string",
+                        "description": "one-line emphasis callout (per-form)."
+                      },
+                      "source_note": {
+                        "type": "string",
+                        "description": "source / footnote line (per-form)."
+                      },
+                      "date": {
+                        "type": "string",
+                        "description": "date callout (per-form)."
+                      },
+                      "notes": {
+                        "type": "string",
+                        "description": "Speaker notes for the presenter; never drawn on the slide."
+                      },
+                      "image_src": {
+                        "type": "string",
+                        "description": "https URL | asset:<id> for image-bearing forms"
+                      },
+                      "theme_id": {
+                        "type": "string"
+                      },
+                      "variant": {
+                        "type": "string",
+                        "description": "pin a specific variant within the form (list them via browse_catalog). Unknown variant -> rejected with the valid list; null unpins."
+                      },
+                      "allow_variant_fallback": {
+                        "type": "boolean",
+                        "description": "If the pinned variant is unknown, render the form's default variant (with a warning) instead of rejecting. Default false."
+                      },
+                      "variant_policy": {
+                        "type": "string",
+                        "enum": [
+                          "best_semantic_match",
+                          "production_safe"
+                        ],
+                        "description": "Routed-variant maturity policy: production_safe = if the ROUTED variant is draft/beta, render the family's demo-safe sibling instead (warning names both). Never overrides an explicit variant=. Default best_semantic_match."
+                      },
+                      "allow_truncation": {
+                        "type": "boolean",
+                        "description": "More items than the form holds blocks (it would drop your data); the response names the dropped count + a suggested_split. true renders the capacity subset (fidelity=verbatim_truncated). Default false."
+                      },
+                      "quality_profile": {
+                        "type": "string",
+                        "enum": [
+                          "executive",
+                          "technical",
+                          "appendix"
+                        ],
+                        "description": "Thresholds layout.presentation_ready is judged against (executive strictest). Measurement only — never blocks a render or changes cost."
+                      },
+                      "min_font_pt": {
+                        "type": "number",
+                        "minimum": 6,
+                        "maximum": 40,
+                        "description": "Binding type floor for prose. Content that can't fit is refused as min_font_not_met naming the size needed. Typical: 12."
+                      },
+                      "direction": {
+                        "type": "string",
+                        "enum": [
+                          "ltr",
+                          "rtl"
+                        ],
+                        "description": "rtl typesets AND mirrors the slide right-to-left (Arabic/Hebrew). Never inferred — pass it."
+                      },
+                      "imagery": {
+                        "type": "string",
+                        "enum": [
+                          "photo",
+                          "wash",
+                          "off"
+                        ],
+                        "description": "Cover/section-divider imagery: photo (default — curated stock photo, half-bleed), wash (abstract color wash), off (plain panel, no photo — only when asked). Content slides are never photo-decorated."
+                      },
+                      "imagery_tag": {
+                        "type": "string",
+                        "enum": [
+                          "general",
+                          "agriculture",
+                          "construction",
+                          "education",
+                          "energy",
+                          "finance",
+                          "government",
+                          "healthcare",
+                          "logistics",
+                          "manufacturing",
+                          "retail",
+                          "technology",
+                          "travel"
+                        ],
+                        "description": "Subject/industry: steers library photos (covers, sections, picture slides) AND the topical palette. Omit = general; `education` = teaching."
+                      },
+                      "styling": {
+                        "type": "string",
+                        "enum": [
+                          "topical",
+                          "clean"
+                        ],
+                        "description": "Topical design on default themes (default on; the note names it): designed cover + a subject palette (from imagery_tag, or the brief). clean = neutral. Pins never take it."
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                },
+                "required": [
+                  "slide",
+                  "patch"
+                ]
+              }
+            }
+          },
+          "required": [
+            "job_id",
+            "slides"
+          ]
+        }
+      },
+      {
+        "name": "translate_deck",
+        "title": "Translate PPTX",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "title": "Translate PPTX"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://slideforge/result-card/v19"
+          },
+          "openai/outputTemplate": "ui://slideforge/result-card/skybridge/v19",
+          "openai/widgetAccessible": true,
+          "openai/toolInvocation/invoking": "Generating…",
+          "openai/toolInvocation/invoked": "Done"
+        },
+        "description": "Deck to 35 languages, layout and formatting preserved. Supports 35 languages (Latin, Cyrillic, Greek, Chinese, Japanese, Korean). Provide job_id (from a previous create_slide/create_deck), pptx_url, or pptx_base64.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "target_language": {
+              "type": "string",
+              "enum": [
+                "en",
+                "de",
+                "fr",
+                "es",
+                "it",
+                "pt",
+                "nl",
+                "sv",
+                "da",
+                "no",
+                "fi",
+                "is",
+                "pl",
+                "cs",
+                "sk",
+                "hu",
+                "ro",
+                "hr",
+                "sl",
+                "et",
+                "lt",
+                "lv",
+                "ru",
+                "uk",
+                "bg",
+                "sr",
+                "tr",
+                "ca",
+                "gl",
+                "id",
+                "vi",
+                "el",
+                "zh",
+                "ja",
+                "ko"
+              ],
+              "description": "Target language (required)"
+            },
+            "source_language": {
+              "type": "string",
+              "description": "Source language or 'auto' (default auto)"
+            },
+            "job_id": {
+              "type": "string",
+              "description": "Source: previous slide/deck job ID (preferred — no file transfer needed)"
+            },
+            "pptx_url": {
+              "type": "string",
+              "description": "Source: HTTPS URL to .pptx"
+            },
+            "pptx_base64": {
+              "type": "string",
+              "description": "Source: Base64-encoded .pptx (max ~10 MB)"
+            },
+            "include_notes": {
+              "type": "boolean",
+              "description": "Translate speaker notes (default false)"
+            },
+            "include_tables": {
+              "type": "boolean",
+              "description": "Translate table cells (default true)"
+            },
+            "concise_mode": {
+              "type": "boolean",
+              "description": "Prefer shorter translations for tight text boxes"
+            },
+            "name": {
+              "type": "string",
+              "description": "Job name"
+            },
+            "include_preview": {
+              "type": "string",
+              "enum": [
+                "none",
+                "small",
+                "default"
+              ],
+              "description": "Wait+embed preview (default=wait)"
+            }
+          },
+          "required": [
+            "target_language"
+          ]
+        }
+      },
+      {
+        "name": "upload_asset",
+        "title": "Upload an Asset",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "title": "Upload an Asset"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://slideforge/result-card/v19"
+          },
+          "openai/outputTemplate": "ui://slideforge/result-card/skybridge/v19",
+          "openai/widgetAccessible": true,
+          "openai/toolInvocation/invoking": "Generating…",
+          "openai/toolInvocation/invoked": "Done"
+        },
+        "description": "Convert PDF or slide image to editable .pptx; upload template, logo, image.\n\nPurposes:\n• logo — company logo for chrome (PNG/JPG/SVG, max 5MB) → logo_id\n• image — image for the Image component (max 10MB) → asset_id\n• theme — company template PPTX → theme_id; slides with it render NATIVELY on the template (masters/layouts/chrome)\n• translate — PPTX to translate → deck job_id (requires `target_language`)\n• pdf — PDF → editable slides; pass `target_language` to also translate\n• recreate — image OF a slide → editable PPTX slide (honest annotate/preserve fallback). Use `image` to just place a picture\n\nFiles >3MB (pdf/translate/theme) — and recreate on chat hosts — omit `data`: a drop-zone appears in the result card; bytes never pass through the agent.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "purpose": {
+              "type": "string",
+              "enum": [
+                "logo",
+                "image",
+                "theme",
+                "brand",
+                "translate",
+                "pdf",
+                "recreate"
+              ],
+              "description": "Asset type (required). brand = a .pptx/.potx corporate template imported as your brand kit (theme is the same thing under its old name)."
+            },
+            "data": {
+              "type": "string",
+              "description": "Base64-encoded file content. Required for logo/image/theme/translate. Optional for pdf — omit to get a drop-zone (recommended for files >3MB)."
+            },
+            "filename": {
+              "type": "string",
+              "description": "Original filename (for type detection)"
+            },
+            "position": {
+              "type": "string",
+              "description": "Logo position: top-left / top-right / bottom-left / bottom-right"
+            },
+            "theme_name": {
+              "type": "string",
+              "description": "Name for extracted theme (purpose=theme)"
+            },
+            "theme_id": {
+              "type": "string",
+              "description": "For purpose=recreate: the brand kit or built-in theme to render the recreated slide in — your kit slug, `slug@version`, or a built-in id. Omit to keep the look of the source image."
+            },
+            "job_id": {
+              "type": "string",
+              "description": "For purpose=brand: keep the look a recreate rendered in — pass that recreate's job_id and its exact kit is saved as yours (no upload, no charge)."
+            },
+            "target_language": {
+              "type": "string",
+              "enum": [
+                "en",
+                "de",
+                "fr",
+                "es",
+                "it",
+                "pt",
+                "nl",
+                "sv",
+                "da",
+                "no",
+                "fi",
+                "is",
+                "pl",
+                "cs",
+                "sk",
+                "hu",
+                "ro",
+                "hr",
+                "sl",
+                "et",
+                "lt",
+                "lv",
+                "ru",
+                "uk",
+                "bg",
+                "sr",
+                "tr",
+                "ca",
+                "gl",
+                "id",
+                "vi",
+                "el",
+                "zh",
+                "ja",
+                "ko"
+              ],
+              "description": "Required for purpose=translate. Optional for purpose=pdf — chains pdf→pptx→translate in one call."
+            }
+          },
+          "required": [
+            "purpose"
+          ]
+        }
+      },
+      {
+        "name": "manage_account",
+        "title": "Account & History",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true,
+          "cost": {
+            "usd": 0,
+            "note": "free"
+          },
+          "title": "Account & History"
+        },
+        "description": "Balance, usage, job history, top-up link.\nActions: status (balance+plan), usage (spend breakdown), jobs (history), job (single job detail — slide jobs include `quality_warnings[]`; deck jobs add `slides_completed/slides_failed/failed_slides[]`), download_url (mint a fresh short-TTL single-use PPTX download link for an owned job — use when a result carries no inline URL), topup (mint a checkout link the user opens to add credit to their own account; payment happens on slideforge.dev, nothing is charged here), onboarding (capabilities overview), security_status (retention + access-model + deletion posture).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "status",
+                "usage",
+                "jobs",
+                "job",
+                "download_url",
+                "onboarding",
+                "topup",
+                "security_status"
+              ],
+              "description": "Operation (required)."
+            },
+            "job_id": {
+              "type": "string",
+              "description": "Job ID (for action=job / download_url)"
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Max rows (action=jobs default 10; action=feedback_list default 50, max 100)"
+            },
+            "status": {
+              "type": "string",
+              "description": "Filter — action=jobs: queued/generating/complete/failed; action=feedback_list: open/resolved"
+            },
+            "include_children": {
+              "type": "boolean",
+              "description": "For action=jobs: include deck child slides (each carries parent_deck_id) so a deck's slides are discoverable by listing. Default false (parents only). Deck rows roll child cost up to the deck."
+            },
+            "severity": {
+              "type": "string",
+              "enum": [
+                "bug",
+                "quality",
+                "suggestion"
+              ],
+              "description": "For action=feedback: `bug` = it is broken, `quality` = it rendered but reads poorly, `suggestion` = a request. Defaults to suggestion, so file real defects explicitly or they are triaged as wishes."
+            },
+            "days": {
+              "type": "integer",
+              "description": "Lookback period (for action=usage, default 30)"
+            },
+            "amount": {
+              "type": "number",
+              "description": "USD top-up amount (for action=topup, default 10, min 10, max 1000). Volume bonus: $50→+10%, $100→+15%, $200→+20%."
+            },
+            "detail": {
+              "type": "boolean",
+              "description": "For action=status only: default false masks identity fields; true returns full email/user_id diagnostics for the authenticated user."
+            },
+            "include_preview": {
+              "type": "string",
+              "enum": [
+                "none",
+                "small",
+                "default",
+                "full"
+              ],
+              "description": "Preview (for action=job)"
+            }
+          },
+          "required": [
+            "action"
+          ]
+        },
+        "_meta": {
+          "openai/widgetAccessible": true
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-18T00:08:08.025Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-18T00:08:09.081Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-18T00:08:10.131Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-18T00:08:11.181Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 9,
+    "tools_hash": "sha256:2676748cd8d1f40f2cc8e31dd11d938c148230e5be8734488aa9023097e20a28",
+    "static_tool_tokens": 14932,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F2",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "browse_catalog",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "family"
+      },
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "browse_catalog",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "browse_catalog",
+        "message": "Parameter has no description.",
+        "param": "family"
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "browse_catalog",
+        "message": "Parameter has no description.",
+        "param": "variant"
+      },
+      {
+        "id": "F7",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "browse_catalog",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "variant"
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "browse_catalog",
+        "message": "Parameter has no description.",
+        "param": "prior_id"
+      },
+      {
+        "id": "F9",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "browse_catalog",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "prior_id"
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "plan_slide",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "plan_slide",
+        "message": "Parameter has no description.",
+        "param": "brief"
+      },
+      {
+        "id": "F12",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "plan_slide",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "brief"
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "plan_slide",
+        "message": "Parameter has no description.",
+        "param": "top"
+      },
+      {
+        "id": "F14",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "create_slide",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "create_slide",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "create_slide",
+        "message": "Parameter has no description.",
+        "param": "form_description"
+      },
+      {
+        "id": "F17",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "create_slide",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "form_description"
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "create_slide",
+        "message": "Parameter has no description.",
+        "param": "metric"
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "create_slide",
+        "message": "Parameter has no description.",
+        "param": "name"
+      },
+      {
+        "id": "F20",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "create_slide",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "name"
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "create_deck",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F22",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "create_deck",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F23",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "create_deck",
+        "message": "Parameter has no description.",
+        "param": "theme_id"
+      },
+      {
+        "id": "F24",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "create_deck",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "theme_id"
+      },
+      {
+        "id": "F25",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "create_deck",
+        "message": "Parameter has no description.",
+        "param": "name"
+      },
+      {
+        "id": "F26",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "create_deck",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "name"
+      },
+      {
+        "id": "F27",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "edit_slide",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F28",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "edit_slide",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F29",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "edit_deck",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F30",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "edit_deck",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F31",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "edit_deck",
+        "message": "Parameter has no description.",
+        "param": "slides"
+      },
+      {
+        "id": "F32",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "translate_deck",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F33",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "translate_deck",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F34",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "upload_asset",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F35",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "manage_account",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 8,
+      "medium": 24,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "browse_catalog",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results (with q= or family=).",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "browse_catalog",
+          "path": "inputSchema.properties.offset",
+          "name": "offset",
+          "description": "Pagination offset (with q= or family=).",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "create_slide",
+          "path": "inputSchema.properties.include_preview",
+          "name": "include_preview",
+          "description": "Inline-preview PAYLOAD only (not execution). Default: default (768px). none omits the inline image and returns just the URLs — it does NOT change sync/async. Use `wait` to control execution.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "create_slide",
+          "path": "inputSchema.properties.detail",
+          "name": "detail",
+          "description": "Response verbosity. Default `compact`: status, form/variant, fidelity (verbatim|mixed|ai_completed), warnings[]/errors[] (only when present), urls, cost. `full` adds a debug object (engine internals, verify events, latency buckets).",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "create_slide",
+          "path": "inputSchema.properties.mode",
+          "name": "mode",
+          "description": "Default: structured intent / brief. safe = validate-then-render in ONE call (renders + bills only if faithful; else $0 invalid report with the fix — recommended, no dry_run round-trip). code = python-pptx escape.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "create_deck",
+          "path": "inputSchema.properties.strict_policy.properties.reject_ignored_fields",
+          "name": "reject_ignored_fields",
+          "description": "Reject slides whose supplied fields were not rendered (fidelity=partial / field_ignored).",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "create_deck",
+          "path": "inputSchema.properties.strict_policy.properties.max_density",
+          "name": "max_density",
+          "description": "Reject slides whose quality.density is above this level.",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "create_deck",
+          "path": "inputSchema.properties.mode",
+          "name": "mode",
+          "description": "Default render. assemble/fork are free deck plumbing.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "translate_deck",
+          "path": "inputSchema.properties.include_notes",
+          "name": "include_notes",
+          "description": "Translate speaker notes (default false)",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "translate_deck",
+          "path": "inputSchema.properties.include_tables",
+          "name": "include_tables",
+          "description": "Translate table cells (default true)",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "translate_deck",
+          "path": "inputSchema.properties.include_preview",
+          "name": "include_preview",
+          "description": "Wait+embed preview (default=wait)",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "manage_account",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max rows (action=jobs default 10; action=feedback_list default 50, max 100)",
+          "mentions_size_or_cost": true,
+          "described_default": 10
+        },
+        {
+          "tool": "manage_account",
+          "path": "inputSchema.properties.include_children",
+          "name": "include_children",
+          "description": "For action=jobs: include deck child slides (each carries parent_deck_id) so a deck's slides are discoverable by listing. Default false (parents only). Deck rows roll child cost up to the deck.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "manage_account",
+          "path": "inputSchema.properties.detail",
+          "name": "detail",
+          "description": "For action=status only: default false masks identity fields; true returns full email/user_id diagnostics for the authenticated user.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "manage_account",
+          "path": "inputSchema.properties.include_preview",
+          "name": "include_preview",
+          "description": "Preview (for action=job)",
+          "mentions_size_or_cost": false
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "browse_catalog"
+          ],
+          "path": "inputSchema.properties.offset",
+          "description": "Pagination offset (with q= or family=).",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "browse_catalog"
+          ],
+          "description": "200+ slide layouts: forms, variants, per-form schema, examples — all free. No args -> form overview (when-to-use, bound fields, variant counts). family=<form> -> variant one-liners. q=<text> -> ranked search. variant=/prior_id= -> example payload. type=schema + family -> a compact family-level variant chooser (not a sendable contract); type=schema + family + variant -> that variant's exact payload contract (JSON Schema, capacity, field mapping, examples). Free. Code path: type=widgets = the add_widget() catalog (name=<widget> for its contract + thumbnail); type=helpers = python-pptx helper signatures. type=themes + an uploaded theme_id -> that template's branded FURNITURE layouts (its own cover/agenda/divider/closing slides + fill schemas + previews) — render via create_slide(form=template_layout, theme_id, data={layout, fills}).",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "create_deck"
+          ],
+          "path": "inputSchema.properties.strict_policy.properties.reject_ignored_fields",
+          "description": "Reject slides whose supplied fields were not rendered (fidelity=partial / field_ignored).",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "create_deck"
+          ],
+          "path": "inputSchema.properties.strict_policy.properties.max_density",
+          "description": "Reject slides whose quality.density is above this level.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "manage_account"
+          ],
+          "path": "inputSchema.properties.include_preview",
+          "description": "Preview (for action=job)",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "browse_catalog",
+      "plan_slide"
+    ]
+  }
+}

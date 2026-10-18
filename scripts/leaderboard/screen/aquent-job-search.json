@@ -1,0 +1,666 @@
+{
+  "slug": "aquent-job-search",
+  "source_url": "https://manufact.com/mcp-catalog/aquent-job-search",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:25:32.829Z",
+    "endpoint": "https://jobs.mcp.skill.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "aquent-jobs",
+      "version": "1.0.0"
+    },
+    "capabilities": {
+      "logging": {},
+      "completions": {},
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "subscribe": false,
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "# Aquent Job Postings MCP — Server Instructions\n\nYou help users search Aquent's job postings. Follow this workflow and use the taxonomy knowledge below to give accurate, complete results.\n\n---\n\n## Recommended Workflow\n\nWhen a user describes a sector, role, or geography, the `jobs_list_*` tools return the canonical filter values used by `jobs_search_postings`. Using them before `jobs_search_postings` produces more reliable matches than keyword-only searches, because user phrasing often doesn't match Aquent's internal filter values:\n\n1. Call `jobs_list_practices` when the user describes a role type or discipline (e.g., \"design\", \"engineering\", \"marketing\")\n2. Call `jobs_list_industries` when the user mentions a sector (e.g., \"gaming\", \"healthcare\", \"tech\")\n3. Call `jobs_list_markets` or `jobs_list_locations` when the user specifies a geography\n4. Then call `jobs_search_postings` using the discovered filter values\n\nThis is more reliable than keyword-only searches, which only match text in job titles and descriptions.\n\n---\n\n## Key Taxonomy Mappings\n\nThese non-obvious mappings are critical for accurate results:\n\n### Industries\n\nThe full industry list is small. Notable gaps and mappings:\n\n- **Gaming / interactive media / esports** → no dedicated industry tag; these jobs typically appear with `industry: null`. Search by practice instead (see below).\n- **Consumer goods / retail / ecommerce** → `\"Etail/Retail/CPG\"`\n- **Film, TV, music, gaming content** → `\"Media & Entertainment\"`\n- **Defense / government contractors** → `\"Federal & Defense\"`\n\n### Practices (Role Disciplines)\n\nPractices are the most important filter. Key non-obvious mappings:\n\n- **Gaming, VR/AR, metaverse, immersive/interactive design** → `\"Metaverse Design\"`, `\"Metaverse Development\"`, `\"Metaverse Content\"`, `\"Metaverse Marketing\"`, `\"Metaverse Product Management\"`\n- **3D, rigging, character art, environment art, game-adjacent creative roles** → search practice `\"Metaverse\"` (partial match will catch all Metaverse sub-practices)\n- **Motion graphics / animation** → `\"Motion Designer\"`, `\"Special Effects Artist or Animator\"`\n- **Brand / visual design** → `\"Graphic Designer\"`, `\"UI/ Visual Designer\"`, `\"Art Director\"`\n- **Product/UX design** → `\"UX Designer\"`, `\"Product Designer\"`, `\"Web or Digital Designer\"`\n- **Game packaging** → `\"Package Designer\"`\n\n### Work Arrangement Filter Values\n\nThe `offSitePreference` enum uses these exact values:\n- `onsite`, `remote`, `onsite_or_remote`, `partial_onsite`\n\n### Placement Type Filter Values\n\n- `Permanent`, `Temporary`, `Project`, `TempToPerm`\n\n---\n\n## Taxonomy Is Recruiter-Assigned and Imperfect\n\n**Critical:** Industry, practice, location, and market tags are assigned manually by individual recruiters and may not reflect a straightforward understanding of those terms. Tags are sometimes influenced by internal organizational agreements, client confidentiality requirements, or simply recruiter judgment calls. This means:\n\n- A job's taxonomy metadata is a **starting point for discovery, not a reliable description of the role**\n- The same type of role may be tagged differently across postings (e.g., a game studio UX role might appear under \"UX Designer\", \"Metaverse Development\", or \"Web or Digital Designer\" depending on who posted it)\n- Industry may be `null` even for jobs that clearly belong to a well-known sector (gaming is a common example)\n- A job title may be vague or internally-codified (e.g., \"Graphic Designer 3\") while the description reveals a highly specialized role\n\n**Always cast a wide net, then inspect full posting content to qualify results:**\n\n1. Search across multiple adjacent practice categories that could plausibly contain the role\n2. Try broad keyword searches in addition to filtered searches — keywords reach into the actual job description text where the true nature of the role is described\n3. For any promising result, call `jobs_get_details` with the `jobPostingId` to retrieve the full job description, responsibilities, and requirements\n4. Use the full description — not the taxonomy tags — to determine whether a posting is a genuine match for the user's intent\n5. For geography, consider that a job's `location` field reflects where the work is performed, but the `market` field reflects which Aquent office manages it — these often differ, so search both when location matters\n\n**Example of adjacent practice exploration for a gaming design role:**\nRather than searching only \"Metaverse Design\", also search: \"Graphic Designer\", \"UX Designer\", \"Motion Designer\", \"Special Effects Artist or Animator\", \"Industrial Designer\", \"Product Designer\", and \"UI/ Visual Designer\" — then use `jobs_get_details` to inspect the actual posting content and filter out non-gaming results.\n\n---\n\n## Search Strategy Tips\n\n- **Partial matching works** on `industry`, `practice`, `location`, and `market` fields — you don't need exact strings. For example, `practice: \"Metaverse\"` will match all Metaverse sub-practices.\n- **Combine filters** for precision: e.g., `practice: \"Metaverse\"` + `offSitePreference: \"remote\"` for remote gaming/interactive roles.\n- **Keyword search** (`keyword` param) searches title, description, client info, and requirements — useful for technologies (e.g., \"Unity\", \"Unreal\", \"Figma\") or specific role names not captured by practice filters. Because keywords reach into actual job content, they often surface roles that are miscategorized or tagged with generic practice names.\n- **Use `jobs_get_details`** (preferred) with the `jobPostingId` returned by `jobs_search_postings` to retrieve the full posting content for any result worth presenting to the user. Use `fetch` only with document IDs returned by the `search` tool when you are working with the generic search index rather than job posting summaries. The summary returned by `jobs_search_postings` contains only metadata — the full description, responsibilities, requirements, and salary are only available via the detail tools.\n- **Default limit is 100; max is 200.** Use `offset` for pagination when `totalCount` exceeds your limit.\n- **`postedSince`** accepts ISO-8601 format (e.g., `2026-03-01T00:00:00Z`) — useful for finding fresh postings.\n\n---\n\n## What Aquent Specializes In\n\nAquent places creative, marketing, and technology talent. Core disciplines include:\n\n- **Creative & Design**: graphic design, UX/UI, brand, motion, illustration, packaging, metaverse/interactive\n- **Marketing**: digital marketing, content, campaign management, social media, SEO, marketing ops\n- **Technology**: software engineering, data, cloud, product management, IT\n- **Operations & Business**: project management, supply chain, finance, HR, admin\n\nAquent specializes in creative, marketing, technology, and operations talent.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "fetch",
+            "title": "Fetch Job Posting",
+            "description": "Fetch full details of a job posting by its ID. Returns document content including title, description, and URL.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "The job posting ID to retrieve."
+                }
+              },
+              "required": [
+                "id"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "jobs_get_details",
+            "title": "Get Job Details",
+            "description": "Get full details for a specific job posting including all localized translations.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "jobPostingId": {
+                  "type": "integer",
+                  "format": "int32",
+                  "description": "The job posting ID."
+                }
+              },
+              "required": [
+                "jobPostingId"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "jobs_list_industries",
+            "title": "List Industries",
+            "description": "List all industry types. Use this to discover valid industry values for filtering job searches.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "required": []
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "jobs_list_locations",
+            "title": "List Locations",
+            "description": "List all Aquent geographic areas/locations. Use this to discover valid location names for filtering job searches.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "required": []
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "jobs_list_markets",
+            "title": "List Markets",
+            "description": "List all active Aquent markets. Use this to discover valid market names for filtering job searches.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "required": []
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "jobs_list_practices",
+            "title": "List Practices",
+            "description": "List all active practice areas. Use this to discover valid practice values for filtering job searches.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "required": []
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "jobs_search_postings",
+            "title": "Search Job Postings",
+            "description": "Search Aquent job postings with optional filters. Returns a paginated list of active posting summaries with metadata.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "postedSince": {
+                  "type": "string",
+                  "description": "Return postings posted/created on/after this date. Use ISO-8601 timestamp format (Posting/Creation Date filter)."
+                },
+                "market": {
+                  "type": "string",
+                  "description": "Filter by market name (case-insensitive partial match). Use jobs_list_markets to discover values."
+                },
+                "location": {
+                  "type": "string",
+                  "description": "Filter by location name (case-insensitive partial match). Use jobs_list_locations to discover values."
+                },
+                "offSitePreference": {
+                  "type": "string",
+                  "enum": [
+                    "onsite",
+                    "remote",
+                    "onsite_or_remote",
+                    "partial_onsite"
+                  ],
+                  "description": "Filter by work arrangement: onsite (on-site only), remote (fully remote), partial_onsite (hybrid), onsite_or_remote (flexible)."
+                },
+                "placementType": {
+                  "type": "string",
+                  "enum": [
+                    "Permanent",
+                    "Temporary",
+                    "Project",
+                    "TempToPerm"
+                  ],
+                  "description": "Filter by placement type."
+                },
+                "industry": {
+                  "type": "string",
+                  "description": "Filter by industry (case-insensitive partial match). Use jobs_list_industries to discover values."
+                },
+                "practice": {
+                  "type": "string",
+                  "description": "Filter by practice (case-insensitive partial match). Use jobs_list_practices to discover values."
+                },
+                "keyword": {
+                  "type": "string",
+                  "description": "Keyword search in job title, job description, client description, location and other requirements."
+                },
+                "limit": {
+                  "type": "integer",
+                  "format": "int32",
+                  "description": "Max results (default 100, max 200)."
+                },
+                "offset": {
+                  "type": "integer",
+                  "format": "int32",
+                  "description": "Pagination offset (default 0)."
+                }
+              },
+              "required": []
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "search",
+            "title": "Search",
+            "description": "Search Aquent job postings by keyword. Returns matching document IDs for use with the fetch tool.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "Natural-language search query for finding job postings."
+                }
+              },
+              "required": [
+                "query"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "fetch",
+        "title": "Fetch Job Posting",
+        "description": "Fetch full details of a job posting by its ID. Returns document content including title, description, and URL.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "The job posting ID to retrieve."
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "jobs_get_details",
+        "title": "Get Job Details",
+        "description": "Get full details for a specific job posting including all localized translations.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "jobPostingId": {
+              "type": "integer",
+              "format": "int32",
+              "description": "The job posting ID."
+            }
+          },
+          "required": [
+            "jobPostingId"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "jobs_list_industries",
+        "title": "List Industries",
+        "description": "List all industry types. Use this to discover valid industry values for filtering job searches.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "jobs_list_locations",
+        "title": "List Locations",
+        "description": "List all Aquent geographic areas/locations. Use this to discover valid location names for filtering job searches.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "jobs_list_markets",
+        "title": "List Markets",
+        "description": "List all active Aquent markets. Use this to discover valid market names for filtering job searches.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "jobs_list_practices",
+        "title": "List Practices",
+        "description": "List all active practice areas. Use this to discover valid practice values for filtering job searches.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "required": []
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "jobs_search_postings",
+        "title": "Search Job Postings",
+        "description": "Search Aquent job postings with optional filters. Returns a paginated list of active posting summaries with metadata.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "postedSince": {
+              "type": "string",
+              "description": "Return postings posted/created on/after this date. Use ISO-8601 timestamp format (Posting/Creation Date filter)."
+            },
+            "market": {
+              "type": "string",
+              "description": "Filter by market name (case-insensitive partial match). Use jobs_list_markets to discover values."
+            },
+            "location": {
+              "type": "string",
+              "description": "Filter by location name (case-insensitive partial match). Use jobs_list_locations to discover values."
+            },
+            "offSitePreference": {
+              "type": "string",
+              "enum": [
+                "onsite",
+                "remote",
+                "onsite_or_remote",
+                "partial_onsite"
+              ],
+              "description": "Filter by work arrangement: onsite (on-site only), remote (fully remote), partial_onsite (hybrid), onsite_or_remote (flexible)."
+            },
+            "placementType": {
+              "type": "string",
+              "enum": [
+                "Permanent",
+                "Temporary",
+                "Project",
+                "TempToPerm"
+              ],
+              "description": "Filter by placement type."
+            },
+            "industry": {
+              "type": "string",
+              "description": "Filter by industry (case-insensitive partial match). Use jobs_list_industries to discover values."
+            },
+            "practice": {
+              "type": "string",
+              "description": "Filter by practice (case-insensitive partial match). Use jobs_list_practices to discover values."
+            },
+            "keyword": {
+              "type": "string",
+              "description": "Keyword search in job title, job description, client description, location and other requirements."
+            },
+            "limit": {
+              "type": "integer",
+              "format": "int32",
+              "description": "Max results (default 100, max 200)."
+            },
+            "offset": {
+              "type": "integer",
+              "format": "int32",
+              "description": "Pagination offset (default 0)."
+            }
+          },
+          "required": []
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "search",
+        "title": "Search",
+        "description": "Search Aquent job postings by keyword. Returns matching document IDs for use with the fetch tool.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Natural-language search query for finding job postings."
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:25:29.467Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:25:30.518Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:25:31.569Z"
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:25:32.620Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 8,
+    "tools_hash": "sha256:90f7660e1cb792ad852c9e2f8c65aeaabb911a0b1a8ac5f4795406f20609ca5e",
+    "static_tool_tokens": 1564,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "fetch",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "fetch",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "jobs_get_details",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "jobs_get_details",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "jobs_list_industries",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "jobs_list_locations",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "jobs_list_markets",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "jobs_list_practices",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "jobs_search_postings",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "jobs_search_postings",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 11,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "jobs_search_postings",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results (default 100, max 200).",
+          "mentions_size_or_cost": true,
+          "described_default": 100
+        },
+        {
+          "tool": "jobs_search_postings",
+          "path": "inputSchema.properties.offset",
+          "name": "offset",
+          "description": "Pagination offset (default 0).",
+          "mentions_size_or_cost": true,
+          "described_default": 0
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "jobs_get_details"
+          ],
+          "description": "Get full details for a specific job posting including all localized translations.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "jobs_list_industries"
+          ],
+          "description": "List all industry types. Use this to discover valid industry values for filtering job searches.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "jobs_list_locations"
+          ],
+          "description": "List all Aquent geographic areas/locations. Use this to discover valid location names for filtering job searches.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "jobs_list_markets"
+          ],
+          "description": "List all active Aquent markets. Use this to discover valid market names for filtering job searches.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "jobs_list_practices"
+          ],
+          "description": "List all active practice areas. Use this to discover valid practice values for filtering job searches.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "jobs_search_postings"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "Max results (default 100, max 200).",
+          "default": 100,
+          "default_source": "description",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "fetch",
+      "jobs_get_details",
+      "jobs_list_industries",
+      "jobs_list_locations",
+      "jobs_list_markets",
+      "jobs_list_practices",
+      "jobs_search_postings",
+      "search"
+    ]
+  }
+}

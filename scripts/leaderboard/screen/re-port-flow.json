@@ -1,0 +1,266 @@
+{
+  "slug": "re-port-flow",
+  "source_url": "https://manufact.com/mcp-catalog/re-port-flow",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-18T00:04:51.509Z",
+    "endpoint": "https://mcp.re-port-flow.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "reportflow-mcp",
+      "title": "Re:port Flow MCP",
+      "icons": [
+        {
+          "src": "https://mcp.re-port-flow.com/favicon.svg",
+          "mimeType": "image/svg+xml"
+        },
+        {
+          "src": "https://mcp.re-port-flow.com/favicon.ico",
+          "mimeType": "image/png"
+        }
+      ],
+      "version": "1.4.0",
+      "websiteUrl": "https://re-port-flow.com"
+    },
+    "capabilities": {
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "You are connected to Re:port Flow, a service that generates PDFs — invoices, quotations, delivery notes and more — from reusable templates.\n\nWhen the user has just connected and has not asked for anything yet, do not wait in silence: proactively offer to create their first PDF. For example: \"Re:port Flow is connected. Want to try it? Just say 'Create an invoice with Re:port Flow.'\"\n\nFastest path to a first PDF:\nlist_templates -> only if it holds nothing that fits: search_gallery_templates -> copy_gallery_template -> then get_design_parameters -> generate_pdf_sync\n\n- Start at list_templates: a template the workspace already owns is the better choice, and reaching for the gallery instead would create a duplicate of something it already has.\n- list_templates coming back with no templates is the normal starting state of a new workspace, not an error — bring a template in from the public gallery with search_gallery_templates and copy_gallery_template. Never end the conversation at an empty template list.\n- copy_gallery_template creates a new template on every call. Copy a given gallery template once, then reuse the returned designId (the new template's ID).\n- Always call get_design_parameters before generate_pdf_sync, and fill the parameters with values the user gave you. Never invent business data such as company names, addresses, amounts or tax IDs. If a required value is missing, ask for it — or offer to generate one clearly-labelled sample first and redo it with real data.\n- When a generate_* response carries a \"plan\" block, relay its \"message\" to the user in their language after presenting the PDF, including the upgrade link when one is present. Its numbers count output pages, not PDFs.\n- Never invent plan or usage figures: with no \"plan\" block, do not state a plan name, a page limit or a remaining balance of your own. Failed calls still carry their own reason — when a tool error mentions the plan or the monthly limit (a workspace out of monthly pages is refused with exactly that message), relay that error text, upgrade guidance included.\n- Reply in the language the user writes in. The tool descriptions are written in Japanese; that says nothing about which language the user speaks.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "search_gallery_templates",
+            "description": "公開テンプレートギャラリーから、まだワークスペースに取り込んでいないテンプレートをキーワードで探します（認証不要）。タイトル・説明・タグ・カテゴリの部分一致で絞り込み、各候補の slug・title・description・category・tags・thumbnailUrl・duplicateCount を返します。ワークスペース内の既存テンプレートを探す場合はこのツールではなく list_templates / search を使ってください。重要: このツールが返す slug では PDF を出力できません。先に copy_gallery_template で自分のワークスペースへ複製し、返された designId を get_design_parameters / generate_pdf_sync に渡してください。",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "検索キーワード（タイトル・説明・タグ・カテゴリの部分一致。1文字以上）"
+                },
+                "category": {
+                  "description": "カテゴリ code で絞り込み（任意。例: \"invoice\", \"other\"）",
+                  "type": "string"
+                },
+                "limit": {
+                  "description": "返す最大件数（既定 20、上限 50。超過分は残り件数として通知）",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "query"
+              ]
+            },
+            "annotations": {
+              "title": "Search Public Template Gallery",
+              "readOnlyHint": true,
+              "openWorldHint": false,
+              "destructiveHint": false,
+              "idempotentHint": true
+            }
+          },
+          {
+            "name": "get_gallery_template",
+            "description": "公開テンプレートギャラリーのテンプレート詳細を slug で取得します（認証不要）。説明全文・カテゴリ・タグ・サムネイルURL・テンプレート版・複製実績数・作成者名を返します。slug は search_gallery_templates の結果から取得してください。重要: ギャラリーのテンプレートはまだワークスペースにありません。この slug では PDF を出力できないため、使う場合は copy_gallery_template で複製し、返された designId を get_design_parameters / generate_pdf_sync に渡してください。",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "slug": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "テンプレートの slug（search_gallery_templates の結果に含まれる識別子）"
+                }
+              },
+              "required": [
+                "slug"
+              ]
+            },
+            "annotations": {
+              "title": "Get Public Gallery Template Details",
+              "readOnlyHint": true,
+              "openWorldHint": false,
+              "destructiveHint": false,
+              "idempotentHint": true
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "search_gallery_templates",
+        "description": "公開テンプレートギャラリーから、まだワークスペースに取り込んでいないテンプレートをキーワードで探します（認証不要）。タイトル・説明・タグ・カテゴリの部分一致で絞り込み、各候補の slug・title・description・category・tags・thumbnailUrl・duplicateCount を返します。ワークスペース内の既存テンプレートを探す場合はこのツールではなく list_templates / search を使ってください。重要: このツールが返す slug では PDF を出力できません。先に copy_gallery_template で自分のワークスペースへ複製し、返された designId を get_design_parameters / generate_pdf_sync に渡してください。",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "description": "検索キーワード（タイトル・説明・タグ・カテゴリの部分一致。1文字以上）"
+            },
+            "category": {
+              "description": "カテゴリ code で絞り込み（任意。例: \"invoice\", \"other\"）",
+              "type": "string"
+            },
+            "limit": {
+              "description": "返す最大件数（既定 20、上限 50。超過分は残り件数として通知）",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "annotations": {
+          "title": "Search Public Template Gallery",
+          "readOnlyHint": true,
+          "openWorldHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true
+        }
+      },
+      {
+        "name": "get_gallery_template",
+        "description": "公開テンプレートギャラリーのテンプレート詳細を slug で取得します（認証不要）。説明全文・カテゴリ・タグ・サムネイルURL・テンプレート版・複製実績数・作成者名を返します。slug は search_gallery_templates の結果から取得してください。重要: ギャラリーのテンプレートはまだワークスペースにありません。この slug では PDF を出力できないため、使う場合は copy_gallery_template で複製し、返された designId を get_design_parameters / generate_pdf_sync に渡してください。",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "slug": {
+              "type": "string",
+              "minLength": 1,
+              "description": "テンプレートの slug（search_gallery_templates の結果に含まれる識別子）"
+            }
+          },
+          "required": [
+            "slug"
+          ]
+        },
+        "annotations": {
+          "title": "Get Public Gallery Template Details",
+          "readOnlyHint": true,
+          "openWorldHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-18T00:04:47.725Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-18T00:04:48.776Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-18T00:04:49.827Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-18T00:04:50.879Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 2,
+    "tools_hash": "sha256:e6a7e62428dc97c9395a60fff705f91e0e5bf68bc92c8f9bd3628739c0f84cee",
+    "static_tool_tokens": 1100,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "search_gallery_templates",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_gallery_templates",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_gallery_template",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_gallery_template",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 4,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_gallery_templates",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "返す最大件数（既定 20、上限 50。超過分は残り件数として通知）",
+          "mentions_size_or_cost": false,
+          "maximum": 9007199254740991
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "search_gallery_templates"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "返す最大件数（既定 20、上限 50。超過分は残り件数として通知）",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "search_gallery_templates",
+      "get_gallery_template"
+    ]
+  }
+}

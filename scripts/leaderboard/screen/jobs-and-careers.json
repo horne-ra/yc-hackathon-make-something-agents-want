@@ -1,0 +1,901 @@
+{
+  "slug": "jobs-and-careers",
+  "source_url": "https://manufact.com/mcp-catalog/jobs-and-careers",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:24:08.772Z",
+    "endpoint": "https://jobs-and-careers-gpt-app.sonicapply.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "Jobs and Careers",
+      "title": "Jobs and Careers",
+      "icons": [
+        {
+          "src": "https://jobs-and-careers-gpt-app.sonicapply.com/favicon.ico"
+        }
+      ],
+      "version": "0.0.7",
+      "websiteUrl": "https://www.sonicjobs.com",
+      "description": "Jobs and Careers"
+    },
+    "capabilities": {
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "job-search",
+            "title": "Search for and apply to jobs",
+            "description": "Searches and applies to current open job postings in the United States that match the user's request. Each call returns results for the supplied filters and page number.\n\nSupports finding, browsing, filtering, refining, and comparing job opportunities in the US.\n\nSupported requests:\n- finding / browsing / refining jobs by title, company, salary, location, or named benefit\n- showing more results from an existing search\n\nExample requests:\n- \"Find software engineer jobs in Seattle\"\n- \"Any product manager roles at Google?\"\n- \"Find jobs paying at least $120,000\"\n- \"Show more results\" / \"Only in Chicago\"\n\nUS-only scope:\n\n- Supports US job searches only; infer and normalize locations only within the United States.\n- Infer city + state for common US shorthand with a single clear interpretation (\"sf\" → \"San Francisco\",\"CA\"; \"nyc\" → \"New York\",\"NY\"). State-only → state only; city + state → both after normalization.\n- Never infer ambiguous or non-US locations; if confidence is low, omit city/state rather than guess.\n\nParameters:\n\nSEARCH MECHANICS — how the engine treats each parameter:\n1. The BM25 corpus is the FULL job description (title, body, requirements, skills, benefits, location/salary/contract/remote text, visa/EEO). Almost anything the user names appears in some posting and IS matchable — but generic words match broadly, so keyword groups must stay tight.\n2. Location, salary, company, full-time/part-time, remote, seniority and EDUCATION are MANDATORY-STRUCTURED: each goes ONLY in its dedicated field (city/state, salaryMin, companyName, contractType, remote, seniority, educationFloor+educationFloorOp), NEVER in the LEXICAL legs (keywords/keywordsAnd/keywordsNot/role), which drive retrieval — even though this vocabulary also appears in the JD text. The structured field is authoritative. This holds even when the user's word is not itself a filter value but MAPS to one (\"junior\" → seniority [\"ENTRY\"], \"six figures\" → salaryMin 100000): the filter carries the concept and the wording stays out of every lexical leg. The vquery is exempt for everything except LOCATION — it only reranks (see 7).\n3. No stemming and phrases are near-exact: \"nurse\"≠\"nurses\", \"full stack\"≠\"fullstack\", \"per diem\"≠\"per-diem\". A multi-word entry must match all tokens in order. So expand every concept to 10-15 variants (≥6; 4-8 per exclusion): abbreviation+full form both ways (RN/Registered Nurse), singular+plural, every spelling, adjacent titles, ecosystem terms. EXCEPTION — an abbreviation that is also an everyday English word (IT, OR, DO, IN) is NEVER a bare single-word entry in keywords, keywordsAnd or keywordsNot: the index lowercases, so bare \"IT\" is the pronoun \"it\" and bare \"OR\" the conjunction — they match nearly every posting and the gate stops filtering. Carry the concept ONLY through its full form, its printed compounds and the family's roles: \"information technology\", \"IT support\", \"IT systems\", \"IT infrastructure\", \"systems administrator\", \"help desk\"; \"operating room\", \"OR nurse\", \"perioperative\", \"surgical services\", \"surgical technologist\"; \"doctor of osteopathy\", \"DO physician\". The abbreviation inside a multi-word phrase is fine; alone it is not. Contrast: RN → both \"RN\" and \"Registered Nurse\"; IT → \"information technology\", \"IT support\", never \"IT\" on its own.\n4. keywords is ONE OR list — a job matches on any single entry, so everything there is OPTIONAL and one stray secondary word floods the results. keywordsAnd is a list of groups, each REQUIRED (OR within a group, AND across groups) (in English).\n5. keywordsNot excludes only postings whose text literally contains the entry (lexical leg only).\n6. role is a soft boost on the TITLE only; it never filters and can never make an axis required — only a keyword/group can (in English).\n7. vquery feeds the relevance reranker and never filters: the user's WHOLE request as one clean natural-language sentence — their own words, spell-corrected, every constraint they stated INCLUDING the ones a filter also carries — EXCEPT LOCATION: no city, state, neighborhood or area name ever enters the vquery (the city/state fields already constrain geography, and postings rarely print their city, so a location in the vquery skews the reranker toward the rare posting that happens to mention one) — plus everything accumulated across the conversation. Drop NOTHING: a circumstance with no field of its own (\"TN visa\", \"post-concussion\") is exactly what must survive. NO synonym packing (the keyword graph carries variants), no superlatives you invent, nothing the user did not state. Always emit it (in English).\n\nRULE #1 — STRUCTURE & CALIBRATION (the most common failure, both directions): first COUNT the REQUIRED concepts — positive work-characteristics only. The occupation counts; each HARD requirement counts; a SOFT/optional preference does NOT count (\"a plus\", \"ideally\", \"nice to have\", a vague vibe/culture wish, \"good pay\" with no number) — soft never earns a group. Never harden a wish into a filter, never soften a stated requirement. Then choose:\n- NONE (pure location/salary/company, or \"show me jobs\", \"remote jobs\") → structured filters only, NO keywords (the vquery still restates the request, minus the location — see 7). A wish a JD PRINTS is not soft and is never NONE: pay frequency (\"paid weekly\" → weekly pay, paid weekly, weekly payroll), a named perk, a named tool — those are keywords even when the query names no occupation. An EXCLUSION is never NONE either: it keeps its keywordsNot plus the positive anchor the NEGATION rule requires.\n- Exactly ONE → keywords (one OR list) + role. Do NOT split a single axis into groups, and do NOT promote a soft wish to its own group (extra required groups STARVE the search).\n- TWO OR MORE → keywordsAnd, ALWAYS (this is the common case and the #1 quality lever): the occupation its OWN group FIRST, each other required axis (skill, benefit, industry) its OWN group. Putting two concepts in one OR list is WRONG — keywords [\"accountant\",\"SaaS\",\"401k\"] matches a job that is ANY ONE of those, so \"accountant\" alone floods and your \"SaaS\"/\"401k\" constraints vanish; it MUST be keywordsAnd [[\"accountant\",…],[\"SaaS\",\"software company\",…],[\"401k\",\"retirement plan\",…]]. NEVER flatten two requirements into one OR list; whenever the query names an occupation PLUS anything else, default to keywordsAnd. Never merge a secondary axis into the role list, never leave a printable axis to the vquery alone (it can't make anything required).\n- Whenever the user rejects, excludes, or says \"no/not/without X\", emit a keywordsNot for it (in the phrases a JD prints) — do not silently drop the exclusion.\nTwo gates before keeping any group: PRINTABILITY — would a typical relevant posting actually print this, and how (a structured field, literal text in the body, or not at all)? Give a lexical leg only to what a posting prints; never force lexically what they never print (no JD prints \"I'm a single parent\") — the vquery carries it anyway. GROUP PURITY — a group holds only tight variants of ONE concept; never pad it with a generic high-frequency word, or jobs match on that alone and your constraint goes optional → floods.\nGROUP CAP — aim for exactly 2 groups (occupation + the ONE strongest secondary axis); add a 3rd ONLY if all three are concrete and a posting would commonly print all three. Too many required AND groups STARVES the search (each group is a hard filter → returns too few). Over the cap: keep the 2 most discriminating printable axes and give the rest no group (the vquery carries them anyway).\nPRINTABLE axes (a relevant JD prints these literally → each gets its OWN keywordsAnd group, never the vquery alone, never dropped): a named skill/tech/certification/specialty; a named benefit/perk (401k, dental, gym, tuition, sign-on, game room); commute/transit (public transit, public transportation, transit accessible, near subway); a printed shift/schedule; an industry or company-stage; visa-sponsorship language. If the user names ANY of these next to an occupation, it MUST become its own group — the vquery carrying it is NOT enough, and it must not vanish (the most common mistake). Only truly unprintable wishes (vague culture/vibe, life circumstances, clock arithmetic, \"good pay\" with no number) ride the vquery alone.\n\nPER-AXIS PLAYBOOK — how each printable axis maps to parameters. Each printable axis = its OWN keywordsAnd group; expand each to 10-15 variants yourself (these are reminders, not full lists):\n- NAMED SKILL/TECH/CERT (Java, Kubernetes, ICU, CPA): own group + ecosystem terms (Java→JVM, Spring Boot; Kubernetes→k8s, EKS, Helm; ICU→intensive care, critical care). Never merge into the role list.\n- SCHEDULE/SHIFT: own group ONLY for shift-bearing roles (nursing/warehouse/retail/admin) — DROP it for engineering/office roles whose JDs never print shifts. Use numeric names (\"1st shift\", never \"first shift\"). A dislike (\"no weekends\", \"nothing overnight\") is a keywordsNot in requirement-shaped printed phrases (\"must work weekends\", \"weekend availability\", \"every other weekend\", \"rotating shift\") — never the bare day words — plus, ONLY when the occupation is the single axis and the gate is therefore the plain keywords list, complement terms in it (Monday-Friday, day shift, 1st shift). With keywordsAnd the engine ignores keywords, so there is no leg for a complement and none is emitted: the vquery already carries the wish.\n- EDUCATION: structured, never lexical. One level plus one operator, and the operator is chosen by asking \"is the user telling me what THEY have, or what the JOB must demand?\" First-person possession — \"I have\", \"I only got\", \"all I have is\", \"no degree\", \"no college\" — takes LTE (\"just a GED\" → HS+LTE; \"no degree\"/\"no college\" → TRADE+LTE; \"nothing needing a master's\" → BACH+LTE). LT is the strict form — the job must stay BELOW the level: never reached it (\"I never finished high school\" → HS+LT), or held while wanting less demanding work (\"I have a master's, show me simpler roles\" → MAST+LT). A query whose OBJECT is the requirement takes EQ (\"jobs requiring exactly a bachelor's\") or GTE (\"roles that need at least a master's\"). LTE and LT keep the postings that say nothing about education, which is most of them; EQ and GTE keep only the minority that state a floor — so a first-person ask routed to GTE quietly empties the page. Omit both when the query gives no explicit qualification: an occupation never implies one (\"data analyst\" is not a bachelor's), and being a student is seniority, not a qualification held. Emit no degree vocabulary in the lexical legs.\n- SENIORITY: any explicit seniority signal → the seniority filter, nothing else: \"no experience at all\" → seniority:[\"INTERNSHIP\",\"ENTRY\"]; entry/junior/career-change/returnship → [\"ENTRY\"]; internships → [\"INTERNSHIP\"]; mid-career → [\"MID\"]; senior/lead/principal/staff IC → [\"SENIOR\"]; manager/supervisor/team-lead-with-reports → [\"MANAGEMENT\"]; director/VP/executive/C-suite → [\"EXECUTIVE\"] (combine when the user spans levels, e.g. \"leadership roles\" → [\"MANAGEMENT\",\"EXECUTIVE\"]). The structured filter is authoritative and hard: emit NO seniority-flavored vocabulary in the lexical legs (keywords/keywordsAnd/keywordsNot/role) — any word that reads as a level (\"junior\", \"senior\", \"entry level\", \"experienced\", \"5+ years\") stays out even when it is not an enum value; the filter alone carries this axis — and never make a level a required AND group.\n- NEGATION / keywordsNot: for exclusions NO structured field covers — a task or tool (no forklift, no cold calling), an industry, staffing agencies, a source domain in a career change. Education is not among them: it has its own field and must never appear here. Exclude what a JD would PRINT, in requirement-shaped phrases, never a bare high-frequency word good JDs contain. NEVER emit alone: full-time, part-time, customer service, sales, retail, staff, manager, assistant, clinical, travel, office, standing, weekend, weekends, Saturday, Sunday, nights, evenings. Cover the morphological root and every printed form. A keywordsNot never travels alone: with nothing positive the gate falls back to a recency-ordered match-all, so keep an anchor in keywords or role — the occupation, or with no occupation the work they CAN do (\"no heavy lifting\" → light duty, sedentary, desk job in keywords). The anchor must share NO term with keywordsNot, and a negated phrase is never a keyword. Never promote a complement to a required keywordsAnd group, and never put a term in a required group and in keywordsNot at once (that returns zero results by construction).\n- CAREER CHANGE \"X into Y\": emit everything for the TARGET Y only; the SOURCE X is NEVER a positive term (it floods with the job they're leaving) → put 4-6 source markers in keywordsNot. Set seniority:[\"ENTRY\"] (they're entry-level in the target).\n- CONTRACT: \"not contract\" / \"no contractors\" → keywordsNot [contract, contractor, 1099, temporary, temp]; NEVER contractType (which is only for an explicit positive part-time/full-time ask). A per-diem/contract/flexible ask → REQUIRE the pattern positively (per diem, PRN, contract), do not exclude full-time/part-time.\n- BENEFIT/PERK: a named benefit = own group, expanded (gym→fitness center, on-site gym; 401k→retirement plan, employer match; tuition→tuition reimbursement, education assistance). Generic \"good benefits\"/\"great perks\" with no named benefit → no group.\n- INDUSTRY: title-bearing (fintech engineer) → put it in role + role group; a back-office role modified by industry (accountant in tech) → its own evidence group (SaaS, software company, startup); an EXCLUDED industry → keywordsNot.\n- CULTURE/VIBE (stable, supportive, low-stress, family-friendly): a group when an occupation exists, else a single OR keywords list for a no-occupation vibe query. NEVER turn a positive culture wish into antonym exclusions.\n- HARD DON'TS: NEVER set remote=false (omit it — false hard-excludes the jobs they want). NEVER infer a structured filter from another axis's vocabulary — every filter needs an explicit signal on its OWN axis: a qualification is educationFloor and NOT a seniority level nor a contractType; vague pay talk is NOT a salaryMin; when the signal is not explicit, OMIT the filter — unless another rule explicitly sets it (career change → seniority [\"ENTRY\"] still applies).\n\n- city (string) / state (2-letter code) — only when confident.\n- maxRadius (number) — only with both city+state AND an explicit radius in miles; otherwise omit.\n- salaryMin (number) — only from an EXPLICIT floor, always as an ANNUAL figure: yearly stays as-is ($100k, \"at least 80,000\", \"six figures\"=100000), an hourly floor CONVERTS at the engine's own convention of 1920 work hours/year (\"$25/hr\" → 48000); NEVER from vague pay language (\"pays well\", \"good pay\") → that rides vquery.\n- remote (boolean) — set true when the user wants to work AWAY FROM AN EMPLOYER SITE: the explicit words (remote / work from home / WFH / fully remote / from home) OR an unambiguous equivalent (not on-site, not in an office, from anywhere, work from a sailboat/RV/the beach, \"wear pajamas\"). Do NOT add remote when the query says NOTHING about where the work happens — a query that only names a company, role, skill, or salary is NOT remote (\"amazon jobs\", \"python 100k\", \"highest-paying jobs\" → no remote). Hybrid-only → leave unset. The structured flag is authoritative; emit no remote vocabulary in the lexical legs; NEVER set false; when unsure, omit.\n- contractType (array of \"FULL_TIME\" / \"PART_TIME\", optional) — only from an EXPLICIT positive part-time / full-time ask; never from a \"no contract\" / \"no contractors\" exclusion (that rides keywordsNot). Omit otherwise.\n- seniority (array of \"INTERNSHIP\" / \"ENTRY\" / \"MID\" / \"SENIOR\" / \"MANAGEMENT\" / \"EXECUTIVE\") — only from an explicit seniority signal, mapped per the SENIORITY rule; hard filter. Omit otherwise.\n- educationFloor (\"HS\" / \"TRADE\" / \"ASSOC\" / \"BACH\" / \"MAST\" / \"DOC\") + educationFloorOp (\"LTE\" / \"LT\" / \"EQ\" / \"GTE\") — one level and one comparison against what a job requires, per the EDUCATION rule. Send both together, and omit both when the query says nothing about qualifications.\n- page (number, default 1) — increase for \"more results\".\n- prompt (string) — the user's original text, PII-redacted; analytics only.\n\n- companyName (string, optional)\n  Company name filter: exact match on the employer name, with common aliases resolved by the search.\n  Examples: \"Google\", \"Starbucks\"\n\n`requisitionId` is not used for this client. Never set it.\n\nBehavior and guardrails:\n\n- Each call returns results for the supplied filters and page number, and earlier calls are not remembered: a refinement sends the previous arguments again with only what changed (every other valid constraint stays unless the user drops it), and a genuinely new topic starts from fresh arguments.\n- For more results, the same filters are sent with a higher page.\n- Results are current open job postings, matched on filters taken from the request or on a US location inferred with high confidence.\n- Omit any parameter that cannot be filled from the request with high confidence.\n- Never fabricate a search value — a salary, company, role, city, or state that was not given; when unsure, omit it.\n\n\nExamples:\n\n\"backend engineer who knows Kubernetes\" →\n{ \"vquery\": \"backend engineer who knows Kubernetes\",\n  \"keywordsAnd\": [[\"backend engineer\",\"backend developer\",\"software engineer\",\"server-side engineer\",\"platform engineer\"],[\"Kubernetes\",\"k8s\",\"EKS\",\"GKE\",\"Helm\",\"container orchestration\"]],\n  \"role\": [\"Backend Engineer\",\"Software Engineer\",\"Platform Engineer\"] }\n\n\"teacher moving into UX design, first job in the field\" → (career change: target only + seniority filter + source exclusion)\n{ \"vquery\": \"moving into UX design from teaching, first job in the field\",\n  \"keywords\": [\"UX designer\",\"product designer\",\"user experience designer\",\"UI/UX designer\"],\n  \"keywordsNot\": [\"teacher\",\"teaching\",\"classroom\"],\n  \"seniority\": [\"ENTRY\"],\n  \"role\": [\"UX Designer\",\"Product Designer\"] }\n\n\"remote nursing jobs that pay well, no weekends\" → (remote=structured; \"pay well\" is soft→vquery, no salaryMin; the dislike is a keywordsNot and the occupation stays the positive anchor)\n{ \"vquery\": \"remote nursing job that pays well, no weekends\",\n  \"keywords\": [\"registered nurse\",\"RN\",\"staff nurse\",\"clinical nurse\"],\n  \"keywordsNot\": [\"nights and weekends\",\"every other weekend\",\"rotating shift\",\"weekends and holidays\"],\n  \"role\": [\"Registered Nurse\",\"Staff Nurse\"],\n  \"remote\": true }\n\n\"warehouse job, 3 twelve-hour shifts a week, days only, no forklift\" → (warehouse JDs print shift LENGTH, so it earns its own group — one concept only; \"days only\" is a dislike, so it is keywordsNot plus the vquery, never a complement inside a required group)\n{ \"vquery\": \"warehouse job, three twelve-hour shifts a week, days only, no forklift\",\n  \"keywordsAnd\": [[\"warehouse\",\"warehouse associate\",\"distribution center\",\"fulfillment center\",\"material handler\",\"order picker\"],[\"12 hour shift\",\"12-hour shift\",\"three 12s\",\"three 12-hour shifts\"]],\n  \"keywordsNot\": [\"forklift\",\"fork lift\",\"forklift operator\",\"reach truck\",\"cherry picker\",\"night shift\",\"overnight\",\"3rd shift\",\"graveyard\"],\n  \"role\": [\"Warehouse Associate\",\"Material Handler\"] }\n\n\"I only have a high school diploma, looking for office work 9 to 5\" → (\"diploma\" is what the user HOLDS, so LTE — never EQ or GTE, which would keep only the postings that state a floor; and 9-to-5 is only the two dislikes, since requiring day/weekday wording would gate on text most office postings never print)\n{ \"vquery\": \"office work 9 to 5 with only a high school diploma\",\n  \"keywords\": [\"office assistant\",\"administrative assistant\",\"office clerk\",\"front desk\",\"receptionist\",\"data entry\"],\n  \"educationFloor\": \"HS\", \"educationFloorOp\": \"LTE\",\n  \"keywordsNot\": [\"night shift\",\"overnight\",\"must work weekends\",\"weekend availability\"],\n  \"role\": [\"Administrative Assistant\",\"Office Assistant\"] }\n\n\"jobs that pay well without a degree\" → (still what the user holds, so LTE: EQ or GTE here would drop the two thirds of postings that state no floor)\n{ \"vquery\": \"well paying job that needs no degree\",\n  \"educationFloor\": \"TRADE\", \"educationFloorOp\": \"LTE\" }\n\n\"Show me jobs with no heavy lifting\" → (an exclusion with no occupation: the anchor is the work they CAN do — never the excluded terms themselves, which would require and exclude at once and return zero)\n{ \"vquery\": \"job with no heavy lifting\",\n  \"keywords\": [\"light lifting\",\"light duty\",\"sedentary\",\"desk job\",\"office work\"],\n  \"keywordsNot\": [\"heavy lifting\",\"frequently lift\",\"physically demanding\"] }\n\n\"gym at a tech company\" → (two attributes, NO occupation named — still keywordsAnd, each its own group)\n{ \"vquery\": \"job at a tech company with a gym\",\n  \"keywordsAnd\": [[\"gym\",\"fitness center\",\"on-site gym\",\"gym membership\",\"wellness\"],[\"tech company\",\"technology company\",\"software company\",\"SaaS\",\"startup\"]] }\n\n\"mid to senior accountant with QuickBooks, no management roles\" → (level span → BOTH values in the filter; \"no management\" is already guaranteed by the hard filter — zero level vocabulary in the LEXICAL legs, while the vquery restates it)\n{ \"vquery\": \"mid to senior accountant with QuickBooks, no management roles\",\n  \"keywordsAnd\": [[\"accountant\",\"accounting\",\"staff accountant\"],[\"QuickBooks\",\"QuickBooks Online\",\"QBO\"]],\n  \"seniority\": [\"MID\",\"SENIOR\"],\n  \"role\": [\"Accountant\"] }\n\n\"per diem ER nurse, want to pick up shifts on my schedule\" → (per-diem employment and self-scheduling are both printed lexical patterns)\n{ \"vquery\": \"per diem ER nurse who wants to pick up shifts on their own schedule\",\n  \"keywordsAnd\": [[\"registered nurse\",\"RN\",\"ER nurse\",\"emergency department nurse\",\"ED RN\"],[\"per diem\",\"per-diem\",\"PRN\",\"float pool\",\"self-scheduling\",\"pick up shifts\"]],\n  \"role\": [\"Registered Nurse\",\"Emergency Department Registered Nurse\",\"Per Diem Registered Nurse\"] }\n\n\"supportive weekend jobs with work-life balance\" → (weekend work is printed by these JDs, so it earns its own group beside the culture one)\n{ \"vquery\": \"supportive weekend job with work-life balance\",\n  \"keywordsAnd\": [[\"weekend\",\"weekends\",\"Saturday\",\"Sunday\"],[\"supportive\",\"work-life balance\",\"work life balance\",\"stable\",\"predictable\"]] }\n\n\"nurse in San Francisco\" → (location lives ONLY in city/state, never in the vquery — the rest of the request stays)\n{ \"vquery\": \"nurse\",\n  \"keywords\": [\"registered nurse\",\"RN\",\"staff nurse\",\"clinical nurse\"],\n  \"role\": [\"Registered Nurse\",\"Staff Nurse\"],\n  \"city\": \"San Francisco\", \"state\": \"CA\" }\n\nFollow-up example — \"Make it cheaper\": the previous filters are sent again with salaryMin lowered (or added).\n\nDo not invent unsupported filters; if no supported parameter matches the request, keep the existing supported filters unchanged.\n",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "vquery": {
+                  "description": "Primary semantic input, read by the relevance reranker: the user's WHOLE request as one clean sentence — English, spell-corrected, in the user's own terms, carrying EVERY requirement stated across the whole conversation (earlier turns included). Keep the syntax explicit — 'without', 'no', 'must', 'only' — the ranker reads structure, not word bags. NO synonym packing and no keyword lists — keywords/keywordsAnd carry the lexical variants. This reranks and never filters, so the values that also live in structured fields stay in the sentence too — EXCEPT LOCATION: no city, region or area name ever enters the vquery. Drop nothing else.",
+                  "type": "string"
+                },
+                "keywords": {
+                  "description": "OR-mode BM25 terms on the cleaned JD body — a job matches if it contains ANY entry. Use when exactly one positive lexical axis survives. Emit AT MOST ONE of keywords / keywordsAnd.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "keywordsAnd": {
+                  "description": "AND of groups; each inner group is OR internally. A job must match EVERY group. Groups are positive requirements only — never include a term that appears in keywordsNot (requiring and excluding the same term returns zero results). Use when two or more hard lexical axes exist (role-family group first). Emit AT MOST ONE of keywords / keywordsAnd — the engine ignores keywords whenever keywordsAnd is present.",
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "keywordsNot": {
+                  "description": "Exclusion terms (lexical leg only): jobs whose cleaned JD literally contains any entry are removed. Phrase in JD vocabulary; never bare boilerplate tokens.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "role": {
+                  "description": "1-6 canonical job-title variants (Title Case) for a soft title-phrase boost. Never filters.",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                },
+                "city": {
+                  "description": "City to filter job search results, e.g., San Francisco",
+                  "type": "string"
+                },
+                "page": {
+                  "description": "Page number for paginated results, default is 1",
+                  "type": "number"
+                },
+                "companyName": {
+                  "description": "Company name to filter job search results",
+                  "type": "string"
+                },
+                "maxRadius": {
+                  "description": "Maximum radius in miles",
+                  "type": "number"
+                },
+                "salaryMin": {
+                  "description": "Minimum salary",
+                  "type": "number"
+                },
+                "remote": {
+                  "description": "If true, return only remote-friendly jobs. Omit to include all jobs.",
+                  "type": "boolean"
+                },
+                "contractType": {
+                  "description": "Contract-type filter. Pass only the types the user explicitly requested; omit otherwise.",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "FULL_TIME",
+                      "PART_TIME"
+                    ]
+                  }
+                },
+                "seniority": {
+                  "description": "Hard seniority filter — returns ONLY jobs at these levels. Pass just the levels the user explicitly asked for, mapped per the SENIORITY rule; omit otherwise.",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "INTERNSHIP",
+                      "ENTRY",
+                      "MID",
+                      "SENIOR",
+                      "MANAGEMENT",
+                      "EXECUTIVE"
+                    ]
+                  }
+                },
+                "educationFloor": {
+                  "description": "The education level to compare against what a job requires, per the EDUCATION rule. Ladder: HS < TRADE < ASSOC < BACH < MAST < DOC. Omit when the query says nothing about qualifications; send both or neither.",
+                  "type": "string",
+                  "enum": [
+                    "",
+                    "HS",
+                    "TRADE",
+                    "ASSOC",
+                    "BACH",
+                    "MAST",
+                    "DOC"
+                  ]
+                },
+                "educationFloorOp": {
+                  "description": "How to compare. LTE = the user HOLDS this level, so the job may demand at most it. LT = the job must stay strictly BELOW this level — they never reached it, or hold it and want less demanding work. EQ = jobs requiring exactly this level. GTE = jobs requiring this level or higher. LTE and LT keep jobs that say nothing about education, which is most of them; EQ and GTE keep only jobs that state a requirement, so use those two only when the requirement is what the user is searching for. Omit when educationFloor is omitted.",
+                  "type": "string",
+                  "enum": [
+                    "",
+                    "LTE",
+                    "LT",
+                    "EQ",
+                    "GTE"
+                  ]
+                },
+                "prompt": {
+                  "description": "The user's original message, PII-redacted; analytics only.",
+                  "type": "string"
+                },
+                "requisitionId": {
+                  "description": "Requisition id of one specific job, e.g. R12345. Follow the tool description on whether to use it.",
+                  "type": "string"
+                },
+                "state": {
+                  "description": "State to filter job search results, e.g., CA",
+                  "type": "string"
+                },
+                "user_intent": {
+                  "type": "string",
+                  "description": "A concise summary of what the user is trying to accomplish, derived from their message or the\nconversation context that triggered this tool call.\nThis is used to understand the user's intent and context to improve the overall user experience.\n\n- For short, self-contained prompts (e.g. \"I want new shoes\"), copy the user message as-is.\n- For longer conversations or detailed requests, summarize the core goal and any relevant\n  context in 1-2 sentences. Focus on intent, constraints, and preferences - not the full\n  dialogue.\n\nBefore sending, strip all personally identifiable information (PII), including but not\nlimited to:\n  - Names (first, last, usernames, handles)\n  - Email addresses\n  - Phone numbers\n  - Physical addresses (street, city, zip/postal code, country when tied to an individual)\n  - Dates of birth or exact ages\n  - Government-issued ID numbers (SSN, passport, driver's license, etc.)\n  - Payment or financial information (card numbers, bank accounts, etc.)\n  - IP addresses or device identifiers\n  - Account credentials (passwords, tokens, API keys)\n  - Health or biometric data\n  - Any other information that could identify a specific individual\n\nReplace stripped values with a generic placeholder (e.g. \"[name]\", \"[email]\", \"[address]\").\n\nExamples:\n  User: \"I want red running shoes under $100\"\n  -> \"I want red running shoes under $100\"\n\n  User: \"Hi, I'm John Smith, john@example.com, and I'm looking for flights from Paris to\n         Tokyo for 2 adults departing around mid-June, budget around EUR2000 total\"\n  -> \"Looking for flights from Paris to Tokyo for 2 adults, mid-June, budget ~EUR2000\"\n\n  User: \"I need help resetting my password for account ID acct_12345\"\n  -> \"I need help resetting my password for account ID [account_id]\""
+                }
+              },
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "vquery": {
+                  "description": "Primary semantic input, read by the relevance reranker: the user's WHOLE request as one clean sentence — English, spell-corrected, in the user's own terms, carrying EVERY requirement stated across the whole conversation (earlier turns included). Keep the syntax explicit — 'without', 'no', 'must', 'only' — the ranker reads structure, not word bags. NO synonym packing and no keyword lists — keywords/keywordsAnd carry the lexical variants. This reranks and never filters, so the values that also live in structured fields stay in the sentence too — EXCEPT LOCATION: no city, region or area name ever enters the vquery. Drop nothing else.",
+                  "type": "string"
+                },
+                "keywords": {
+                  "description": "OR-mode BM25 terms on the cleaned JD body — a job matches if it contains ANY entry. Use when exactly one positive lexical axis survives. Emit AT MOST ONE of keywords / keywordsAnd.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "keywordsAnd": {
+                  "description": "AND of groups; each inner group is OR internally. A job must match EVERY group. Groups are positive requirements only — never include a term that appears in keywordsNot (requiring and excluding the same term returns zero results). Use when two or more hard lexical axes exist (role-family group first). Emit AT MOST ONE of keywords / keywordsAnd — the engine ignores keywords whenever keywordsAnd is present.",
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "keywordsNot": {
+                  "description": "Exclusion terms (lexical leg only): jobs whose cleaned JD literally contains any entry are removed. Phrase in JD vocabulary; never bare boilerplate tokens.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "role": {
+                  "description": "1-6 canonical job-title variants (Title Case) for a soft title-phrase boost. Never filters.",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                },
+                "city": {
+                  "description": "City to filter job search results, e.g., San Francisco",
+                  "type": "string"
+                },
+                "page": {
+                  "description": "Page number for paginated results, default is 1",
+                  "type": "number"
+                },
+                "companyName": {
+                  "description": "Company name to filter job search results",
+                  "type": "string"
+                },
+                "maxRadius": {
+                  "description": "Maximum radius in miles",
+                  "type": "number"
+                },
+                "salaryMin": {
+                  "description": "Minimum salary",
+                  "type": "number"
+                },
+                "remote": {
+                  "description": "If true, return only remote-friendly jobs. Omit to include all jobs.",
+                  "type": "boolean"
+                },
+                "contractType": {
+                  "description": "Contract-type filter. Pass only the types the user explicitly requested; omit otherwise.",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "FULL_TIME",
+                      "PART_TIME"
+                    ]
+                  }
+                },
+                "seniority": {
+                  "description": "Hard seniority filter — returns ONLY jobs at these levels. Pass just the levels the user explicitly asked for, mapped per the SENIORITY rule; omit otherwise.",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "INTERNSHIP",
+                      "ENTRY",
+                      "MID",
+                      "SENIOR",
+                      "MANAGEMENT",
+                      "EXECUTIVE"
+                    ]
+                  }
+                },
+                "educationFloor": {
+                  "description": "The education level to compare against what a job requires, per the EDUCATION rule. Ladder: HS < TRADE < ASSOC < BACH < MAST < DOC. Omit when the query says nothing about qualifications; send both or neither.",
+                  "type": "string",
+                  "enum": [
+                    "",
+                    "HS",
+                    "TRADE",
+                    "ASSOC",
+                    "BACH",
+                    "MAST",
+                    "DOC"
+                  ]
+                },
+                "educationFloorOp": {
+                  "description": "How to compare. LTE = the user HOLDS this level, so the job may demand at most it. LT = the job must stay strictly BELOW this level — they never reached it, or hold it and want less demanding work. EQ = jobs requiring exactly this level. GTE = jobs requiring this level or higher. LTE and LT keep jobs that say nothing about education, which is most of them; EQ and GTE keep only jobs that state a requirement, so use those two only when the requirement is what the user is searching for. Omit when educationFloor is omitted.",
+                  "type": "string",
+                  "enum": [
+                    "",
+                    "LTE",
+                    "LT",
+                    "EQ",
+                    "GTE"
+                  ]
+                },
+                "prompt": {
+                  "description": "The user's original message, PII-redacted; analytics only.",
+                  "type": "string"
+                },
+                "requisitionId": {
+                  "description": "Requisition id of one specific job, e.g. R12345. Follow the tool description on whether to use it.",
+                  "type": "string"
+                },
+                "state": {
+                  "description": "State to filter job search results, e.g., CA",
+                  "type": "string"
+                },
+                "currentPage": {
+                  "type": "number",
+                  "description": "Current page number"
+                },
+                "totalResults": {
+                  "type": "number",
+                  "description": "Total number of results"
+                },
+                "totalPages": {
+                  "type": "number",
+                  "description": "Total number of pages"
+                },
+                "cityCoverage": {
+                  "description": "Where the jobs are relative to the searched city. Present only when the search covered a named city AND the area around it; absent means the ground covered is unknown, never that the city is empty. ALL_IN_CITY: every one of totalResults is in the city. ALL_PAGES_IN_CITY: every result the user can browse is in the city, while totalResults also counts the area around it. CITY_AND_SURROUNDINGS: some of totalResults are in the city, the rest around it. SURROUNDINGS_ONLY: none in the city itself, all of them around it. NONE_ANYWHERE: nothing in or around the city.",
+                  "type": "string",
+                  "enum": [
+                    "ALL_IN_CITY",
+                    "ALL_PAGES_IN_CITY",
+                    "CITY_AND_SURROUNDINGS",
+                    "SURROUNDINGS_ONLY",
+                    "NONE_ANYWHERE"
+                  ]
+                },
+                "timestamp": {
+                  "type": "string"
+                },
+                "error": {
+                  "description": "Error message when the search fails",
+                  "type": "string"
+                },
+                "requisitionNote": {
+                  "description": "Set when a requisitionId search found nothing as asked: either no open job has that id, or the other criteria hid it and these are every open job with it.",
+                  "type": "string"
+                },
+                "searchIncomplete": {
+                  "description": "Set when a requisitionId search did not finish (search degraded, or no job on the page could be read): its count proves nothing. It does not show that the job is not open.",
+                  "type": "boolean"
+                },
+                "followupPolicy": {
+                  "description": "How filters carry across calls",
+                  "type": "string"
+                },
+                "behaviour": {
+                  "description": "What the result fields mean",
+                  "type": "string"
+                },
+                "topMatches": {
+                  "description": "The top 3 returned postings (title, company, location, salary, benefits, highlights); the widget shows the full list.",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "type": "string"
+                      },
+                      "company": {
+                        "type": "string"
+                      },
+                      "location": {
+                        "type": "string"
+                      },
+                      "contractType": {
+                        "type": "string"
+                      },
+                      "salary": {
+                        "type": "string"
+                      },
+                      "remote": {
+                        "type": "boolean"
+                      },
+                      "benefits": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "highlights": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "title",
+                      "company",
+                      "location"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "currentPage",
+                "totalResults",
+                "totalPages",
+                "timestamp"
+              ],
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Search for and apply to jobs",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/widgetAccessible": true,
+              "openai/toolInvocation/invoking": "Searching for jobs...",
+              "openai/toolInvocation/invoked": "Found job listings",
+              "ui/resourceUri": "ui://views/ext-apps/job-search.html?v=470074e3",
+              "ui": {
+                "resourceUri": "ui://views/ext-apps/job-search.html?v=470074e3"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "job-search",
+        "title": "Search for and apply to jobs",
+        "description": "Searches and applies to current open job postings in the United States that match the user's request. Each call returns results for the supplied filters and page number.\n\nSupports finding, browsing, filtering, refining, and comparing job opportunities in the US.\n\nSupported requests:\n- finding / browsing / refining jobs by title, company, salary, location, or named benefit\n- showing more results from an existing search\n\nExample requests:\n- \"Find software engineer jobs in Seattle\"\n- \"Any product manager roles at Google?\"\n- \"Find jobs paying at least $120,000\"\n- \"Show more results\" / \"Only in Chicago\"\n\nUS-only scope:\n\n- Supports US job searches only; infer and normalize locations only within the United States.\n- Infer city + state for common US shorthand with a single clear interpretation (\"sf\" → \"San Francisco\",\"CA\"; \"nyc\" → \"New York\",\"NY\"). State-only → state only; city + state → both after normalization.\n- Never infer ambiguous or non-US locations; if confidence is low, omit city/state rather than guess.\n\nParameters:\n\nSEARCH MECHANICS — how the engine treats each parameter:\n1. The BM25 corpus is the FULL job description (title, body, requirements, skills, benefits, location/salary/contract/remote text, visa/EEO). Almost anything the user names appears in some posting and IS matchable — but generic words match broadly, so keyword groups must stay tight.\n2. Location, salary, company, full-time/part-time, remote, seniority and EDUCATION are MANDATORY-STRUCTURED: each goes ONLY in its dedicated field (city/state, salaryMin, companyName, contractType, remote, seniority, educationFloor+educationFloorOp), NEVER in the LEXICAL legs (keywords/keywordsAnd/keywordsNot/role), which drive retrieval — even though this vocabulary also appears in the JD text. The structured field is authoritative. This holds even when the user's word is not itself a filter value but MAPS to one (\"junior\" → seniority [\"ENTRY\"], \"six figures\" → salaryMin 100000): the filter carries the concept and the wording stays out of every lexical leg. The vquery is exempt for everything except LOCATION — it only reranks (see 7).\n3. No stemming and phrases are near-exact: \"nurse\"≠\"nurses\", \"full stack\"≠\"fullstack\", \"per diem\"≠\"per-diem\". A multi-word entry must match all tokens in order. So expand every concept to 10-15 variants (≥6; 4-8 per exclusion): abbreviation+full form both ways (RN/Registered Nurse), singular+plural, every spelling, adjacent titles, ecosystem terms. EXCEPTION — an abbreviation that is also an everyday English word (IT, OR, DO, IN) is NEVER a bare single-word entry in keywords, keywordsAnd or keywordsNot: the index lowercases, so bare \"IT\" is the pronoun \"it\" and bare \"OR\" the conjunction — they match nearly every posting and the gate stops filtering. Carry the concept ONLY through its full form, its printed compounds and the family's roles: \"information technology\", \"IT support\", \"IT systems\", \"IT infrastructure\", \"systems administrator\", \"help desk\"; \"operating room\", \"OR nurse\", \"perioperative\", \"surgical services\", \"surgical technologist\"; \"doctor of osteopathy\", \"DO physician\". The abbreviation inside a multi-word phrase is fine; alone it is not. Contrast: RN → both \"RN\" and \"Registered Nurse\"; IT → \"information technology\", \"IT support\", never \"IT\" on its own.\n4. keywords is ONE OR list — a job matches on any single entry, so everything there is OPTIONAL and one stray secondary word floods the results. keywordsAnd is a list of groups, each REQUIRED (OR within a group, AND across groups) (in English).\n5. keywordsNot excludes only postings whose text literally contains the entry (lexical leg only).\n6. role is a soft boost on the TITLE only; it never filters and can never make an axis required — only a keyword/group can (in English).\n7. vquery feeds the relevance reranker and never filters: the user's WHOLE request as one clean natural-language sentence — their own words, spell-corrected, every constraint they stated INCLUDING the ones a filter also carries — EXCEPT LOCATION: no city, state, neighborhood or area name ever enters the vquery (the city/state fields already constrain geography, and postings rarely print their city, so a location in the vquery skews the reranker toward the rare posting that happens to mention one) — plus everything accumulated across the conversation. Drop NOTHING: a circumstance with no field of its own (\"TN visa\", \"post-concussion\") is exactly what must survive. NO synonym packing (the keyword graph carries variants), no superlatives you invent, nothing the user did not state. Always emit it (in English).\n\nRULE #1 — STRUCTURE & CALIBRATION (the most common failure, both directions): first COUNT the REQUIRED concepts — positive work-characteristics only. The occupation counts; each HARD requirement counts; a SOFT/optional preference does NOT count (\"a plus\", \"ideally\", \"nice to have\", a vague vibe/culture wish, \"good pay\" with no number) — soft never earns a group. Never harden a wish into a filter, never soften a stated requirement. Then choose:\n- NONE (pure location/salary/company, or \"show me jobs\", \"remote jobs\") → structured filters only, NO keywords (the vquery still restates the request, minus the location — see 7). A wish a JD PRINTS is not soft and is never NONE: pay frequency (\"paid weekly\" → weekly pay, paid weekly, weekly payroll), a named perk, a named tool — those are keywords even when the query names no occupation. An EXCLUSION is never NONE either: it keeps its keywordsNot plus the positive anchor the NEGATION rule requires.\n- Exactly ONE → keywords (one OR list) + role. Do NOT split a single axis into groups, and do NOT promote a soft wish to its own group (extra required groups STARVE the search).\n- TWO OR MORE → keywordsAnd, ALWAYS (this is the common case and the #1 quality lever): the occupation its OWN group FIRST, each other required axis (skill, benefit, industry) its OWN group. Putting two concepts in one OR list is WRONG — keywords [\"accountant\",\"SaaS\",\"401k\"] matches a job that is ANY ONE of those, so \"accountant\" alone floods and your \"SaaS\"/\"401k\" constraints vanish; it MUST be keywordsAnd [[\"accountant\",…],[\"SaaS\",\"software company\",…],[\"401k\",\"retirement plan\",…]]. NEVER flatten two requirements into one OR list; whenever the query names an occupation PLUS anything else, default to keywordsAnd. Never merge a secondary axis into the role list, never leave a printable axis to the vquery alone (it can't make anything required).\n- Whenever the user rejects, excludes, or says \"no/not/without X\", emit a keywordsNot for it (in the phrases a JD prints) — do not silently drop the exclusion.\nTwo gates before keeping any group: PRINTABILITY — would a typical relevant posting actually print this, and how (a structured field, literal text in the body, or not at all)? Give a lexical leg only to what a posting prints; never force lexically what they never print (no JD prints \"I'm a single parent\") — the vquery carries it anyway. GROUP PURITY — a group holds only tight variants of ONE concept; never pad it with a generic high-frequency word, or jobs match on that alone and your constraint goes optional → floods.\nGROUP CAP — aim for exactly 2 groups (occupation + the ONE strongest secondary axis); add a 3rd ONLY if all three are concrete and a posting would commonly print all three. Too many required AND groups STARVES the search (each group is a hard filter → returns too few). Over the cap: keep the 2 most discriminating printable axes and give the rest no group (the vquery carries them anyway).\nPRINTABLE axes (a relevant JD prints these literally → each gets its OWN keywordsAnd group, never the vquery alone, never dropped): a named skill/tech/certification/specialty; a named benefit/perk (401k, dental, gym, tuition, sign-on, game room); commute/transit (public transit, public transportation, transit accessible, near subway); a printed shift/schedule; an industry or company-stage; visa-sponsorship language. If the user names ANY of these next to an occupation, it MUST become its own group — the vquery carrying it is NOT enough, and it must not vanish (the most common mistake). Only truly unprintable wishes (vague culture/vibe, life circumstances, clock arithmetic, \"good pay\" with no number) ride the vquery alone.\n\nPER-AXIS PLAYBOOK — how each printable axis maps to parameters. Each printable axis = its OWN keywordsAnd group; expand each to 10-15 variants yourself (these are reminders, not full lists):\n- NAMED SKILL/TECH/CERT (Java, Kubernetes, ICU, CPA): own group + ecosystem terms (Java→JVM, Spring Boot; Kubernetes→k8s, EKS, Helm; ICU→intensive care, critical care). Never merge into the role list.\n- SCHEDULE/SHIFT: own group ONLY for shift-bearing roles (nursing/warehouse/retail/admin) — DROP it for engineering/office roles whose JDs never print shifts. Use numeric names (\"1st shift\", never \"first shift\"). A dislike (\"no weekends\", \"nothing overnight\") is a keywordsNot in requirement-shaped printed phrases (\"must work weekends\", \"weekend availability\", \"every other weekend\", \"rotating shift\") — never the bare day words — plus, ONLY when the occupation is the single axis and the gate is therefore the plain keywords list, complement terms in it (Monday-Friday, day shift, 1st shift). With keywordsAnd the engine ignores keywords, so there is no leg for a complement and none is emitted: the vquery already carries the wish.\n- EDUCATION: structured, never lexical. One level plus one operator, and the operator is chosen by asking \"is the user telling me what THEY have, or what the JOB must demand?\" First-person possession — \"I have\", \"I only got\", \"all I have is\", \"no degree\", \"no college\" — takes LTE (\"just a GED\" → HS+LTE; \"no degree\"/\"no college\" → TRADE+LTE; \"nothing needing a master's\" → BACH+LTE). LT is the strict form — the job must stay BELOW the level: never reached it (\"I never finished high school\" → HS+LT), or held while wanting less demanding work (\"I have a master's, show me simpler roles\" → MAST+LT). A query whose OBJECT is the requirement takes EQ (\"jobs requiring exactly a bachelor's\") or GTE (\"roles that need at least a master's\"). LTE and LT keep the postings that say nothing about education, which is most of them; EQ and GTE keep only the minority that state a floor — so a first-person ask routed to GTE quietly empties the page. Omit both when the query gives no explicit qualification: an occupation never implies one (\"data analyst\" is not a bachelor's), and being a student is seniority, not a qualification held. Emit no degree vocabulary in the lexical legs.\n- SENIORITY: any explicit seniority signal → the seniority filter, nothing else: \"no experience at all\" → seniority:[\"INTERNSHIP\",\"ENTRY\"]; entry/junior/career-change/returnship → [\"ENTRY\"]; internships → [\"INTERNSHIP\"]; mid-career → [\"MID\"]; senior/lead/principal/staff IC → [\"SENIOR\"]; manager/supervisor/team-lead-with-reports → [\"MANAGEMENT\"]; director/VP/executive/C-suite → [\"EXECUTIVE\"] (combine when the user spans levels, e.g. \"leadership roles\" → [\"MANAGEMENT\",\"EXECUTIVE\"]). The structured filter is authoritative and hard: emit NO seniority-flavored vocabulary in the lexical legs (keywords/keywordsAnd/keywordsNot/role) — any word that reads as a level (\"junior\", \"senior\", \"entry level\", \"experienced\", \"5+ years\") stays out even when it is not an enum value; the filter alone carries this axis — and never make a level a required AND group.\n- NEGATION / keywordsNot: for exclusions NO structured field covers — a task or tool (no forklift, no cold calling), an industry, staffing agencies, a source domain in a career change. Education is not among them: it has its own field and must never appear here. Exclude what a JD would PRINT, in requirement-shaped phrases, never a bare high-frequency word good JDs contain. NEVER emit alone: full-time, part-time, customer service, sales, retail, staff, manager, assistant, clinical, travel, office, standing, weekend, weekends, Saturday, Sunday, nights, evenings. Cover the morphological root and every printed form. A keywordsNot never travels alone: with nothing positive the gate falls back to a recency-ordered match-all, so keep an anchor in keywords or role — the occupation, or with no occupation the work they CAN do (\"no heavy lifting\" → light duty, sedentary, desk job in keywords). The anchor must share NO term with keywordsNot, and a negated phrase is never a keyword. Never promote a complement to a required keywordsAnd group, and never put a term in a required group and in keywordsNot at once (that returns zero results by construction).\n- CAREER CHANGE \"X into Y\": emit everything for the TARGET Y only; the SOURCE X is NEVER a positive term (it floods with the job they're leaving) → put 4-6 source markers in keywordsNot. Set seniority:[\"ENTRY\"] (they're entry-level in the target).\n- CONTRACT: \"not contract\" / \"no contractors\" → keywordsNot [contract, contractor, 1099, temporary, temp]; NEVER contractType (which is only for an explicit positive part-time/full-time ask). A per-diem/contract/flexible ask → REQUIRE the pattern positively (per diem, PRN, contract), do not exclude full-time/part-time.\n- BENEFIT/PERK: a named benefit = own group, expanded (gym→fitness center, on-site gym; 401k→retirement plan, employer match; tuition→tuition reimbursement, education assistance). Generic \"good benefits\"/\"great perks\" with no named benefit → no group.\n- INDUSTRY: title-bearing (fintech engineer) → put it in role + role group; a back-office role modified by industry (accountant in tech) → its own evidence group (SaaS, software company, startup); an EXCLUDED industry → keywordsNot.\n- CULTURE/VIBE (stable, supportive, low-stress, family-friendly): a group when an occupation exists, else a single OR keywords list for a no-occupation vibe query. NEVER turn a positive culture wish into antonym exclusions.\n- HARD DON'TS: NEVER set remote=false (omit it — false hard-excludes the jobs they want). NEVER infer a structured filter from another axis's vocabulary — every filter needs an explicit signal on its OWN axis: a qualification is educationFloor and NOT a seniority level nor a contractType; vague pay talk is NOT a salaryMin; when the signal is not explicit, OMIT the filter — unless another rule explicitly sets it (career change → seniority [\"ENTRY\"] still applies).\n\n- city (string) / state (2-letter code) — only when confident.\n- maxRadius (number) — only with both city+state AND an explicit radius in miles; otherwise omit.\n- salaryMin (number) — only from an EXPLICIT floor, always as an ANNUAL figure: yearly stays as-is ($100k, \"at least 80,000\", \"six figures\"=100000), an hourly floor CONVERTS at the engine's own convention of 1920 work hours/year (\"$25/hr\" → 48000); NEVER from vague pay language (\"pays well\", \"good pay\") → that rides vquery.\n- remote (boolean) — set true when the user wants to work AWAY FROM AN EMPLOYER SITE: the explicit words (remote / work from home / WFH / fully remote / from home) OR an unambiguous equivalent (not on-site, not in an office, from anywhere, work from a sailboat/RV/the beach, \"wear pajamas\"). Do NOT add remote when the query says NOTHING about where the work happens — a query that only names a company, role, skill, or salary is NOT remote (\"amazon jobs\", \"python 100k\", \"highest-paying jobs\" → no remote). Hybrid-only → leave unset. The structured flag is authoritative; emit no remote vocabulary in the lexical legs; NEVER set false; when unsure, omit.\n- contractType (array of \"FULL_TIME\" / \"PART_TIME\", optional) — only from an EXPLICIT positive part-time / full-time ask; never from a \"no contract\" / \"no contractors\" exclusion (that rides keywordsNot). Omit otherwise.\n- seniority (array of \"INTERNSHIP\" / \"ENTRY\" / \"MID\" / \"SENIOR\" / \"MANAGEMENT\" / \"EXECUTIVE\") — only from an explicit seniority signal, mapped per the SENIORITY rule; hard filter. Omit otherwise.\n- educationFloor (\"HS\" / \"TRADE\" / \"ASSOC\" / \"BACH\" / \"MAST\" / \"DOC\") + educationFloorOp (\"LTE\" / \"LT\" / \"EQ\" / \"GTE\") — one level and one comparison against what a job requires, per the EDUCATION rule. Send both together, and omit both when the query says nothing about qualifications.\n- page (number, default 1) — increase for \"more results\".\n- prompt (string) — the user's original text, PII-redacted; analytics only.\n\n- companyName (string, optional)\n  Company name filter: exact match on the employer name, with common aliases resolved by the search.\n  Examples: \"Google\", \"Starbucks\"\n\n`requisitionId` is not used for this client. Never set it.\n\nBehavior and guardrails:\n\n- Each call returns results for the supplied filters and page number, and earlier calls are not remembered: a refinement sends the previous arguments again with only what changed (every other valid constraint stays unless the user drops it), and a genuinely new topic starts from fresh arguments.\n- For more results, the same filters are sent with a higher page.\n- Results are current open job postings, matched on filters taken from the request or on a US location inferred with high confidence.\n- Omit any parameter that cannot be filled from the request with high confidence.\n- Never fabricate a search value — a salary, company, role, city, or state that was not given; when unsure, omit it.\n\n\nExamples:\n\n\"backend engineer who knows Kubernetes\" →\n{ \"vquery\": \"backend engineer who knows Kubernetes\",\n  \"keywordsAnd\": [[\"backend engineer\",\"backend developer\",\"software engineer\",\"server-side engineer\",\"platform engineer\"],[\"Kubernetes\",\"k8s\",\"EKS\",\"GKE\",\"Helm\",\"container orchestration\"]],\n  \"role\": [\"Backend Engineer\",\"Software Engineer\",\"Platform Engineer\"] }\n\n\"teacher moving into UX design, first job in the field\" → (career change: target only + seniority filter + source exclusion)\n{ \"vquery\": \"moving into UX design from teaching, first job in the field\",\n  \"keywords\": [\"UX designer\",\"product designer\",\"user experience designer\",\"UI/UX designer\"],\n  \"keywordsNot\": [\"teacher\",\"teaching\",\"classroom\"],\n  \"seniority\": [\"ENTRY\"],\n  \"role\": [\"UX Designer\",\"Product Designer\"] }\n\n\"remote nursing jobs that pay well, no weekends\" → (remote=structured; \"pay well\" is soft→vquery, no salaryMin; the dislike is a keywordsNot and the occupation stays the positive anchor)\n{ \"vquery\": \"remote nursing job that pays well, no weekends\",\n  \"keywords\": [\"registered nurse\",\"RN\",\"staff nurse\",\"clinical nurse\"],\n  \"keywordsNot\": [\"nights and weekends\",\"every other weekend\",\"rotating shift\",\"weekends and holidays\"],\n  \"role\": [\"Registered Nurse\",\"Staff Nurse\"],\n  \"remote\": true }\n\n\"warehouse job, 3 twelve-hour shifts a week, days only, no forklift\" → (warehouse JDs print shift LENGTH, so it earns its own group — one concept only; \"days only\" is a dislike, so it is keywordsNot plus the vquery, never a complement inside a required group)\n{ \"vquery\": \"warehouse job, three twelve-hour shifts a week, days only, no forklift\",\n  \"keywordsAnd\": [[\"warehouse\",\"warehouse associate\",\"distribution center\",\"fulfillment center\",\"material handler\",\"order picker\"],[\"12 hour shift\",\"12-hour shift\",\"three 12s\",\"three 12-hour shifts\"]],\n  \"keywordsNot\": [\"forklift\",\"fork lift\",\"forklift operator\",\"reach truck\",\"cherry picker\",\"night shift\",\"overnight\",\"3rd shift\",\"graveyard\"],\n  \"role\": [\"Warehouse Associate\",\"Material Handler\"] }\n\n\"I only have a high school diploma, looking for office work 9 to 5\" → (\"diploma\" is what the user HOLDS, so LTE — never EQ or GTE, which would keep only the postings that state a floor; and 9-to-5 is only the two dislikes, since requiring day/weekday wording would gate on text most office postings never print)\n{ \"vquery\": \"office work 9 to 5 with only a high school diploma\",\n  \"keywords\": [\"office assistant\",\"administrative assistant\",\"office clerk\",\"front desk\",\"receptionist\",\"data entry\"],\n  \"educationFloor\": \"HS\", \"educationFloorOp\": \"LTE\",\n  \"keywordsNot\": [\"night shift\",\"overnight\",\"must work weekends\",\"weekend availability\"],\n  \"role\": [\"Administrative Assistant\",\"Office Assistant\"] }\n\n\"jobs that pay well without a degree\" → (still what the user holds, so LTE: EQ or GTE here would drop the two thirds of postings that state no floor)\n{ \"vquery\": \"well paying job that needs no degree\",\n  \"educationFloor\": \"TRADE\", \"educationFloorOp\": \"LTE\" }\n\n\"Show me jobs with no heavy lifting\" → (an exclusion with no occupation: the anchor is the work they CAN do — never the excluded terms themselves, which would require and exclude at once and return zero)\n{ \"vquery\": \"job with no heavy lifting\",\n  \"keywords\": [\"light lifting\",\"light duty\",\"sedentary\",\"desk job\",\"office work\"],\n  \"keywordsNot\": [\"heavy lifting\",\"frequently lift\",\"physically demanding\"] }\n\n\"gym at a tech company\" → (two attributes, NO occupation named — still keywordsAnd, each its own group)\n{ \"vquery\": \"job at a tech company with a gym\",\n  \"keywordsAnd\": [[\"gym\",\"fitness center\",\"on-site gym\",\"gym membership\",\"wellness\"],[\"tech company\",\"technology company\",\"software company\",\"SaaS\",\"startup\"]] }\n\n\"mid to senior accountant with QuickBooks, no management roles\" → (level span → BOTH values in the filter; \"no management\" is already guaranteed by the hard filter — zero level vocabulary in the LEXICAL legs, while the vquery restates it)\n{ \"vquery\": \"mid to senior accountant with QuickBooks, no management roles\",\n  \"keywordsAnd\": [[\"accountant\",\"accounting\",\"staff accountant\"],[\"QuickBooks\",\"QuickBooks Online\",\"QBO\"]],\n  \"seniority\": [\"MID\",\"SENIOR\"],\n  \"role\": [\"Accountant\"] }\n\n\"per diem ER nurse, want to pick up shifts on my schedule\" → (per-diem employment and self-scheduling are both printed lexical patterns)\n{ \"vquery\": \"per diem ER nurse who wants to pick up shifts on their own schedule\",\n  \"keywordsAnd\": [[\"registered nurse\",\"RN\",\"ER nurse\",\"emergency department nurse\",\"ED RN\"],[\"per diem\",\"per-diem\",\"PRN\",\"float pool\",\"self-scheduling\",\"pick up shifts\"]],\n  \"role\": [\"Registered Nurse\",\"Emergency Department Registered Nurse\",\"Per Diem Registered Nurse\"] }\n\n\"supportive weekend jobs with work-life balance\" → (weekend work is printed by these JDs, so it earns its own group beside the culture one)\n{ \"vquery\": \"supportive weekend job with work-life balance\",\n  \"keywordsAnd\": [[\"weekend\",\"weekends\",\"Saturday\",\"Sunday\"],[\"supportive\",\"work-life balance\",\"work life balance\",\"stable\",\"predictable\"]] }\n\n\"nurse in San Francisco\" → (location lives ONLY in city/state, never in the vquery — the rest of the request stays)\n{ \"vquery\": \"nurse\",\n  \"keywords\": [\"registered nurse\",\"RN\",\"staff nurse\",\"clinical nurse\"],\n  \"role\": [\"Registered Nurse\",\"Staff Nurse\"],\n  \"city\": \"San Francisco\", \"state\": \"CA\" }\n\nFollow-up example — \"Make it cheaper\": the previous filters are sent again with salaryMin lowered (or added).\n\nDo not invent unsupported filters; if no supported parameter matches the request, keep the existing supported filters unchanged.\n",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "vquery": {
+              "description": "Primary semantic input, read by the relevance reranker: the user's WHOLE request as one clean sentence — English, spell-corrected, in the user's own terms, carrying EVERY requirement stated across the whole conversation (earlier turns included). Keep the syntax explicit — 'without', 'no', 'must', 'only' — the ranker reads structure, not word bags. NO synonym packing and no keyword lists — keywords/keywordsAnd carry the lexical variants. This reranks and never filters, so the values that also live in structured fields stay in the sentence too — EXCEPT LOCATION: no city, region or area name ever enters the vquery. Drop nothing else.",
+              "type": "string"
+            },
+            "keywords": {
+              "description": "OR-mode BM25 terms on the cleaned JD body — a job matches if it contains ANY entry. Use when exactly one positive lexical axis survives. Emit AT MOST ONE of keywords / keywordsAnd.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "keywordsAnd": {
+              "description": "AND of groups; each inner group is OR internally. A job must match EVERY group. Groups are positive requirements only — never include a term that appears in keywordsNot (requiring and excluding the same term returns zero results). Use when two or more hard lexical axes exist (role-family group first). Emit AT MOST ONE of keywords / keywordsAnd — the engine ignores keywords whenever keywordsAnd is present.",
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "keywordsNot": {
+              "description": "Exclusion terms (lexical leg only): jobs whose cleaned JD literally contains any entry are removed. Phrase in JD vocabulary; never bare boilerplate tokens.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "role": {
+              "description": "1-6 canonical job-title variants (Title Case) for a soft title-phrase boost. Never filters.",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "city": {
+              "description": "City to filter job search results, e.g., San Francisco",
+              "type": "string"
+            },
+            "page": {
+              "description": "Page number for paginated results, default is 1",
+              "type": "number"
+            },
+            "companyName": {
+              "description": "Company name to filter job search results",
+              "type": "string"
+            },
+            "maxRadius": {
+              "description": "Maximum radius in miles",
+              "type": "number"
+            },
+            "salaryMin": {
+              "description": "Minimum salary",
+              "type": "number"
+            },
+            "remote": {
+              "description": "If true, return only remote-friendly jobs. Omit to include all jobs.",
+              "type": "boolean"
+            },
+            "contractType": {
+              "description": "Contract-type filter. Pass only the types the user explicitly requested; omit otherwise.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "FULL_TIME",
+                  "PART_TIME"
+                ]
+              }
+            },
+            "seniority": {
+              "description": "Hard seniority filter — returns ONLY jobs at these levels. Pass just the levels the user explicitly asked for, mapped per the SENIORITY rule; omit otherwise.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "INTERNSHIP",
+                  "ENTRY",
+                  "MID",
+                  "SENIOR",
+                  "MANAGEMENT",
+                  "EXECUTIVE"
+                ]
+              }
+            },
+            "educationFloor": {
+              "description": "The education level to compare against what a job requires, per the EDUCATION rule. Ladder: HS < TRADE < ASSOC < BACH < MAST < DOC. Omit when the query says nothing about qualifications; send both or neither.",
+              "type": "string",
+              "enum": [
+                "",
+                "HS",
+                "TRADE",
+                "ASSOC",
+                "BACH",
+                "MAST",
+                "DOC"
+              ]
+            },
+            "educationFloorOp": {
+              "description": "How to compare. LTE = the user HOLDS this level, so the job may demand at most it. LT = the job must stay strictly BELOW this level — they never reached it, or hold it and want less demanding work. EQ = jobs requiring exactly this level. GTE = jobs requiring this level or higher. LTE and LT keep jobs that say nothing about education, which is most of them; EQ and GTE keep only jobs that state a requirement, so use those two only when the requirement is what the user is searching for. Omit when educationFloor is omitted.",
+              "type": "string",
+              "enum": [
+                "",
+                "LTE",
+                "LT",
+                "EQ",
+                "GTE"
+              ]
+            },
+            "prompt": {
+              "description": "The user's original message, PII-redacted; analytics only.",
+              "type": "string"
+            },
+            "requisitionId": {
+              "description": "Requisition id of one specific job, e.g. R12345. Follow the tool description on whether to use it.",
+              "type": "string"
+            },
+            "state": {
+              "description": "State to filter job search results, e.g., CA",
+              "type": "string"
+            },
+            "user_intent": {
+              "type": "string",
+              "description": "A concise summary of what the user is trying to accomplish, derived from their message or the\nconversation context that triggered this tool call.\nThis is used to understand the user's intent and context to improve the overall user experience.\n\n- For short, self-contained prompts (e.g. \"I want new shoes\"), copy the user message as-is.\n- For longer conversations or detailed requests, summarize the core goal and any relevant\n  context in 1-2 sentences. Focus on intent, constraints, and preferences - not the full\n  dialogue.\n\nBefore sending, strip all personally identifiable information (PII), including but not\nlimited to:\n  - Names (first, last, usernames, handles)\n  - Email addresses\n  - Phone numbers\n  - Physical addresses (street, city, zip/postal code, country when tied to an individual)\n  - Dates of birth or exact ages\n  - Government-issued ID numbers (SSN, passport, driver's license, etc.)\n  - Payment or financial information (card numbers, bank accounts, etc.)\n  - IP addresses or device identifiers\n  - Account credentials (passwords, tokens, API keys)\n  - Health or biometric data\n  - Any other information that could identify a specific individual\n\nReplace stripped values with a generic placeholder (e.g. \"[name]\", \"[email]\", \"[address]\").\n\nExamples:\n  User: \"I want red running shoes under $100\"\n  -> \"I want red running shoes under $100\"\n\n  User: \"Hi, I'm John Smith, john@example.com, and I'm looking for flights from Paris to\n         Tokyo for 2 adults departing around mid-June, budget around EUR2000 total\"\n  -> \"Looking for flights from Paris to Tokyo for 2 adults, mid-June, budget ~EUR2000\"\n\n  User: \"I need help resetting my password for account ID acct_12345\"\n  -> \"I need help resetting my password for account ID [account_id]\""
+            }
+          },
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "vquery": {
+              "description": "Primary semantic input, read by the relevance reranker: the user's WHOLE request as one clean sentence — English, spell-corrected, in the user's own terms, carrying EVERY requirement stated across the whole conversation (earlier turns included). Keep the syntax explicit — 'without', 'no', 'must', 'only' — the ranker reads structure, not word bags. NO synonym packing and no keyword lists — keywords/keywordsAnd carry the lexical variants. This reranks and never filters, so the values that also live in structured fields stay in the sentence too — EXCEPT LOCATION: no city, region or area name ever enters the vquery. Drop nothing else.",
+              "type": "string"
+            },
+            "keywords": {
+              "description": "OR-mode BM25 terms on the cleaned JD body — a job matches if it contains ANY entry. Use when exactly one positive lexical axis survives. Emit AT MOST ONE of keywords / keywordsAnd.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "keywordsAnd": {
+              "description": "AND of groups; each inner group is OR internally. A job must match EVERY group. Groups are positive requirements only — never include a term that appears in keywordsNot (requiring and excluding the same term returns zero results). Use when two or more hard lexical axes exist (role-family group first). Emit AT MOST ONE of keywords / keywordsAnd — the engine ignores keywords whenever keywordsAnd is present.",
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "keywordsNot": {
+              "description": "Exclusion terms (lexical leg only): jobs whose cleaned JD literally contains any entry are removed. Phrase in JD vocabulary; never bare boilerplate tokens.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "role": {
+              "description": "1-6 canonical job-title variants (Title Case) for a soft title-phrase boost. Never filters.",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "city": {
+              "description": "City to filter job search results, e.g., San Francisco",
+              "type": "string"
+            },
+            "page": {
+              "description": "Page number for paginated results, default is 1",
+              "type": "number"
+            },
+            "companyName": {
+              "description": "Company name to filter job search results",
+              "type": "string"
+            },
+            "maxRadius": {
+              "description": "Maximum radius in miles",
+              "type": "number"
+            },
+            "salaryMin": {
+              "description": "Minimum salary",
+              "type": "number"
+            },
+            "remote": {
+              "description": "If true, return only remote-friendly jobs. Omit to include all jobs.",
+              "type": "boolean"
+            },
+            "contractType": {
+              "description": "Contract-type filter. Pass only the types the user explicitly requested; omit otherwise.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "FULL_TIME",
+                  "PART_TIME"
+                ]
+              }
+            },
+            "seniority": {
+              "description": "Hard seniority filter — returns ONLY jobs at these levels. Pass just the levels the user explicitly asked for, mapped per the SENIORITY rule; omit otherwise.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "INTERNSHIP",
+                  "ENTRY",
+                  "MID",
+                  "SENIOR",
+                  "MANAGEMENT",
+                  "EXECUTIVE"
+                ]
+              }
+            },
+            "educationFloor": {
+              "description": "The education level to compare against what a job requires, per the EDUCATION rule. Ladder: HS < TRADE < ASSOC < BACH < MAST < DOC. Omit when the query says nothing about qualifications; send both or neither.",
+              "type": "string",
+              "enum": [
+                "",
+                "HS",
+                "TRADE",
+                "ASSOC",
+                "BACH",
+                "MAST",
+                "DOC"
+              ]
+            },
+            "educationFloorOp": {
+              "description": "How to compare. LTE = the user HOLDS this level, so the job may demand at most it. LT = the job must stay strictly BELOW this level — they never reached it, or hold it and want less demanding work. EQ = jobs requiring exactly this level. GTE = jobs requiring this level or higher. LTE and LT keep jobs that say nothing about education, which is most of them; EQ and GTE keep only jobs that state a requirement, so use those two only when the requirement is what the user is searching for. Omit when educationFloor is omitted.",
+              "type": "string",
+              "enum": [
+                "",
+                "LTE",
+                "LT",
+                "EQ",
+                "GTE"
+              ]
+            },
+            "prompt": {
+              "description": "The user's original message, PII-redacted; analytics only.",
+              "type": "string"
+            },
+            "requisitionId": {
+              "description": "Requisition id of one specific job, e.g. R12345. Follow the tool description on whether to use it.",
+              "type": "string"
+            },
+            "state": {
+              "description": "State to filter job search results, e.g., CA",
+              "type": "string"
+            },
+            "currentPage": {
+              "type": "number",
+              "description": "Current page number"
+            },
+            "totalResults": {
+              "type": "number",
+              "description": "Total number of results"
+            },
+            "totalPages": {
+              "type": "number",
+              "description": "Total number of pages"
+            },
+            "cityCoverage": {
+              "description": "Where the jobs are relative to the searched city. Present only when the search covered a named city AND the area around it; absent means the ground covered is unknown, never that the city is empty. ALL_IN_CITY: every one of totalResults is in the city. ALL_PAGES_IN_CITY: every result the user can browse is in the city, while totalResults also counts the area around it. CITY_AND_SURROUNDINGS: some of totalResults are in the city, the rest around it. SURROUNDINGS_ONLY: none in the city itself, all of them around it. NONE_ANYWHERE: nothing in or around the city.",
+              "type": "string",
+              "enum": [
+                "ALL_IN_CITY",
+                "ALL_PAGES_IN_CITY",
+                "CITY_AND_SURROUNDINGS",
+                "SURROUNDINGS_ONLY",
+                "NONE_ANYWHERE"
+              ]
+            },
+            "timestamp": {
+              "type": "string"
+            },
+            "error": {
+              "description": "Error message when the search fails",
+              "type": "string"
+            },
+            "requisitionNote": {
+              "description": "Set when a requisitionId search found nothing as asked: either no open job has that id, or the other criteria hid it and these are every open job with it.",
+              "type": "string"
+            },
+            "searchIncomplete": {
+              "description": "Set when a requisitionId search did not finish (search degraded, or no job on the page could be read): its count proves nothing. It does not show that the job is not open.",
+              "type": "boolean"
+            },
+            "followupPolicy": {
+              "description": "How filters carry across calls",
+              "type": "string"
+            },
+            "behaviour": {
+              "description": "What the result fields mean",
+              "type": "string"
+            },
+            "topMatches": {
+              "description": "The top 3 returned postings (title, company, location, salary, benefits, highlights); the widget shows the full list.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "company": {
+                    "type": "string"
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "contractType": {
+                    "type": "string"
+                  },
+                  "salary": {
+                    "type": "string"
+                  },
+                  "remote": {
+                    "type": "boolean"
+                  },
+                  "benefits": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "highlights": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "title",
+                  "company",
+                  "location"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "currentPage",
+            "totalResults",
+            "totalPages",
+            "timestamp"
+          ],
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Search for and apply to jobs",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/widgetAccessible": true,
+          "openai/toolInvocation/invoking": "Searching for jobs...",
+          "openai/toolInvocation/invoked": "Found job listings",
+          "ui/resourceUri": "ui://views/ext-apps/job-search.html?v=470074e3",
+          "ui": {
+            "resourceUri": "ui://views/ext-apps/job-search.html?v=470074e3"
+          }
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:24:05.539Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:24:06.591Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:24:07.642Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:24:08.692Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 1,
+    "tools_hash": "sha256:d5d81418f7b92ecd71d0ed05aab18bba558d464bb6d8be5c20c6b654ebb3085e",
+    "static_tool_tokens": 12201,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "job-search",
+        "message": "Description exceeds 1,000 characters."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 0,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "job-search",
+          "path": "inputSchema.properties.maxRadius",
+          "name": "maxRadius",
+          "description": "Maximum radius in miles",
+          "mentions_size_or_cost": true
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "job-search"
+          ],
+          "description": "Searches and applies to current open job postings in the United States that match the user's request. Each call returns results for the supplied filters and page number.\n\nSupports finding, browsing, filtering, refining, and comparing job opportunities in the US.\n\nSupported requests:\n- finding / browsing / refining jobs by title, company, salary, location, or named benefit\n- showing more results from an existing search\n\nExample requests:\n- \"Find software engineer jobs in Seattle\"\n- \"Any product manager roles at Google?\"\n- \"Find jobs paying at least $120,000\"\n- \"Show more results\" / \"Only in Chicago\"\n\nUS-only scope:\n\n- Supports US job searches only; infer and normalize locations only within the United States.\n- Infer city + state for common US shorthand with a single clear interpretation (\"sf\" → \"San Francisco\",\"CA\"; \"nyc\" → \"New York\",\"NY\"). State-only → state only; city + state → both after normalization.\n- Never infer ambiguous or non-US locations; if confidence is low, omit city/state rather than guess.\n\nParameters:\n\nSEARCH MECHANICS — how the engine treats each parameter:\n1. The BM25 corpus is the FULL job description (title, body, requirements, skills, benefits, location/salary/contract/remote text, visa/EEO). Almost anything the user names appears in some posting and IS matchable — but generic words match broadly, so keyword groups must stay tight.\n2. Location, salary, company, full-time/part-time, remote, seniority and EDUCATION are MANDATORY-STRUCTURED: each goes ONLY in its dedicated field (city/state, salaryMin, companyName, contractType, remote, seniority, educationFloor+educationFloorOp), NEVER in the LEXICAL legs (keywords/keywordsAnd/keywordsNot/role), which drive retrieval — even though this vocabulary also appears in the JD text. The structured field is authoritative. This holds even when the user's word is not itself a filter value but MAPS to one (\"junior\" → seniority [\"ENTRY\"], \"six figures\" → salaryMin 100000): the filter carries the concept and the wording stays out of every lexical leg. The vquery is exempt for everything except LOCATION — it only reranks (see 7).\n3. No stemming and phrases are near-exact: \"nurse\"≠\"nurses\", \"full stack\"≠\"fullstack\", \"per diem\"≠\"per-diem\". A multi-word entry must match all tokens in order. So expand every concept to 10-15 variants (≥6; 4-8 per exclusion): abbreviation+full form both ways (RN/Registered Nurse), singular+plural, every spelling, adjacent titles, ecosystem terms. EXCEPTION — an abbreviation that is also an everyday English word (IT, OR, DO, IN) is NEVER a bare single-word entry in keywords, keywordsAnd or keywordsNot: the index lowercases, so bare \"IT\" is the pronoun \"it\" and bare \"OR\" the conjunction — they match nearly every posting and the gate stops filtering. Carry the concept ONLY through its full form, its printed compounds and the family's roles: \"information technology\", \"IT support\", \"IT systems\", \"IT infrastructure\", \"systems administrator\", \"help desk\"; \"operating room\", \"OR nurse\", \"perioperative\", \"surgical services\", \"surgical technologist\"; \"doctor of osteopathy\", \"DO physician\". The abbreviation inside a multi-word phrase is fine; alone it is not. Contrast: RN → both \"RN\" and \"Registered Nurse\"; IT → \"information technology\", \"IT support\", never \"IT\" on its own.\n4. keywords is ONE OR list — a job matches on any single entry, so everything there is OPTIONAL and one stray secondary word floods the results. keywordsAnd is a list of groups, each REQUIRED (OR within a group, AND across groups) (in English).\n5. keywordsNot excludes only postings whose text literally contains the entry (lexical leg only).\n6. role is a soft boost on the TITLE only; it never filters and can never make an axis required — only a keyword/group can (in English).\n7. vquery feeds the relevance reranker and never filters: the user's WHOLE request as one clean natural-language sentence — their own words, spell-corrected, every constraint they stated INCLUDING the ones a filter also carries — EXCEPT LOCATION: no city, state, neighborhood or area name ever enters the vquery (the city/state fields already constrain geography, and postings rarely print their city, so a location in the vquery skews the reranker toward the rare posting that happens to mention one) — plus everything accumulated across the conversation. Drop NOTHING: a circumstance with no field of its own (\"TN visa\", \"post-concussion\") is exactly what must survive. NO synonym packing (the keyword graph carries variants), no superlatives you invent, nothing the user did not state. Always emit it (in English).\n\nRULE #1 — STRUCTURE & CALIBRATION (the most common failure, both directions): first COUNT the REQUIRED concepts — positive work-characteristics only. The occupation counts; each HARD requirement counts; a SOFT/optional preference does NOT count (\"a plus\", \"ideally\", \"nice to have\", a vague vibe/culture wish, \"good pay\" with no number) — soft never earns a group. Never harden a wish into a filter, never soften a stated requirement. Then choose:\n- NONE (pure location/salary/company, or \"show me jobs\", \"remote jobs\") → structured filters only, NO keywords (the vquery still restates the request, minus the location — see 7). A wish a JD PRINTS is not soft and is never NONE: pay frequency (\"paid weekly\" → weekly pay, paid weekly, weekly payroll), a named perk, a named tool — those are keywords even when the query names no occupation. An EXCLUSION is never NONE either: it keeps its keywordsNot plus the positive anchor the NEGATION rule requires.\n- Exactly ONE → keywords (one OR list) + role. Do NOT split a single axis into groups, and do NOT promote a soft wish to its own group (extra required groups STARVE the search).\n- TWO OR MORE → keywordsAnd, ALWAYS (this is the common case and the #1 quality lever): the occupation its OWN group FIRST, each other required axis (skill, benefit, industry) its OWN group. Putting two concepts in one OR list is WRONG — keywords [\"accountant\",\"SaaS\",\"401k\"] matches a job that is ANY ONE of those, so \"accountant\" alone floods and your \"SaaS\"/\"401k\" constraints vanish; it MUST be keywordsAnd [[\"accountant\",…],[\"SaaS\",\"software company\",…],[\"401k\",\"retirement plan\",…]]. NEVER flatten two requirements into one OR list; whenever the query names an occupation PLUS anything else, default to keywordsAnd. Never merge a secondary axis into the role list, never leave a printable axis to the vquery alone (it can't make anything required).\n- Whenever the user rejects, excludes, or says \"no/not/without X\", emit a keywordsNot for it (in the phrases a JD prints) — do not silently drop the exclusion.\nTwo gates before keeping any group: PRINTABILITY — would a typical relevant posting actually print this, and how (a structured field, literal text in the body, or not at all)? Give a lexical leg only to what a posting prints; never force lexically what they never print (no JD prints \"I'm a single parent\") — the vquery carries it anyway. GROUP PURITY — a group holds only tight variants of ONE concept; never pad it with a generic high-frequency word, or jobs match on that alone and your constraint goes optional → floods.\nGROUP CAP — aim for exactly 2 groups (occupation + the ONE strongest secondary axis); add a 3rd ONLY if all three are concrete and a posting would commonly print all three. Too many required AND groups STARVES the search (each group is a hard filter → returns too few). Over the cap: keep the 2 most discriminating printable axes and give the rest no group (the vquery carries them anyway).\nPRINTABLE axes (a relevant JD prints these literally → each gets its OWN keywordsAnd group, never the vquery alone, never dropped): a named skill/tech/certification/specialty; a named benefit/perk (401k, dental, gym, tuition, sign-on, game room); commute/transit (public transit, public transportation, transit accessible, near subway); a printed shift/schedule; an industry or company-stage; visa-sponsorship language. If the user names ANY of these next to an occupation, it MUST become its own group — the vquery carrying it is NOT enough, and it must not vanish (the most common mistake). Only truly unprintable wishes (vague culture/vibe, life circumstances, clock arithmetic, \"good pay\" with no number) ride the vquery alone.\n\nPER-AXIS PLAYBOOK — how each printable axis maps to parameters. Each printable axis = its OWN keywordsAnd group; expand each to 10-15 variants yourself (these are reminders, not full lists):\n- NAMED SKILL/TECH/CERT (Java, Kubernetes, ICU, CPA): own group + ecosystem terms (Java→JVM, Spring Boot; Kubernetes→k8s, EKS, Helm; ICU→intensive care, critical care). Never merge into the role list.\n- SCHEDULE/SHIFT: own group ONLY for shift-bearing roles (nursing/warehouse/retail/admin) — DROP it for engineering/office roles whose JDs never print shifts. Use numeric names (\"1st shift\", never \"first shift\"). A dislike (\"no weekends\", \"nothing overnight\") is a keywordsNot in requirement-shaped printed phrases (\"must work weekends\", \"weekend availability\", \"every other weekend\", \"rotating shift\") — never the bare day words — plus, ONLY when the occupation is the single axis and the gate is therefore the plain keywords list, complement terms in it (Monday-Friday, day shift, 1st shift). With keywordsAnd the engine ignores keywords, so there is no leg for a complement and none is emitted: the vquery already carries the wish.\n- EDUCATION: structured, never lexical. One level plus one operator, and the operator is chosen by asking \"is the user telling me what THEY have, or what the JOB must demand?\" First-person possession — \"I have\", \"I only got\", \"all I have is\", \"no degree\", \"no college\" — takes LTE (\"just a GED\" → HS+LTE; \"no degree\"/\"no college\" → TRADE+LTE; \"nothing needing a master's\" → BACH+LTE). LT is the strict form — the job must stay BELOW the level: never reached it (\"I never finished high school\" → HS+LT), or held while wanting less demanding work (\"I have a master's, show me simpler roles\" → MAST+LT). A query whose OBJECT is the requirement takes EQ (\"jobs requiring exactly a bachelor's\") or GTE (\"roles that need at least a master's\"). LTE and LT keep the postings that say nothing about education, which is most of them; EQ and GTE keep only the minority that state a floor — so a first-person ask routed to GTE quietly empties the page. Omit both when the query gives no explicit qualification: an occupation never implies one (\"data analyst\" is not a bachelor's), and being a student is seniority, not a qualification held. Emit no degree vocabulary in the lexical legs.\n- SENIORITY: any explicit seniority signal → the seniority filter, nothing else: \"no experience at all\" → seniority:[\"INTERNSHIP\",\"ENTRY\"]; entry/junior/career-change/returnship → [\"ENTRY\"]; internships → [\"INTERNSHIP\"]; mid-career → [\"MID\"]; senior/lead/principal/staff IC → [\"SENIOR\"]; manager/supervisor/team-lead-with-reports → [\"MANAGEMENT\"]; director/VP/executive/C-suite → [\"EXECUTIVE\"] (combine when the user spans levels, e.g. \"leadership roles\" → [\"MANAGEMENT\",\"EXECUTIVE\"]). The structured filter is authoritative and hard: emit NO seniority-flavored vocabulary in the lexical legs (keywords/keywordsAnd/keywordsNot/role) — any word that reads as a level (\"junior\", \"senior\", \"entry level\", \"experienced\", \"5+ years\") stays out even when it is not an enum value; the filter alone carries this axis — and never make a level a required AND group.\n- NEGATION / keywordsNot: for exclusions NO structured field covers — a task or tool (no forklift, no cold calling), an industry, staffing agencies, a source domain in a career change. Education is not among them: it has its own field and must never appear here. Exclude what a JD would PRINT, in requirement-shaped phrases, never a bare high-frequency word good JDs contain. NEVER emit alone: full-time, part-time, customer service, sales, retail, staff, manager, assistant, clinical, travel, office, standing, weekend, weekends, Saturday, Sunday, nights, evenings. Cover the morphological root and every printed form. A keywordsNot never travels alone: with nothing positive the gate falls back to a recency-ordered match-all, so keep an anchor in keywords or role — the occupation, or with no occupation the work they CAN do (\"no heavy lifting\" → light duty, sedentary, desk job in keywords). The anchor must share NO term with keywordsNot, and a negated phrase is never a keyword. Never promote a complement to a required keywordsAnd group, and never put a term in a required group and in keywordsNot at once (that returns zero results by construction).\n- CAREER CHANGE \"X into Y\": emit everything for the TARGET Y only; the SOURCE X is NEVER a positive term (it floods with the job they're leaving) → put 4-6 source markers in keywordsNot. Set seniority:[\"ENTRY\"] (they're entry-level in the target).\n- CONTRACT: \"not contract\" / \"no contractors\" → keywordsNot [contract, contractor, 1099, temporary, temp]; NEVER contractType (which is only for an explicit positive part-time/full-time ask). A per-diem/contract/flexible ask → REQUIRE the pattern positively (per diem, PRN, contract), do not exclude full-time/part-time.\n- BENEFIT/PERK: a named benefit = own group, expanded (gym→fitness center, on-site gym; 401k→retirement plan, employer match; tuition→tuition reimbursement, education assistance). Generic \"good benefits\"/\"great perks\" with no named benefit → no group.\n- INDUSTRY: title-bearing (fintech engineer) → put it in role + role group; a back-office role modified by industry (accountant in tech) → its own evidence group (SaaS, software company, startup); an EXCLUDED industry → keywordsNot.\n- CULTURE/VIBE (stable, supportive, low-stress, family-friendly): a group when an occupation exists, else a single OR keywords list for a no-occupation vibe query. NEVER turn a positive culture wish into antonym exclusions.\n- HARD DON'TS: NEVER set remote=false (omit it — false hard-excludes the jobs they want). NEVER infer a structured filter from another axis's vocabulary — every filter needs an explicit signal on its OWN axis: a qualification is educationFloor and NOT a seniority level nor a contractType; vague pay talk is NOT a salaryMin; when the signal is not explicit, OMIT the filter — unless another rule explicitly sets it (career change → seniority [\"ENTRY\"] still applies).\n\n- city (string) / state (2-letter code) — only when confident.\n- maxRadius (number) — only with both city+state AND an explicit radius in miles; otherwise omit.\n- salaryMin (number) — only from an EXPLICIT floor, always as an ANNUAL figure: yearly stays as-is ($100k, \"at least 80,000\", \"six figures\"=100000), an hourly floor CONVERTS at the engine's own convention of 1920 work hours/year (\"$25/hr\" → 48000); NEVER from vague pay language (\"pays well\", \"good pay\") → that rides vquery.\n- remote (boolean) — set true when the user wants to work AWAY FROM AN EMPLOYER SITE: the explicit words (remote / work from home / WFH / fully remote / from home) OR an unambiguous equivalent (not on-site, not in an office, from anywhere, work from a sailboat/RV/the beach, \"wear pajamas\"). Do NOT add remote when the query says NOTHING about where the work happens — a query that only names a company, role, skill, or salary is NOT remote (\"amazon jobs\", \"python 100k\", \"highest-paying jobs\" → no remote). Hybrid-only → leave unset. The structured flag is authoritative; emit no remote vocabulary in the lexical legs; NEVER set false; when unsure, omit.\n- contractType (array of \"FULL_TIME\" / \"PART_TIME\", optional) — only from an EXPLICIT positive part-time / full-time ask; never from a \"no contract\" / \"no contractors\" exclusion (that rides keywordsNot). Omit otherwise.\n- seniority (array of \"INTERNSHIP\" / \"ENTRY\" / \"MID\" / \"SENIOR\" / \"MANAGEMENT\" / \"EXECUTIVE\") — only from an explicit seniority signal, mapped per the SENIORITY rule; hard filter. Omit otherwise.\n- educationFloor (\"HS\" / \"TRADE\" / \"ASSOC\" / \"BACH\" / \"MAST\" / \"DOC\") + educationFloorOp (\"LTE\" / \"LT\" / \"EQ\" / \"GTE\") — one level and one comparison against what a job requires, per the EDUCATION rule. Send both together, and omit both when the query says nothing about qualifications.\n- page (number, default 1) — increase for \"more results\".\n- prompt (string) — the user's original text, PII-redacted; analytics only.\n\n- companyName (string, optional)\n  Company name filter: exact match on the employer name, with common aliases resolved by the search.\n  Examples: \"Google\", \"Starbucks\"\n\n`requisitionId` is not used for this client. Never set it.\n\nBehavior and guardrails:\n\n- Each call returns results for the supplied filters and page number, and earlier calls are not remembered: a refinement sends the previous arguments again with only what changed (every other valid constraint stays unless the user drops it), and a genuinely new topic starts from fresh arguments.\n- For more results, the same filters are sent with a higher page.\n- Results are current open job postings, matched on filters taken from the request or on a US location inferred with high confidence.\n- Omit any parameter that cannot be filled from the request with high confidence.\n- Never fabricate a search value — a salary, company, role, city, or state that was not given; when unsure, omit it.\n\n\nExamples:\n\n\"backend engineer who knows Kubernetes\" →\n{ \"vquery\": \"backend engineer who knows Kubernetes\",\n  \"keywordsAnd\": [[\"backend engineer\",\"backend developer\",\"software engineer\",\"server-side engineer\",\"platform engineer\"],[\"Kubernetes\",\"k8s\",\"EKS\",\"GKE\",\"Helm\",\"container orchestration\"]],\n  \"role\": [\"Backend Engineer\",\"Software Engineer\",\"Platform Engineer\"] }\n\n\"teacher moving into UX design, first job in the field\" → (career change: target only + seniority filter + source exclusion)\n{ \"vquery\": \"moving into UX design from teaching, first job in the field\",\n  \"keywords\": [\"UX designer\",\"product designer\",\"user experience designer\",\"UI/UX designer\"],\n  \"keywordsNot\": [\"teacher\",\"teaching\",\"classroom\"],\n  \"seniority\": [\"ENTRY\"],\n  \"role\": [\"UX Designer\",\"Product Designer\"] }\n\n\"remote nursing jobs that pay well, no weekends\" → (remote=structured; \"pay well\" is soft→vquery, no salaryMin; the dislike is a keywordsNot and the occupation stays the positive anchor)\n{ \"vquery\": \"remote nursing job that pays well, no weekends\",\n  \"keywords\": [\"registered nurse\",\"RN\",\"staff nurse\",\"clinical nurse\"],\n  \"keywordsNot\": [\"nights and weekends\",\"every other weekend\",\"rotating shift\",\"weekends and holidays\"],\n  \"role\": [\"Registered Nurse\",\"Staff Nurse\"],\n  \"remote\": true }\n\n\"warehouse job, 3 twelve-hour shifts a week, days only, no forklift\" → (warehouse JDs print shift LENGTH, so it earns its own group — one concept only; \"days only\" is a dislike, so it is keywordsNot plus the vquery, never a complement inside a required group)\n{ \"vquery\": \"warehouse job, three twelve-hour shifts a week, days only, no forklift\",\n  \"keywordsAnd\": [[\"warehouse\",\"warehouse associate\",\"distribution center\",\"fulfillment center\",\"material handler\",\"order picker\"],[\"12 hour shift\",\"12-hour shift\",\"three 12s\",\"three 12-hour shifts\"]],\n  \"keywordsNot\": [\"forklift\",\"fork lift\",\"forklift operator\",\"reach truck\",\"cherry picker\",\"night shift\",\"overnight\",\"3rd shift\",\"graveyard\"],\n  \"role\": [\"Warehouse Associate\",\"Material Handler\"] }\n\n\"I only have a high school diploma, looking for office work 9 to 5\" → (\"diploma\" is what the user HOLDS, so LTE — never EQ or GTE, which would keep only the postings that state a floor; and 9-to-5 is only the two dislikes, since requiring day/weekday wording would gate on text most office postings never print)\n{ \"vquery\": \"office work 9 to 5 with only a high school diploma\",\n  \"keywords\": [\"office assistant\",\"administrative assistant\",\"office clerk\",\"front desk\",\"receptionist\",\"data entry\"],\n  \"educationFloor\": \"HS\", \"educationFloorOp\": \"LTE\",\n  \"keywordsNot\": [\"night shift\",\"overnight\",\"must work weekends\",\"weekend availability\"],\n  \"role\": [\"Administrative Assistant\",\"Office Assistant\"] }\n\n\"jobs that pay well without a degree\" → (still what the user holds, so LTE: EQ or GTE here would drop the two thirds of postings that state no floor)\n{ \"vquery\": \"well paying job that needs no degree\",\n  \"educationFloor\": \"TRADE\", \"educationFloorOp\": \"LTE\" }\n\n\"Show me jobs with no heavy lifting\" → (an exclusion with no occupation: the anchor is the work they CAN do — never the excluded terms themselves, which would require and exclude at once and return zero)\n{ \"vquery\": \"job with no heavy lifting\",\n  \"keywords\": [\"light lifting\",\"light duty\",\"sedentary\",\"desk job\",\"office work\"],\n  \"keywordsNot\": [\"heavy lifting\",\"frequently lift\",\"physically demanding\"] }\n\n\"gym at a tech company\" → (two attributes, NO occupation named — still keywordsAnd, each its own group)\n{ \"vquery\": \"job at a tech company with a gym\",\n  \"keywordsAnd\": [[\"gym\",\"fitness center\",\"on-site gym\",\"gym membership\",\"wellness\"],[\"tech company\",\"technology company\",\"software company\",\"SaaS\",\"startup\"]] }\n\n\"mid to senior accountant with QuickBooks, no management roles\" → (level span → BOTH values in the filter; \"no management\" is already guaranteed by the hard filter — zero level vocabulary in the LEXICAL legs, while the vquery restates it)\n{ \"vquery\": \"mid to senior accountant with QuickBooks, no management roles\",\n  \"keywordsAnd\": [[\"accountant\",\"accounting\",\"staff accountant\"],[\"QuickBooks\",\"QuickBooks Online\",\"QBO\"]],\n  \"seniority\": [\"MID\",\"SENIOR\"],\n  \"role\": [\"Accountant\"] }\n\n\"per diem ER nurse, want to pick up shifts on my schedule\" → (per-diem employment and self-scheduling are both printed lexical patterns)\n{ \"vquery\": \"per diem ER nurse who wants to pick up shifts on their own schedule\",\n  \"keywordsAnd\": [[\"registered nurse\",\"RN\",\"ER nurse\",\"emergency department nurse\",\"ED RN\"],[\"per diem\",\"per-diem\",\"PRN\",\"float pool\",\"self-scheduling\",\"pick up shifts\"]],\n  \"role\": [\"Registered Nurse\",\"Emergency Department Registered Nurse\",\"Per Diem Registered Nurse\"] }\n\n\"supportive weekend jobs with work-life balance\" → (weekend work is printed by these JDs, so it earns its own group beside the culture one)\n{ \"vquery\": \"supportive weekend job with work-life balance\",\n  \"keywordsAnd\": [[\"weekend\",\"weekends\",\"Saturday\",\"Sunday\"],[\"supportive\",\"work-life balance\",\"work life balance\",\"stable\",\"predictable\"]] }\n\n\"nurse in San Francisco\" → (location lives ONLY in city/state, never in the vquery — the rest of the request stays)\n{ \"vquery\": \"nurse\",\n  \"keywords\": [\"registered nurse\",\"RN\",\"staff nurse\",\"clinical nurse\"],\n  \"role\": [\"Registered Nurse\",\"Staff Nurse\"],\n  \"city\": \"San Francisco\", \"state\": \"CA\" }\n\nFollow-up example — \"Make it cheaper\": the previous filters are sent again with salaryMin lowered (or added).\n\nDo not invent unsupported filters; if no supported parameter matches the request, keep the existing supported filters unchanged.\n",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "job-search"
+    ]
+  }
+}

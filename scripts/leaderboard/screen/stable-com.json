@@ -1,0 +1,1214 @@
+{
+  "slug": "stable-com",
+  "source_url": "https://manufact.com/mcp-catalog/stable-com",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:25:15.208Z",
+    "endpoint": "https://api-defi.stable.com/v1/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "stable-swap",
+      "version": "0.1.0"
+    },
+    "capabilities": {
+      "logging": {},
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "This service uses its own internal chain identifiers, NOT standard EVM chain IDs. Always call swap_get_config first to discover the supported chainId values (for example Ethereum is \"101\", not \"1\") and asset symbols, then pass those exact chainId strings to the other tools (account_get_balances, account_get_allowances, swap_get_quote, swap_get_crosschain_status, etc.). Never assume standard chain IDs. All tools are read-only and never sign transactions or change on-chain state.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "readOnlyHint": true
+            },
+            "description": "Returns the Permit2 and LiquidityPool allowances for the given (chainId, address, token) tuples. chainId values come from swap_get_config (e.g. \"101\" for Ethereum), not standard EVM chain IDs. token is an asset symbol such as USDT; each result echoes it back as token and also reports the underlying contract as tokenAddress. Allowances are returned as human-readable decimal amounts. A per-result error field is set when a single chain could not be read. Useful for telling the user whether an approve is required before swapping. Read-only.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "queries": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "chainId": {
+                        "type": "string",
+                        "description": "the chain id from swap_get_config (e.g. 101 for Ethereum), NOT a standard EVM chain id"
+                      },
+                      "address": {
+                        "type": "string",
+                        "description": "the wallet address to check allowances for"
+                      },
+                      "token": {
+                        "type": "string",
+                        "description": "optional token symbol; if empty, returns all tokens for chain+address"
+                      }
+                    },
+                    "required": [
+                      "chainId",
+                      "address"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "one entry per (chainId, address, token) tuple to look up; returns Permit2 and LiquidityPool allowances"
+                }
+              },
+              "required": [
+                "queries"
+              ],
+              "additionalProperties": false
+            },
+            "name": "account_get_allowances",
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "results": {
+                  "type": [
+                    "null",
+                    "array"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "chainId": {
+                        "type": "string"
+                      },
+                      "address": {
+                        "type": "string"
+                      },
+                      "token": {
+                        "type": "string"
+                      },
+                      "tokenAddress": {
+                        "type": "string"
+                      },
+                      "allowancePool": {
+                        "type": "string"
+                      },
+                      "allowancePermit2": {
+                        "type": "string"
+                      },
+                      "error": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "chainId",
+                      "address",
+                      "token"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "results"
+              ],
+              "additionalProperties": false
+            },
+            "title": "Get ERC-20 allowances"
+          },
+          {
+            "_meta": {
+              "openai/outputTemplate": "ui://widget/account-balances.html",
+              "ui": {
+                "csp": {
+                  "redirectDomains": [
+                    "stable.com"
+                  ]
+                },
+                "resourceUri": "ui://widget/account-balances.html"
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "readOnlyHint": true
+            },
+            "description": "Returns native and token balances for the given (chainId, address) pairs. chainId values come from swap_get_config (e.g. \"101\" for Ethereum), not standard EVM chain IDs. Note that the response is keyed by lowercase chain NAME (\"ethereum\", \"bsc\"), not by the chainId that was passed in. Chains with no balance are omitted, as is the tokens list when no token has a non-zero balance; chains that could not be read are listed in failedChains with partial set to true. Read-only.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "accounts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "chainId": {
+                        "type": "string",
+                        "description": "the chain id from swap_get_config (e.g. 101 for Ethereum), NOT a standard EVM chain id"
+                      },
+                      "address": {
+                        "type": "string",
+                        "description": "the wallet address on that chain"
+                      }
+                    },
+                    "required": [
+                      "chainId",
+                      "address"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "one entry per wallet to query; repeat the entry to query the same address on several chains"
+                }
+              },
+              "required": [
+                "accounts"
+              ],
+              "additionalProperties": false
+            },
+            "name": "account_get_balances",
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "chains": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "nativeBalance": {
+                        "type": "string"
+                      },
+                      "tokens": {
+                        "type": [
+                          "null",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "asset": {
+                              "type": "string"
+                            },
+                            "balance": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "asset",
+                            "balance"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "partial": {
+                  "type": "boolean"
+                },
+                "failedChains": {
+                  "type": [
+                    "null",
+                    "array"
+                  ],
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "chains"
+              ],
+              "additionalProperties": false
+            },
+            "title": "Get account balances"
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Returns the catalogue of supported chains (chainId and name) and assets (symbol and the chains each one is available on). Read-only. Does not execute any transaction.",
+            "inputSchema": {
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "swap_get_config",
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "chains": {
+                  "type": [
+                    "null",
+                    "array"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "chainId": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "chainId",
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "assets": {
+                  "type": [
+                    "null",
+                    "array"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "asset": {
+                        "type": "string"
+                      },
+                      "availableOnChains": {
+                        "type": [
+                          "null",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "asset",
+                      "availableOnChains"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "chains",
+                "assets"
+              ],
+              "additionalProperties": false
+            },
+            "title": "Get swap config"
+          },
+          {
+            "_meta": {
+              "openai/outputTemplate": "ui://widget/swap-crosschain-status.html",
+              "ui": {
+                "csp": {
+                  "redirectDomains": [
+                    "stable.com"
+                  ]
+                },
+                "resourceUri": "ui://widget/swap-crosschain-status.html"
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "readOnlyHint": true
+            },
+            "description": "Returns the status of a cross-chain swap identified by its secretHash. Transaction id fields are included only for the stages the swap has actually reached — a refund id, for example, appears only if the swap was refunded. Read-only.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "secretHash": {
+                  "type": "string",
+                  "description": "the secretHash identifying a cross-chain swap the user already started on Stable, hex-encoded; the 0x prefix is optional and stripped automatically"
+                }
+              },
+              "required": [
+                "secretHash"
+              ],
+              "additionalProperties": false
+            },
+            "name": "swap_get_crosschain_status",
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "sourceLockTransactionId": {
+                  "type": "string"
+                },
+                "destinationLockTransactionId": {
+                  "type": "string"
+                },
+                "destinationClaimTransactionId": {
+                  "type": "string"
+                },
+                "sourceRefundTransactionId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "additionalProperties": false
+            },
+            "title": "Get cross-chain swap status"
+          },
+          {
+            "_meta": {
+              "openai/outputTemplate": "ui://widget/swap-quote.html",
+              "ui": {
+                "csp": {
+                  "redirectDomains": [
+                    "stable.com"
+                  ]
+                },
+                "resourceUri": "ui://widget/swap-quote.html"
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Computes a swap quote for a (assetFrom, chainFrom) → (assetTo, chainTo) pair. Returns amountFrom and amountTo, the min and max amounts accepted, the source pool balance, and the fees: executionFeeUSD, amlFeeUSD, and nativeFeeUsd (the separate native-token gas fee, which is absent when gasLess is true). There is no exchange-rate field — derive it from amountFrom and amountTo if needed. Read-only — does not execute any transaction.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "assetFrom": {
+                  "type": "string",
+                  "description": "the source asset symbol, e.g. USDT"
+                },
+                "chainFrom": {
+                  "type": "string",
+                  "description": "the source chain id, e.g. 101"
+                },
+                "assetTo": {
+                  "type": "string",
+                  "description": "the destination asset symbol"
+                },
+                "chainTo": {
+                  "type": "string",
+                  "description": "the destination chain id"
+                },
+                "amountFrom": {
+                  "type": "string",
+                  "description": "the source amount as a decimal string"
+                },
+                "amountTo": {
+                  "type": "string",
+                  "description": "the destination amount as a decimal string (alternative to amountFrom)"
+                },
+                "addressFrom": {
+                  "type": "string",
+                  "description": "optional sender address on the source chain. Only affects accuracy: when given, gas is estimated against that account's actual on-chain state instead of a default, refining executionFeeUSD. Omit it if the user has not provided an address — the quote works without it"
+                },
+                "addressTo": {
+                  "type": "string",
+                  "description": "optional recipient address on the destination chain. Only affects accuracy, in the same way as addressFrom. Omit it if the user has not provided an address"
+                },
+                "gasLess": {
+                  "type": "boolean",
+                  "description": "if true, executionFee is paid in the swap asset and reduces amountTo; if false, the user pays a separate native-token gas fee and amountTo equals amountFrom"
+                }
+              },
+              "required": [
+                "assetFrom",
+                "chainFrom",
+                "assetTo",
+                "chainTo"
+              ],
+              "additionalProperties": false
+            },
+            "name": "swap_get_quote",
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "amountFrom": {
+                  "type": "string"
+                },
+                "amountTo": {
+                  "type": "string"
+                },
+                "assetFrom": {
+                  "type": "string"
+                },
+                "assetTo": {
+                  "type": "string"
+                },
+                "min": {
+                  "type": "string"
+                },
+                "max": {
+                  "type": "string"
+                },
+                "balance": {
+                  "type": "string"
+                },
+                "executionFeeUSD": {
+                  "type": "string"
+                },
+                "nativeFeeUsd": {
+                  "type": "string"
+                },
+                "amlFeeUSD": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "amountFrom",
+                "amountTo"
+              ],
+              "additionalProperties": false
+            },
+            "title": "Get swap quote"
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "readOnlyHint": true
+            },
+            "description": "Returns the status of a single-chain (Liquidity Pool) swap identified by its orderId. Read-only.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "orderId": {
+                  "type": "string",
+                  "description": "the orderId identifying a single-chain swap the user already started on Stable"
+                }
+              },
+              "required": [
+                "orderId"
+              ],
+              "additionalProperties": false
+            },
+            "name": "swap_get_singlechain_status",
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "swapTransactionId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "additionalProperties": false
+            },
+            "title": "Get single-chain swap status"
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "readOnlyHint": true
+            },
+            "description": "Checks whether the destination (or source-gasless) lock for a given secretHash exists and is valid on-chain. Read-only.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "secretHash": {
+                  "type": "string",
+                  "description": "the secretHash of the swap to validate, hex-encoded; the 0x prefix is optional and stripped automatically"
+                },
+                "type": {
+                  "type": "string",
+                  "description": "the lock side to validate; allowed values: lockDestination or lockSourceGasless",
+                  "enum": [
+                    "lockDestination",
+                    "lockSourceGasless"
+                  ]
+                }
+              },
+              "required": [
+                "secretHash",
+                "type"
+              ],
+              "additionalProperties": false
+            },
+            "name": "swap_validate_lock",
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "valid": {
+                  "type": "boolean"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "secretHash": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "string"
+                },
+                "token": {
+                  "type": "string"
+                },
+                "chain": {
+                  "type": "string"
+                },
+                "recipient": {
+                  "type": "string"
+                },
+                "lockTime": {
+                  "type": "integer"
+                },
+                "deadline": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "valid"
+              ],
+              "additionalProperties": false
+            },
+            "title": "Validate cross-chain lock"
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "readOnlyHint": true
+        },
+        "description": "Returns the Permit2 and LiquidityPool allowances for the given (chainId, address, token) tuples. chainId values come from swap_get_config (e.g. \"101\" for Ethereum), not standard EVM chain IDs. token is an asset symbol such as USDT; each result echoes it back as token and also reports the underlying contract as tokenAddress. Allowances are returned as human-readable decimal amounts. A per-result error field is set when a single chain could not be read. Useful for telling the user whether an approve is required before swapping. Read-only.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "queries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "chainId": {
+                    "type": "string",
+                    "description": "the chain id from swap_get_config (e.g. 101 for Ethereum), NOT a standard EVM chain id"
+                  },
+                  "address": {
+                    "type": "string",
+                    "description": "the wallet address to check allowances for"
+                  },
+                  "token": {
+                    "type": "string",
+                    "description": "optional token symbol; if empty, returns all tokens for chain+address"
+                  }
+                },
+                "required": [
+                  "chainId",
+                  "address"
+                ],
+                "additionalProperties": false
+              },
+              "description": "one entry per (chainId, address, token) tuple to look up; returns Permit2 and LiquidityPool allowances"
+            }
+          },
+          "required": [
+            "queries"
+          ],
+          "additionalProperties": false
+        },
+        "name": "account_get_allowances",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "results": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "chainId": {
+                    "type": "string"
+                  },
+                  "address": {
+                    "type": "string"
+                  },
+                  "token": {
+                    "type": "string"
+                  },
+                  "tokenAddress": {
+                    "type": "string"
+                  },
+                  "allowancePool": {
+                    "type": "string"
+                  },
+                  "allowancePermit2": {
+                    "type": "string"
+                  },
+                  "error": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "chainId",
+                  "address",
+                  "token"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "results"
+          ],
+          "additionalProperties": false
+        },
+        "title": "Get ERC-20 allowances"
+      },
+      {
+        "_meta": {
+          "openai/outputTemplate": "ui://widget/account-balances.html",
+          "ui": {
+            "csp": {
+              "redirectDomains": [
+                "stable.com"
+              ]
+            },
+            "resourceUri": "ui://widget/account-balances.html"
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "readOnlyHint": true
+        },
+        "description": "Returns native and token balances for the given (chainId, address) pairs. chainId values come from swap_get_config (e.g. \"101\" for Ethereum), not standard EVM chain IDs. Note that the response is keyed by lowercase chain NAME (\"ethereum\", \"bsc\"), not by the chainId that was passed in. Chains with no balance are omitted, as is the tokens list when no token has a non-zero balance; chains that could not be read are listed in failedChains with partial set to true. Read-only.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "accounts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "chainId": {
+                    "type": "string",
+                    "description": "the chain id from swap_get_config (e.g. 101 for Ethereum), NOT a standard EVM chain id"
+                  },
+                  "address": {
+                    "type": "string",
+                    "description": "the wallet address on that chain"
+                  }
+                },
+                "required": [
+                  "chainId",
+                  "address"
+                ],
+                "additionalProperties": false
+              },
+              "description": "one entry per wallet to query; repeat the entry to query the same address on several chains"
+            }
+          },
+          "required": [
+            "accounts"
+          ],
+          "additionalProperties": false
+        },
+        "name": "account_get_balances",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "chains": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "nativeBalance": {
+                    "type": "string"
+                  },
+                  "tokens": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "asset": {
+                          "type": "string"
+                        },
+                        "balance": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "asset",
+                        "balance"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "partial": {
+              "type": "boolean"
+            },
+            "failedChains": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "chains"
+          ],
+          "additionalProperties": false
+        },
+        "title": "Get account balances"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Returns the catalogue of supported chains (chainId and name) and assets (symbol and the chains each one is available on). Read-only. Does not execute any transaction.",
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "swap_get_config",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "chains": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "chainId": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "chainId",
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "assets": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "asset": {
+                    "type": "string"
+                  },
+                  "availableOnChains": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "asset",
+                  "availableOnChains"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "chains",
+            "assets"
+          ],
+          "additionalProperties": false
+        },
+        "title": "Get swap config"
+      },
+      {
+        "_meta": {
+          "openai/outputTemplate": "ui://widget/swap-crosschain-status.html",
+          "ui": {
+            "csp": {
+              "redirectDomains": [
+                "stable.com"
+              ]
+            },
+            "resourceUri": "ui://widget/swap-crosschain-status.html"
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "readOnlyHint": true
+        },
+        "description": "Returns the status of a cross-chain swap identified by its secretHash. Transaction id fields are included only for the stages the swap has actually reached — a refund id, for example, appears only if the swap was refunded. Read-only.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "secretHash": {
+              "type": "string",
+              "description": "the secretHash identifying a cross-chain swap the user already started on Stable, hex-encoded; the 0x prefix is optional and stripped automatically"
+            }
+          },
+          "required": [
+            "secretHash"
+          ],
+          "additionalProperties": false
+        },
+        "name": "swap_get_crosschain_status",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            },
+            "sourceLockTransactionId": {
+              "type": "string"
+            },
+            "destinationLockTransactionId": {
+              "type": "string"
+            },
+            "destinationClaimTransactionId": {
+              "type": "string"
+            },
+            "sourceRefundTransactionId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        "title": "Get cross-chain swap status"
+      },
+      {
+        "_meta": {
+          "openai/outputTemplate": "ui://widget/swap-quote.html",
+          "ui": {
+            "csp": {
+              "redirectDomains": [
+                "stable.com"
+              ]
+            },
+            "resourceUri": "ui://widget/swap-quote.html"
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Computes a swap quote for a (assetFrom, chainFrom) → (assetTo, chainTo) pair. Returns amountFrom and amountTo, the min and max amounts accepted, the source pool balance, and the fees: executionFeeUSD, amlFeeUSD, and nativeFeeUsd (the separate native-token gas fee, which is absent when gasLess is true). There is no exchange-rate field — derive it from amountFrom and amountTo if needed. Read-only — does not execute any transaction.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "assetFrom": {
+              "type": "string",
+              "description": "the source asset symbol, e.g. USDT"
+            },
+            "chainFrom": {
+              "type": "string",
+              "description": "the source chain id, e.g. 101"
+            },
+            "assetTo": {
+              "type": "string",
+              "description": "the destination asset symbol"
+            },
+            "chainTo": {
+              "type": "string",
+              "description": "the destination chain id"
+            },
+            "amountFrom": {
+              "type": "string",
+              "description": "the source amount as a decimal string"
+            },
+            "amountTo": {
+              "type": "string",
+              "description": "the destination amount as a decimal string (alternative to amountFrom)"
+            },
+            "addressFrom": {
+              "type": "string",
+              "description": "optional sender address on the source chain. Only affects accuracy: when given, gas is estimated against that account's actual on-chain state instead of a default, refining executionFeeUSD. Omit it if the user has not provided an address — the quote works without it"
+            },
+            "addressTo": {
+              "type": "string",
+              "description": "optional recipient address on the destination chain. Only affects accuracy, in the same way as addressFrom. Omit it if the user has not provided an address"
+            },
+            "gasLess": {
+              "type": "boolean",
+              "description": "if true, executionFee is paid in the swap asset and reduces amountTo; if false, the user pays a separate native-token gas fee and amountTo equals amountFrom"
+            }
+          },
+          "required": [
+            "assetFrom",
+            "chainFrom",
+            "assetTo",
+            "chainTo"
+          ],
+          "additionalProperties": false
+        },
+        "name": "swap_get_quote",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "amountFrom": {
+              "type": "string"
+            },
+            "amountTo": {
+              "type": "string"
+            },
+            "assetFrom": {
+              "type": "string"
+            },
+            "assetTo": {
+              "type": "string"
+            },
+            "min": {
+              "type": "string"
+            },
+            "max": {
+              "type": "string"
+            },
+            "balance": {
+              "type": "string"
+            },
+            "executionFeeUSD": {
+              "type": "string"
+            },
+            "nativeFeeUsd": {
+              "type": "string"
+            },
+            "amlFeeUSD": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "amountFrom",
+            "amountTo"
+          ],
+          "additionalProperties": false
+        },
+        "title": "Get swap quote"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "readOnlyHint": true
+        },
+        "description": "Returns the status of a single-chain (Liquidity Pool) swap identified by its orderId. Read-only.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "orderId": {
+              "type": "string",
+              "description": "the orderId identifying a single-chain swap the user already started on Stable"
+            }
+          },
+          "required": [
+            "orderId"
+          ],
+          "additionalProperties": false
+        },
+        "name": "swap_get_singlechain_status",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            },
+            "swapTransactionId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        "title": "Get single-chain swap status"
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "readOnlyHint": true
+        },
+        "description": "Checks whether the destination (or source-gasless) lock for a given secretHash exists and is valid on-chain. Read-only.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "secretHash": {
+              "type": "string",
+              "description": "the secretHash of the swap to validate, hex-encoded; the 0x prefix is optional and stripped automatically"
+            },
+            "type": {
+              "type": "string",
+              "description": "the lock side to validate; allowed values: lockDestination or lockSourceGasless",
+              "enum": [
+                "lockDestination",
+                "lockSourceGasless"
+              ]
+            }
+          },
+          "required": [
+            "secretHash",
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        "name": "swap_validate_lock",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "valid": {
+              "type": "boolean"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "secretHash": {
+              "type": "string"
+            },
+            "amount": {
+              "type": "string"
+            },
+            "token": {
+              "type": "string"
+            },
+            "chain": {
+              "type": "string"
+            },
+            "recipient": {
+              "type": "string"
+            },
+            "lockTime": {
+              "type": "integer"
+            },
+            "deadline": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "valid"
+          ],
+          "additionalProperties": false
+        },
+        "title": "Validate cross-chain lock"
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:25:11.866Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:25:12.917Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:25:13.968Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:25:15.018Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 7,
+    "tools_hash": "sha256:1b440148bcc21d67f6fe834f2bbe54e23701a72b42f2e329e81269e64f17596c",
+    "static_tool_tokens": 2535,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "swap_get_config",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "swap_get_singlechain_status",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "swap_validate_lock",
+        "message": "Description does not say when to use this tool."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 3,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [],
+      "flags": []
+    },
+    "read_only_allowlist": [
+      "account_get_allowances",
+      "account_get_balances",
+      "swap_get_config",
+      "swap_get_crosschain_status",
+      "swap_get_quote",
+      "swap_get_singlechain_status",
+      "swap_validate_lock"
+    ]
+  }
+}

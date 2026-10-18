@@ -1,0 +1,886 @@
+{
+  "slug": "figaro-immobilier",
+  "source_url": "https://manufact.com/mcp-catalog/figaro-immobilier",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:23:48.312Z",
+    "endpoint": "https://immobilier.lefigaro.fr/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "FigimmoListing",
+      "version": "1.0.0"
+    },
+    "capabilities": {
+      "logging": {},
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "pages": [
+      {
+        "tools": [
+          {
+            "_meta": {
+              "openai/outputTemplate": "ui://widget/listing.html",
+              "openai/toolInvocation/invoked": "Annonces récupérées",
+              "openai/toolInvocation/invoking": "Récupération des annonces"
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "readOnlyHint": true,
+              "title": "Recherche d'annonces immobilières"
+            },
+            "description": "Recherche d'annonces immobilières sur Figaro Immobilier avec des critères détaillés.\n\nWORKFLOW OBLIGATOIRE:\n1. TOUJOURS appeler search_locations d'abord pour obtenir typeID, insee, et id de la localisation\n2. Utiliser les valeurs retournées par search_locations dans cet outil\n3. Pour utiliser radiusKm, réutiliser aussi search_locations.coordinates dans le paramètre coordinates\n4. SI l'utilisateur demande un rayon ou une distance autour d'une localisation (\"autour de\", \"dans un rayon de\", \"à moins de X km de\", \"within X km\"), l'appel à listings DOIT inclure radiusKm ET coordinates. Pour une recherche par rayon, ne pas restreindre en plus avec insee/legacyID, sinon la recherche devient \"dans cette ville ET dans le rayon\" au lieu de \"autour de cette ville\"\n5. SI l'utilisateur veut des biens \"autour de\", \"près de\", \"near\" une localisation mais sans distance explicite, utiliser radiusKm=10 par défaut\n\nTypes de biens (utiliser ces termes français exacts):\n- Appartements: 'appartement' (inclut studio, loft, duplex)\n- Maisons: 'maison' (inclut villa, manoir, chalet, ferme)\n- Terrain: 'terrain'\n- Parking: 'parking'\n- Château: 'château'\n- Commercial: 'locaux professionnels'\nUtiliser get_estate_types pour la liste complète.\n\nUTILISATION DES PARAMÈTRES DE LOCALISATION:\n- typeID: OBLIGATOIRE - provient de search_locations\n- Pour VILLES (typeID 4 ou 6):\n  * Utiliser le champ 'inseeCode' de search_locations dans le paramètre 'insee'\n  * Ne PAS utiliser legacyID pour les villes\n- Pour RÉGIONS (typeID 2):\n  * Utiliser le champ 'id' de search_locations dans le paramètre 'legacyID'\n  * Ne PAS utiliser insee pour les régions\n- Pour DÉPARTEMENTS (typeID 3):\n  * Utiliser le champ 'id' de search_locations dans le paramètre 'legacyID'\n  * Ne PAS utiliser insee pour les départements\n- Pour QUARTIERS (typeID 7):\n  * Utiliser le champ 'id' de search_locations dans le paramètre 'legacyID'\n  * Le quartier doit avoir un champ 'district' non vide dans search_locations\n\nEXEMPLES COMPLETS:\nExemple 1 - Ville:\n  User: \"appartement à Paris\"\n  1. Appeler search_locations(locationName=\"paris\") → {typeID: 6, inseeCode: \"75056\", id: \"123\", coordinates: {lat: 48.8566, lon: 2.3522}}\n  2. Appeler listings(typeID=6, insee=\"75056\", estateTypes=[\"appartement\"])\n\nExemple 1 bis - Ville avec rayon, chambres et DPE:\n  User: \"appartement 2 chambres min à 10 km de Paris, DPE A ou B\"\n  1. Appeler search_locations(locationName=\"paris\") → {typeID: 6, inseeCode: \"75056\", id: \"123\", coordinates: {lat: 48.8566, lon: 2.3522}}\n  2. Appeler listings(typeID=6, coordinates={lat: 48.8566, lon: 2.3522}, radiusKm=10, minimumBedrooms=2, dpeCategories=[\"A\",\"B\"], estateTypes=[\"appartement\"])\n\nExemple 1 ter - Comportement interdit puis correct:\n  User: \"biens à 5 km de Lattes\"\n  Interdit: listings(typeID=6, insee=\"34129\")\n  Correct:\n  1. search_locations(locationName=\"lattes\") → {typeID: 6, inseeCode: \"34129\", coordinates: {lat: 43.57, lon: 3.9}}\n  2. listings(typeID=6, coordinates={lat: 43.57, lon: 3.9}, radiusKm=5)\n\nExemple 1 quater - Rayon par défaut:\n  User: \"biens autour de Lattes\"\n  1. search_locations(locationName=\"lattes\") → {typeID: 6, inseeCode: \"34129\", coordinates: {lat: 43.57, lon: 3.9}}\n  2. listings(typeID=6, coordinates={lat: 43.57, lon: 3.9}, radiusKm=10)\n\nExemple 2 - Département:\n  User: \"maison dans le Var\"\n  1. Appeler search_locations(locationName=\"var\", departmentCode=\"83\") → {typeID: 3, id: \"83\"}\n  2. Appeler listings(typeID=3, legacyID=\"83\", estateTypes=[\"maison\"])\n\nExemple 2 bis - Région:\n  User: \"maison en Bretagne\"\n  1. Appeler search_locations(locationName=\"bretagne\") → {typeID: 2, id: \"Bretagne\"}\n  2. Appeler listings(typeID=2, legacyID=\"Bretagne\", estateTypes=[\"maison\"])\n\nExemple 3 - Quartier:\n  User: \"appartement Bastille\"\n  1. Appeler search_locations(locationName=\"bastille\") → {typeID: 7, id: \"bastille\", district: \"bastille\"}\n  2. Appeler listings(typeID=7, legacyID=\"bastille\", estateTypes=[\"appartement\"])\n\n\nAFFICHAGE DES RÉSULTATS:\nChaque annonce retournée contient un champ 'url' avec le lien direct vers l'annonce sur Figaro Immobilier.\nOBLIGATOIRE: Toujours afficher l'URL sous forme de lien Markdown cliquable pour chaque annonce.\nFormat: [Voir l'annonce](url)\nExemple de rendu pour une annonce:\n- 📍 Paris 75001 - Appartement 3 pièces - 65m² - 450 000€\n- [Voir l'annonce](https://immobilier.lefigaro.fr/annonces/annonce-123456.html)",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "minimumPrice": {
+                  "type": [
+                    "null",
+                    "integer"
+                  ],
+                  "description": "prix minimum en euros"
+                },
+                "maximumPrice": {
+                  "type": [
+                    "null",
+                    "integer"
+                  ],
+                  "description": "prix maximum en euros"
+                },
+                "minimumSurface": {
+                  "type": [
+                    "null",
+                    "integer"
+                  ],
+                  "description": "surface minimum en m²"
+                },
+                "maximumSurface": {
+                  "type": [
+                    "null",
+                    "integer"
+                  ],
+                  "description": "surface maximum en m²"
+                },
+                "minimumRooms": {
+                  "type": [
+                    "null",
+                    "integer"
+                  ],
+                  "description": "nombre minimum de pièces"
+                },
+                "maximumRooms": {
+                  "type": [
+                    "null",
+                    "integer"
+                  ],
+                  "description": "nombre maximum de pièces"
+                },
+                "minimumBedrooms": {
+                  "type": [
+                    "null",
+                    "integer"
+                  ],
+                  "description": "nombre minimum de chambres"
+                },
+                "maximumBedrooms": {
+                  "type": [
+                    "null",
+                    "integer"
+                  ],
+                  "description": "nombre maximum de chambres"
+                },
+                "radiusKm": {
+                  "type": [
+                    "null",
+                    "integer"
+                  ],
+                  "description": "rayon de recherche en kilomètres autour de la localisation. OBLIGATOIRE si l'utilisateur demande 'autour de', 'dans un rayon de', 'à X km de', 'within X km' ou toute contrainte de distance. Si l'utilisateur veut des biens autour d'un lieu sans préciser de distance, utiliser la valeur par défaut 10. Si utilisé, fournir aussi coordinates depuis search_locations.coordinates"
+                },
+                "dpeCategories": {
+                  "type": [
+                    "null",
+                    "array"
+                  ],
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "liste des catégories DPE à rechercher. Valeurs acceptées: A, B, C, D, E, F, G"
+                },
+                "estateTypes": {
+                  "type": [
+                    "null",
+                    "array"
+                  ],
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "types de biens immobiliers. Valeurs possibles: 'appartement', 'maison', 'villa', 'propriété', 'château', 'loft', 'atelier', 'hôtel particulier', 'chalet', 'moulin', 'ferme', 'manoir', 'chambre', 'bâtiment', 'immeuble', 'terrain', 'boutique', 'local commercial', 'bureau', 'parking', 'box', 'péniche'. Si vide, cherche tous les types."
+                },
+                "transactionType": {
+                  "type": [
+                    "null",
+                    "string"
+                  ],
+                  "description": "type de transaction: 'vente' (par défaut) ou 'location'"
+                },
+                "insee": {
+                  "type": [
+                    "null",
+                    "string"
+                  ],
+                  "description": "code INSEE de la localisation (obtenu via search_locations). Utiliser pour les villes (typeID 4 ou 6) quand il n'y a pas de recherche par rayon. Si radiusKm est utilisé, préférer coordinates et ne pas restreindre en plus avec insee"
+                },
+                "legacyID": {
+                  "type": [
+                    "null",
+                    "string"
+                  ],
+                  "description": "ID de la localisation (champ 'id' de search_locations). OBLIGATOIRE pour les départements (typeID 3) et régions (typeID 2)."
+                },
+                "coordinates": {
+                  "type": [
+                    "null",
+                    "object"
+                  ],
+                  "properties": {
+                    "lon": {
+                      "type": "number"
+                    },
+                    "lat": {
+                      "type": "number"
+                    }
+                  },
+                  "description": "coordonnées de la localisation. OBLIGATOIRES si radiusKm est utilisé ou si l'utilisateur demande un rayon/une distance autour d'une ville ou d'un quartier. Réutiliser search_locations.coordinates sans les recalculer",
+                  "required": [
+                    "lon",
+                    "lat"
+                  ],
+                  "additionalProperties": false
+                },
+                "typeID": {
+                  "type": "integer",
+                  "description": "type de localisation requis. Valeurs: 4 ou 6 pour ville, 2 pour région, 3 pour département, 7 pour quartier, 8 pour zone"
+                },
+                "options": {
+                  "type": [
+                    "null",
+                    "array"
+                  ],
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "options supplémentaires à rechercher. Valeurs courantes: garage, box, jardin, terrasse, cave, grenier, combles, vue_degagee, dependance, tennis, ascenseur, piscine, cheminee, climatisation, salle_de_bain, salle_d_eau, interphone, visiophone, digicode, gardien, alarme"
+                }
+              },
+              "required": [
+                "typeID"
+              ],
+              "additionalProperties": false
+            },
+            "name": "listings",
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "listings": {
+                  "type": [
+                    "null",
+                    "array"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number"
+                      },
+                      "pricePerM2": {
+                        "type": "number"
+                      },
+                      "area": {
+                        "type": "number"
+                      },
+                      "groundArea": {
+                        "type": "number"
+                      },
+                      "rooms": {
+                        "type": "integer"
+                      },
+                      "bedrooms": {
+                        "type": "integer"
+                      },
+                      "estateType": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "isFurnished": {
+                        "type": "boolean"
+                      },
+                      "dpe": {
+                        "type": "string"
+                      },
+                      "photoCount": {
+                        "type": "integer"
+                      },
+                      "photoUrl": {
+                        "type": "string"
+                      },
+                      "photoUrls": {
+                        "type": [
+                          "null",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "options": {
+                        "type": [
+                          "null",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "updatedAt": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "city",
+                      "price",
+                      "url"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "annonces correspondant aux critères donnés"
+                },
+                "totalHits": {
+                  "type": "integer",
+                  "description": "nombre total d'annonces correspondant aux critères"
+                }
+              },
+              "required": [
+                "listings",
+                "totalHits"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "readOnlyHint": true,
+              "title": "Recherche de localisations"
+            },
+            "description": "Recherche de localisations (villes, quartiers, départements, régions) pour obtenir les informations nécessaires à l'outil listings.\n\nRETOURNE: Liste de localisations avec typeID, inseeCode, id, district, departmentCode\nToujours remonter les coordonnées pour les villes et quartiers. Le rayon kilométrique est à utiliser dans l'outil listings pas dans l'outil search_locations.\nSI l'utilisateur demande un rayon, l'étape suivante DOIT réutiliser coordinates dans listings avec radiusKm.\nSi l'utilisateur demande des biens autour d'une localisation sans préciser de distance, utiliser 10 km par défaut.\n\nUTILISATION:\n- VILLES: search_locations(locationName=\"nom_ville\")\n  Exemple: search_locations(locationName=\"paris\")\n\n- VILLES DANS UN DÉPARTEMENT SPÉCIFIQUE: search_locations(locationName=\"nom_ville\", departmentCode=\"XX\")\n  Exemple: search_locations(locationName=\"saint-maximin\", departmentCode=\"30\")\n  Important: Utiliser departmentCode quand plusieurs villes ont le même nom\n\n- DÉPARTEMENTS: search_locations(locationName=\"nom_dept\", departmentCode=\"XX\")\n  Exemple: search_locations(locationName=\"var\", departmentCode=\"83\")\n  OBLIGATOIRE: Toujours fournir departmentCode pour les départements\n\n- RÉGIONS: search_locations(locationName=\"nom_region\")\n  Exemple: search_locations(locationName=\"bretagne\")\n\n- QUARTIERS: search_locations(locationName=\"nom_quartier\")\n  Exemple: search_locations(locationName=\"bastille\")\n\nDÉSAMBIGUÏSATION:\nSi plusieurs localisations retournées, demander à l'utilisateur de préciser le département ou la région.\nExemple: \"Saint-Denis\" existe dans le 93 et à La Réunion.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "locationName": {
+                  "type": [
+                    "null",
+                    "string"
+                  ],
+                  "description": "nom de la localisation à rechercher (ville, quartier, arrondissement, département ou région). Exemples: 'Paris', 'Bastille', 'Marais', '11ème', 'Hauts-de-Seine'. Si l'utilisateur demande un rayon, cette recherche sert aussi à récupérer coordinates pour l'appel suivant à listings"
+                },
+                "departmentCode": {
+                  "type": [
+                    "null",
+                    "string"
+                  ],
+                  "description": "code département optionnel pour filtrer les résultats (ex: '93')"
+                },
+                "postalCode": {
+                  "type": [
+                    "null",
+                    "string"
+                  ],
+                  "description": "code postal optionnel pour filtrer les résultats"
+                }
+              },
+              "required": [
+                "locationName"
+              ],
+              "additionalProperties": false
+            },
+            "name": "search_locations",
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "locations": {
+                  "type": [
+                    "null",
+                    "array"
+                  ],
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "cityName": {
+                        "type": "string"
+                      },
+                      "cityLabel": {
+                        "type": "string"
+                      },
+                      "department": {
+                        "type": "string"
+                      },
+                      "departmentCode": {
+                        "type": "string"
+                      },
+                      "region": {
+                        "type": "string"
+                      },
+                      "inseeCode": {
+                        "type": "string"
+                      },
+                      "postalCode": {
+                        "type": "string"
+                      },
+                      "district": {
+                        "type": "string"
+                      },
+                      "typeID": {
+                        "type": "integer"
+                      },
+                      "coordinates": {
+                        "type": [
+                          "null",
+                          "object"
+                        ],
+                        "properties": {
+                          "lon": {
+                            "type": "number"
+                          },
+                          "lat": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "lon",
+                          "lat"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "listingCount": {
+                        "type": [
+                          "null",
+                          "integer"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "cityName",
+                      "cityLabel",
+                      "department",
+                      "departmentCode",
+                      "region",
+                      "inseeCode",
+                      "postalCode",
+                      "typeID"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "liste des localisations correspondantes"
+                }
+              },
+              "required": [
+                "locations"
+              ],
+              "additionalProperties": false
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "_meta": {
+          "openai/outputTemplate": "ui://widget/listing.html",
+          "openai/toolInvocation/invoked": "Annonces récupérées",
+          "openai/toolInvocation/invoking": "Récupération des annonces"
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Recherche d'annonces immobilières"
+        },
+        "description": "Recherche d'annonces immobilières sur Figaro Immobilier avec des critères détaillés.\n\nWORKFLOW OBLIGATOIRE:\n1. TOUJOURS appeler search_locations d'abord pour obtenir typeID, insee, et id de la localisation\n2. Utiliser les valeurs retournées par search_locations dans cet outil\n3. Pour utiliser radiusKm, réutiliser aussi search_locations.coordinates dans le paramètre coordinates\n4. SI l'utilisateur demande un rayon ou une distance autour d'une localisation (\"autour de\", \"dans un rayon de\", \"à moins de X km de\", \"within X km\"), l'appel à listings DOIT inclure radiusKm ET coordinates. Pour une recherche par rayon, ne pas restreindre en plus avec insee/legacyID, sinon la recherche devient \"dans cette ville ET dans le rayon\" au lieu de \"autour de cette ville\"\n5. SI l'utilisateur veut des biens \"autour de\", \"près de\", \"near\" une localisation mais sans distance explicite, utiliser radiusKm=10 par défaut\n\nTypes de biens (utiliser ces termes français exacts):\n- Appartements: 'appartement' (inclut studio, loft, duplex)\n- Maisons: 'maison' (inclut villa, manoir, chalet, ferme)\n- Terrain: 'terrain'\n- Parking: 'parking'\n- Château: 'château'\n- Commercial: 'locaux professionnels'\nUtiliser get_estate_types pour la liste complète.\n\nUTILISATION DES PARAMÈTRES DE LOCALISATION:\n- typeID: OBLIGATOIRE - provient de search_locations\n- Pour VILLES (typeID 4 ou 6):\n  * Utiliser le champ 'inseeCode' de search_locations dans le paramètre 'insee'\n  * Ne PAS utiliser legacyID pour les villes\n- Pour RÉGIONS (typeID 2):\n  * Utiliser le champ 'id' de search_locations dans le paramètre 'legacyID'\n  * Ne PAS utiliser insee pour les régions\n- Pour DÉPARTEMENTS (typeID 3):\n  * Utiliser le champ 'id' de search_locations dans le paramètre 'legacyID'\n  * Ne PAS utiliser insee pour les départements\n- Pour QUARTIERS (typeID 7):\n  * Utiliser le champ 'id' de search_locations dans le paramètre 'legacyID'\n  * Le quartier doit avoir un champ 'district' non vide dans search_locations\n\nEXEMPLES COMPLETS:\nExemple 1 - Ville:\n  User: \"appartement à Paris\"\n  1. Appeler search_locations(locationName=\"paris\") → {typeID: 6, inseeCode: \"75056\", id: \"123\", coordinates: {lat: 48.8566, lon: 2.3522}}\n  2. Appeler listings(typeID=6, insee=\"75056\", estateTypes=[\"appartement\"])\n\nExemple 1 bis - Ville avec rayon, chambres et DPE:\n  User: \"appartement 2 chambres min à 10 km de Paris, DPE A ou B\"\n  1. Appeler search_locations(locationName=\"paris\") → {typeID: 6, inseeCode: \"75056\", id: \"123\", coordinates: {lat: 48.8566, lon: 2.3522}}\n  2. Appeler listings(typeID=6, coordinates={lat: 48.8566, lon: 2.3522}, radiusKm=10, minimumBedrooms=2, dpeCategories=[\"A\",\"B\"], estateTypes=[\"appartement\"])\n\nExemple 1 ter - Comportement interdit puis correct:\n  User: \"biens à 5 km de Lattes\"\n  Interdit: listings(typeID=6, insee=\"34129\")\n  Correct:\n  1. search_locations(locationName=\"lattes\") → {typeID: 6, inseeCode: \"34129\", coordinates: {lat: 43.57, lon: 3.9}}\n  2. listings(typeID=6, coordinates={lat: 43.57, lon: 3.9}, radiusKm=5)\n\nExemple 1 quater - Rayon par défaut:\n  User: \"biens autour de Lattes\"\n  1. search_locations(locationName=\"lattes\") → {typeID: 6, inseeCode: \"34129\", coordinates: {lat: 43.57, lon: 3.9}}\n  2. listings(typeID=6, coordinates={lat: 43.57, lon: 3.9}, radiusKm=10)\n\nExemple 2 - Département:\n  User: \"maison dans le Var\"\n  1. Appeler search_locations(locationName=\"var\", departmentCode=\"83\") → {typeID: 3, id: \"83\"}\n  2. Appeler listings(typeID=3, legacyID=\"83\", estateTypes=[\"maison\"])\n\nExemple 2 bis - Région:\n  User: \"maison en Bretagne\"\n  1. Appeler search_locations(locationName=\"bretagne\") → {typeID: 2, id: \"Bretagne\"}\n  2. Appeler listings(typeID=2, legacyID=\"Bretagne\", estateTypes=[\"maison\"])\n\nExemple 3 - Quartier:\n  User: \"appartement Bastille\"\n  1. Appeler search_locations(locationName=\"bastille\") → {typeID: 7, id: \"bastille\", district: \"bastille\"}\n  2. Appeler listings(typeID=7, legacyID=\"bastille\", estateTypes=[\"appartement\"])\n\n\nAFFICHAGE DES RÉSULTATS:\nChaque annonce retournée contient un champ 'url' avec le lien direct vers l'annonce sur Figaro Immobilier.\nOBLIGATOIRE: Toujours afficher l'URL sous forme de lien Markdown cliquable pour chaque annonce.\nFormat: [Voir l'annonce](url)\nExemple de rendu pour une annonce:\n- 📍 Paris 75001 - Appartement 3 pièces - 65m² - 450 000€\n- [Voir l'annonce](https://immobilier.lefigaro.fr/annonces/annonce-123456.html)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "minimumPrice": {
+              "type": [
+                "null",
+                "integer"
+              ],
+              "description": "prix minimum en euros"
+            },
+            "maximumPrice": {
+              "type": [
+                "null",
+                "integer"
+              ],
+              "description": "prix maximum en euros"
+            },
+            "minimumSurface": {
+              "type": [
+                "null",
+                "integer"
+              ],
+              "description": "surface minimum en m²"
+            },
+            "maximumSurface": {
+              "type": [
+                "null",
+                "integer"
+              ],
+              "description": "surface maximum en m²"
+            },
+            "minimumRooms": {
+              "type": [
+                "null",
+                "integer"
+              ],
+              "description": "nombre minimum de pièces"
+            },
+            "maximumRooms": {
+              "type": [
+                "null",
+                "integer"
+              ],
+              "description": "nombre maximum de pièces"
+            },
+            "minimumBedrooms": {
+              "type": [
+                "null",
+                "integer"
+              ],
+              "description": "nombre minimum de chambres"
+            },
+            "maximumBedrooms": {
+              "type": [
+                "null",
+                "integer"
+              ],
+              "description": "nombre maximum de chambres"
+            },
+            "radiusKm": {
+              "type": [
+                "null",
+                "integer"
+              ],
+              "description": "rayon de recherche en kilomètres autour de la localisation. OBLIGATOIRE si l'utilisateur demande 'autour de', 'dans un rayon de', 'à X km de', 'within X km' ou toute contrainte de distance. Si l'utilisateur veut des biens autour d'un lieu sans préciser de distance, utiliser la valeur par défaut 10. Si utilisé, fournir aussi coordinates depuis search_locations.coordinates"
+            },
+            "dpeCategories": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "description": "liste des catégories DPE à rechercher. Valeurs acceptées: A, B, C, D, E, F, G"
+            },
+            "estateTypes": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "description": "types de biens immobiliers. Valeurs possibles: 'appartement', 'maison', 'villa', 'propriété', 'château', 'loft', 'atelier', 'hôtel particulier', 'chalet', 'moulin', 'ferme', 'manoir', 'chambre', 'bâtiment', 'immeuble', 'terrain', 'boutique', 'local commercial', 'bureau', 'parking', 'box', 'péniche'. Si vide, cherche tous les types."
+            },
+            "transactionType": {
+              "type": [
+                "null",
+                "string"
+              ],
+              "description": "type de transaction: 'vente' (par défaut) ou 'location'"
+            },
+            "insee": {
+              "type": [
+                "null",
+                "string"
+              ],
+              "description": "code INSEE de la localisation (obtenu via search_locations). Utiliser pour les villes (typeID 4 ou 6) quand il n'y a pas de recherche par rayon. Si radiusKm est utilisé, préférer coordinates et ne pas restreindre en plus avec insee"
+            },
+            "legacyID": {
+              "type": [
+                "null",
+                "string"
+              ],
+              "description": "ID de la localisation (champ 'id' de search_locations). OBLIGATOIRE pour les départements (typeID 3) et régions (typeID 2)."
+            },
+            "coordinates": {
+              "type": [
+                "null",
+                "object"
+              ],
+              "properties": {
+                "lon": {
+                  "type": "number"
+                },
+                "lat": {
+                  "type": "number"
+                }
+              },
+              "description": "coordonnées de la localisation. OBLIGATOIRES si radiusKm est utilisé ou si l'utilisateur demande un rayon/une distance autour d'une ville ou d'un quartier. Réutiliser search_locations.coordinates sans les recalculer",
+              "required": [
+                "lon",
+                "lat"
+              ],
+              "additionalProperties": false
+            },
+            "typeID": {
+              "type": "integer",
+              "description": "type de localisation requis. Valeurs: 4 ou 6 pour ville, 2 pour région, 3 pour département, 7 pour quartier, 8 pour zone"
+            },
+            "options": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "string"
+              },
+              "description": "options supplémentaires à rechercher. Valeurs courantes: garage, box, jardin, terrasse, cave, grenier, combles, vue_degagee, dependance, tennis, ascenseur, piscine, cheminee, climatisation, salle_de_bain, salle_d_eau, interphone, visiophone, digicode, gardien, alarme"
+            }
+          },
+          "required": [
+            "typeID"
+          ],
+          "additionalProperties": false
+        },
+        "name": "listings",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "listings": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "number"
+                  },
+                  "pricePerM2": {
+                    "type": "number"
+                  },
+                  "area": {
+                    "type": "number"
+                  },
+                  "groundArea": {
+                    "type": "number"
+                  },
+                  "rooms": {
+                    "type": "integer"
+                  },
+                  "bedrooms": {
+                    "type": "integer"
+                  },
+                  "estateType": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "isFurnished": {
+                    "type": "boolean"
+                  },
+                  "dpe": {
+                    "type": "string"
+                  },
+                  "photoCount": {
+                    "type": "integer"
+                  },
+                  "photoUrl": {
+                    "type": "string"
+                  },
+                  "photoUrls": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "options": {
+                    "type": [
+                      "null",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "updatedAt": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "city",
+                  "price",
+                  "url"
+                ],
+                "additionalProperties": false
+              },
+              "description": "annonces correspondant aux critères donnés"
+            },
+            "totalHits": {
+              "type": "integer",
+              "description": "nombre total d'annonces correspondant aux critères"
+            }
+          },
+          "required": [
+            "listings",
+            "totalHits"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Recherche de localisations"
+        },
+        "description": "Recherche de localisations (villes, quartiers, départements, régions) pour obtenir les informations nécessaires à l'outil listings.\n\nRETOURNE: Liste de localisations avec typeID, inseeCode, id, district, departmentCode\nToujours remonter les coordonnées pour les villes et quartiers. Le rayon kilométrique est à utiliser dans l'outil listings pas dans l'outil search_locations.\nSI l'utilisateur demande un rayon, l'étape suivante DOIT réutiliser coordinates dans listings avec radiusKm.\nSi l'utilisateur demande des biens autour d'une localisation sans préciser de distance, utiliser 10 km par défaut.\n\nUTILISATION:\n- VILLES: search_locations(locationName=\"nom_ville\")\n  Exemple: search_locations(locationName=\"paris\")\n\n- VILLES DANS UN DÉPARTEMENT SPÉCIFIQUE: search_locations(locationName=\"nom_ville\", departmentCode=\"XX\")\n  Exemple: search_locations(locationName=\"saint-maximin\", departmentCode=\"30\")\n  Important: Utiliser departmentCode quand plusieurs villes ont le même nom\n\n- DÉPARTEMENTS: search_locations(locationName=\"nom_dept\", departmentCode=\"XX\")\n  Exemple: search_locations(locationName=\"var\", departmentCode=\"83\")\n  OBLIGATOIRE: Toujours fournir departmentCode pour les départements\n\n- RÉGIONS: search_locations(locationName=\"nom_region\")\n  Exemple: search_locations(locationName=\"bretagne\")\n\n- QUARTIERS: search_locations(locationName=\"nom_quartier\")\n  Exemple: search_locations(locationName=\"bastille\")\n\nDÉSAMBIGUÏSATION:\nSi plusieurs localisations retournées, demander à l'utilisateur de préciser le département ou la région.\nExemple: \"Saint-Denis\" existe dans le 93 et à La Réunion.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "locationName": {
+              "type": [
+                "null",
+                "string"
+              ],
+              "description": "nom de la localisation à rechercher (ville, quartier, arrondissement, département ou région). Exemples: 'Paris', 'Bastille', 'Marais', '11ème', 'Hauts-de-Seine'. Si l'utilisateur demande un rayon, cette recherche sert aussi à récupérer coordinates pour l'appel suivant à listings"
+            },
+            "departmentCode": {
+              "type": [
+                "null",
+                "string"
+              ],
+              "description": "code département optionnel pour filtrer les résultats (ex: '93')"
+            },
+            "postalCode": {
+              "type": [
+                "null",
+                "string"
+              ],
+              "description": "code postal optionnel pour filtrer les résultats"
+            }
+          },
+          "required": [
+            "locationName"
+          ],
+          "additionalProperties": false
+        },
+        "name": "search_locations",
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "locations": {
+              "type": [
+                "null",
+                "array"
+              ],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "cityName": {
+                    "type": "string"
+                  },
+                  "cityLabel": {
+                    "type": "string"
+                  },
+                  "department": {
+                    "type": "string"
+                  },
+                  "departmentCode": {
+                    "type": "string"
+                  },
+                  "region": {
+                    "type": "string"
+                  },
+                  "inseeCode": {
+                    "type": "string"
+                  },
+                  "postalCode": {
+                    "type": "string"
+                  },
+                  "district": {
+                    "type": "string"
+                  },
+                  "typeID": {
+                    "type": "integer"
+                  },
+                  "coordinates": {
+                    "type": [
+                      "null",
+                      "object"
+                    ],
+                    "properties": {
+                      "lon": {
+                        "type": "number"
+                      },
+                      "lat": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "lon",
+                      "lat"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "listingCount": {
+                    "type": [
+                      "null",
+                      "integer"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "cityName",
+                  "cityLabel",
+                  "department",
+                  "departmentCode",
+                  "region",
+                  "inseeCode",
+                  "postalCode",
+                  "typeID"
+                ],
+                "additionalProperties": false
+              },
+              "description": "liste des localisations correspondantes"
+            }
+          },
+          "required": [
+            "locations"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:23:44.932Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:23:45.983Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:23:47.034Z"
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:23:48.084Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 2,
+    "tools_hash": "sha256:37d453931167a0cd2cb7cb9a617ca9d1e18983f5ff22e19d58b2646e52f22a4c",
+    "static_tool_tokens": 5098,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "listings",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "listings",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "search_locations",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F7",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_locations",
+        "message": "Description exceeds 1,000 characters."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 2,
+      "warning": 2
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [],
+      "flags": []
+    },
+    "read_only_allowlist": [
+      "listings",
+      "search_locations"
+    ]
+  }
+}

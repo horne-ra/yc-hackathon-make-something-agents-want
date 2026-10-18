@@ -1,0 +1,1315 @@
+{
+  "slug": "xlscout-claimchart-llm",
+  "source_url": "https://manufact.com/mcp-catalog/xlscout-claimchart-llm",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-18T00:15:21.193Z",
+    "endpoint": "https://patdigger.mcp.xlscout.ai/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "claimchart-llm",
+      "version": "3.4.4"
+    },
+    "capabilities": {
+      "experimental": {},
+      "logging": {},
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "subscribe": false,
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      },
+      "extensions": {
+        "io.modelcontextprotocol/ui": {}
+      }
+    },
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "fetch_patent_claims",
+            "description": "STEP 2 of 6 - Fetch patent claims, title, assignee, and abstract for one or more UCIDs.\nUse this to retrieve claim text and independent-claim numbers before running a company search.\n\nAliases: get patent claims, fetch claims, lookup patent, patent metadata, claim lookup,\nget claims, patent details, patent abstract.\n\nInput: ucid_list (str) - comma-separated UCIDs, e.g. \"US-9473259-B2, US-10911269-B2\".\nOutput: For each UCID, returns claims (list), title, assignee, abstract, independent_claim (list of claim numbers).\nAlso includes ucid_for_company_search for use with search_companies_from_patent_ucids.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "ucid_list": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ucid_list"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "search_companies_from_patent_ucids",
+            "description": "STEP 3 of 6 - Search for companies and products related to one or more patent UCIDs.\nUse this when the user wants an interactive flow with claim-selection control. For a fully\nautomated single-UCID flow, use analyze_patent_for_infringement instead.\n\nAliases: company search, find companies, patent company lookup, search companies from patent,\ncompetitor search, target company search, company product lookup, company_search_from_ucids.\n\nAuthentication-first, two-step flow:\n0) Before using this tool, call login_to_xlscout and complete login. If no valid OAuth session exists, this tool returns an auth-required response telling the caller to do that first.\n1) First call (without independent_claim_selection): Calls fetch_patent_claims and returns independent_claim options for each UCID.\n   Ask the user to select one independent claim for each UCID: show independent_claim_options and ask \"Please select one independent claim number for each UCID. Reply with your selection in the format {\"UCID\": \"claim_no\"}, e.g. {\"US-9473259-B2\": \"1\"}.\"\n2) Second call (with independent_claim_selection): Run company search with the user's selected claim(s) and return products with serial numbers.\n\nindependent_claim_selection format: {\"US-9473259-B2\": \"1\", \"US-10911269-B2\": \"5\"}\n\nAfter products are returned, ask the user to select products, then ask the credit-confirmation question. Because this flow starts with oauth_login, reuse that same OAuth access token when calling generate_key_features_for_claims and submit_ranking_auth_alerts.\n\nucid_list: e.g. \"US-9473259-B2\" or \"US-1234567-B2, US-7878787-B2\"",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "ucid_list": {
+                  "type": "string"
+                },
+                "target_company": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "exclude_list": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "unique_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": ""
+                },
+                "independent_claim_selection": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "ucid_list"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "analyze_patent_for_infringement",
+            "description": "START HERE for any patent infringement analysis. Patent infringement analysis from a UCID\nin one call. Patent analysis, company search, product matching, and ranking - all automated.\n\nAliases: patent infringement analysis, patent company search, patent ucid analysis,\none-shot patent analysis, patdigger case, run patdigger, analyze patent, patent ranking,\ncompany product matching from patent, automated patent analysis, infringement watch.\n\nThis is the entry-point tool. Call this first whenever the user provides a single patent\nUCID (e.g. \"US-11553496-B2\") and wants to find potentially infringing companies/products.\nIt runs the full default PatDigger flow end-to-end with no user interaction:\n\n  STEP 1 of 6: Fetch claims for the UCID.\n  STEP 2 of 6: Auto-select the first independent claim.\n  STEP 3 of 6: Run company search with default inputs (no target/exclude lists).\n  STEP 4 of 6: Select all returned company/product pairs.\n  STEP 5 of 6: Generate key features for the selected claim.\n  STEP 6 of 6: Submit ranking (alerts disabled).\n\nAuthentication: reads the Keycloak token from the X-Access-Token / Authorization\nrequest header. If absent, returns an authentication-required error. For interactive\nOAuth, call login_to_xlscout first.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "ucid": {
+                  "type": "string",
+                  "description": "A single patent UCID, e.g. \"US-11553496-B2\"."
+                }
+              },
+              "required": [
+                "ucid"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "generate_key_features_from_claims",
+            "description": "STEP 4 of 6 - Generate key features for selected patent claims using the invalidator-llm keyfeatures API.\nRun this after search_companies_from_patent_ucids and before submit_patent_infringement_ranking.\n\nAliases: generate key features, extract key features, claim key features, kfs generation,\nkeyfeatures, generate_key_features_for_claims.\n\nThis tool is intended to be called *after* login_to_xlscout and search_companies_from_patent_ucids, and\n*before* submit_patent_infringement_ranking.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "ucid_list": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "description": "List of UCIDs (e.g. [\"US-9473259-B2\"])."
+                },
+                "claim_used_for_ranking": {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object",
+                  "description": "Dict mapping UCID -> list of claim texts (from company_search_from_ucids)."
+                },
+                "claim_no_used_for_ranking": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Optional dict mapping UCID -> list of claim numbers (unused by keyfeatures,\nbut returned for convenience so the caller can keep them together)."
+                },
+                "token": {
+                  "default": "",
+                  "type": "string",
+                  "description": "Bearer token from oauth_login. If omitted, the tool will try the stored OAuth token\nfrom oauth_login. If no OAuth token is available, it returns an auth error instead of\nattempting a service-token fallback."
+                }
+              },
+              "required": [
+                "ucid_list",
+                "claim_used_for_ranking"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "submit_patent_infringement_ranking",
+            "description": "STEP 5 of 6 - Submit a patent-vs-product ranking job to the XLScout PatDigger API, optionally scheduling\nrecurring infringement alerts (quarterly / semi-annually / annually).\n\nAliases: submit ranking, patent ranking, submit infringement analysis, claim chart ranking,\nschedule alerts, infringement watch, patdigger ranking, submit_ranking_auth_alerts.\n\nAfter having target companies and their products information, submit a ranking job to the XLScout PatDigger API and if alerts = True, submit ranking job and then submit job to the schedule_alerts API to schedule alerts quarterly, semi-annually or annually. This tool helps map patent claims to products of a company, streamlining the identification of potential licenses and their overlapping products and assisting infringement analyses. It can also find relevant products on its own and work with only ucid inputs as well.\n\nExpected flow: After the user confirms the credit-deduction prompt, call generate_key_features_for_claims first with the selected claims, then pass the returned kfs_for_ranking into this tool as the kfs argument. This tool builds productdict from company_product_pairs when provided, sends the ranking API payload as application/x-www-form-urlencoded, and returns the ranking result. If kfs is omitted and kf_update_id is empty, this tool returns a next-step error telling the caller to run generate_key_features_for_claims first.\n\nThis tool relays all required and optional fields to the /ranking endpoint, ensuring the correct input format. For arguments not provided, default values are used. All dictionary/list parameters (ucid_list, productdict, claim, claim_no, kfs, co_excl, image_kf) are JSON-dumped before sending because the ranking API expects Form() parameters as strings. Token is sent only in the Authorization header (Bearer), not in the request body.\nMake sure to format inputs strictly using standard double quotes.\n  \nArgs for ranking endpoint:\n    ucid_list (list): List of patent UCIDs (e.g., [\"US123\", \"US456\"]).\n    productdict (dict): Dictionary mapping product names to company names (e.g., {\"ProductA\": \"CompanyX\"}). When using company_search_from_ucids: pass company_product_pairs instead - the tool builds productdict from user-selected pairs.\n    company_product_pairs (str): Stringified list of {\"product\",\"company\"} for pairs selected in company search. API uses this; productdict is derived from it when provided.\n    kfs (dict): Dict mapping UCID -> list of key features, typically the kfs_for_ranking returned by generate_key_features_for_claims.\n    claim (dict): REQUIRED. Dictionary mapping each UCID to list of claim strings. When using company_search_from_ucids, pass claim_used_for_ranking from that result; the tool converts it to string for the API. Otherwise the tool auto-fills from get_claims (first independent claim) if empty.\n    claim_no (dict): REQUIRED. Dictionary mapping each UCID to list of claim numbers. When using company_search_from_ucids, pass claim_no_used_for_ranking from that result; the tool converts it to string for the API. Otherwise auto-filled with claim.\n    support_text (str): Supporting text content (default: \"\").\n    ai_recemmonded_products (bool): False.\n    bg_image (bool): False.\n    image_kf (list): List of image key features (default: []).\n    alert_agentic (bool): False.\n    co_excl (list): List of co-exclusion items (default: []).\n    kf_update_id (str): Key feature update ID (default: \"\").\n    pre_download (bool): True. \n    payload_id (str): Unique identifier for the payload (default: \"\").\n    reference_number (str): Reference number for the job (default: \"\").\n    org_limit_user (bool): False.\n    token: the string value of \"access_token\" returned by the oauth_login tool\n    groupid (str): Group ID for grouping taxonomy runs per case (default: \"\"). Passed through to PatDigger /ranking endpoint.\n    alerts: (bool) Does user want to set alerts for cases. Defaults value is true. If the user indicates that he wants to set alerts, set this argument to True.\n    \nArgs for schedule_alerts endpoint:\n    p_id: (str) if alerts = True, payload_id stores the id returned by reanking endpoint, otherwise, payload_od = ''\n    period: (str) if alerts = True, period stores one of the three values \"quarterly\", \"semi-annually\", or \"annually\", based on user's preference on how frequently they want to set alerts for the case.\n    disable: (bool) False\n **DO NOT SET ANY ARGUMENT VALUE TO NULL. Set all boolean type arguments to False, unless specified**\n\nStep 1: Use the oauth_login tool, to log the user into Xlscout's system. \nStep 2: Ask user if they want to set alerts for the case. Display the message \"Do you want to set alerts?\" **Wait for the user to type 'YES' or 'NO'.** If the user replies with a \"YES\" or a response implying affirmative, set alerts = True and ask user the period of time they want to set alerts for. Display the message \"Select the period you want to set alerts for: 1) quarterly 2) semi-annually 3) annually.\" **Wait for the user to type the period.** Based o the user's preference, set the value of the string variable period. If the user replies with a \"NO\" or a response implying negative, set the boolean variable alerts = False and the string variable period as empty string ''. Then proceed to the next step.\nStep 3: Ask the user for confirmation, warning about credits being deducted from their account. Display the message: \"Some credits will be deducted from your account. Are you sure you want to proceed with this task? Reply with a 'YES' to continue, or 'NO' to stop.\" **Wait for the user to type 'YES' or 'NO'.** If the user replies with 'NO' or negative, stop and return. If 'YES', proceed.\nStep 4: Use the oauth_login tool again to log the user into Xlscout's website. Set the token argument to the string value of \"access_token\" returned by oauth_login. Extract the email from the oauth_login response and store it in a local variable email.\nStep 5: Call generate_key_features_for_claims with ucid_list, claim_used_for_ranking/claim, claim_no_used_for_ranking/claim_no, and token. Store the returned kfs_for_ranking.\nClaim/claim_no (required): When the flow comes from company_search_from_ucids, use claim_used_for_ranking and claim_no_used_for_ranking from the company_search_from_ucids result as the claim and claim_no arguments. When not from company_search_from_ucids, the tool auto-fills claim and claim_no from get_claims (first independent claim per UCID) if empty; if auto-fill fails, pass claim and claim_no from get_claims manually.\nProduct selection (when using company_search_from_ucids): After company_search_from_ucids returns formatted_output with serial numbers, ask the user \"Would you like to select all results or choose specific products? Reply with 'all' or enter numbers (e.g., 1, 5, 8).\" Pass the selected pairs as company_product_pairs (stringified list of {\"product\",\"company\"}) to this tool; it will build productdict and send both to the API.\nStep 6: Relay all required and optional fields to the /ranking endpoint. Use the token from Step 4 and pass kfs = kfs_for_ranking from Step 5. For claim and claim_no, use claim_used_for_ranking and claim_no_used_for_ranking from company_search_from_ucids when available; otherwise use auto-filled or manually provided values. The tool serializes claim and claim_no to string for the API.\nIf alerts = True\nStep 7: Using the local variable email, display the message **\"request submitted, you'll soon receive updates on email ID <email>, stay tuned!\"** Insert the value of local variable email in this message.\nStep 8: Retrieve the value of argument payload_id from the response of /ranking endpoint and store in argument p_id. Use the value of argument period as obtained after Step 2. Relay the values of the arguments p_id, period and disable to the schedule_alerts endpoint.\nIf alerts = False \nStep 7: Using the local variable email, display the message **\"request submitted, you'll soon receive updates on email ID <email>, stay tuned!\"** Insert the value of local variable email in this message. The execution is complete.\n\n**DO NOT SET ANY ARGUMENT VALUE TO NULL. Set all boolean type arguments to False, unless specified**\n \nReturns:\n    dict: API response containing the message and payload ID or error status. \n\nExample input for ranking endpoint: Given input patent US-XXXXXX-B2, ProductX and CompanyY, formulate the inputs as: \n{\n    \"ucid_list\": [\"US-XXXXXX-B2\"],\n    \"productdict\": {\"ProductX\": \"CompanyY\"},\n    \"kfs\": {\"US-XXXXXX-B2\": [\"<kf1>\", \"<kf2>\"]},\n    \"claim\": {},\n    \"claim_no\": {},\n    \"support_text\": \"\",\n    \"ai_recemmonded_products\": False,\n    \"bg_image\": False,\n    \"image_kf\": [],\n    \"alert_agentic\": False,\n    \"co_excl\": [\"\"],\n    \"kf_update_id\": \"\",\n    \"pre-download\": True,\n    \"payload_id\": \"\",\n    \"reference_no\": \"\",\n    \"org_limit_user\": False,\n    \"token\": \"<the string value of \"access_token\" returned by the oauth_login tool>\"\n}\n\nExample input for schedule_alerts endpoint if alerts=True:\n{\n    \"payload_id\": \"aaaaaaaaaaaaaaaaaaa\",\n    \"period\": \"quarterly\",\n    \"disable\": False\n}",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "ucid_list": {
+                  "default": [],
+                  "items": {},
+                  "type": "array"
+                },
+                "productdict": {
+                  "additionalProperties": true,
+                  "default": {},
+                  "type": "object"
+                },
+                "kfs": {
+                  "additionalProperties": true,
+                  "default": {},
+                  "type": "object"
+                },
+                "claim": {
+                  "additionalProperties": true,
+                  "default": {},
+                  "type": "object"
+                },
+                "claim_no": {
+                  "additionalProperties": true,
+                  "default": {},
+                  "type": "object"
+                },
+                "support_text": {
+                  "default": "",
+                  "type": "string"
+                },
+                "ai_recemmonded_products": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "bg_image": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "image_kf": {
+                  "default": [],
+                  "items": {},
+                  "type": "array"
+                },
+                "alert_agentic": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "co_excl": {
+                  "default": [
+                    ""
+                  ],
+                  "items": {},
+                  "type": "array"
+                },
+                "kf_update_id": {
+                  "default": "",
+                  "type": "string"
+                },
+                "pre_download": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "payload_id": {
+                  "default": "",
+                  "type": "string"
+                },
+                "reference_number": {
+                  "default": "",
+                  "type": "string"
+                },
+                "org_limit_user": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "token": {
+                  "default": "",
+                  "type": "string"
+                },
+                "alerts": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "p_id": {
+                  "default": "",
+                  "type": "string"
+                },
+                "period": {
+                  "default": "quarterly",
+                  "type": "string"
+                },
+                "disable": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "groupid": {
+                  "default": "",
+                  "type": "string"
+                },
+                "taxonomy_data": {
+                  "default": "",
+                  "type": "string"
+                },
+                "thread_id": {
+                  "default": "",
+                  "type": "string"
+                },
+                "risk_tier_ucids": {
+                  "default": "{}",
+                  "type": "string"
+                },
+                "selected_risk_tiers": {
+                  "default": "[]",
+                  "type": "string"
+                },
+                "user_email_payload": {
+                  "default": "",
+                  "type": "string"
+                },
+                "given_name": {
+                  "default": "",
+                  "type": "string"
+                },
+                "company_product_pairs": {
+                  "default": "",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "login_to_xlscout",
+            "description": "STEP 1 of 6 - Authenticate the user with XLScout (Keycloak OAuth2/PKCE login).\nCall this FIRST before any other PatDigger tool unless using analyze_patent_for_infringement\nwith a header-supplied token.\n\nAliases: oauth login, xlscout login, keycloak login, authenticate xlscout, sign in to xlscout,\nlogin, auth, get access token.\n\nUsage:\n1. First call: login_to_xlscout() with no arguments. Returns auth_url and code_verifier.\n2. After the user pastes the callback URL (e.g. from clipboard after logging in), call login_to_xlscout again with authorization_url=<pasted URL> and code_verifier=<value from step 1>. Returns login_success and access_token on success.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "authorization_url": {
+                  "default": null,
+                  "type": "string",
+                  "description": "The full callback URL the user pastes after login (optional; omit for step 1)."
+                },
+                "code_verifier": {
+                  "default": null,
+                  "type": "string",
+                  "description": "The code_verifier from the first call (required when authorization_url is provided)."
+                }
+              },
+              "type": "object"
+            },
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "fetch_patent_claims",
+        "description": "STEP 2 of 6 - Fetch patent claims, title, assignee, and abstract for one or more UCIDs.\nUse this to retrieve claim text and independent-claim numbers before running a company search.\n\nAliases: get patent claims, fetch claims, lookup patent, patent metadata, claim lookup,\nget claims, patent details, patent abstract.\n\nInput: ucid_list (str) - comma-separated UCIDs, e.g. \"US-9473259-B2, US-10911269-B2\".\nOutput: For each UCID, returns claims (list), title, assignee, abstract, independent_claim (list of claim numbers).\nAlso includes ucid_for_company_search for use with search_companies_from_patent_ucids.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "ucid_list": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "ucid_list"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "search_companies_from_patent_ucids",
+        "description": "STEP 3 of 6 - Search for companies and products related to one or more patent UCIDs.\nUse this when the user wants an interactive flow with claim-selection control. For a fully\nautomated single-UCID flow, use analyze_patent_for_infringement instead.\n\nAliases: company search, find companies, patent company lookup, search companies from patent,\ncompetitor search, target company search, company product lookup, company_search_from_ucids.\n\nAuthentication-first, two-step flow:\n0) Before using this tool, call login_to_xlscout and complete login. If no valid OAuth session exists, this tool returns an auth-required response telling the caller to do that first.\n1) First call (without independent_claim_selection): Calls fetch_patent_claims and returns independent_claim options for each UCID.\n   Ask the user to select one independent claim for each UCID: show independent_claim_options and ask \"Please select one independent claim number for each UCID. Reply with your selection in the format {\"UCID\": \"claim_no\"}, e.g. {\"US-9473259-B2\": \"1\"}.\"\n2) Second call (with independent_claim_selection): Run company search with the user's selected claim(s) and return products with serial numbers.\n\nindependent_claim_selection format: {\"US-9473259-B2\": \"1\", \"US-10911269-B2\": \"5\"}\n\nAfter products are returned, ask the user to select products, then ask the credit-confirmation question. Because this flow starts with oauth_login, reuse that same OAuth access token when calling generate_key_features_for_claims and submit_ranking_auth_alerts.\n\nucid_list: e.g. \"US-9473259-B2\" or \"US-1234567-B2, US-7878787-B2\"",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "ucid_list": {
+              "type": "string"
+            },
+            "target_company": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "exclude_list": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "unique_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": ""
+            },
+            "independent_claim_selection": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "ucid_list"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "analyze_patent_for_infringement",
+        "description": "START HERE for any patent infringement analysis. Patent infringement analysis from a UCID\nin one call. Patent analysis, company search, product matching, and ranking - all automated.\n\nAliases: patent infringement analysis, patent company search, patent ucid analysis,\none-shot patent analysis, patdigger case, run patdigger, analyze patent, patent ranking,\ncompany product matching from patent, automated patent analysis, infringement watch.\n\nThis is the entry-point tool. Call this first whenever the user provides a single patent\nUCID (e.g. \"US-11553496-B2\") and wants to find potentially infringing companies/products.\nIt runs the full default PatDigger flow end-to-end with no user interaction:\n\n  STEP 1 of 6: Fetch claims for the UCID.\n  STEP 2 of 6: Auto-select the first independent claim.\n  STEP 3 of 6: Run company search with default inputs (no target/exclude lists).\n  STEP 4 of 6: Select all returned company/product pairs.\n  STEP 5 of 6: Generate key features for the selected claim.\n  STEP 6 of 6: Submit ranking (alerts disabled).\n\nAuthentication: reads the Keycloak token from the X-Access-Token / Authorization\nrequest header. If absent, returns an authentication-required error. For interactive\nOAuth, call login_to_xlscout first.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "ucid": {
+              "type": "string",
+              "description": "A single patent UCID, e.g. \"US-11553496-B2\"."
+            }
+          },
+          "required": [
+            "ucid"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "generate_key_features_from_claims",
+        "description": "STEP 4 of 6 - Generate key features for selected patent claims using the invalidator-llm keyfeatures API.\nRun this after search_companies_from_patent_ucids and before submit_patent_infringement_ranking.\n\nAliases: generate key features, extract key features, claim key features, kfs generation,\nkeyfeatures, generate_key_features_for_claims.\n\nThis tool is intended to be called *after* login_to_xlscout and search_companies_from_patent_ucids, and\n*before* submit_patent_infringement_ranking.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "ucid_list": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "description": "List of UCIDs (e.g. [\"US-9473259-B2\"])."
+            },
+            "claim_used_for_ranking": {
+              "additionalProperties": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "type": "object",
+              "description": "Dict mapping UCID -> list of claim texts (from company_search_from_ucids)."
+            },
+            "claim_no_used_for_ranking": {
+              "anyOf": [
+                {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional dict mapping UCID -> list of claim numbers (unused by keyfeatures,\nbut returned for convenience so the caller can keep them together)."
+            },
+            "token": {
+              "default": "",
+              "type": "string",
+              "description": "Bearer token from oauth_login. If omitted, the tool will try the stored OAuth token\nfrom oauth_login. If no OAuth token is available, it returns an auth error instead of\nattempting a service-token fallback."
+            }
+          },
+          "required": [
+            "ucid_list",
+            "claim_used_for_ranking"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "submit_patent_infringement_ranking",
+        "description": "STEP 5 of 6 - Submit a patent-vs-product ranking job to the XLScout PatDigger API, optionally scheduling\nrecurring infringement alerts (quarterly / semi-annually / annually).\n\nAliases: submit ranking, patent ranking, submit infringement analysis, claim chart ranking,\nschedule alerts, infringement watch, patdigger ranking, submit_ranking_auth_alerts.\n\nAfter having target companies and their products information, submit a ranking job to the XLScout PatDigger API and if alerts = True, submit ranking job and then submit job to the schedule_alerts API to schedule alerts quarterly, semi-annually or annually. This tool helps map patent claims to products of a company, streamlining the identification of potential licenses and their overlapping products and assisting infringement analyses. It can also find relevant products on its own and work with only ucid inputs as well.\n\nExpected flow: After the user confirms the credit-deduction prompt, call generate_key_features_for_claims first with the selected claims, then pass the returned kfs_for_ranking into this tool as the kfs argument. This tool builds productdict from company_product_pairs when provided, sends the ranking API payload as application/x-www-form-urlencoded, and returns the ranking result. If kfs is omitted and kf_update_id is empty, this tool returns a next-step error telling the caller to run generate_key_features_for_claims first.\n\nThis tool relays all required and optional fields to the /ranking endpoint, ensuring the correct input format. For arguments not provided, default values are used. All dictionary/list parameters (ucid_list, productdict, claim, claim_no, kfs, co_excl, image_kf) are JSON-dumped before sending because the ranking API expects Form() parameters as strings. Token is sent only in the Authorization header (Bearer), not in the request body.\nMake sure to format inputs strictly using standard double quotes.\n  \nArgs for ranking endpoint:\n    ucid_list (list): List of patent UCIDs (e.g., [\"US123\", \"US456\"]).\n    productdict (dict): Dictionary mapping product names to company names (e.g., {\"ProductA\": \"CompanyX\"}). When using company_search_from_ucids: pass company_product_pairs instead - the tool builds productdict from user-selected pairs.\n    company_product_pairs (str): Stringified list of {\"product\",\"company\"} for pairs selected in company search. API uses this; productdict is derived from it when provided.\n    kfs (dict): Dict mapping UCID -> list of key features, typically the kfs_for_ranking returned by generate_key_features_for_claims.\n    claim (dict): REQUIRED. Dictionary mapping each UCID to list of claim strings. When using company_search_from_ucids, pass claim_used_for_ranking from that result; the tool converts it to string for the API. Otherwise the tool auto-fills from get_claims (first independent claim) if empty.\n    claim_no (dict): REQUIRED. Dictionary mapping each UCID to list of claim numbers. When using company_search_from_ucids, pass claim_no_used_for_ranking from that result; the tool converts it to string for the API. Otherwise auto-filled with claim.\n    support_text (str): Supporting text content (default: \"\").\n    ai_recemmonded_products (bool): False.\n    bg_image (bool): False.\n    image_kf (list): List of image key features (default: []).\n    alert_agentic (bool): False.\n    co_excl (list): List of co-exclusion items (default: []).\n    kf_update_id (str): Key feature update ID (default: \"\").\n    pre_download (bool): True. \n    payload_id (str): Unique identifier for the payload (default: \"\").\n    reference_number (str): Reference number for the job (default: \"\").\n    org_limit_user (bool): False.\n    token: the string value of \"access_token\" returned by the oauth_login tool\n    groupid (str): Group ID for grouping taxonomy runs per case (default: \"\"). Passed through to PatDigger /ranking endpoint.\n    alerts: (bool) Does user want to set alerts for cases. Defaults value is true. If the user indicates that he wants to set alerts, set this argument to True.\n    \nArgs for schedule_alerts endpoint:\n    p_id: (str) if alerts = True, payload_id stores the id returned by reanking endpoint, otherwise, payload_od = ''\n    period: (str) if alerts = True, period stores one of the three values \"quarterly\", \"semi-annually\", or \"annually\", based on user's preference on how frequently they want to set alerts for the case.\n    disable: (bool) False\n **DO NOT SET ANY ARGUMENT VALUE TO NULL. Set all boolean type arguments to False, unless specified**\n\nStep 1: Use the oauth_login tool, to log the user into Xlscout's system. \nStep 2: Ask user if they want to set alerts for the case. Display the message \"Do you want to set alerts?\" **Wait for the user to type 'YES' or 'NO'.** If the user replies with a \"YES\" or a response implying affirmative, set alerts = True and ask user the period of time they want to set alerts for. Display the message \"Select the period you want to set alerts for: 1) quarterly 2) semi-annually 3) annually.\" **Wait for the user to type the period.** Based o the user's preference, set the value of the string variable period. If the user replies with a \"NO\" or a response implying negative, set the boolean variable alerts = False and the string variable period as empty string ''. Then proceed to the next step.\nStep 3: Ask the user for confirmation, warning about credits being deducted from their account. Display the message: \"Some credits will be deducted from your account. Are you sure you want to proceed with this task? Reply with a 'YES' to continue, or 'NO' to stop.\" **Wait for the user to type 'YES' or 'NO'.** If the user replies with 'NO' or negative, stop and return. If 'YES', proceed.\nStep 4: Use the oauth_login tool again to log the user into Xlscout's website. Set the token argument to the string value of \"access_token\" returned by oauth_login. Extract the email from the oauth_login response and store it in a local variable email.\nStep 5: Call generate_key_features_for_claims with ucid_list, claim_used_for_ranking/claim, claim_no_used_for_ranking/claim_no, and token. Store the returned kfs_for_ranking.\nClaim/claim_no (required): When the flow comes from company_search_from_ucids, use claim_used_for_ranking and claim_no_used_for_ranking from the company_search_from_ucids result as the claim and claim_no arguments. When not from company_search_from_ucids, the tool auto-fills claim and claim_no from get_claims (first independent claim per UCID) if empty; if auto-fill fails, pass claim and claim_no from get_claims manually.\nProduct selection (when using company_search_from_ucids): After company_search_from_ucids returns formatted_output with serial numbers, ask the user \"Would you like to select all results or choose specific products? Reply with 'all' or enter numbers (e.g., 1, 5, 8).\" Pass the selected pairs as company_product_pairs (stringified list of {\"product\",\"company\"}) to this tool; it will build productdict and send both to the API.\nStep 6: Relay all required and optional fields to the /ranking endpoint. Use the token from Step 4 and pass kfs = kfs_for_ranking from Step 5. For claim and claim_no, use claim_used_for_ranking and claim_no_used_for_ranking from company_search_from_ucids when available; otherwise use auto-filled or manually provided values. The tool serializes claim and claim_no to string for the API.\nIf alerts = True\nStep 7: Using the local variable email, display the message **\"request submitted, you'll soon receive updates on email ID <email>, stay tuned!\"** Insert the value of local variable email in this message.\nStep 8: Retrieve the value of argument payload_id from the response of /ranking endpoint and store in argument p_id. Use the value of argument period as obtained after Step 2. Relay the values of the arguments p_id, period and disable to the schedule_alerts endpoint.\nIf alerts = False \nStep 7: Using the local variable email, display the message **\"request submitted, you'll soon receive updates on email ID <email>, stay tuned!\"** Insert the value of local variable email in this message. The execution is complete.\n\n**DO NOT SET ANY ARGUMENT VALUE TO NULL. Set all boolean type arguments to False, unless specified**\n \nReturns:\n    dict: API response containing the message and payload ID or error status. \n\nExample input for ranking endpoint: Given input patent US-XXXXXX-B2, ProductX and CompanyY, formulate the inputs as: \n{\n    \"ucid_list\": [\"US-XXXXXX-B2\"],\n    \"productdict\": {\"ProductX\": \"CompanyY\"},\n    \"kfs\": {\"US-XXXXXX-B2\": [\"<kf1>\", \"<kf2>\"]},\n    \"claim\": {},\n    \"claim_no\": {},\n    \"support_text\": \"\",\n    \"ai_recemmonded_products\": False,\n    \"bg_image\": False,\n    \"image_kf\": [],\n    \"alert_agentic\": False,\n    \"co_excl\": [\"\"],\n    \"kf_update_id\": \"\",\n    \"pre-download\": True,\n    \"payload_id\": \"\",\n    \"reference_no\": \"\",\n    \"org_limit_user\": False,\n    \"token\": \"<the string value of \"access_token\" returned by the oauth_login tool>\"\n}\n\nExample input for schedule_alerts endpoint if alerts=True:\n{\n    \"payload_id\": \"aaaaaaaaaaaaaaaaaaa\",\n    \"period\": \"quarterly\",\n    \"disable\": False\n}",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "ucid_list": {
+              "default": [],
+              "items": {},
+              "type": "array"
+            },
+            "productdict": {
+              "additionalProperties": true,
+              "default": {},
+              "type": "object"
+            },
+            "kfs": {
+              "additionalProperties": true,
+              "default": {},
+              "type": "object"
+            },
+            "claim": {
+              "additionalProperties": true,
+              "default": {},
+              "type": "object"
+            },
+            "claim_no": {
+              "additionalProperties": true,
+              "default": {},
+              "type": "object"
+            },
+            "support_text": {
+              "default": "",
+              "type": "string"
+            },
+            "ai_recemmonded_products": {
+              "default": false,
+              "type": "boolean"
+            },
+            "bg_image": {
+              "default": false,
+              "type": "boolean"
+            },
+            "image_kf": {
+              "default": [],
+              "items": {},
+              "type": "array"
+            },
+            "alert_agentic": {
+              "default": false,
+              "type": "boolean"
+            },
+            "co_excl": {
+              "default": [
+                ""
+              ],
+              "items": {},
+              "type": "array"
+            },
+            "kf_update_id": {
+              "default": "",
+              "type": "string"
+            },
+            "pre_download": {
+              "default": false,
+              "type": "boolean"
+            },
+            "payload_id": {
+              "default": "",
+              "type": "string"
+            },
+            "reference_number": {
+              "default": "",
+              "type": "string"
+            },
+            "org_limit_user": {
+              "default": false,
+              "type": "boolean"
+            },
+            "token": {
+              "default": "",
+              "type": "string"
+            },
+            "alerts": {
+              "default": false,
+              "type": "boolean"
+            },
+            "p_id": {
+              "default": "",
+              "type": "string"
+            },
+            "period": {
+              "default": "quarterly",
+              "type": "string"
+            },
+            "disable": {
+              "default": false,
+              "type": "boolean"
+            },
+            "groupid": {
+              "default": "",
+              "type": "string"
+            },
+            "taxonomy_data": {
+              "default": "",
+              "type": "string"
+            },
+            "thread_id": {
+              "default": "",
+              "type": "string"
+            },
+            "risk_tier_ucids": {
+              "default": "{}",
+              "type": "string"
+            },
+            "selected_risk_tiers": {
+              "default": "[]",
+              "type": "string"
+            },
+            "user_email_payload": {
+              "default": "",
+              "type": "string"
+            },
+            "given_name": {
+              "default": "",
+              "type": "string"
+            },
+            "company_product_pairs": {
+              "default": "",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "login_to_xlscout",
+        "description": "STEP 1 of 6 - Authenticate the user with XLScout (Keycloak OAuth2/PKCE login).\nCall this FIRST before any other PatDigger tool unless using analyze_patent_for_infringement\nwith a header-supplied token.\n\nAliases: oauth login, xlscout login, keycloak login, authenticate xlscout, sign in to xlscout,\nlogin, auth, get access token.\n\nUsage:\n1. First call: login_to_xlscout() with no arguments. Returns auth_url and code_verifier.\n2. After the user pastes the callback URL (e.g. from clipboard after logging in), call login_to_xlscout again with authorization_url=<pasted URL> and code_verifier=<value from step 1>. Returns login_success and access_token on success.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "authorization_url": {
+              "default": null,
+              "type": "string",
+              "description": "The full callback URL the user pastes after login (optional; omit for step 1)."
+            },
+            "code_verifier": {
+              "default": null,
+              "type": "string",
+              "description": "The code_verifier from the first call (required when authorization_url is provided)."
+            }
+          },
+          "type": "object"
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-18T00:15:17.934Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-18T00:15:18.984Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-18T00:15:20.036Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-18T00:15:21.087Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 6,
+    "tools_hash": "sha256:85d3501a8676d70646baad6592e91cf164db57fa6e7a4be4d5045474a97d2c24",
+    "static_tool_tokens": 7382,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F2",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "fetch_patent_claims",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "ucid_list"
+      },
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "fetch_patent_claims",
+        "message": "Parameter has no description.",
+        "param": "ucid_list"
+      },
+      {
+        "id": "F5",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_companies_from_patent_ucids",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_companies_from_patent_ucids",
+        "message": "Parameter has no description.",
+        "param": "ucid_list"
+      },
+      {
+        "id": "F7",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "search_companies_from_patent_ucids",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "ucid_list"
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_companies_from_patent_ucids",
+        "message": "Parameter has no description.",
+        "param": "target_company"
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_companies_from_patent_ucids",
+        "message": "Parameter has no description.",
+        "param": "exclude_list"
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_companies_from_patent_ucids",
+        "message": "Parameter has no description.",
+        "param": "unique_id"
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_companies_from_patent_ucids",
+        "message": "Parameter has no description.",
+        "param": "independent_claim_selection"
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "analyze_patent_for_infringement",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F13",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "analyze_patent_for_infringement",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "generate_key_features_from_claims",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F15",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "ucid_list"
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "productdict"
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "kfs"
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "claim"
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "claim_no"
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "support_text"
+      },
+      {
+        "id": "F22",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "support_text"
+      },
+      {
+        "id": "F23",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "ai_recemmonded_products"
+      },
+      {
+        "id": "F24",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "bg_image"
+      },
+      {
+        "id": "F25",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "image_kf"
+      },
+      {
+        "id": "F26",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "alert_agentic"
+      },
+      {
+        "id": "F27",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "co_excl"
+      },
+      {
+        "id": "F28",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "kf_update_id"
+      },
+      {
+        "id": "F29",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "kf_update_id"
+      },
+      {
+        "id": "F30",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "pre_download"
+      },
+      {
+        "id": "F31",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "payload_id"
+      },
+      {
+        "id": "F32",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "payload_id"
+      },
+      {
+        "id": "F33",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "reference_number"
+      },
+      {
+        "id": "F34",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "reference_number"
+      },
+      {
+        "id": "F35",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "org_limit_user"
+      },
+      {
+        "id": "F36",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "token"
+      },
+      {
+        "id": "F37",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "token"
+      },
+      {
+        "id": "F38",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "alerts"
+      },
+      {
+        "id": "F39",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "p_id"
+      },
+      {
+        "id": "F40",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "p_id"
+      },
+      {
+        "id": "F41",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "period"
+      },
+      {
+        "id": "F42",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "period"
+      },
+      {
+        "id": "F43",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "disable"
+      },
+      {
+        "id": "F44",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "groupid"
+      },
+      {
+        "id": "F45",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "groupid"
+      },
+      {
+        "id": "F46",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "taxonomy_data"
+      },
+      {
+        "id": "F47",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "taxonomy_data"
+      },
+      {
+        "id": "F48",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "thread_id"
+      },
+      {
+        "id": "F49",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "thread_id"
+      },
+      {
+        "id": "F50",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "risk_tier_ucids"
+      },
+      {
+        "id": "F51",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "risk_tier_ucids"
+      },
+      {
+        "id": "F52",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "selected_risk_tiers"
+      },
+      {
+        "id": "F53",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "selected_risk_tiers"
+      },
+      {
+        "id": "F54",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "user_email_payload"
+      },
+      {
+        "id": "F55",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "user_email_payload"
+      },
+      {
+        "id": "F56",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "given_name"
+      },
+      {
+        "id": "F57",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "given_name"
+      },
+      {
+        "id": "F58",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Parameter has no description.",
+        "param": "company_product_pairs"
+      },
+      {
+        "id": "F59",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_patent_infringement_ranking",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "company_product_pairs"
+      },
+      {
+        "id": "F60",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "login_to_xlscout",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F61",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "login_to_xlscout",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 17,
+      "medium": 39,
+      "warning": 3
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_companies_from_patent_ucids",
+          "path": "inputSchema.properties.exclude_list",
+          "name": "exclude_list",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": null
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "search_companies_from_patent_ucids"
+          ],
+          "path": "inputSchema.properties.exclude_list",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "search_companies_from_patent_ucids"
+          ],
+          "description": "STEP 3 of 6 - Search for companies and products related to one or more patent UCIDs.\nUse this when the user wants an interactive flow with claim-selection control. For a fully\nautomated single-UCID flow, use analyze_patent_for_infringement instead.\n\nAliases: company search, find companies, patent company lookup, search companies from patent,\ncompetitor search, target company search, company product lookup, company_search_from_ucids.\n\nAuthentication-first, two-step flow:\n0) Before using this tool, call login_to_xlscout and complete login. If no valid OAuth session exists, this tool returns an auth-required response telling the caller to do that first.\n1) First call (without independent_claim_selection): Calls fetch_patent_claims and returns independent_claim options for each UCID.\n   Ask the user to select one independent claim for each UCID: show independent_claim_options and ask \"Please select one independent claim number for each UCID. Reply with your selection in the format {\"UCID\": \"claim_no\"}, e.g. {\"US-9473259-B2\": \"1\"}.\"\n2) Second call (with independent_claim_selection): Run company search with the user's selected claim(s) and return products with serial numbers.\n\nindependent_claim_selection format: {\"US-9473259-B2\": \"1\", \"US-10911269-B2\": \"5\"}\n\nAfter products are returned, ask the user to select products, then ask the credit-confirmation question. Because this flow starts with oauth_login, reuse that same OAuth access token when calling generate_key_features_for_claims and submit_ranking_auth_alerts.\n\nucid_list: e.g. \"US-9473259-B2\" or \"US-1234567-B2, US-7878787-B2\"",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "analyze_patent_for_infringement"
+          ],
+          "description": "START HERE for any patent infringement analysis. Patent infringement analysis from a UCID\nin one call. Patent analysis, company search, product matching, and ranking - all automated.\n\nAliases: patent infringement analysis, patent company search, patent ucid analysis,\none-shot patent analysis, patdigger case, run patdigger, analyze patent, patent ranking,\ncompany product matching from patent, automated patent analysis, infringement watch.\n\nThis is the entry-point tool. Call this first whenever the user provides a single patent\nUCID (e.g. \"US-11553496-B2\") and wants to find potentially infringing companies/products.\nIt runs the full default PatDigger flow end-to-end with no user interaction:\n\n  STEP 1 of 6: Fetch claims for the UCID.\n  STEP 2 of 6: Auto-select the first independent claim.\n  STEP 3 of 6: Run company search with default inputs (no target/exclude lists).\n  STEP 4 of 6: Select all returned company/product pairs.\n  STEP 5 of 6: Generate key features for the selected claim.\n  STEP 6 of 6: Submit ranking (alerts disabled).\n\nAuthentication: reads the Keycloak token from the X-Access-Token / Authorization\nrequest header. If absent, returns an authentication-required error. For interactive\nOAuth, call login_to_xlscout first.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "submit_patent_infringement_ranking"
+          ],
+          "description": "STEP 5 of 6 - Submit a patent-vs-product ranking job to the XLScout PatDigger API, optionally scheduling\nrecurring infringement alerts (quarterly / semi-annually / annually).\n\nAliases: submit ranking, patent ranking, submit infringement analysis, claim chart ranking,\nschedule alerts, infringement watch, patdigger ranking, submit_ranking_auth_alerts.\n\nAfter having target companies and their products information, submit a ranking job to the XLScout PatDigger API and if alerts = True, submit ranking job and then submit job to the schedule_alerts API to schedule alerts quarterly, semi-annually or annually. This tool helps map patent claims to products of a company, streamlining the identification of potential licenses and their overlapping products and assisting infringement analyses. It can also find relevant products on its own and work with only ucid inputs as well.\n\nExpected flow: After the user confirms the credit-deduction prompt, call generate_key_features_for_claims first with the selected claims, then pass the returned kfs_for_ranking into this tool as the kfs argument. This tool builds productdict from company_product_pairs when provided, sends the ranking API payload as application/x-www-form-urlencoded, and returns the ranking result. If kfs is omitted and kf_update_id is empty, this tool returns a next-step error telling the caller to run generate_key_features_for_claims first.\n\nThis tool relays all required and optional fields to the /ranking endpoint, ensuring the correct input format. For arguments not provided, default values are used. All dictionary/list parameters (ucid_list, productdict, claim, claim_no, kfs, co_excl, image_kf) are JSON-dumped before sending because the ranking API expects Form() parameters as strings. Token is sent only in the Authorization header (Bearer), not in the request body.\nMake sure to format inputs strictly using standard double quotes.\n  \nArgs for ranking endpoint:\n    ucid_list (list): List of patent UCIDs (e.g., [\"US123\", \"US456\"]).\n    productdict (dict): Dictionary mapping product names to company names (e.g., {\"ProductA\": \"CompanyX\"}). When using company_search_from_ucids: pass company_product_pairs instead - the tool builds productdict from user-selected pairs.\n    company_product_pairs (str): Stringified list of {\"product\",\"company\"} for pairs selected in company search. API uses this; productdict is derived from it when provided.\n    kfs (dict): Dict mapping UCID -> list of key features, typically the kfs_for_ranking returned by generate_key_features_for_claims.\n    claim (dict): REQUIRED. Dictionary mapping each UCID to list of claim strings. When using company_search_from_ucids, pass claim_used_for_ranking from that result; the tool converts it to string for the API. Otherwise the tool auto-fills from get_claims (first independent claim) if empty.\n    claim_no (dict): REQUIRED. Dictionary mapping each UCID to list of claim numbers. When using company_search_from_ucids, pass claim_no_used_for_ranking from that result; the tool converts it to string for the API. Otherwise auto-filled with claim.\n    support_text (str): Supporting text content (default: \"\").\n    ai_recemmonded_products (bool): False.\n    bg_image (bool): False.\n    image_kf (list): List of image key features (default: []).\n    alert_agentic (bool): False.\n    co_excl (list): List of co-exclusion items (default: []).\n    kf_update_id (str): Key feature update ID (default: \"\").\n    pre_download (bool): True. \n    payload_id (str): Unique identifier for the payload (default: \"\").\n    reference_number (str): Reference number for the job (default: \"\").\n    org_limit_user (bool): False.\n    token: the string value of \"access_token\" returned by the oauth_login tool\n    groupid (str): Group ID for grouping taxonomy runs per case (default: \"\"). Passed through to PatDigger /ranking endpoint.\n    alerts: (bool) Does user want to set alerts for cases. Defaults value is true. If the user indicates that he wants to set alerts, set this argument to True.\n    \nArgs for schedule_alerts endpoint:\n    p_id: (str) if alerts = True, payload_id stores the id returned by reanking endpoint, otherwise, payload_od = ''\n    period: (str) if alerts = True, period stores one of the three values \"quarterly\", \"semi-annually\", or \"annually\", based on user's preference on how frequently they want to set alerts for the case.\n    disable: (bool) False\n **DO NOT SET ANY ARGUMENT VALUE TO NULL. Set all boolean type arguments to False, unless specified**\n\nStep 1: Use the oauth_login tool, to log the user into Xlscout's system. \nStep 2: Ask user if they want to set alerts for the case. Display the message \"Do you want to set alerts?\" **Wait for the user to type 'YES' or 'NO'.** If the user replies with a \"YES\" or a response implying affirmative, set alerts = True and ask user the period of time they want to set alerts for. Display the message \"Select the period you want to set alerts for: 1) quarterly 2) semi-annually 3) annually.\" **Wait for the user to type the period.** Based o the user's preference, set the value of the string variable period. If the user replies with a \"NO\" or a response implying negative, set the boolean variable alerts = False and the string variable period as empty string ''. Then proceed to the next step.\nStep 3: Ask the user for confirmation, warning about credits being deducted from their account. Display the message: \"Some credits will be deducted from your account. Are you sure you want to proceed with this task? Reply with a 'YES' to continue, or 'NO' to stop.\" **Wait for the user to type 'YES' or 'NO'.** If the user replies with 'NO' or negative, stop and return. If 'YES', proceed.\nStep 4: Use the oauth_login tool again to log the user into Xlscout's website. Set the token argument to the string value of \"access_token\" returned by oauth_login. Extract the email from the oauth_login response and store it in a local variable email.\nStep 5: Call generate_key_features_for_claims with ucid_list, claim_used_for_ranking/claim, claim_no_used_for_ranking/claim_no, and token. Store the returned kfs_for_ranking.\nClaim/claim_no (required): When the flow comes from company_search_from_ucids, use claim_used_for_ranking and claim_no_used_for_ranking from the company_search_from_ucids result as the claim and claim_no arguments. When not from company_search_from_ucids, the tool auto-fills claim and claim_no from get_claims (first independent claim per UCID) if empty; if auto-fill fails, pass claim and claim_no from get_claims manually.\nProduct selection (when using company_search_from_ucids): After company_search_from_ucids returns formatted_output with serial numbers, ask the user \"Would you like to select all results or choose specific products? Reply with 'all' or enter numbers (e.g., 1, 5, 8).\" Pass the selected pairs as company_product_pairs (stringified list of {\"product\",\"company\"}) to this tool; it will build productdict and send both to the API.\nStep 6: Relay all required and optional fields to the /ranking endpoint. Use the token from Step 4 and pass kfs = kfs_for_ranking from Step 5. For claim and claim_no, use claim_used_for_ranking and claim_no_used_for_ranking from company_search_from_ucids when available; otherwise use auto-filled or manually provided values. The tool serializes claim and claim_no to string for the API.\nIf alerts = True\nStep 7: Using the local variable email, display the message **\"request submitted, you'll soon receive updates on email ID <email>, stay tuned!\"** Insert the value of local variable email in this message.\nStep 8: Retrieve the value of argument payload_id from the response of /ranking endpoint and store in argument p_id. Use the value of argument period as obtained after Step 2. Relay the values of the arguments p_id, period and disable to the schedule_alerts endpoint.\nIf alerts = False \nStep 7: Using the local variable email, display the message **\"request submitted, you'll soon receive updates on email ID <email>, stay tuned!\"** Insert the value of local variable email in this message. The execution is complete.\n\n**DO NOT SET ANY ARGUMENT VALUE TO NULL. Set all boolean type arguments to False, unless specified**\n \nReturns:\n    dict: API response containing the message and payload ID or error status. \n\nExample input for ranking endpoint: Given input patent US-XXXXXX-B2, ProductX and CompanyY, formulate the inputs as: \n{\n    \"ucid_list\": [\"US-XXXXXX-B2\"],\n    \"productdict\": {\"ProductX\": \"CompanyY\"},\n    \"kfs\": {\"US-XXXXXX-B2\": [\"<kf1>\", \"<kf2>\"]},\n    \"claim\": {},\n    \"claim_no\": {},\n    \"support_text\": \"\",\n    \"ai_recemmonded_products\": False,\n    \"bg_image\": False,\n    \"image_kf\": [],\n    \"alert_agentic\": False,\n    \"co_excl\": [\"\"],\n    \"kf_update_id\": \"\",\n    \"pre-download\": True,\n    \"payload_id\": \"\",\n    \"reference_no\": \"\",\n    \"org_limit_user\": False,\n    \"token\": \"<the string value of \"access_token\" returned by the oauth_login tool>\"\n}\n\nExample input for schedule_alerts endpoint if alerts=True:\n{\n    \"payload_id\": \"aaaaaaaaaaaaaaaaaaa\",\n    \"period\": \"quarterly\",\n    \"disable\": False\n}",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": []
+  }
+}

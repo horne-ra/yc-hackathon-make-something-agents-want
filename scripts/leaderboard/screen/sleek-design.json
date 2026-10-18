@@ -1,0 +1,3071 @@
+{
+  "slug": "sleek-design",
+  "source_url": "https://manufact.com/mcp-catalog/sleek-design",
+  "metadata_only": true,
+  "catalog_review_used_auth": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:30:24.056Z",
+    "endpoint": "https://sleek.design/api/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "sleek",
+      "title": "Sleek",
+      "icons": [
+        {
+          "src": "https://sleek.design/icon.svg",
+          "mimeType": "image/svg+xml",
+          "sizes": [
+            "any"
+          ]
+        }
+      ],
+      "version": "1.0.1",
+      "websiteUrl": "https://sleek.design",
+      "description": "Sleek designs mobile app UI with AI. Describe an app and get real, editable screens you can show inline and build the app from."
+    },
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Sleek designs mobile app UI with AI. Describe an app and get real, editable screens you can show inline and build the app from.\n\nFlow: create_project (or list_projects to reuse one), then design, then screenshot, then share the projectUrl the tools return. That URL is where your user opens, edits, and exports the designs; send it every time, do not just describe what was made.\n\nTo build the working app, call get_component for each screen and use its HTML as the design source.\n\nSend the whole request as ONE design message. The agent plans a screen set together, so a single call for 'onboarding, home, item detail, cart, and profile for a plant shop app' produces a coherent app. Five separate calls produce five unrelated screens and use credits for each one.\n\nDesign runs use the workspace's AI credits. Listing, reading, and rendering use none.\n\nOne design run at a time per project. On CONFLICT, poll get_design_run until the current run settles (completed or failed), then retry. cancel_design_run asks a run to stop sooner; the project stays locked until the run settles.\n\nIf a tool returns a URL, send your user there. The API includes one only when a human has to act, such as signing in, and relaying it is how they unblock you.\n\nAuth: connect over OAuth, or send an API key created at https://sleek.design/agents/setup as an \"Authorization: Bearer sk_...\" header.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "list_projects",
+            "title": "List projects",
+            "description": "List the workspace's projects, newest first. Each project holds one app's screens, theme, and design chat. Check here before create_project to avoid duplicates.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "limit": {
+                  "default": 50,
+                  "description": "Number of items to return.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "offset": {
+                  "default": 0,
+                  "description": "Number of items to skip before this page.",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "Use as projectId to access this project."
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Display name of the project."
+                      },
+                      "slug": {
+                        "type": "string",
+                        "description": "Slugified project name. Use id to address the project."
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "description": "ISO 8601 time the project was created."
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "description": "ISO 8601 time the project last changed."
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "slug",
+                      "createdAt",
+                      "updatedAt"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Items on this page."
+                },
+                "pagination": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "number",
+                      "description": "Total items across all pages."
+                    },
+                    "limit": {
+                      "type": "number",
+                      "description": "Page size used for this response."
+                    },
+                    "offset": {
+                      "type": "number",
+                      "description": "Items skipped before this page."
+                    }
+                  },
+                  "required": [
+                    "total",
+                    "limit",
+                    "offset"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "data",
+                "pagination"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "openid",
+                  "email",
+                  "profile",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "create_project",
+            "title": "Create a project",
+            "description": "Create an empty project. Returns it in data, plus projectUrl. Pass data.id as projectId to design, then call screenshot. Creating a project is instant and uses no credits. Only design runs do. Share projectUrl so your user can watch and edit the designs.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Display name for the new project."
+                }
+              },
+              "required": [
+                "name"
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Use as projectId to access this project."
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Display name of the project."
+                    },
+                    "slug": {
+                      "type": "string",
+                      "description": "Slugified project name. Use id to address the project."
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "description": "ISO 8601 time the project was created."
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "description": "ISO 8601 time the project last changed."
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "slug",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                },
+                "projectUrl": {
+                  "type": "string",
+                  "description": "Open link for the project. Share it with your user."
+                }
+              },
+              "required": [
+                "data",
+                "projectUrl"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "openid",
+                  "email",
+                  "profile",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "get_project",
+            "title": "Get a project",
+            "description": "Fetch a project and its projectUrl. Use it to confirm the project exists and share the URL with your user. Use list_components to see its screens.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "projectId": {
+                  "type": "string",
+                  "description": "Project id from an item's id in list_projects, or data.id in create_project."
+                }
+              },
+              "required": [
+                "projectId"
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Use as projectId to access this project."
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Display name of the project."
+                    },
+                    "slug": {
+                      "type": "string",
+                      "description": "Slugified project name. Use id to address the project."
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "description": "ISO 8601 time the project was created."
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "description": "ISO 8601 time the project last changed."
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "slug",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                },
+                "projectUrl": {
+                  "type": "string",
+                  "description": "Open link for the project. Share it with your user."
+                }
+              },
+              "required": [
+                "data",
+                "projectUrl"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "openid",
+                  "email",
+                  "profile",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "delete_project",
+            "title": "Delete a project",
+            "description": "Permanently delete a project and all its screens. Designs cannot be recovered. Call only after your user confirms the exact project by name. Never delete projects to tidy up on your own initiative.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "projectId": {
+                  "type": "string",
+                  "description": "Project id from an item's id in list_projects, or data.id in create_project."
+                },
+                "confirm": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "Set only after your user confirms this exact project by name. Deletion is irreversible."
+                }
+              },
+              "required": [
+                "projectId",
+                "confirm"
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "deleted": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "Always true. The project and its screens are gone."
+                },
+                "projectId": {
+                  "type": "string",
+                  "description": "Id of the deleted project."
+                }
+              },
+              "required": [
+                "deleted",
+                "projectId"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "openid",
+                  "email",
+                  "profile",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "list_components",
+            "title": "List screens",
+            "description": "List a project's screen names and active version numbers without generated HTML. Pass each item's screenId to design. Pass its id as componentId to get_component or in componentIds to screenshot. Use get_component only when you need a screen's code.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "projectId": {
+                  "type": "string",
+                  "description": "Project id from an item's id in list_projects, or data.id in create_project."
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Number of items to return.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "offset": {
+                  "default": 0,
+                  "description": "Number of items to skip before this page.",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "projectId"
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                      },
+                      "screenId": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Pass as screenId to design to edit this screen. Null when the component is not placed on the canvas."
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "activeVersion": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Version number the screen currently shows. Null before the screen has a version."
+                      },
+                      "createdAt": {
+                        "type": "string"
+                      },
+                      "updatedAt": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "screenId",
+                      "name",
+                      "activeVersion",
+                      "createdAt",
+                      "updatedAt"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Items on this page."
+                },
+                "pagination": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "number",
+                      "description": "Total items across all pages."
+                    },
+                    "limit": {
+                      "type": "number",
+                      "description": "Page size used for this response."
+                    },
+                    "offset": {
+                      "type": "number",
+                      "description": "Items skipped before this page."
+                    }
+                  },
+                  "required": [
+                    "total",
+                    "limit",
+                    "offset"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "data",
+                "pagination"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "openid",
+                  "email",
+                  "profile",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "get_component",
+            "title": "Get a screen's HTML",
+            "description": "Fetch a screen's generated HTML. Returns the screen in data, with the HTML at data.versions[].code. versions holds only the version the screen currently shows. Use allVersions for the full history, which can be large. The returned screenId is the value design takes. Use this for a build handoff, not to check whether a design run worked.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "projectId": {
+                  "type": "string",
+                  "description": "Project id from an item's id in list_projects, or data.id in create_project."
+                },
+                "componentId": {
+                  "type": "string",
+                  "description": "Component id from an item's id in list_components, or a componentId in a run's data.result.operations. Not a screenId."
+                },
+                "inlineIcons": {
+                  "default": false,
+                  "description": "Inline icons as SVG so the HTML works without loading Iconify.",
+                  "type": "boolean"
+                },
+                "allVersions": {
+                  "default": false,
+                  "description": "Return every stored version instead of just the active one. Payloads grow quickly; leave it off unless you need the history.",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "projectId",
+                "componentId"
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                    },
+                    "screenId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Pass as screenId to design to edit this screen. Null when the component is not placed on the canvas."
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "activeVersion": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Version number the screen currently shows. Null before the screen has a version."
+                    },
+                    "versions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "version": {
+                            "type": "number"
+                          },
+                          "code": {
+                            "type": "string",
+                            "description": "Generated HTML for this screen revision."
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "version",
+                          "code",
+                          "createdAt"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Only the version the screen currently shows, unless allVersions is true. Each holds the screen's generated HTML in code."
+                    },
+                    "createdAt": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "screenId",
+                    "name",
+                    "activeVersion",
+                    "versions",
+                    "createdAt",
+                    "updatedAt"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "openid",
+                  "email",
+                  "profile",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "list_references",
+            "title": "List design references",
+            "description": "List curated app styles and their preview images. When your user asks for a look such as Airbnb, brutalist, or dark fintech, pass the closest reference's id as referenceId to design. Without a reference, the agent picks a style.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "limit": {
+                  "default": 50,
+                  "description": "Number of items to return.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "offset": {
+                  "default": 0,
+                  "description": "Number of items to skip before this page.",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "Use as referenceId to guide a design run."
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "previewImageUrls": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Screen previews showing this reference's visual style."
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "previewImageUrls"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Items on this page."
+                },
+                "pagination": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "number",
+                      "description": "Total items across all pages."
+                    },
+                    "limit": {
+                      "type": "number",
+                      "description": "Page size used for this response."
+                    },
+                    "offset": {
+                      "type": "number",
+                      "description": "Items skipped before this page."
+                    }
+                  },
+                  "required": [
+                    "total",
+                    "limit",
+                    "offset"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "data",
+                "pagination"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "openid",
+                  "email",
+                  "profile",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "design",
+            "title": "Design screens with AI",
+            "description": "Run Sleek's design agent to create or edit screens from a plain-language brief. Send the whole request as ONE message, such as 'a food delivery app with onboarding, restaurants, dish detail, cart, tracking, and profile'. The agent plans the screens together, so separate calls produce mismatched screens. A run uses workspace credits only when it completes or saves changes. By default this waits for the run to finish. If it returns 'queued' or 'running', poll get_design_run. Only one run can be active per project. On CONFLICT, poll get_design_run until the run settles, then retry. cancel_design_run stops it sooner. If a failed run has data.error.url, send your user there. They have to act before you retry. On completion, share projectUrl with your user and call screenshot.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "projectId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Project id from an item's id in list_projects, or data.id in create_project."
+                },
+                "message": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The full design brief, as one message. Name every screen you want in this single request."
+                },
+                "imageUrls": {
+                  "default": [],
+                  "description": "HTTPS image URLs for visual input, such as screenshots, logos, or style references.",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uri"
+                  }
+                },
+                "screenId": {
+                  "description": "Edit this existing screen instead of creating new ones. Use the screenId from list_components, or from a previous run's data.result.operations (via design or get_design_run). It is not the component id.",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "referenceId": {
+                  "description": "Design reference to imitate, from list_references.",
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "wait": {
+                  "default": true,
+                  "description": "Wait for the run to finish before returning. The wait is capped at 270 seconds, after which you get status 'running' back and poll get_design_run. Set false to return immediately and poll from the start, which is the better choice if your client times tool calls out sooner than that.",
+                  "type": "boolean"
+                },
+                "idempotencyKey": {
+                  "description": "Pick a unique key for each new design request, such as a UUID. Reuse it for retries to return the original run instead of starting a second one.",
+                  "type": "string",
+                  "maxLength": 255
+                }
+              },
+              "required": [
+                "projectId",
+                "message"
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "runId": {
+                      "type": "string",
+                      "description": "Use as runId to poll or cancel this run."
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "running",
+                        "completed",
+                        "failed"
+                      ]
+                    },
+                    "statusUrl": {
+                      "type": "string",
+                      "description": "Relative REST path for polling this run."
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "assistantText": {
+                          "type": "string",
+                          "description": "The design agent's reply text."
+                        },
+                        "operations": {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "screen_created"
+                                  },
+                                  "screenId": {
+                                    "type": "string",
+                                    "description": "Id of the screen. Pass it to a later run to edit this screen."
+                                  },
+                                  "screenName": {
+                                    "type": "string"
+                                  },
+                                  "componentId": {
+                                    "type": "string",
+                                    "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "screenId",
+                                  "screenName",
+                                  "componentId"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "screen_updated"
+                                  },
+                                  "screenId": {
+                                    "type": "string",
+                                    "description": "Id of the screen. Pass it to a later run to edit this screen."
+                                  },
+                                  "componentId": {
+                                    "type": "string",
+                                    "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "screenId",
+                                  "componentId"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "theme_updated"
+                                  }
+                                },
+                                "required": [
+                                  "type"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "description": "Screen creations, screen updates, and theme changes saved by the run."
+                        }
+                      },
+                      "required": [
+                        "assistantText",
+                        "operations"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Failed runs can include changes saved before failure."
+                    },
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Failure reason, such as out_of_credits, cancelled, execution_timeout, execution_failed, or request_message_persist_failed."
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "description": "Where the caller's user can resolve this error. Relay it to the user.",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "runId",
+                    "status",
+                    "statusUrl"
+                  ],
+                  "additionalProperties": false
+                },
+                "projectUrl": {
+                  "type": "string",
+                  "description": "Open link for the project. Share it with your user."
+                }
+              },
+              "required": [
+                "data",
+                "projectUrl"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": false,
+              "openWorldHint": true
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "openid",
+                  "email",
+                  "profile",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "get_design_run",
+            "title": "Get a design run",
+            "description": "Poll a run that design returned as 'queued' or 'running'. Wait a few seconds between polls. On 'completed', data.result.operations lists the saved screens and theme changes. Share projectUrl and call screenshot. On 'failed', read data.error.message and send your user to data.error.url if present. A failed run, including a cancelled one, keeps what it saved in that same list and uses credits only when the list is not empty. Check it before resending the brief.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "projectId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Project id from an item's id in list_projects, or data.id in create_project."
+                },
+                "runId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Run id from data.runId in a design result."
+                }
+              },
+              "required": [
+                "projectId",
+                "runId"
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "runId": {
+                      "type": "string",
+                      "description": "Use as runId to poll or cancel this run."
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "running",
+                        "completed",
+                        "failed"
+                      ]
+                    },
+                    "statusUrl": {
+                      "type": "string",
+                      "description": "Relative REST path for polling this run."
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "assistantText": {
+                          "type": "string",
+                          "description": "The design agent's reply text."
+                        },
+                        "operations": {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "screen_created"
+                                  },
+                                  "screenId": {
+                                    "type": "string",
+                                    "description": "Id of the screen. Pass it to a later run to edit this screen."
+                                  },
+                                  "screenName": {
+                                    "type": "string"
+                                  },
+                                  "componentId": {
+                                    "type": "string",
+                                    "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "screenId",
+                                  "screenName",
+                                  "componentId"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "screen_updated"
+                                  },
+                                  "screenId": {
+                                    "type": "string",
+                                    "description": "Id of the screen. Pass it to a later run to edit this screen."
+                                  },
+                                  "componentId": {
+                                    "type": "string",
+                                    "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "screenId",
+                                  "componentId"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "theme_updated"
+                                  }
+                                },
+                                "required": [
+                                  "type"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "description": "Screen creations, screen updates, and theme changes saved by the run."
+                        }
+                      },
+                      "required": [
+                        "assistantText",
+                        "operations"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Failed runs can include changes saved before failure."
+                    },
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Failure reason, such as out_of_credits, cancelled, execution_timeout, execution_failed, or request_message_persist_failed."
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "description": "Where the caller's user can resolve this error. Relay it to the user.",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "runId",
+                    "status",
+                    "statusUrl"
+                  ],
+                  "additionalProperties": false
+                },
+                "projectUrl": {
+                  "type": "string",
+                  "description": "Open link for the project. Share it with your user."
+                }
+              },
+              "required": [
+                "data",
+                "projectUrl"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "openid",
+                  "email",
+                  "profile",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "cancel_design_run",
+            "title": "Cancel a design run",
+            "description": "Ask a design run to stop, for example when the brief was wrong. Returns the run as it stands right after the request. A queued run comes back 'failed' with error code 'cancelled' and never starts. A running run comes back still 'running' and stops at its next step. A run cut short settles as 'failed' with error code 'cancelled', or 'execution_failed' if saving its changes failed. It keeps any screens and theme changes it saved, listed in data.result.operations, and uses credits only when that list is not empty. A run that finishes before it stops settles as 'completed'. A run that had already settled comes back unchanged. The project stays locked until the run settles, so poll get_design_run before starting another run. A run that stopped responding settles as 'failed' with error code 'execution_timeout' 15 minutes after creation.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "projectId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Project id from an item's id in list_projects, or data.id in create_project."
+                },
+                "runId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Run id from data.runId in a design result."
+                }
+              },
+              "required": [
+                "projectId",
+                "runId"
+              ]
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "properties": {
+                    "runId": {
+                      "type": "string",
+                      "description": "Use as runId to poll or cancel this run."
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "running",
+                        "completed",
+                        "failed"
+                      ]
+                    },
+                    "statusUrl": {
+                      "type": "string",
+                      "description": "Relative REST path for polling this run."
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "assistantText": {
+                          "type": "string",
+                          "description": "The design agent's reply text."
+                        },
+                        "operations": {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "screen_created"
+                                  },
+                                  "screenId": {
+                                    "type": "string",
+                                    "description": "Id of the screen. Pass it to a later run to edit this screen."
+                                  },
+                                  "screenName": {
+                                    "type": "string"
+                                  },
+                                  "componentId": {
+                                    "type": "string",
+                                    "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "screenId",
+                                  "screenName",
+                                  "componentId"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "screen_updated"
+                                  },
+                                  "screenId": {
+                                    "type": "string",
+                                    "description": "Id of the screen. Pass it to a later run to edit this screen."
+                                  },
+                                  "componentId": {
+                                    "type": "string",
+                                    "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                                  }
+                                },
+                                "required": [
+                                  "type",
+                                  "screenId",
+                                  "componentId"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "type": {
+                                    "type": "string",
+                                    "const": "theme_updated"
+                                  }
+                                },
+                                "required": [
+                                  "type"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "description": "Screen creations, screen updates, and theme changes saved by the run."
+                        }
+                      },
+                      "required": [
+                        "assistantText",
+                        "operations"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Failed runs can include changes saved before failure."
+                    },
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "description": "Failure reason, such as out_of_credits, cancelled, execution_timeout, execution_failed, or request_message_persist_failed."
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "description": "Where the caller's user can resolve this error. Relay it to the user.",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "runId",
+                    "status",
+                    "statusUrl"
+                  ],
+                  "additionalProperties": false
+                },
+                "projectUrl": {
+                  "type": "string",
+                  "description": "Open link for the project. Share it with your user."
+                }
+              },
+              "required": [
+                "data",
+                "projectUrl"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "openid",
+                  "email",
+                  "profile",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "screenshot",
+            "title": "Render screens to an image",
+            "description": "Render up to four project screens side by side as one inline image, after a design run completes. Returns the image, PNG unless format asks for WebP, and a one-line text note. Rendering uses no credits. Send projectUrl with the image so your user can open and edit the designs.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "projectId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Project id from an item's id in list_projects, or data.id in create_project."
+                },
+                "componentIds": {
+                  "minItems": 1,
+                  "maxItems": 4,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Component id from an item's id in list_components, or a componentId in a run's data.result.operations. Not a screenId. Screens render left to right. Render more than 4 in separate calls."
+                },
+                "format": {
+                  "default": "png",
+                  "description": "Image encoding for the screenshot.",
+                  "type": "string",
+                  "enum": [
+                    "png",
+                    "webp"
+                  ]
+                },
+                "scale": {
+                  "default": 1,
+                  "description": "Pixel density. 1 is right for showing a design in chat; raise it only when the user asked for a high-resolution export.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3
+                },
+                "fullHeight": {
+                  "default": false,
+                  "description": "Expand each frame to the full height of its content before capturing, so scrollable screens are rendered fully extended rather than cut off at the bottom of the frame. Frames are capped at 4x the default frame height.",
+                  "type": "boolean"
+                },
+                "background": {
+                  "default": "transparent",
+                  "description": "CSS background behind the frames, such as \"#ffffff\" or \"transparent\".",
+                  "type": "string"
+                },
+                "padding": {
+                  "default": 40,
+                  "description": "Space in pixels on each side of the row of frames.",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "projectId",
+                "componentIds"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "openid",
+                  "email",
+                  "profile",
+                  "offline_access"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "list_projects",
+        "title": "List projects",
+        "description": "List the workspace's projects, newest first. Each project holds one app's screens, theme, and design chat. Check here before create_project to avoid duplicates.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "default": 50,
+              "description": "Number of items to return.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "offset": {
+              "default": 0,
+              "description": "Number of items to skip before this page.",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Use as projectId to access this project."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Display name of the project."
+                  },
+                  "slug": {
+                    "type": "string",
+                    "description": "Slugified project name. Use id to address the project."
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "description": "ISO 8601 time the project was created."
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "description": "ISO 8601 time the project last changed."
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "slug",
+                  "createdAt",
+                  "updatedAt"
+                ],
+                "additionalProperties": false
+              },
+              "description": "Items on this page."
+            },
+            "pagination": {
+              "type": "object",
+              "properties": {
+                "total": {
+                  "type": "number",
+                  "description": "Total items across all pages."
+                },
+                "limit": {
+                  "type": "number",
+                  "description": "Page size used for this response."
+                },
+                "offset": {
+                  "type": "number",
+                  "description": "Items skipped before this page."
+                }
+              },
+              "required": [
+                "total",
+                "limit",
+                "offset"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "data",
+            "pagination"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "openid",
+              "email",
+              "profile",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "create_project",
+        "title": "Create a project",
+        "description": "Create an empty project. Returns it in data, plus projectUrl. Pass data.id as projectId to design, then call screenshot. Creating a project is instant and uses no credits. Only design runs do. Share projectUrl so your user can watch and edit the designs.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Display name for the new project."
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Use as projectId to access this project."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Display name of the project."
+                },
+                "slug": {
+                  "type": "string",
+                  "description": "Slugified project name. Use id to address the project."
+                },
+                "createdAt": {
+                  "type": "string",
+                  "description": "ISO 8601 time the project was created."
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "description": "ISO 8601 time the project last changed."
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "slug",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            },
+            "projectUrl": {
+              "type": "string",
+              "description": "Open link for the project. Share it with your user."
+            }
+          },
+          "required": [
+            "data",
+            "projectUrl"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "openid",
+              "email",
+              "profile",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "get_project",
+        "title": "Get a project",
+        "description": "Fetch a project and its projectUrl. Use it to confirm the project exists and share the URL with your user. Use list_components to see its screens.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string",
+              "description": "Project id from an item's id in list_projects, or data.id in create_project."
+            }
+          },
+          "required": [
+            "projectId"
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Use as projectId to access this project."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Display name of the project."
+                },
+                "slug": {
+                  "type": "string",
+                  "description": "Slugified project name. Use id to address the project."
+                },
+                "createdAt": {
+                  "type": "string",
+                  "description": "ISO 8601 time the project was created."
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "description": "ISO 8601 time the project last changed."
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "slug",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            },
+            "projectUrl": {
+              "type": "string",
+              "description": "Open link for the project. Share it with your user."
+            }
+          },
+          "required": [
+            "data",
+            "projectUrl"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "openid",
+              "email",
+              "profile",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "delete_project",
+        "title": "Delete a project",
+        "description": "Permanently delete a project and all its screens. Designs cannot be recovered. Call only after your user confirms the exact project by name. Never delete projects to tidy up on your own initiative.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string",
+              "description": "Project id from an item's id in list_projects, or data.id in create_project."
+            },
+            "confirm": {
+              "type": "boolean",
+              "const": true,
+              "description": "Set only after your user confirms this exact project by name. Deletion is irreversible."
+            }
+          },
+          "required": [
+            "projectId",
+            "confirm"
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "deleted": {
+              "type": "boolean",
+              "const": true,
+              "description": "Always true. The project and its screens are gone."
+            },
+            "projectId": {
+              "type": "string",
+              "description": "Id of the deleted project."
+            }
+          },
+          "required": [
+            "deleted",
+            "projectId"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "openid",
+              "email",
+              "profile",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "list_components",
+        "title": "List screens",
+        "description": "List a project's screen names and active version numbers without generated HTML. Pass each item's screenId to design. Pass its id as componentId to get_component or in componentIds to screenshot. Use get_component only when you need a screen's code.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string",
+              "description": "Project id from an item's id in list_projects, or data.id in create_project."
+            },
+            "limit": {
+              "default": 50,
+              "description": "Number of items to return.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "offset": {
+              "default": 0,
+              "description": "Number of items to skip before this page.",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "projectId"
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                  },
+                  "screenId": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Pass as screenId to design to edit this screen. Null when the component is not placed on the canvas."
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "activeVersion": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Version number the screen currently shows. Null before the screen has a version."
+                  },
+                  "createdAt": {
+                    "type": "string"
+                  },
+                  "updatedAt": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "screenId",
+                  "name",
+                  "activeVersion",
+                  "createdAt",
+                  "updatedAt"
+                ],
+                "additionalProperties": false
+              },
+              "description": "Items on this page."
+            },
+            "pagination": {
+              "type": "object",
+              "properties": {
+                "total": {
+                  "type": "number",
+                  "description": "Total items across all pages."
+                },
+                "limit": {
+                  "type": "number",
+                  "description": "Page size used for this response."
+                },
+                "offset": {
+                  "type": "number",
+                  "description": "Items skipped before this page."
+                }
+              },
+              "required": [
+                "total",
+                "limit",
+                "offset"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "data",
+            "pagination"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "openid",
+              "email",
+              "profile",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "get_component",
+        "title": "Get a screen's HTML",
+        "description": "Fetch a screen's generated HTML. Returns the screen in data, with the HTML at data.versions[].code. versions holds only the version the screen currently shows. Use allVersions for the full history, which can be large. The returned screenId is the value design takes. Use this for a build handoff, not to check whether a design run worked.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string",
+              "description": "Project id from an item's id in list_projects, or data.id in create_project."
+            },
+            "componentId": {
+              "type": "string",
+              "description": "Component id from an item's id in list_components, or a componentId in a run's data.result.operations. Not a screenId."
+            },
+            "inlineIcons": {
+              "default": false,
+              "description": "Inline icons as SVG so the HTML works without loading Iconify.",
+              "type": "boolean"
+            },
+            "allVersions": {
+              "default": false,
+              "description": "Return every stored version instead of just the active one. Payloads grow quickly; leave it off unless you need the history.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "projectId",
+            "componentId"
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                },
+                "screenId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Pass as screenId to design to edit this screen. Null when the component is not placed on the canvas."
+                },
+                "name": {
+                  "type": "string"
+                },
+                "activeVersion": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Version number the screen currently shows. Null before the screen has a version."
+                },
+                "versions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "version": {
+                        "type": "number"
+                      },
+                      "code": {
+                        "type": "string",
+                        "description": "Generated HTML for this screen revision."
+                      },
+                      "createdAt": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "version",
+                      "code",
+                      "createdAt"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Only the version the screen currently shows, unless allVersions is true. Each holds the screen's generated HTML in code."
+                },
+                "createdAt": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "screenId",
+                "name",
+                "activeVersion",
+                "versions",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "openid",
+              "email",
+              "profile",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "list_references",
+        "title": "List design references",
+        "description": "List curated app styles and their preview images. When your user asks for a look such as Airbnb, brutalist, or dark fintech, pass the closest reference's id as referenceId to design. Without a reference, the agent picks a style.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "default": 50,
+              "description": "Number of items to return.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "offset": {
+              "default": 0,
+              "description": "Number of items to skip before this page.",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Use as referenceId to guide a design run."
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "previewImageUrls": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Screen previews showing this reference's visual style."
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "previewImageUrls"
+                ],
+                "additionalProperties": false
+              },
+              "description": "Items on this page."
+            },
+            "pagination": {
+              "type": "object",
+              "properties": {
+                "total": {
+                  "type": "number",
+                  "description": "Total items across all pages."
+                },
+                "limit": {
+                  "type": "number",
+                  "description": "Page size used for this response."
+                },
+                "offset": {
+                  "type": "number",
+                  "description": "Items skipped before this page."
+                }
+              },
+              "required": [
+                "total",
+                "limit",
+                "offset"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "data",
+            "pagination"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "openid",
+              "email",
+              "profile",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "design",
+        "title": "Design screens with AI",
+        "description": "Run Sleek's design agent to create or edit screens from a plain-language brief. Send the whole request as ONE message, such as 'a food delivery app with onboarding, restaurants, dish detail, cart, tracking, and profile'. The agent plans the screens together, so separate calls produce mismatched screens. A run uses workspace credits only when it completes or saves changes. By default this waits for the run to finish. If it returns 'queued' or 'running', poll get_design_run. Only one run can be active per project. On CONFLICT, poll get_design_run until the run settles, then retry. cancel_design_run stops it sooner. If a failed run has data.error.url, send your user there. They have to act before you retry. On completion, share projectUrl with your user and call screenshot.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Project id from an item's id in list_projects, or data.id in create_project."
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The full design brief, as one message. Name every screen you want in this single request."
+            },
+            "imageUrls": {
+              "default": [],
+              "description": "HTTPS image URLs for visual input, such as screenshots, logos, or style references.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uri"
+              }
+            },
+            "screenId": {
+              "description": "Edit this existing screen instead of creating new ones. Use the screenId from list_components, or from a previous run's data.result.operations (via design or get_design_run). It is not the component id.",
+              "type": "string",
+              "minLength": 1
+            },
+            "referenceId": {
+              "description": "Design reference to imitate, from list_references.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "wait": {
+              "default": true,
+              "description": "Wait for the run to finish before returning. The wait is capped at 270 seconds, after which you get status 'running' back and poll get_design_run. Set false to return immediately and poll from the start, which is the better choice if your client times tool calls out sooner than that.",
+              "type": "boolean"
+            },
+            "idempotencyKey": {
+              "description": "Pick a unique key for each new design request, such as a UUID. Reuse it for retries to return the original run instead of starting a second one.",
+              "type": "string",
+              "maxLength": 255
+            }
+          },
+          "required": [
+            "projectId",
+            "message"
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": {
+                "runId": {
+                  "type": "string",
+                  "description": "Use as runId to poll or cancel this run."
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "running",
+                    "completed",
+                    "failed"
+                  ]
+                },
+                "statusUrl": {
+                  "type": "string",
+                  "description": "Relative REST path for polling this run."
+                },
+                "result": {
+                  "type": "object",
+                  "properties": {
+                    "assistantText": {
+                      "type": "string",
+                      "description": "The design agent's reply text."
+                    },
+                    "operations": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "screen_created"
+                              },
+                              "screenId": {
+                                "type": "string",
+                                "description": "Id of the screen. Pass it to a later run to edit this screen."
+                              },
+                              "screenName": {
+                                "type": "string"
+                              },
+                              "componentId": {
+                                "type": "string",
+                                "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "screenId",
+                              "screenName",
+                              "componentId"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "screen_updated"
+                              },
+                              "screenId": {
+                                "type": "string",
+                                "description": "Id of the screen. Pass it to a later run to edit this screen."
+                              },
+                              "componentId": {
+                                "type": "string",
+                                "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "screenId",
+                              "componentId"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "theme_updated"
+                              }
+                            },
+                            "required": [
+                              "type"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "description": "Screen creations, screen updates, and theme changes saved by the run."
+                    }
+                  },
+                  "required": [
+                    "assistantText",
+                    "operations"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Failed runs can include changes saved before failure."
+                },
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "description": "Failure reason, such as out_of_credits, cancelled, execution_timeout, execution_failed, or request_message_persist_failed."
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "description": "Where the caller's user can resolve this error. Relay it to the user.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "runId",
+                "status",
+                "statusUrl"
+              ],
+              "additionalProperties": false
+            },
+            "projectUrl": {
+              "type": "string",
+              "description": "Open link for the project. Share it with your user."
+            }
+          },
+          "required": [
+            "data",
+            "projectUrl"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "openid",
+              "email",
+              "profile",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "get_design_run",
+        "title": "Get a design run",
+        "description": "Poll a run that design returned as 'queued' or 'running'. Wait a few seconds between polls. On 'completed', data.result.operations lists the saved screens and theme changes. Share projectUrl and call screenshot. On 'failed', read data.error.message and send your user to data.error.url if present. A failed run, including a cancelled one, keeps what it saved in that same list and uses credits only when the list is not empty. Check it before resending the brief.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Project id from an item's id in list_projects, or data.id in create_project."
+            },
+            "runId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Run id from data.runId in a design result."
+            }
+          },
+          "required": [
+            "projectId",
+            "runId"
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": {
+                "runId": {
+                  "type": "string",
+                  "description": "Use as runId to poll or cancel this run."
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "running",
+                    "completed",
+                    "failed"
+                  ]
+                },
+                "statusUrl": {
+                  "type": "string",
+                  "description": "Relative REST path for polling this run."
+                },
+                "result": {
+                  "type": "object",
+                  "properties": {
+                    "assistantText": {
+                      "type": "string",
+                      "description": "The design agent's reply text."
+                    },
+                    "operations": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "screen_created"
+                              },
+                              "screenId": {
+                                "type": "string",
+                                "description": "Id of the screen. Pass it to a later run to edit this screen."
+                              },
+                              "screenName": {
+                                "type": "string"
+                              },
+                              "componentId": {
+                                "type": "string",
+                                "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "screenId",
+                              "screenName",
+                              "componentId"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "screen_updated"
+                              },
+                              "screenId": {
+                                "type": "string",
+                                "description": "Id of the screen. Pass it to a later run to edit this screen."
+                              },
+                              "componentId": {
+                                "type": "string",
+                                "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "screenId",
+                              "componentId"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "theme_updated"
+                              }
+                            },
+                            "required": [
+                              "type"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "description": "Screen creations, screen updates, and theme changes saved by the run."
+                    }
+                  },
+                  "required": [
+                    "assistantText",
+                    "operations"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Failed runs can include changes saved before failure."
+                },
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "description": "Failure reason, such as out_of_credits, cancelled, execution_timeout, execution_failed, or request_message_persist_failed."
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "description": "Where the caller's user can resolve this error. Relay it to the user.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "runId",
+                "status",
+                "statusUrl"
+              ],
+              "additionalProperties": false
+            },
+            "projectUrl": {
+              "type": "string",
+              "description": "Open link for the project. Share it with your user."
+            }
+          },
+          "required": [
+            "data",
+            "projectUrl"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "openid",
+              "email",
+              "profile",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "cancel_design_run",
+        "title": "Cancel a design run",
+        "description": "Ask a design run to stop, for example when the brief was wrong. Returns the run as it stands right after the request. A queued run comes back 'failed' with error code 'cancelled' and never starts. A running run comes back still 'running' and stops at its next step. A run cut short settles as 'failed' with error code 'cancelled', or 'execution_failed' if saving its changes failed. It keeps any screens and theme changes it saved, listed in data.result.operations, and uses credits only when that list is not empty. A run that finishes before it stops settles as 'completed'. A run that had already settled comes back unchanged. The project stays locked until the run settles, so poll get_design_run before starting another run. A run that stopped responding settles as 'failed' with error code 'execution_timeout' 15 minutes after creation.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Project id from an item's id in list_projects, or data.id in create_project."
+            },
+            "runId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Run id from data.runId in a design result."
+            }
+          },
+          "required": [
+            "projectId",
+            "runId"
+          ]
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": {
+                "runId": {
+                  "type": "string",
+                  "description": "Use as runId to poll or cancel this run."
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "running",
+                    "completed",
+                    "failed"
+                  ]
+                },
+                "statusUrl": {
+                  "type": "string",
+                  "description": "Relative REST path for polling this run."
+                },
+                "result": {
+                  "type": "object",
+                  "properties": {
+                    "assistantText": {
+                      "type": "string",
+                      "description": "The design agent's reply text."
+                    },
+                    "operations": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "screen_created"
+                              },
+                              "screenId": {
+                                "type": "string",
+                                "description": "Id of the screen. Pass it to a later run to edit this screen."
+                              },
+                              "screenName": {
+                                "type": "string"
+                              },
+                              "componentId": {
+                                "type": "string",
+                                "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "screenId",
+                              "screenName",
+                              "componentId"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "screen_updated"
+                              },
+                              "screenId": {
+                                "type": "string",
+                                "description": "Id of the screen. Pass it to a later run to edit this screen."
+                              },
+                              "componentId": {
+                                "type": "string",
+                                "description": "Use as componentId to fetch HTML or in componentIds to render screenshots."
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "screenId",
+                              "componentId"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "theme_updated"
+                              }
+                            },
+                            "required": [
+                              "type"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "description": "Screen creations, screen updates, and theme changes saved by the run."
+                    }
+                  },
+                  "required": [
+                    "assistantText",
+                    "operations"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Failed runs can include changes saved before failure."
+                },
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "description": "Failure reason, such as out_of_credits, cancelled, execution_timeout, execution_failed, or request_message_persist_failed."
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "description": "Where the caller's user can resolve this error. Relay it to the user.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "runId",
+                "status",
+                "statusUrl"
+              ],
+              "additionalProperties": false
+            },
+            "projectUrl": {
+              "type": "string",
+              "description": "Open link for the project. Share it with your user."
+            }
+          },
+          "required": [
+            "data",
+            "projectUrl"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "openid",
+              "email",
+              "profile",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "screenshot",
+        "title": "Render screens to an image",
+        "description": "Render up to four project screens side by side as one inline image, after a design run completes. Returns the image, PNG unless format asks for WebP, and a one-line text note. Rendering uses no credits. Send projectUrl with the image so your user can open and edit the designs.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "projectId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Project id from an item's id in list_projects, or data.id in create_project."
+            },
+            "componentIds": {
+              "minItems": 1,
+              "maxItems": 4,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Component id from an item's id in list_components, or a componentId in a run's data.result.operations. Not a screenId. Screens render left to right. Render more than 4 in separate calls."
+            },
+            "format": {
+              "default": "png",
+              "description": "Image encoding for the screenshot.",
+              "type": "string",
+              "enum": [
+                "png",
+                "webp"
+              ]
+            },
+            "scale": {
+              "default": 1,
+              "description": "Pixel density. 1 is right for showing a design in chat; raise it only when the user asked for a high-resolution export.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            },
+            "fullHeight": {
+              "default": false,
+              "description": "Expand each frame to the full height of its content before capturing, so scrollable screens are rendered fully extended rather than cut off at the bottom of the frame. Frames are capped at 4x the default frame height.",
+              "type": "boolean"
+            },
+            "background": {
+              "default": "transparent",
+              "description": "CSS background behind the frames, such as \"#ffffff\" or \"transparent\".",
+              "type": "string"
+            },
+            "padding": {
+              "default": 40,
+              "description": "Space in pixels on each side of the row of frames.",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "projectId",
+            "componentIds"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "openid",
+              "email",
+              "profile",
+              "offline_access"
+            ]
+          }
+        ]
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:30:20.766Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:30:21.817Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:30:22.868Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:30:23.919Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 11,
+    "tools_hash": "sha256:874af0a8b71d622a1f8aad2a14f1d39dca2949c88fb73d8bb01a315cc4f17ad0",
+    "static_tool_tokens": 4252,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_projects",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "create_project",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "delete_project",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "screenshot",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "screenshot",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 5,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "list_projects",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Number of items to return.",
+          "mentions_size_or_cost": true,
+          "default": 50,
+          "maximum": 100
+        },
+        {
+          "tool": "list_projects",
+          "path": "inputSchema.properties.offset",
+          "name": "offset",
+          "description": "Number of items to skip before this page.",
+          "mentions_size_or_cost": true,
+          "default": 0,
+          "maximum": 9007199254740991
+        },
+        {
+          "tool": "list_components",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Number of items to return.",
+          "mentions_size_or_cost": true,
+          "default": 50,
+          "maximum": 100
+        },
+        {
+          "tool": "list_components",
+          "path": "inputSchema.properties.offset",
+          "name": "offset",
+          "description": "Number of items to skip before this page.",
+          "mentions_size_or_cost": true,
+          "default": 0,
+          "maximum": 9007199254740991
+        },
+        {
+          "tool": "list_references",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Number of items to return.",
+          "mentions_size_or_cost": true,
+          "default": 50,
+          "maximum": 100
+        },
+        {
+          "tool": "list_references",
+          "path": "inputSchema.properties.offset",
+          "name": "offset",
+          "description": "Number of items to skip before this page.",
+          "mentions_size_or_cost": true,
+          "default": 0,
+          "maximum": 9007199254740991
+        },
+        {
+          "tool": "screenshot",
+          "path": "inputSchema.properties.format",
+          "name": "format",
+          "description": "Image encoding for the screenshot.",
+          "mentions_size_or_cost": false,
+          "default": "png"
+        }
+      ],
+      "flags": [
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "list_projects"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "Number of items to return.",
+          "default": 50,
+          "default_source": "schema",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "delete_project"
+          ],
+          "description": "Permanently delete a project and all its screens. Designs cannot be recovered. Call only after your user confirms the exact project by name. Never delete projects to tidy up on your own initiative.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "list_components"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "Number of items to return.",
+          "default": 50,
+          "default_source": "schema",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        },
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "list_references"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "Number of items to return.",
+          "default": 50,
+          "default_source": "schema",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "screenshot"
+          ],
+          "path": "inputSchema.properties.format",
+          "description": "Image encoding for the screenshot.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_projects",
+            "get_project"
+          ],
+          "hypothesis": "Read tools share resource terms (project), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "list_projects",
+      "get_project",
+      "list_components",
+      "get_component",
+      "list_references",
+      "get_design_run",
+      "screenshot"
+    ]
+  }
+}

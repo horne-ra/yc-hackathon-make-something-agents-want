@@ -1,0 +1,581 @@
+{
+  "slug": "justpark",
+  "source_url": "https://manufact.com/mcp-catalog/justpark",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:24:09.433Z",
+    "endpoint": "https://mcp.justpark.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "justpark",
+      "version": "1.0.0"
+    },
+    "capabilities": {
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "This server searches live JustPark parking availability via the search_parking tool.\n\n## Search workflow\n\n- If \"location\" is missing entirely, ask the user for one — this is the one and only thing you may ask about before calling search_parking. Date and time are never a reason to ask a question; resolve them yourself using the priority list below, then call the tool.\n- Resolve arrival/departure using the first rule below that matches — never ask the user to clarify date or time:\n  1. Explicit date AND time given — use them exactly, resolving relative dates (e.g. \"next Friday\") to absolute dates in the user's timezone.\n  2. \"this weekend\" / \"next weekend\", no time — arrival = Saturday 08:00, departure = Sunday 23:00 (spans the whole weekend, not a single day).\n  3. A specific date given (\"tomorrow\", \"next week\", an explicit date), no time — arrival = 08:00, departure = 18:00 on that date.\n  4. A time given, no date (e.g. \"at 6pm\") — date = today if that time hasn't passed yet, otherwise tomorrow; departure = arrival + 4 hours unless the user gave a duration or end time.\n  5. Nothing given at all, or the user just says \"today\" — arrival = now + 15 minutes, departure = arrival + 4 hours.\n- After calling the tool, state the resolved date and time back to the user in your reply — never before, and never as a question asking permission to proceed.\n- Use the most precise destination available for \"location\" — prefer a named landmark, station, venue, or postcode over a broad neighbourhood.\n- If search_parking returns an AMBIGUOUS_LOCATION error, the location matched several real places. List the options it gives in your own words, ask the user which they meant, then call search_parking again with \"place_id\" set to their choice and the same \"location\" text as before. Do not pick one yourself, and do not retry with a reworded location instead.\n- Only ever use a \"place_id\" that came from an AMBIGUOUS_LOCATION response in this conversation. Never invent one, and never take one from anywhere else.\n- If a broad-location search clearly centres results in the wrong area, immediately re-run the search with the best matching landmark or postcode and use only the refined results.\n- Never invent availability, prices, facilities, ratings, distances, or URLs — use only fields returned by search_parking.\n- For any follow-up question about one of the specific spaces returned — facilities, price, cancellation, photos, anything — answer directly from the fields already present in the search_parking result. Never invent or guess a value that isn't there.\n\n## Output format\n\nsearch_parking declares an \"openai/outputTemplate\", which renders a rich card view directly in the conversation — you do not need to (and cannot reliably) confirm the card actually appeared; assume it did.\n\nKeep your own reply to exactly one short sentence — name the single top recommendation (best overall balance of proximity, price, rating, and useful facilities) and why, then a link to \"search_url\". Do not add anything else: no table, no restating facilities/prices/distances/ratings, no recap of what the widget shows, no closing offer of further help (\"let me know if...\"), no follow-up question. Stop after that one sentence and link.\n\nOnly fall back to a fuller plain-text description if you are certain your host has no rich UI/widget rendering support at all — not merely because you're unsure whether the card rendered.\n",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "search_parking",
+            "title": "Search parking",
+            "description": "Search for available parking spaces near a location. Returns up to 10 spaces, each with an id, name, distance, price, and rating. A missing location is the only reason to ask the user a question before calling this tool — a missing date or time is never a reason to ask; compute arrival/departure yourself per the priority rules on those fields and call this tool directly. Be sure which place the user means before searching: if this tool responds with AMBIGUOUS_LOCATION, ask the user to choose from the options it lists, then call again with place_id set to their choice.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "string",
+                  "description": "Address, postcode, or landmark to search near. Pass the user's own wording — do not translate or guess a location they haven't given."
+                },
+                "place_id": {
+                  "description": "Only ever a place_id returned by a previous search_parking disambiguation response in this conversation. Never invent one, and never source one from anywhere else.",
+                  "type": "string"
+                },
+                "arrival": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$",
+                  "description": "Arrival datetime in format \"YYYY-MM-DD HH:mm\". Never ask the user to clarify — apply the first matching rule: (1) explicit date+time given, use them; (2) \"this weekend\"/\"next weekend\", use 08:00 on the upcoming Saturday; (3) a date given but no time, use 08:00 on that date; (4) a time given but no date, use today if that time hasn't passed yet, otherwise tomorrow; (5) nothing given at all, use now + 15 minutes."
+                },
+                "departure": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$",
+                  "description": "Departure datetime in format \"YYYY-MM-DD HH:mm\". Never ask the user to clarify — apply the first matching rule: (1) explicit date+time given, use them; (2) \"this weekend\"/\"next weekend\", use 23:00 on the upcoming Sunday (spans the whole weekend); (3) a date given but no time, use 18:00 on that date; (4) a time given but no date, use arrival + 4 hours unless a duration/end time was given; (5) nothing given at all, use arrival + 4 hours."
+                }
+              },
+              "required": [
+                "location",
+                "arrival",
+                "departure"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "openWorldHint": true,
+              "destructiveHint": false,
+              "title": "Search parking"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/toolInvocation/invoking": "Searching for parking…",
+              "openai/toolInvocation/invoked": "Parking spaces found.",
+              "securitySchemes": [
+                {
+                  "type": "noauth"
+                }
+              ],
+              "ui/resourceUri": "ui://views/ext-apps/search-parking.html?v=9b10e1bb",
+              "ui": {
+                "resourceUri": "ui://views/ext-apps/search-parking.html?v=9b10e1bb"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "object",
+                  "properties": {
+                    "location": {
+                      "type": "string"
+                    },
+                    "arrival": {
+                      "type": "string"
+                    },
+                    "departure": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "location",
+                    "arrival",
+                    "departure"
+                  ],
+                  "additionalProperties": false
+                },
+                "total": {
+                  "type": "number"
+                },
+                "search_url": {
+                  "type": "string"
+                },
+                "results": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "number",
+                        "description": "Unique identifier for this parking space."
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "booking_url": {
+                        "type": "string"
+                      },
+                      "distance_mi": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "price": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      },
+                      "booking_type": {
+                        "type": "string"
+                      },
+                      "facilities": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "vehicle_dimensions": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "rating": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "score": {
+                                "type": "number"
+                              },
+                              "count": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "score",
+                              "count"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "booking_count": {
+                        "type": "number"
+                      },
+                      "special_offer": {
+                        "type": "boolean"
+                      },
+                      "featured": {
+                        "type": "boolean"
+                      },
+                      "host": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "cancellation_terms": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "photo_url": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "walking_time_mins": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "booking_url",
+                      "distance_mi",
+                      "price",
+                      "category",
+                      "booking_type",
+                      "facilities",
+                      "vehicle_dimensions",
+                      "rating",
+                      "booking_count",
+                      "special_offer",
+                      "featured",
+                      "host",
+                      "cancellation_terms",
+                      "photo_url",
+                      "walking_time_mins"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Up to 10 matching parking spaces."
+                }
+              },
+              "required": [
+                "query",
+                "total",
+                "search_url",
+                "results"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "noauth"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "search_parking",
+        "title": "Search parking",
+        "description": "Search for available parking spaces near a location. Returns up to 10 spaces, each with an id, name, distance, price, and rating. A missing location is the only reason to ask the user a question before calling this tool — a missing date or time is never a reason to ask; compute arrival/departure yourself per the priority rules on those fields and call this tool directly. Be sure which place the user means before searching: if this tool responds with AMBIGUOUS_LOCATION, ask the user to choose from the options it lists, then call again with place_id set to their choice.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "string",
+              "description": "Address, postcode, or landmark to search near. Pass the user's own wording — do not translate or guess a location they haven't given."
+            },
+            "place_id": {
+              "description": "Only ever a place_id returned by a previous search_parking disambiguation response in this conversation. Never invent one, and never source one from anywhere else.",
+              "type": "string"
+            },
+            "arrival": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$",
+              "description": "Arrival datetime in format \"YYYY-MM-DD HH:mm\". Never ask the user to clarify — apply the first matching rule: (1) explicit date+time given, use them; (2) \"this weekend\"/\"next weekend\", use 08:00 on the upcoming Saturday; (3) a date given but no time, use 08:00 on that date; (4) a time given but no date, use today if that time hasn't passed yet, otherwise tomorrow; (5) nothing given at all, use now + 15 minutes."
+            },
+            "departure": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$",
+              "description": "Departure datetime in format \"YYYY-MM-DD HH:mm\". Never ask the user to clarify — apply the first matching rule: (1) explicit date+time given, use them; (2) \"this weekend\"/\"next weekend\", use 23:00 on the upcoming Sunday (spans the whole weekend); (3) a date given but no time, use 18:00 on that date; (4) a time given but no date, use arrival + 4 hours unless a duration/end time was given; (5) nothing given at all, use arrival + 4 hours."
+            }
+          },
+          "required": [
+            "location",
+            "arrival",
+            "departure"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": true,
+          "destructiveHint": false,
+          "title": "Search parking"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/toolInvocation/invoking": "Searching for parking…",
+          "openai/toolInvocation/invoked": "Parking spaces found.",
+          "securitySchemes": [
+            {
+              "type": "noauth"
+            }
+          ],
+          "ui/resourceUri": "ui://views/ext-apps/search-parking.html?v=9b10e1bb",
+          "ui": {
+            "resourceUri": "ui://views/ext-apps/search-parking.html?v=9b10e1bb"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "string"
+                },
+                "arrival": {
+                  "type": "string"
+                },
+                "departure": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "location",
+                "arrival",
+                "departure"
+              ],
+              "additionalProperties": false
+            },
+            "total": {
+              "type": "number"
+            },
+            "search_url": {
+              "type": "string"
+            },
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "number",
+                    "description": "Unique identifier for this parking space."
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "booking_url": {
+                    "type": "string"
+                  },
+                  "distance_mi": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "price": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string"
+                  },
+                  "booking_type": {
+                    "type": "string"
+                  },
+                  "facilities": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "vehicle_dimensions": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "rating": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "score": {
+                            "type": "number"
+                          },
+                          "count": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "score",
+                          "count"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "booking_count": {
+                    "type": "number"
+                  },
+                  "special_offer": {
+                    "type": "boolean"
+                  },
+                  "featured": {
+                    "type": "boolean"
+                  },
+                  "host": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "cancellation_terms": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "photo_url": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "walking_time_mins": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "booking_url",
+                  "distance_mi",
+                  "price",
+                  "category",
+                  "booking_type",
+                  "facilities",
+                  "vehicle_dimensions",
+                  "rating",
+                  "booking_count",
+                  "special_offer",
+                  "featured",
+                  "host",
+                  "cancellation_terms",
+                  "photo_url",
+                  "walking_time_mins"
+                ],
+                "additionalProperties": false
+              },
+              "description": "Up to 10 matching parking spaces."
+            }
+          },
+          "required": [
+            "query",
+            "total",
+            "search_url",
+            "results"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "noauth"
+          }
+        ]
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:24:05.541Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:24:06.592Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:24:07.643Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:24:08.694Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 1,
+    "tools_hash": "sha256:e176ccdd84d93fb88a4e36e1ae06890f848d208446a24fd124cfd9b45e6207c5",
+    "static_tool_tokens": 1136,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "search_parking",
+        "message": "Description does not say when to use this tool."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 1,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [],
+      "flags": []
+    },
+    "read_only_allowlist": [
+      "search_parking"
+    ]
+  }
+}

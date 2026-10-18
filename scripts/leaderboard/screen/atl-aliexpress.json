@@ -1,0 +1,1635 @@
+{
+  "slug": "atl-aliexpress",
+  "source_url": "https://manufact.com/mcp-catalog/atl-aliexpress",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:26:13.335Z",
+    "endpoint": "https://atl-aliexpress-mcp.latelierdulustre.workers.dev/mcp/d5c71c35cf20835eb60e05644aaa18c09e08c277452de577",
+    "transport": "streamable",
+    "server": {
+      "name": "atl-aliexpress",
+      "version": "7.2.1"
+    },
+    "capabilities": {
+      "tools": {}
+    },
+    "instructions": "Read-only AliExpress server (market FR, EUR). 8 tools; none writes, orders and payments are blocked.\nPass the whole list in one call, never loop. A rating or review count of 0 from AliExpress means unknown (null, listed in z): get_reviews is authoritative.\n- get_products: 1-10 products, compact; with:[skus,freight,reviews,age,wholesale,media,description,raw]; compare:true for 2-8 copies.\n- get_sku_matrix: variants, true labels (sku_attr after '#'), EUR price, stock.\n- get_freight: shipping per SKU; fee_eff = fee paid at the SKU price; without sku_ids it reads the SKUs 20 at a time.\n- get_media_snapshot: supplier media inventory; receipt_urls gives byte receipts; view shows up to 8 images to you.\n- search_text, search_by_image: find products and other suppliers of the same product.\n- get_reviews: summaries for 1-10 products, or pages of one.\n- aliexpress_call: any other read-only AliExpress method; method \"docs\" for the official spec, \"status\" for token and quota.\ncompact:true gives columnar answers with the same facts. An answer with next was cut by the per-call budget: call again with next. On error follow next_step, retry once, then report.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "get_products",
+            "description": "Compact records for 1-10 AliExpress products: title, status, Choice, sales, rating, EUR price and stock ranges, attributes, store, package, lead time, voltage and description evidence (CE, smart, battery, mains). with adds blocks: skus, freight, reviews, age, wholesale, media, description, raw. compare:true (2-8 ids) gives one table with the cheapest shipping.",
+            "inputSchema": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "product_ids": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 10,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                  }
+                },
+                "with": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "skus",
+                      "freight",
+                      "reviews",
+                      "age",
+                      "wholesale",
+                      "media",
+                      "description",
+                      "raw"
+                    ]
+                  },
+                  "description": "Blocks to add per product. raw = the upstream payload (large)."
+                },
+                "compare": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "2-8 copies of one product side by side (reads freight)."
+                },
+                "sku_ids_by_product": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[0-9]+$"
+                    }
+                  },
+                  "description": "Freight SKUs per product; default the first 20 from sku_offset."
+                },
+                "sku_offset": {
+                  "type": "number",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "quantity": {
+                  "type": "number",
+                  "minimum": 1,
+                  "default": 1
+                },
+                "ship_to_country": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z]{2}$",
+                  "default": "FR"
+                },
+                "max_review_pages": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 50,
+                  "default": 1,
+                  "description": "Review pages the age block may read."
+                },
+                "review_before_date": {
+                  "type": "string",
+                  "description": "ISO date: the age block stops once a review this old is seen."
+                },
+                "lang": {
+                  "type": "string",
+                  "enum": [
+                    "fr",
+                    "en"
+                  ],
+                  "default": "fr"
+                },
+                "fresh": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Skip the 10-minute product cache."
+                },
+                "full": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Same as with:[\"raw\"]."
+                }
+              },
+              "required": [
+                "product_ids"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "get_sku_matrix",
+            "description": "Variants of one product: options, true labels (sku_attr after '#', the supplier's real label), EUR price, stock, voltage per SKU and label_integrity. Use it to pick the SKU IDs that get_freight needs.",
+            "inputSchema": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "full": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Keep empty values the default cleanup drops."
+                },
+                "product_id": {
+                  "type": "string",
+                  "pattern": "^[0-9]+$"
+                },
+                "compact": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Columnar answer (cols + rows, option names once): same facts, about 5x smaller."
+                },
+                "lang": {
+                  "type": "string",
+                  "enum": [
+                    "fr",
+                    "en"
+                  ],
+                  "default": "fr",
+                  "description": "Language of option and attribute names (en for DSers plans)."
+                }
+              },
+              "required": [
+                "product_id"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "get_freight",
+            "description": "Real shipping options for 1-20 SKUs of one product: carrier and service code, delivery days, cost, free shipping, Choice free-shipping threshold (pfs, thr) and the fee actually paid at the SKU price (fee_eff). Without sku_ids, reads the product's SKUs 20 at a time from sku_offset (sku_next). Ships to France by default.",
+            "inputSchema": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "product_id": {
+                  "type": "string",
+                  "pattern": "^[0-9]+$"
+                },
+                "sku_ids": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 20,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                  },
+                  "description": "SKU IDs taken from get_products or get_sku_matrix."
+                },
+                "sku_id": {
+                  "type": "string",
+                  "pattern": "^[0-9]+$",
+                  "description": "Compatibility: a single SKU."
+                },
+                "quantity": {
+                  "type": "number",
+                  "minimum": 1,
+                  "default": 1
+                },
+                "ship_to_country": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z]{2}$",
+                  "default": "FR"
+                },
+                "include_raw": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Keep each SKU's raw AliExpress answer."
+                },
+                "compact": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Options once (opts) and one row per SKU and option: same facts."
+                },
+                "sku_offset": {
+                  "type": "number",
+                  "minimum": 0,
+                  "default": 0,
+                  "description": "Without sku_ids: first SKU to read."
+                },
+                "fresh": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Skip the 10-minute cache of successful answers (failures are never cached)."
+                }
+              },
+              "required": [
+                "product_id"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "get_media_snapshot",
+            "description": "Supplier media inventory of one product: gallery, SKU images, description images, video posters, buyer photos (review_pages) and the image of each option value. receipt_urls (up to 50, alone or with product_id) returns byte receipts: sha256, size, format, dimensions.",
+            "inputSchema": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "product_id": {
+                  "type": "string",
+                  "pattern": "^[0-9]+$"
+                },
+                "review_pages": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 3,
+                  "default": 0
+                },
+                "receipt_urls": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^https://"
+                  },
+                  "description": "AliExpress media URLs to download and fingerprint."
+                },
+                "compact": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Without the supplier_images union (rebuilt from the four lists)."
+                },
+                "view": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 8,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^https://"
+                  },
+                  "description": "Up to 8 AliExpress image URLs answered as images (220 px thumbnails), e.g. to compare two photos."
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "get_reviews",
+            "description": "Product reviews. Without pages: page-1 summary for 1-10 products (review count, rating, observed date range, photo count). With pages: those pages for a single product, review text included.",
+            "inputSchema": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "product_ids": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 10,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                  }
+                },
+                "product_id": {
+                  "type": "string",
+                  "pattern": "^[0-9]+$",
+                  "description": "Compatibility: a single product."
+                },
+                "pages": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 10,
+                  "items": {
+                    "type": "number",
+                    "minimum": 1
+                  },
+                  "description": "Specific pages; requires a single product."
+                },
+                "page_size": {
+                  "type": "number",
+                  "minimum": 20,
+                  "maximum": 100,
+                  "default": 100
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "search_text",
+            "description": "AliExpress keyword search (fr_FR, EUR), up to 5 pages in parallel (100 candidates). Columnar answer: id, title, image, the SKU behind the price, category path, EUR price, orders, rating %, score, type. Applies no business threshold.",
+            "inputSchema": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "keyword": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "page": {
+                  "type": "number",
+                  "minimum": 1,
+                  "default": 1,
+                  "description": "First page."
+                },
+                "pages": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 5,
+                  "default": 1,
+                  "description": "Pages read in parallel from page (20 items each)."
+                },
+                "page_size": {
+                  "type": "number",
+                  "enum": [
+                    20
+                  ],
+                  "default": 20,
+                  "description": "AliExpress cap: 20."
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": [
+                    "min_price,asc",
+                    "min_price,desc",
+                    "orders,desc",
+                    "orders,asc",
+                    "comments,desc",
+                    "comments,asc"
+                  ],
+                  "description": "orders and comments sorts need category_id."
+                },
+                "category_id": {
+                  "type": "string",
+                  "description": "AliExpress category; required to sort by orders or comments."
+                },
+                "min_orders": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Keep items with at least this many orders (no extra call)."
+                },
+                "search_extend": {
+                  "type": "array",
+                  "maxItems": 5,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "searchKey": {
+                        "type": "string"
+                      },
+                      "searchValue": {
+                        "type": "string"
+                      },
+                      "min": {
+                        "type": "string"
+                      },
+                      "max": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "searchKey"
+                    ]
+                  },
+                  "description": "AliExpress searchExtend, e.g. [{searchKey:'item_tag', searchValue:'choice'}]; whether AliExpress applies it is unproven."
+                },
+                "selection_name": {
+                  "type": "string",
+                  "description": "AliExpress selectionName passthrough."
+                },
+                "raw": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "The raw AliExpress pages."
+                }
+              },
+              "required": [
+                "keyword"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "search_by_image",
+            "description": "Other suppliers of the same product, from an image URL. Default = the raw AliExpress answer (prices in cents, evaluate_rate 0-5, sorted by sort_type). compact:true = sorted by similarity, prices in euros. product_id instead: its factory family, each hit read and proven (5 shared photo files or the very same picture score, same declared maker or video owner; options reported); factory_shops = proven distinct stores; copies = hits the stock robot can switch to (same photos or picture, same variants and category, Choice); both lower bounds when complete is false.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "image_url": {
+                  "type": "string"
+                },
+                "product_id": {
+                  "type": "string",
+                  "pattern": "^[0-9]+$",
+                  "description": "Instead of image_url: the factory family of this product."
+                },
+                "search_type": {
+                  "type": "string",
+                  "enum": [
+                    "same",
+                    "similar"
+                  ],
+                  "default": "same"
+                },
+                "sort_type": {
+                  "type": "string",
+                  "enum": [
+                    "orders",
+                    "price",
+                    "best"
+                  ],
+                  "default": "orders",
+                  "description": "AliExpress order (price ascending)."
+                },
+                "compact": {
+                  "type": "boolean",
+                  "default": false
+                },
+                "n": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 20,
+                  "default": 20,
+                  "description": "Items to return (family: 10 read at most)."
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "aliexpress_call",
+            "description": "Read-only escape hatch: signs and calls any AliExpress method not covered above. method \"docs\" (params {q} or {method}) returns the official spec; \"status\" the token, quota and cache state. Orders, payments, token and write methods are refused before signing. Answers unwrap *_response and list wrappers, keep request_id and empty strings, replace description HTML by a marker; pick paths like \"result.ae_item_sku_info_dtos[].sku_attr\"; over max_chars, too_large gives the size of each key instead of cutting.",
+            "inputSchema": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "description": "e.g. aliexpress.ds.category.get, or docs, or status."
+                },
+                "params": {
+                  "type": "object",
+                  "default": {},
+                  "description": "Business parameters; objects and arrays are sent as JSON."
+                },
+                "raw": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "The upstream JSON untouched."
+                },
+                "pick": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Paths to return instead of the whole answer."
+                },
+                "max_chars": {
+                  "type": "number",
+                  "minimum": 1000,
+                  "maximum": 60000,
+                  "default": 20000
+                }
+              },
+              "required": [
+                "method"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_products",
+        "description": "Compact records for 1-10 AliExpress products: title, status, Choice, sales, rating, EUR price and stock ranges, attributes, store, package, lead time, voltage and description evidence (CE, smart, battery, mains). with adds blocks: skus, freight, reviews, age, wholesale, media, description, raw. compare:true (2-8 ids) gives one table with the cheapest shipping.",
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "product_ids": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 10,
+              "items": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              }
+            },
+            "with": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "skus",
+                  "freight",
+                  "reviews",
+                  "age",
+                  "wholesale",
+                  "media",
+                  "description",
+                  "raw"
+                ]
+              },
+              "description": "Blocks to add per product. raw = the upstream payload (large)."
+            },
+            "compare": {
+              "type": "boolean",
+              "default": false,
+              "description": "2-8 copies of one product side by side (reads freight)."
+            },
+            "sku_ids_by_product": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "maxItems": 20,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[0-9]+$"
+                }
+              },
+              "description": "Freight SKUs per product; default the first 20 from sku_offset."
+            },
+            "sku_offset": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "quantity": {
+              "type": "number",
+              "minimum": 1,
+              "default": 1
+            },
+            "ship_to_country": {
+              "type": "string",
+              "pattern": "^[A-Za-z]{2}$",
+              "default": "FR"
+            },
+            "max_review_pages": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 1,
+              "description": "Review pages the age block may read."
+            },
+            "review_before_date": {
+              "type": "string",
+              "description": "ISO date: the age block stops once a review this old is seen."
+            },
+            "lang": {
+              "type": "string",
+              "enum": [
+                "fr",
+                "en"
+              ],
+              "default": "fr"
+            },
+            "fresh": {
+              "type": "boolean",
+              "default": false,
+              "description": "Skip the 10-minute product cache."
+            },
+            "full": {
+              "type": "boolean",
+              "default": false,
+              "description": "Same as with:[\"raw\"]."
+            }
+          },
+          "required": [
+            "product_ids"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "get_sku_matrix",
+        "description": "Variants of one product: options, true labels (sku_attr after '#', the supplier's real label), EUR price, stock, voltage per SKU and label_integrity. Use it to pick the SKU IDs that get_freight needs.",
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "full": {
+              "type": "boolean",
+              "default": false,
+              "description": "Keep empty values the default cleanup drops."
+            },
+            "product_id": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "compact": {
+              "type": "boolean",
+              "default": false,
+              "description": "Columnar answer (cols + rows, option names once): same facts, about 5x smaller."
+            },
+            "lang": {
+              "type": "string",
+              "enum": [
+                "fr",
+                "en"
+              ],
+              "default": "fr",
+              "description": "Language of option and attribute names (en for DSers plans)."
+            }
+          },
+          "required": [
+            "product_id"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "get_freight",
+        "description": "Real shipping options for 1-20 SKUs of one product: carrier and service code, delivery days, cost, free shipping, Choice free-shipping threshold (pfs, thr) and the fee actually paid at the SKU price (fee_eff). Without sku_ids, reads the product's SKUs 20 at a time from sku_offset (sku_next). Ships to France by default.",
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "product_id": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "sku_ids": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 20,
+              "items": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "description": "SKU IDs taken from get_products or get_sku_matrix."
+            },
+            "sku_id": {
+              "type": "string",
+              "pattern": "^[0-9]+$",
+              "description": "Compatibility: a single SKU."
+            },
+            "quantity": {
+              "type": "number",
+              "minimum": 1,
+              "default": 1
+            },
+            "ship_to_country": {
+              "type": "string",
+              "pattern": "^[A-Za-z]{2}$",
+              "default": "FR"
+            },
+            "include_raw": {
+              "type": "boolean",
+              "default": false,
+              "description": "Keep each SKU's raw AliExpress answer."
+            },
+            "compact": {
+              "type": "boolean",
+              "default": false,
+              "description": "Options once (opts) and one row per SKU and option: same facts."
+            },
+            "sku_offset": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0,
+              "description": "Without sku_ids: first SKU to read."
+            },
+            "fresh": {
+              "type": "boolean",
+              "default": false,
+              "description": "Skip the 10-minute cache of successful answers (failures are never cached)."
+            }
+          },
+          "required": [
+            "product_id"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "get_media_snapshot",
+        "description": "Supplier media inventory of one product: gallery, SKU images, description images, video posters, buyer photos (review_pages) and the image of each option value. receipt_urls (up to 50, alone or with product_id) returns byte receipts: sha256, size, format, dimensions.",
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "product_id": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "review_pages": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3,
+              "default": 0
+            },
+            "receipt_urls": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 50,
+              "items": {
+                "type": "string",
+                "pattern": "^https://"
+              },
+              "description": "AliExpress media URLs to download and fingerprint."
+            },
+            "compact": {
+              "type": "boolean",
+              "default": false,
+              "description": "Without the supplier_images union (rebuilt from the four lists)."
+            },
+            "view": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "items": {
+                "type": "string",
+                "pattern": "^https://"
+              },
+              "description": "Up to 8 AliExpress image URLs answered as images (220 px thumbnails), e.g. to compare two photos."
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "get_reviews",
+        "description": "Product reviews. Without pages: page-1 summary for 1-10 products (review count, rating, observed date range, photo count). With pages: those pages for a single product, review text included.",
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "product_ids": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 10,
+              "items": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              }
+            },
+            "product_id": {
+              "type": "string",
+              "pattern": "^[0-9]+$",
+              "description": "Compatibility: a single product."
+            },
+            "pages": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 10,
+              "items": {
+                "type": "number",
+                "minimum": 1
+              },
+              "description": "Specific pages; requires a single product."
+            },
+            "page_size": {
+              "type": "number",
+              "minimum": 20,
+              "maximum": 100,
+              "default": 100
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "search_text",
+        "description": "AliExpress keyword search (fr_FR, EUR), up to 5 pages in parallel (100 candidates). Columnar answer: id, title, image, the SKU behind the price, category path, EUR price, orders, rating %, score, type. Applies no business threshold.",
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "keyword": {
+              "type": "string",
+              "minLength": 1
+            },
+            "page": {
+              "type": "number",
+              "minimum": 1,
+              "default": 1,
+              "description": "First page."
+            },
+            "pages": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 5,
+              "default": 1,
+              "description": "Pages read in parallel from page (20 items each)."
+            },
+            "page_size": {
+              "type": "number",
+              "enum": [
+                20
+              ],
+              "default": 20,
+              "description": "AliExpress cap: 20."
+            },
+            "sort": {
+              "type": "string",
+              "enum": [
+                "min_price,asc",
+                "min_price,desc",
+                "orders,desc",
+                "orders,asc",
+                "comments,desc",
+                "comments,asc"
+              ],
+              "description": "orders and comments sorts need category_id."
+            },
+            "category_id": {
+              "type": "string",
+              "description": "AliExpress category; required to sort by orders or comments."
+            },
+            "min_orders": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Keep items with at least this many orders (no extra call)."
+            },
+            "search_extend": {
+              "type": "array",
+              "maxItems": 5,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "searchKey": {
+                    "type": "string"
+                  },
+                  "searchValue": {
+                    "type": "string"
+                  },
+                  "min": {
+                    "type": "string"
+                  },
+                  "max": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "searchKey"
+                ]
+              },
+              "description": "AliExpress searchExtend, e.g. [{searchKey:'item_tag', searchValue:'choice'}]; whether AliExpress applies it is unproven."
+            },
+            "selection_name": {
+              "type": "string",
+              "description": "AliExpress selectionName passthrough."
+            },
+            "raw": {
+              "type": "boolean",
+              "default": false,
+              "description": "The raw AliExpress pages."
+            }
+          },
+          "required": [
+            "keyword"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "search_by_image",
+        "description": "Other suppliers of the same product, from an image URL. Default = the raw AliExpress answer (prices in cents, evaluate_rate 0-5, sorted by sort_type). compact:true = sorted by similarity, prices in euros. product_id instead: its factory family, each hit read and proven (5 shared photo files or the very same picture score, same declared maker or video owner; options reported); factory_shops = proven distinct stores; copies = hits the stock robot can switch to (same photos or picture, same variants and category, Choice); both lower bounds when complete is false.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "image_url": {
+              "type": "string"
+            },
+            "product_id": {
+              "type": "string",
+              "pattern": "^[0-9]+$",
+              "description": "Instead of image_url: the factory family of this product."
+            },
+            "search_type": {
+              "type": "string",
+              "enum": [
+                "same",
+                "similar"
+              ],
+              "default": "same"
+            },
+            "sort_type": {
+              "type": "string",
+              "enum": [
+                "orders",
+                "price",
+                "best"
+              ],
+              "default": "orders",
+              "description": "AliExpress order (price ascending)."
+            },
+            "compact": {
+              "type": "boolean",
+              "default": false
+            },
+            "n": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 20,
+              "default": 20,
+              "description": "Items to return (family: 10 read at most)."
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "aliexpress_call",
+        "description": "Read-only escape hatch: signs and calls any AliExpress method not covered above. method \"docs\" (params {q} or {method}) returns the official spec; \"status\" the token, quota and cache state. Orders, payments, token and write methods are refused before signing. Answers unwrap *_response and list wrappers, keep request_id and empty strings, replace description HTML by a marker; pick paths like \"result.ae_item_sku_info_dtos[].sku_attr\"; over max_chars, too_large gives the size of each key instead of cutting.",
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "type": "string",
+              "description": "e.g. aliexpress.ds.category.get, or docs, or status."
+            },
+            "params": {
+              "type": "object",
+              "default": {},
+              "description": "Business parameters; objects and arrays are sent as JSON."
+            },
+            "raw": {
+              "type": "boolean",
+              "default": false,
+              "description": "The upstream JSON untouched."
+            },
+            "pick": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Paths to return instead of the whole answer."
+            },
+            "max_chars": {
+              "type": "number",
+              "minimum": 1000,
+              "maximum": 60000,
+              "default": 20000
+            }
+          },
+          "required": [
+            "method"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:26:10.161Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:26:11.212Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:26:12.262Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:26:13.314Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 8,
+    "tools_hash": "sha256:5e1e3bb3ba7346ebd72035b3888fb871445fe79185c5c569e5e9087a33b82dd3",
+    "static_tool_tokens": 4361,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F2",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_products",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "ship_to_country"
+      },
+      {
+        "id": "F3",
+        "severity": "medium",
+        "kind": "payload_control_undocumented",
+        "tool": "get_reviews",
+        "message": "Undocumented boolean or number whose name suggests it controls response size.",
+        "param": "page_size"
+      },
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_products",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_products",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_products",
+        "message": "Parameter has no description.",
+        "param": "product_ids"
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_products",
+        "message": "Parameter has no description.",
+        "param": "sku_offset"
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_products",
+        "message": "Parameter has no description.",
+        "param": "quantity"
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_products",
+        "message": "Parameter has no description.",
+        "param": "ship_to_country"
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_products",
+        "message": "Parameter has no description.",
+        "param": "lang"
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_sku_matrix",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_sku_matrix",
+        "message": "Parameter has no description.",
+        "param": "product_id"
+      },
+      {
+        "id": "F13",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_sku_matrix",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "product_id"
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_freight",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_freight",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_freight",
+        "message": "Parameter has no description.",
+        "param": "product_id"
+      },
+      {
+        "id": "F17",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_freight",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "product_id"
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_freight",
+        "message": "Parameter has no description.",
+        "param": "quantity"
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_freight",
+        "message": "Parameter has no description.",
+        "param": "ship_to_country"
+      },
+      {
+        "id": "F20",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_freight",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "ship_to_country"
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_media_snapshot",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F22",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_media_snapshot",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F23",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_media_snapshot",
+        "message": "Parameter has no description.",
+        "param": "product_id"
+      },
+      {
+        "id": "F24",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_media_snapshot",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "product_id"
+      },
+      {
+        "id": "F25",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_media_snapshot",
+        "message": "Parameter has no description.",
+        "param": "review_pages"
+      },
+      {
+        "id": "F26",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_reviews",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F27",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_reviews",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F28",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_reviews",
+        "message": "Parameter has no description.",
+        "param": "product_ids"
+      },
+      {
+        "id": "F29",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_reviews",
+        "message": "Parameter has no description.",
+        "param": "page_size"
+      },
+      {
+        "id": "F30",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "search_text",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F31",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_text",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F32",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_text",
+        "message": "Parameter has no description.",
+        "param": "keyword"
+      },
+      {
+        "id": "F33",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "search_text",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "keyword"
+      },
+      {
+        "id": "F34",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_by_image",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F35",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_by_image",
+        "message": "Parameter has no description.",
+        "param": "image_url"
+      },
+      {
+        "id": "F36",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "search_by_image",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "image_url"
+      },
+      {
+        "id": "F37",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_by_image",
+        "message": "Parameter has no description.",
+        "param": "search_type"
+      },
+      {
+        "id": "F38",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_by_image",
+        "message": "Parameter has no description.",
+        "param": "compact"
+      },
+      {
+        "id": "F39",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "aliexpress_call",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F40",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "aliexpress_call",
+        "message": "Parameter has no description.",
+        "param": "max_chars"
+      }
+    ],
+    "severity_counts": {
+      "high": 7,
+      "medium": 32,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "get_products",
+          "path": "inputSchema.properties.max_review_pages",
+          "name": "max_review_pages",
+          "description": "Review pages the age block may read.",
+          "mentions_size_or_cost": false,
+          "default": 1,
+          "maximum": 50
+        },
+        {
+          "tool": "get_sku_matrix",
+          "path": "inputSchema.properties.compact",
+          "name": "compact",
+          "description": "Columnar answer (cols + rows, option names once): same facts, about 5x smaller.",
+          "mentions_size_or_cost": true,
+          "default": false
+        },
+        {
+          "tool": "get_freight",
+          "path": "inputSchema.properties.include_raw",
+          "name": "include_raw",
+          "description": "Keep each SKU's raw AliExpress answer.",
+          "mentions_size_or_cost": false,
+          "default": false
+        },
+        {
+          "tool": "get_freight",
+          "path": "inputSchema.properties.compact",
+          "name": "compact",
+          "description": "Options once (opts) and one row per SKU and option: same facts.",
+          "mentions_size_or_cost": true,
+          "default": false
+        },
+        {
+          "tool": "get_media_snapshot",
+          "path": "inputSchema.properties.compact",
+          "name": "compact",
+          "description": "Without the supplier_images union (rebuilt from the four lists).",
+          "mentions_size_or_cost": false,
+          "default": false
+        },
+        {
+          "tool": "get_reviews",
+          "path": "inputSchema.properties.page_size",
+          "name": "page_size",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": 100,
+          "maximum": 100
+        },
+        {
+          "tool": "search_text",
+          "path": "inputSchema.properties.page_size",
+          "name": "page_size",
+          "description": "AliExpress cap: 20.",
+          "mentions_size_or_cost": false,
+          "default": 20
+        },
+        {
+          "tool": "search_text",
+          "path": "inputSchema.properties.search_extend.items.properties.max",
+          "name": "max",
+          "description": "",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "search_text",
+          "path": "inputSchema.properties.raw",
+          "name": "raw",
+          "description": "The raw AliExpress pages.",
+          "mentions_size_or_cost": false,
+          "default": false
+        },
+        {
+          "tool": "search_by_image",
+          "path": "inputSchema.properties.compact",
+          "name": "compact",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": false
+        },
+        {
+          "tool": "aliexpress_call",
+          "path": "inputSchema.properties.raw",
+          "name": "raw",
+          "description": "The upstream JSON untouched.",
+          "mentions_size_or_cost": false,
+          "default": false
+        },
+        {
+          "tool": "aliexpress_call",
+          "path": "inputSchema.properties.max_chars",
+          "name": "max_chars",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": 20000,
+          "maximum": 60000
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get_products"
+          ],
+          "path": "inputSchema.properties.max_review_pages",
+          "description": "Review pages the age block may read.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get_freight"
+          ],
+          "path": "inputSchema.properties.include_raw",
+          "description": "Keep each SKU's raw AliExpress answer.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get_media_snapshot"
+          ],
+          "path": "inputSchema.properties.compact",
+          "description": "Without the supplier_images union (rebuilt from the four lists).",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get_reviews"
+          ],
+          "path": "inputSchema.properties.page_size",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "get_reviews"
+          ],
+          "path": "inputSchema.properties.page_size",
+          "description": "",
+          "default": 100,
+          "default_source": "schema",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "search_text"
+          ],
+          "path": "inputSchema.properties.page_size",
+          "description": "AliExpress cap: 20.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "search_text"
+          ],
+          "path": "inputSchema.properties.search_extend.items.properties.max",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "search_text"
+          ],
+          "path": "inputSchema.properties.raw",
+          "description": "The raw AliExpress pages.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "search_by_image"
+          ],
+          "path": "inputSchema.properties.compact",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "search_by_image"
+          ],
+          "description": "Other suppliers of the same product, from an image URL. Default = the raw AliExpress answer (prices in cents, evaluate_rate 0-5, sorted by sort_type). compact:true = sorted by similarity, prices in euros. product_id instead: its factory family, each hit read and proven (5 shared photo files or the very same picture score, same declared maker or video owner; options reported); factory_shops = proven distinct stores; copies = hits the stock robot can switch to (same photos or picture, same variants and category, Choice); both lower bounds when complete is false.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "aliexpress_call"
+          ],
+          "path": "inputSchema.properties.raw",
+          "description": "The upstream JSON untouched.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "aliexpress_call"
+          ],
+          "path": "inputSchema.properties.max_chars",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "aliexpress_call"
+          ],
+          "path": "inputSchema.properties.max_chars",
+          "description": "",
+          "default": 20000,
+          "default_source": "schema",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "aliexpress_call"
+          ],
+          "description": "Read-only escape hatch: signs and calls any AliExpress method not covered above. method \"docs\" (params {q} or {method}) returns the official spec; \"status\" the token, quota and cache state. Orders, payments, token and write methods are refused before signing. Answers unwrap *_response and list wrappers, keep request_id and empty strings, replace description HTML by a marker; pick paths like \"result.ae_item_sku_info_dtos[].sku_attr\"; over max_chars, too_large gives the size of each key instead of cutting.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "get_products",
+      "get_sku_matrix",
+      "get_freight",
+      "get_media_snapshot",
+      "get_reviews",
+      "search_text",
+      "search_by_image",
+      "aliexpress_call"
+    ]
+  }
+}

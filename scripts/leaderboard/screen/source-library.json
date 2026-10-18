@@ -1,0 +1,3256 @@
+{
+  "slug": "source-library",
+  "source_url": "https://manufact.com/mcp-catalog/source-library",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-18T00:08:36.628Z",
+    "endpoint": "https://sourcelibrary.org/api/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "source-library",
+      "version": "4.12.1"
+    },
+    "capabilities": {
+      "resources": {},
+      "tools": {},
+      "extensions": {
+        "io.modelcontextprotocol/ui": {
+          "mimeTypes": [
+            "text/html;profile=mcp-app"
+          ]
+        }
+      }
+    },
+    "instructions": "Source Library: historical primary sources with transcriptions and English translations. To find and cite texts, use search_library, search_translations and get_quote. VOLUNTEER REVIEW SHIFTS: when the user asks to start a review shift, review or check pages, or help Source Library, call start_review_shift directly, with no questions first: the user lends their Claude, and YOU check the pages, so they need not read the language. Follow its first_time and how_to_run, working through the stretch of pages with continue_review_shift without stopping between pages. Use start_blind_check only for a user who reads the language and wants to judge pages themselves.",
+    "pages": [
+      {
+        "_meta": {
+          "about": "Source Library — 15,000+ rare pre-modern texts translated into English from Latin, German, Tibetan, Greek, Sanskrit, Arabic, Sumerian, Chinese, Hebrew, and more. The full breadth of pre-modern intellectual history: theology, philosophy, history, literature, natural philosophy, mysticism, alchemy, Hermetica, medicine, mathematics, astronomy, law. Not only esoteric — also the canon. 4M+ searchable page embeddings. https://sourcelibrary.org",
+          "read_first": "https://sourcelibrary.org/llms.txt — a guide to this corpus and its search tools, also exposed as an MCP resource. Worth reading once before a long research session; it costs one call and documents the failure modes that otherwise cost many.",
+          "sign_in_hint": "Sign in at sourcelibrary.org/auth/signin to save research, get a much higher rate limit, and support this archive. API keys for programmatic access: sourcelibrary.org/developers.",
+          "research_strategy": "Source Library is the primary-source citation layer in your research strategy — not the whole strategy. Its corpus is rare pre-modern texts (mostly 1400-1900, ranging from Sumerian tablets to 19th-century scholarship) translated into English. Use it together with your own knowledge and web search:\n\n1. THINK BROADLY first. The user's literal phrase is rarely the right query. Use your own knowledge to brainstorm relevant authors, alternative terms, original-language forms, related works. \"Renaissance Hermeticism\" → Ficino, Pico, Corpus Hermeticum, Picatrix, Bruno, Patrizi. Search the expanded set.\n2. WEB-SEARCH for breadth when you can. Use it to confirm scholarly canon, find canonical editions, surface authors you didn't know about — then come back here to find the actual primary text.\n3. SEARCH THIS CORPUS iteratively. Try synonyms, original-language terms, related authors, the period one century earlier/later. search_concept is for paraphrase / conceptual matches; search_translations is for distinctive literal terms; search_library finds books. Don't over-rely on semantic — keyword is more precise for known phrases.\n4. CITE from here, frame from elsewhere. Use Source Library passages as evidence. Use your own knowledge and web search for context, scholarly consensus, author biography, modern interpretation, comparison to texts not in this corpus.\n5. EMPTY RESULTS mean \"try a different angle\" (broaden terms, try the original language, brainstorm adjacent authors) — not \"doesn't exist.\"\n6. CITE WITH URLS. Every passage you present to a user should include its short_url (e.g. sourcelibrary.org/q/abc123). These are stable, shareable citations — the standard way to refer to a Source Library passage.\n7. A CANONICAL REFERENCE IS NOT A PAGE. If a passage arrives as \"1094a8\" (Bekker, Aristotle) or \"Rep. 328b\" (Stephanus, Plato), call get_locus — do not derive the page from a volume's pagination. Deriving it is how a previous session guessed wrong."
+        },
+        "tools": [
+          {
+            "name": "search_library",
+            "title": "Search Library",
+            "description": "RETURNS A LIST OF BOOKS (works on a topic) — NOT passages. PICK THIS to discover which works exist on a subject. → For quotable text use search_translations (exact words) or search_concept (by meaning); if the user already named an author/work, call get_book directly (or list_books to find the ID) — the AI summary + chapter outline is usually the right first answer. Searches titles, authors, subjects, and (as a secondary signal) translated text. Query tips: single distinctive words or short phrases work best (\"memory palace\", \"ouroboros\"); quoted phrases match exactly. Each result includes total_matches (full count) + returned (this page) + offset for pagination.",
+            "annotations": {
+              "title": "Search Library",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "Search query — prefer single distinctive concepts (\"alchemy\", \"tree of life\") over long natural-language phrases. Wrap in \"double quotes\" for exact phrase."
+                },
+                "language": {
+                  "type": "string",
+                  "description": "Filter by original language (e.g., Latin, German, Greek)"
+                },
+                "year_from": {
+                  "type": "number",
+                  "description": "Publication year range start"
+                },
+                "year_to": {
+                  "type": "number",
+                  "description": "Publication year range end"
+                },
+                "has_translation": {
+                  "type": "boolean",
+                  "description": "Only return books with translations"
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": [
+                    "relevance",
+                    "date_asc",
+                    "date_desc",
+                    "title"
+                  ]
+                },
+                "limit": {
+                  "type": "number",
+                  "description": "Max results per page (default 10, max 100)"
+                },
+                "offset": {
+                  "type": "number",
+                  "description": "Pagination offset (use with limit to page through total_matches; default 0)"
+                }
+              },
+              "required": [
+                "query"
+              ]
+            }
+          },
+          {
+            "name": "search_translations",
+            "title": "Search Translations",
+            "description": "RETURNS QUOTABLE PASSAGES (page-level snippets + citation URLs), matched by KEYWORD/term. PICK THIS to find a quote or textual evidence on a topic across the whole library. → If the modern word won't literally appear in historical texts, use search_concept (matches by meaning); to list which BOOKS cover a topic use search_library; to dig inside one known book use search_within_book; if the user named an author/work, get_book first (its AI summary is usually the right first read). Query tips: a distinctive term (\"wax tablet\") or the sentence you are looking for both work; matching is by word, and a page that prints your words together and in order ranks above one that scatters them. Each passage carries phrase_match (0-1, absolute, not relative to the other results): 1 means the page prints your whole query in order at one place, 0 means your words occur only apart; when every passage is under about 0.2 the library probably does not print that sentence, so try search_concept. It is absent for a one-word query and for a passage found by meaning alone. found_by says which lane found the page: \"keyword\", \"semantic\", or \"both\" (the strongest signal). Each snippet has a snippet_type — \"translation\"/\"ocr\" means it is a verbatim extract from the source text; \"summary\" means it is AI-generated description (do not quote those as the author's words). Response includes total_matches, returned, and offset for pagination. Cross-cultural tip: for pre-modern or non-Western topics, search source-tradition vocabulary rather than modern English terms — e.g. for seminal economy search \"jing\" or \"bindu\" or \"istimnāʾ\", not \"semen retention\"; for female homoeroticism search \"tribade\" or \"sahq\", not \"lesbian\". The corpus is indexed via period translations that use tradition-internal terminology.",
+            "annotations": {
+              "title": "Search Translations",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "A distinctive term (\"harmony of the spheres\", \"active intellect\") or the sentence you are looking for. A multi-word query matches pages printing ANY of its words, ranked so that pages printing them together come first (see phrase_match); wrap in \"double quotes\" to require the exact phrase."
+                },
+                "language": {
+                  "type": "string",
+                  "description": "Filter by a single original language"
+                },
+                "languages": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Filter to any of these languages, e.g. [\"Sanskrit\", \"Arabic\", \"Chinese\"]. Use instead of language when targeting multiple traditions."
+                },
+                "exclude_languages": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Exclude these languages, e.g. [\"Latin\", \"French\", \"German\", \"English\"] to surface non-Western sources."
+                },
+                "year_from": {
+                  "type": "number"
+                },
+                "year_to": {
+                  "type": "number"
+                },
+                "book_id": {
+                  "type": "string",
+                  "description": "Search within a specific book"
+                },
+                "author": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Keep only passages by these authors, e.g. [\"Ficino\"] or [\"della Porta\", \"Agrippa\"]. Matches by name: every word you give must start a word of the book's author field."
+                },
+                "exclude_authors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Drop passages by these authors, e.g. [\"Agrippa\"]. Use it to iterate a survey: run, see who dominates, exclude, run again."
+                },
+                "max_per_author": {
+                  "type": "number",
+                  "description": "Hard cap on passages from one author; the rest are DROPPED (unlike diversity, which only re-orders). Set 1 for \"N quotes from N different authors\"."
+                },
+                "max_per_work": {
+                  "type": "number",
+                  "description": "Hard cap on passages from one WORK (all printings and editions of it count together, via work_id), so seven printings of De occulta philosophia are one witness, not seven."
+                },
+                "diversity": {
+                  "type": "string",
+                  "enum": [
+                    "tradition",
+                    "author",
+                    "off"
+                  ],
+                  "description": "Re-order the passages for spread. \"author\": at most one passage per author and per work in each ten, for a cross-author survey. \"tradition\": at most 2 per tradition family and per work. Default \"off\": passages come in relevance order. Nothing is dropped; later pages hold the rest."
+                },
+                "lang": {
+                  "type": "string",
+                  "description": "ISO code of the EDITION to read, e.g. \"es\". Default \"en\". Most books have only English — call get_book and read `editions`, or list_books with has_edition, to find the ones that do not. The response always states which edition it served."
+                },
+                "limit": {
+                  "type": "number",
+                  "description": "Max results per page (default 20, max 50)"
+                },
+                "offset": {
+                  "type": "number",
+                  "description": "Pagination offset (use with limit to page through total_matches; default 0)"
+                }
+              },
+              "required": [
+                "query"
+              ]
+            }
+          },
+          {
+            "name": "search_concept",
+            "title": "Search by Concept",
+            "description": "RETURNS QUOTABLE PASSAGES matched by MEANING (cosine similarity on Gemini embeddings, 768d) — paraphrases and adjacent phrasings match even with zero keyword overlap. PICK THIS when the modern term won't literally appear in historical texts — e.g. \"distributed cognition\" maps to passages about active intellect, art of memory, wax tablet metaphors; \"social contract\" maps to pre-Hobbesian discussions of consent and authority. → For exact words/distinctive terms use search_translations (cheaper, more precise); to list which BOOKS cover a topic use search_library; if the user named an author/work, get_book first (semantic search is expensive — reserve it for cross-corpus discovery). Similarity calibration: 0.70+ is a strong match, 0.55–0.70 is worth reading but verify, below 0.55 is mostly conceptual drift. Set max_per_book to diversify results across many books rather than cluster on one source. Each passage carries a snippet_type — quote only \"translation\" snippets, never \"summary\". Cross-cultural tip: for pre-modern or non-Western topics, also try source-tradition vocabulary — e.g. for seminal economy try \"jing preservation\" or \"bindu yoga\" or \"istimnāʾ\"; for masturbation try \"mollities\" (Latin) or \"hastamaithuna\" (Sanskrit) or \"shouyin\" (Chinese). The corpus is indexed via period translations that use tradition-internal terminology, so adjacent/euphemistic terms often surface material that modern English keywords miss.",
+            "annotations": {
+              "title": "Search by Concept",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "A concept or natural-language description — full sentences are fine (e.g. \"tools that extend the mind beyond the body\"). Unlike search_translations, this does NOT require words that appear in the corpus."
+                },
+                "language": {
+                  "type": "string",
+                  "description": "Filter by a single original language"
+                },
+                "languages": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Filter to any of these languages, e.g. [\"Sanskrit\", \"Arabic\", \"Chinese\"]. Use instead of language when targeting multiple traditions."
+                },
+                "exclude_languages": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Exclude these languages, e.g. [\"Latin\", \"French\", \"German\", \"English\"] to surface non-Western sources."
+                },
+                "year_from": {
+                  "type": "number",
+                  "description": "Restrict to books published in or after this year (filters out modern editions and translations)."
+                },
+                "year_to": {
+                  "type": "number",
+                  "description": "Restrict to books published in or before this year."
+                },
+                "max_per_book": {
+                  "type": "number",
+                  "description": "Cap on passages from any single book. Useful when one book dominates the conceptual neighborhood; for one passage per author or per work use max_per_author / max_per_work."
+                },
+                "author": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Keep only passages by these authors, e.g. [\"Ficino\"] or [\"della Porta\", \"Agrippa\"]. Matches by name: every word you give must start a word of the book's author field."
+                },
+                "exclude_authors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Drop passages by these authors, e.g. [\"Agrippa\"]. Use it to iterate a survey: run, see who dominates, exclude, run again."
+                },
+                "max_per_author": {
+                  "type": "number",
+                  "description": "Hard cap on passages from one author; the rest are DROPPED (unlike diversity, which only re-orders). Set 1 for \"N quotes from N different authors\"."
+                },
+                "max_per_work": {
+                  "type": "number",
+                  "description": "Hard cap on passages from one WORK (all printings and editions of it count together, via work_id), so seven printings of De occulta philosophia are one witness, not seven."
+                },
+                "diversity": {
+                  "type": "string",
+                  "enum": [
+                    "tradition",
+                    "author",
+                    "off"
+                  ],
+                  "description": "How the passages are spread. Default \"tradition\": each ten holds at most 2 passages per tradition family and per work, so a concept query returns several traditions and not one tradition's nearest pages (a clearly closer match is never passed over). \"author\": at most one per author and per work, for a cross-author survey. \"off\": plain nearest-first; use it when looking for one known passage. A quoted query or one naming a year defaults to \"off\". Each passage carries its book's `tradition` when it has one."
+                },
+                "lang": {
+                  "type": "string",
+                  "description": "ISO code of the EDITION to read, e.g. \"es\". Default \"en\". Most books have only English — call get_book and read `editions`, or list_books with has_edition, to find the ones that do not. The response always states which edition it served."
+                },
+                "limit": {
+                  "type": "number",
+                  "description": "Max passages (default 15, max 50)"
+                }
+              },
+              "required": [
+                "query"
+              ]
+            }
+          },
+          {
+            "name": "search_within_book",
+            "title": "Search Within Book",
+            "description": "SEARCHES INSIDE ONE BOOK (requires book_id). PRIMARILY KEYWORD: it runs a lexical search over the book's pages plus a narrow scoped-semantic pass (top ~10), interleaved by relevance. PICK THIS when you know the wording you are looking for, or want every page of one book mentioning a term. → IF YOU ARE SEARCHING FROM A PARAPHRASE, a half-remembered line, or a modern restatement, USE search_concept INSTEAD — it is the meaning-matching tool and it searches the whole corpus, including translations whose vocabulary differs completely from yours (Thomas Taylor writes \"energies\" for energeia and \"felicity\" for eudaimonia, so a sensible modern paraphrase can miss his pages entirely while matching semantically). → To find the book first, use search_library or search_concept, then pass its book_id here. Each result carries score (0-1, normalised within this book) and found_by (\"keyword\", \"semantic\", or \"both\" — both is the strongest signal). Results flagged is_front_matter are the translator's or publisher's words rather than the author's, and are ordered last. Returns OCR and translation snippets with page numbers, ready to cite.",
+            "annotations": {
+              "title": "Search Within Book",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "book_id": {
+                  "type": "string",
+                  "description": "The book ID to search within"
+                },
+                "query": {
+                  "type": "string",
+                  "description": "Search query"
+                },
+                "lang": {
+                  "type": "string",
+                  "description": "ISO code of the EDITION to read, e.g. \"es\". Default \"en\". Most books have only English — call get_book and read `editions`, or list_books with has_edition, to find the ones that do not. The response always states which edition it served."
+                }
+              },
+              "required": [
+                "book_id",
+                "query"
+              ]
+            }
+          },
+          {
+            "name": "list_books",
+            "title": "List Books",
+            "description": "BROWSES/FILTERS THE CATALOG by metadata (canonical author via author_id, title/author/summary words via search, language, category, year range, translation recency) — no page-text matching. PICK THIS to see WHAT EXISTS by an author or in a tradition, or to enumerate a date range. Returns books with title, author (string + canonical author_id + author_url), language, year, and translation progress. → For a relevance-ranked topic search use search_library; for passages on a theme use search_translations (exact words) or search_concept (by meaning).",
+            "annotations": {
+              "title": "List Books",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "search": {
+                  "type": "string",
+                  "description": "Relevance-ranked word match over title (original, display and English), author, original-script name forms (e.g. Greek), AND the book's AI summary. A hit can name your term in neither title nor author, only in what the book discusses. Diacritic-insensitive. For exactly one person's books use author_id instead."
+                },
+                "author_id": {
+                  "type": "string",
+                  "description": "Canonical author slug, e.g. \"jan-hus\" — filters to exactly that person's books via the author thesaurus (variant slugs resolve to the canonical person). Every book row in results carries its author_id; the response echoes the canonicalized author."
+                },
+                "edition_key": {
+                  "type": "string",
+                  "description": "Other digitizations of ONE printing — pass the edition_key from a result row. Only full-quality keys match on both sides, so this answers \"what other scans of this exact edition do you hold?\" and never merges different printings of the same title."
+                },
+                "work_id": {
+                  "type": "string",
+                  "description": "Every witness of one WORK, across editions, languages and centuries — pass the work_id from a result row or from get_book. Use this instead of a title search whenever you already hold the identifier: witnesses of one work are often titled differently in each language, so a title search finds only the subset that happens to share your wording. Unlike list_editions (which returns the whole set), this composes with language, year_from/year_to and sort."
+                },
+                "year_from": {
+                  "type": "number",
+                  "description": "Earliest edition year (inclusive). Matches only books with a known numeric year — ~60% of the library."
+                },
+                "year_to": {
+                  "type": "number",
+                  "description": "Latest edition year (inclusive)."
+                },
+                "language": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "has_edition": {
+                  "type": "string",
+                  "description": "ISO code — return only books READABLE in that language, e.g. \"es\". Different from `language`, which is the language printed on the leaves of the scan: a Latin book with a Spanish edition matches language=\"Latin\" AND has_edition=\"es\". Each result then also carries url_localized."
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": [
+                    "recent-translation",
+                    "recent",
+                    "title-asc",
+                    "title-desc"
+                  ]
+                },
+                "limit": {
+                  "type": "number",
+                  "description": "Max results (default 100, max 200)"
+                }
+              }
+            }
+          },
+          {
+            "name": "get_book",
+            "title": "Get Book",
+            "description": "READ PIPELINE step 1 — DISCOVER. START HERE for any named work or author. Returns the book's AI-generated summary, chapter list, edition metadata, DOI, page counts, IIIF manifest, and the cover image (inline, so you and the user can see the book). LANGUAGE: `language` is what is printed on THIS EDITION's leaves, which is frequently not the language the work was written in. Where the record knows they differ the response also carries `work_language` and a `translation_note`, and `text_role` (original / period-translation / modern-translation / unclassified) says what kind of witness this is — read them before describing a passage as the author's own words, because an edition can be a translation of a translation (de Slane's 1863 French Muqaddimah, read in English, is English←French←Arabic). Absent `work_language` means the work's language is NOT RECORDED on this record. It is not a statement that the edition is in the work's own language (most records have never been checked; Risner's 1572 Latin Alhazen carries none, and the work is Arabic). Only `text_role: \"original\"` asserts that these are the author's own words in the author's language; `text_role: \"unclassified\"` means nobody has examined it, so do not infer the work's language from `language`, and do not conclude the library lacks a tradition because a `language` filter came back empty. Use list_editions to find an original-language witness. The summary is typically a multi-paragraph orientation covering the book's argument, structure, and significance — often answering the question without further searching. Then: get_book_text to read a chapter or page range (step 2), get_quote / get_quotes to lock specific pages with full citation apparatus (step 3). search_within_book locates passages inside this book. MULTI-WORK VOLUMES: where the scans carry running heads, contains_works lists the works the volume ACTUALLY holds with their page spans, taken from the heads the printer put on each leaf. Trust it over the title — collected-works titles routinely name works the volume does not contain, and the volume holding a work often does not name it. If contains_works is absent the scans have no heads to read; status \"insufficient-heads\" means it was examined and could not be decided. EDITIONS: `editions` says which languages this book can be READ in and how many pages each covers ({ en: 357 } on most books, { en: 357, es: 357 } where a localized edition exists). Pass a code as `lang` to get_quote, get_quotes, get_book_text or search_within_book to read that edition; without it you get English.",
+            "annotations": {
+              "title": "Get Book",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "book_id": {
+                  "type": "string",
+                  "description": "The book ID"
+                }
+              },
+              "required": [
+                "book_id"
+              ]
+            }
+          },
+          {
+            "name": "get_book_text",
+            "title": "Read Book Text",
+            "description": "READ PIPELINE step 2 — READ. Read a book's text. Call get_book first (step 1) for the chapter list, then come here. Preferred: use the chapter param to read one chapter at a time (includes [Page N] markers for citation). Alternatively, use from/to for explicit page ranges (e.g. from=1 to=50). When you find passages worth quoting, hand the page numbers to get_quote / get_quotes (step 3) for verbatim text + a citation link. TRUNCATION: the response always includes truncated: true/false. When truncated=true, the truncation_note field gives the exact next from/to values to call — this means content was cut short by a page-budget limit, NOT that the book ended. An AI agent MUST NOT infer end-of-book from pages_returned alone; check truncated first. Daily page budgets apply across get_book_text/get_quote/get_quotes: anonymous 500 pages/24h, signed-in 1,000, free Explorer keys 2,000, paid keys uncapped — sign in at sourcelibrary.org/auth/signin or get a key at sourcelibrary.org/developers. Corpus-scale text belongs on the dataset API (sourcelibrary.org/dataset), not on this tool.",
+            "annotations": {
+              "title": "Read Book Text",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "book_id": {
+                  "type": "string",
+                  "description": "The book ID"
+                },
+                "chapter": {
+                  "type": "number",
+                  "description": "Chapter index (0-based). Preferred over from/to — returns pre-structured chapter text with embedded [Page N] markers."
+                },
+                "part": {
+                  "type": "number",
+                  "description": "Part number (1-based) for large chapters split into multiple parts"
+                },
+                "content": {
+                  "type": "string",
+                  "enum": [
+                    "ocr",
+                    "translation",
+                    "both"
+                  ],
+                  "description": "Which text to include: ocr (original language), translation (English), or both (default)"
+                },
+                "from": {
+                  "type": "number",
+                  "description": "Start page number (inclusive). Use with to for explicit page ranges."
+                },
+                "to": {
+                  "type": "number",
+                  "description": "End page number (inclusive). Recommended chunk size: 50 pages. If the response has truncated=true, use the next from/to from truncation_note."
+                },
+                "format": {
+                  "type": "string",
+                  "enum": [
+                    "json",
+                    "plain"
+                  ],
+                  "description": "json (default, structured with per-page fields) or plain (concatenated text with page markers)"
+                },
+                "lang": {
+                  "type": "string",
+                  "description": "ISO code of the EDITION to read, e.g. \"es\". Default \"en\". Resolved PER PAGE: a page with no text in that language comes back as English, labelled `translation_lang: \"en\"` (json) or `[Translation — en]` (plain), and the response carries lang_coverage. Chapter text is materialized in English only, so `chapter` with a non-English `lang` is served from the chapter's page range instead."
+                }
+              },
+              "required": [
+                "book_id"
+              ]
+            }
+          },
+          {
+            "name": "get_quote",
+            "title": "Get Quote",
+            "description": "READ PIPELINE step 3 — CITE. Get the exact verbatim text of a single page plus its citation apparatus. ALWAYS use before putting text in quotation marks. The response headline is citation_link (the stable sourcelibrary.org/q/… shortlink) — present it to the user alongside the quote. Render as:\n> [exact translation text, verbatim]\n> — [Author], [citation.locator]. [citation_link]\nPAGE BREAKS: this corpus is paginated from physical leaves, and nearly one prose page-boundary in five has a sentence running across it — sometimes a word split by a hyphen (\"…our move-\" / \"movements…\"). A page that opens or breaks off mid-sentence still reads as complete prose and still carries a perfectly valid citation, so check the continuity field on every response BEFORE quoting: if continues_on_next or continues_from_previous is true, call again with context: true and quote the whole sentence. Quoting a fragment as though it were the author's complete thought is a misattribution even when the page number is right.\nNON-LATIN SCRIPTS: where the page is Greek, Hebrew, Arabic, Sanskrit, Cyrillic and so on, the response also carries romanized — the romanization of the original — so the citation can be shown in three layers: original → romanized → translation → citation_link. It is AI-generated reading apparatus, not a transcription; quote the source from original or translation, never from romanized. Absent on Latin-script pages and on non-Latin pages not yet romanized.\nENGLISH ORIGINALS: where the leaf is already English there is no translation and none is needed — the response omits `translation`, sets `text_source: \"ocr_original\"`, and the verbatim text is `original` (with a `transcription_note`). Quote it as the source's own words, never as a translation, and expect period spelling and long-s (ſ) — it is an uncorrected transcription of the scan. `text_source` is on every response (`translation` otherwise), so branch on it rather than guessing from pages_translated, which is 0 for an English-original book by construction.\nTRANSLATED EDITIONS: `original` means the text printed on this leaf, which on a translated edition is the TRANSLATOR's language, not the author's. When the response carries `translation_note`, the chain is stated there — attribute the wording to the translator and do not offer the passage as evidence of what the author wrote in their own tongue. Call list_editions to find an original-language witness of the same work.\nFor several pages of one book at once, use get_quotes.",
+            "annotations": {
+              "title": "Get Quote",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "book_id": {
+                  "type": "string",
+                  "description": "The book ID"
+                },
+                "page": {
+                  "type": "number",
+                  "description": "Page number"
+                },
+                "context": {
+                  "type": "boolean",
+                  "description": "Also return the full text of the previous and next pages, so a sentence spanning the page break can be read whole. Set this when continuity.continues_from_previous or continues_on_next came back true on an earlier call, or whenever you are about to quote near a page edge."
+                },
+                "include_image": {
+                  "type": "boolean",
+                  "description": "Also return the scan of the cited leaf as an inline image (display size, ≤1200px). Set this when the user would benefit from SEEING the page — an illustrated leaf, a title page, a diagram, disputed OCR — or asks to see it. The image arrives as an MCP image block you can view and the user sees rendered."
+                },
+                "lang": {
+                  "type": "string",
+                  "description": "ISO code of the EDITION to quote, e.g. \"es\". Default \"en\". `quote.lang` on every response says which edition was actually served — where no such edition exists the English translation comes back with lang: \"en\" and a lang_note, and it must not be presented as the requested edition. The citation link follows the edition served."
+                }
+              },
+              "required": [
+                "book_id",
+                "page"
+              ]
+            }
+          },
+          {
+            "name": "list_editions",
+            "title": "List Editions of a Work",
+            "description": "Every edition of one work that the library holds — the other witnesses to the same text, across languages and centuries. Give it a book_id (easiest: the id of any edition you already found) or a work_id. USE THIS when a quotation needs checking against more than one witness, when you want the original-language text behind a translation, or when comparing how a passage reads across editions — differences between witnesses are often the finding. Returns language, date, page count and translation coverage per edition, so you can pick the right one to read. Note: for multi-volume collected works the identifier names the SET rather than a single text, and the response says so explicitly when that applies.",
+            "annotations": {
+              "title": "List Editions of a Work",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "book_id": {
+                  "type": "string",
+                  "description": "Any edition you already have. Its work is looked up and the siblings returned."
+                },
+                "work_id": {
+                  "type": "string",
+                  "description": "A work identifier, if you already have one (from get_book)."
+                }
+              }
+            }
+          },
+          {
+            "name": "check_duplicate",
+            "title": "Check Holdings",
+            "description": "DOES THE LIBRARY HOLD THIS WORK? Call this BEFORE telling the user the library lacks a book, and before proposing one for acquisition. A miss from list_books or search_library is NOT evidence of absence: list_books matches words and search_library ranks by relevance, so a held book can sit behind dozens of better-ranked hits. Give a title + author (+ year if known), or a library URL (Internet Archive, Gallica, e-rara, BSB, a IIIF manifest). Matches the same scan, the same edition, other editions and the same work, plus near and cross-lingual titles (title in any language). Returns a verdict (same_object / same_edition / possible_same_edition / other_edition / related_title / new), confidence, matches with reasons, ids and URLs, held_not_public (copies held but not yet published: counted, not described), and limits (what the check could not search). A \"new\" verdict from a URL alone has not searched other editions; pass the title and author too.",
+            "annotations": {
+              "title": "Check Holdings",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "description": "Title in any language, original or English, e.g. \"Musurgia universalis\"."
+                },
+                "author": {
+                  "type": "string",
+                  "description": "Author in any form (\"Athanasius Kircher\", \"Kircher, Athanasius\"). Strongly improves matching."
+                },
+                "year": {
+                  "type": "number",
+                  "description": "Edition year, if known. Separates \"same edition\" from \"another edition\"."
+                },
+                "url": {
+                  "type": "string",
+                  "description": "A library URL or IIIF manifest for a specific copy (title then optional)."
+                },
+                "ia_id": {
+                  "type": "string",
+                  "description": "Internet Archive identifier, for an exact same-scan match."
+                },
+                "language": {
+                  "type": "string",
+                  "description": "Language hint for the cross-lingual title match (optional)."
+                }
+              }
+            }
+          },
+          {
+            "name": "get_quotes",
+            "title": "Get Quotes (batch)",
+            "description": "READ PIPELINE step 3 — CITE, in batch. Get verbatim text + citation_link for SEVERAL pages of a single book in one round-trip, to assemble a multi-passage dossier. Specify either pages (an explicit array, e.g. [12, 40, 41]) or an inclusive from/to range. Max 25 pages per call. Each entry carries its own citation_link to present alongside the quote, and — on non-Latin-script pages that have one — a romanized layer to show between the original and the translation (AI apparatus, not a transcription). Every entry also carries `text_source`: `translation` normally, or `ocr_original` on a leaf that is already English, where the verbatim text is `original` and must be attributed as the source's own words rather than as a translation. One batch can mix both — a Latin volume can hold an English preface. Batch pages count toward the shared daily page budget (see get_book_text); this is a citation tool, and corpus-scale extraction belongs on the dataset API (sourcelibrary.org/dataset).",
+            "annotations": {
+              "title": "Get Quotes (batch)",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "book_id": {
+                  "type": "string",
+                  "description": "The book ID"
+                },
+                "pages": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "description": "Explicit list of page numbers (e.g. [12, 40, 41]). Use this OR from/to."
+                },
+                "from": {
+                  "type": "number",
+                  "description": "Start page (inclusive) of a range. Use with to."
+                },
+                "to": {
+                  "type": "number",
+                  "description": "End page (inclusive) of a range. Use with from."
+                },
+                "include_image": {
+                  "type": "boolean",
+                  "description": "Also return page scans as inline images (display size). The first 5 pages of the batch get inline image blocks; every entry still carries its page_image_url in the JSON."
+                },
+                "lang": {
+                  "type": "string",
+                  "description": "ISO code of the EDITION to quote, e.g. \"es\". Default \"en\". Resolved per page — one batch can mix editions, so read `quote.lang` on each entry rather than assuming the whole dossier is in one language."
+                }
+              },
+              "required": [
+                "book_id"
+              ]
+            }
+          },
+          {
+            "name": "search_images",
+            "title": "Search Images",
+            "description": "Search 200,000+ historical illustrations, emblems, engravings, diagrams, AND 24,000+ artworks (paintings, prints, sculptures). Filter by type, subject, figure, symbol, year. Results interleave two collections: illustrations extracted from book pages (each with a page number and book link) and standalone museum artworks (type: \"artwork\"). The first few results also return as inline images YOU can see. Hosts that support MCP Apps render an in-chat image gallery for this tool automatically; on other clients images may sit inside the collapsed tool-result view, so never tell the user images are \"rendered above\" unless the gallery appeared — describe what you see and give each image's url link instead. Every image_url is public and stable — an HTML page that references them directly works in any online browser. If images.length is 0, read the note field — an empty result under a book_id filter means that book has no EXTRACTED images yet, not that the physical book has no plates. A broad query can match tens of thousands (read total): narrow with type/subject/symbol (exact tag strings; look them up with list_image_facets) or page with offset instead of raising limit. On museum-artwork results, a title_is_descriptive flag means the title is an AI description of the picture rather than a title the work was published under — cite such a record by its source_record_title, never by the descriptive one (#4288).",
+            "annotations": {
+              "title": "Search Images",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://source-library/gallery-viewer"
+              }
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "Text search (e.g., \"ouroboros\", \"tree of life\")"
+                },
+                "type": {
+                  "type": "string",
+                  "description": "Image type (woodcut, engraving, emblem, diagram). Best-effort: the medium metadata on museum artworks is unnormalized, so treat results as ranked rather than strictly filtered."
+                },
+                "subject": {
+                  "type": "string",
+                  "description": "EXACT, case-sensitive match on an extracted subject tag (\"alchemy\", \"medicinal plants\"); a near-miss matches nothing. Look the string up with list_image_facets first, or put loose words in query instead."
+                },
+                "figure": {
+                  "type": "string",
+                  "description": "EXACT, case-sensitive match on a figure tag (\"Jesus Christ\", \"putti\"). Look it up with list_image_facets."
+                },
+                "symbol": {
+                  "type": "string",
+                  "description": "EXACT, case-sensitive match on a symbol tag (\"ouroboros\", \"triangle\"). Look it up with list_image_facets."
+                },
+                "year_from": {
+                  "type": "number",
+                  "description": "CAUTION: reliable only for book illustrations (source_type \"book_illustration\"). On museum-artwork records the year field is dirty — some 17th-century works carry ingest years like 2014, and null years bypass the range check entirely — so never draw a chronological conclusion from a year-filtered artwork result (#4288 tracks the cleanup)."
+                },
+                "year_to": {
+                  "type": "number",
+                  "description": "See year_from — same reliability caution applies."
+                },
+                "book_id": {
+                  "type": "string",
+                  "description": "Only return images extracted from this book's pages. Excludes the museum-artwork collection (artworks do not belong to books)."
+                },
+                "limit": {
+                  "type": "number",
+                  "description": "Max results (default 20, max 50)"
+                },
+                "offset": {
+                  "type": "number",
+                  "description": "Skip this many book-illustration results — page through a large result set instead of raising limit. The response echoes offset and returns next_offset while more remain. Offsets > 0 return the gallery lane only (the museum-artwork lane has no pagination and is included only on the first page)."
+                },
+                "include_thumbnail_base64": {
+                  "type": "boolean",
+                  "description": "Embed each result's image as a thumbnail_data_uri (data:image/jpeg;base64,…, ~1000px) directly in the JSON. ONLY useful when your harness consumes tool results programmatically (API/SDK agents that can save the bytes without retyping them) — as a chat assistant you CANNOT copy hundreds of KB of base64 into a file, so do not request this for that purpose. To build a self-contained page from chat instead: fetch the public image_url values with your execution sandbox (if egress is blocked, ask the user to allowlist images.sourcelibrary.org in their network settings), or reference the CDN URLs directly — they are public and stable, so the page works in any online browser. First 6 results only; inline image blocks are suppressed in this mode to keep the payload bounded."
+                }
+              }
+            }
+          },
+          {
+            "name": "list_image_facets",
+            "title": "List Image Facets",
+            "description": "List the legal values of search_images' type, subject, figure and symbol filters, with how many images carry each. Those filters are EXACT string matches on tags an AI extractor wrote, and each vocabulary runs to thousands of strings (e.g. \"musical notes\", \"Jesus Christ\", \"medicinal plants\"), so a guessed value usually matches nothing. Look it up here first. Call with no facet for the top values of all four; with facet + contains to find the exact spelling of a term (\"ouro\" → \"ouroboros\"). Counts cover book illustrations of visible books only (the museum-artwork collection is not counted), and only strings on 3 or more images are listed; the list is refreshed weekly. If contains finds nothing, the tag is absent or rare: use it as free text in search_images' query instead. No URL in this result is a browse page; link images from search_images results.",
+            "annotations": {
+              "title": "List Image Facets",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "facet": {
+                  "type": "string",
+                  "enum": [
+                    "type",
+                    "subject",
+                    "figure",
+                    "symbol"
+                  ],
+                  "description": "Which filter's vocabulary. Omit for the top values of all four."
+                },
+                "contains": {
+                  "type": "string",
+                  "description": "Case-insensitive substring to look for, e.g. \"dragon\". Matches are ordered by image count."
+                },
+                "limit": {
+                  "type": "number",
+                  "description": "Values per facet (default 100 with a facet, 25 without; max 500)."
+                }
+              }
+            }
+          },
+          {
+            "name": "submit_feedback",
+            "title": "Submit Feedback",
+            "description": "Submit feedback, bug reports, or feature requests to the Source Library team. Before proposing NEW functionality, read https://sourcelibrary.org/llms.txt and https://sourcelibrary.org/developers — several past submissions proposed building things that already exist (IIIF manifests, Content Search, DTS), which wastes reviewer time. State in the report which docs you checked. Bug reports with record IDs and reproducing queries are the most actionable kind.",
+            "annotations": {
+              "title": "Submit Feedback",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "description": "Your feedback (2-20000 chars). Long structured reports are welcome — the limit was raised from 5,000 because agent reports were pressing against it and being split across submissions."
+                },
+                "name": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ]
+            }
+          },
+          {
+            "name": "share_findings",
+            "title": "Share Findings",
+            "description": "Share a research dossier back to the Source Library team — a title, an optional summary, and an ordered list of citations (the passages your thesis rests on). Each citation is a reference { book_id, page, note }, NOT copied text: the library re-renders the canonical quote from the reference, so links stay authoritative. Use this when the user has assembled a thesis backed by passages across one or more books and wants to contribute it back. Like submit_feedback, this goes to the team for review (not an instant public page).",
+            "annotations": {
+              "title": "Share Findings",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "description": "Title of the dossier / thesis (2-300 chars)"
+                },
+                "summary": {
+                  "type": "string",
+                  "description": "Optional prose summarizing the argument (max 5000 chars)"
+                },
+                "citations": {
+                  "type": "array",
+                  "description": "Ordered list of supporting passages (1-50). Get book_id + page from get_quote / search_translations.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "book_id": {
+                        "type": "string",
+                        "description": "The book ID"
+                      },
+                      "page": {
+                        "type": "number",
+                        "description": "Page number"
+                      },
+                      "note": {
+                        "type": "string",
+                        "description": "Optional note on why this passage matters"
+                      }
+                    },
+                    "required": [
+                      "book_id",
+                      "page"
+                    ]
+                  }
+                },
+                "name": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "title",
+                "citations"
+              ]
+            }
+          },
+          {
+            "name": "propose_collection",
+            "title": "Propose a Collection",
+            "description": "Propose a themed collection of books to the Source Library team — a title, a rationale (why these books belong together and what thread connects them), and an ordered list of book ids. Get book ids from search_library / list_books / get_book. Like submit_feedback and share_findings, this goes to the team for REVIEW — it does NOT create a public collection instantly; a curator reviews and approves it. Use this when the user has identified a coherent set of books worth grouping and wants to contribute that curation back.",
+            "annotations": {
+              "title": "Propose a Collection",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "description": "Title of the proposed collection (2-200 chars)"
+                },
+                "rationale": {
+                  "type": "string",
+                  "description": "Why these books belong together and what connects them (max 5000 chars)"
+                },
+                "book_ids": {
+                  "type": "array",
+                  "description": "Ordered list of book ids to include (1-200). Get ids from search_library / list_books / get_book.",
+                  "items": {
+                    "type": "string",
+                    "description": "A book id"
+                  }
+                },
+                "suggested_slug": {
+                  "type": "string",
+                  "description": "Optional URL slug suggestion, e.g. \"renaissance-astronomy\""
+                },
+                "name": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "title",
+                "rationale",
+                "book_ids"
+              ]
+            }
+          },
+          {
+            "name": "start_review_shift",
+            "title": "Start a Review Shift",
+            "description": "Start a volunteer REVIEW SHIFT: the user lends their Claude (you) to Source Library to check one book, page by page, against its scans. Use when the user wants to help Source Library, says \"start a shift\" or \"review pages\", or asks how they can contribute. The user does NOT need to read the book's language: YOU do the checking (scan against transcription, transcription against English) and the user starts the shift, chooses how many pages, watches and asks questions. Returns ONE page: its scan (inline image), our transcription, our English, the last lines of the previous page, and next (pass to continue_review_shift). Follow first_time once, then how_to_run on every page, working through the stretch of pages without stopping between them. With no book, it resumes the user's last run (pass volunteer_code) or picks a book that needs checking; book takes an id, slug or reader URL if the user names one; new_book true skips the resume. Run shifts only while the user is in this conversation; never set one up to run on a schedule or from a script.",
+            "annotations": {
+              "title": "Start a Review Shift",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "volunteer_code": {
+                  "type": "string",
+                  "description": "The code from the user's earlier shift, if they have one. Omit on a first shift; one is issued."
+                },
+                "book": {
+                  "type": "string",
+                  "description": "A book the user wants to check: id, slug or sourcelibrary.org reader URL (optional)."
+                },
+                "language": {
+                  "type": "string",
+                  "description": "Prefer books in this original language, e.g. \"Latin\" (optional; any language works, the user need not read it)."
+                },
+                "new_book": {
+                  "type": "boolean",
+                  "description": "True to start a different book instead of resuming the last one."
+                }
+              }
+            }
+          },
+          {
+            "name": "continue_review_shift",
+            "title": "Continue a Review Shift",
+            "description": "Next page of the book being reviewed. Call it straight after finishing a page until the stretch the user chose is done, and again when they ask for more. Pass next.book and next.after from the previous page, and volunteer_code. Returns the same shape as start_review_shift; follow how_to_run again. When page is null the book is finished: say so and offer start_review_shift with new_book true.",
+            "annotations": {
+              "title": "Continue a Review Shift",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "book": {
+                  "type": "string",
+                  "description": "next.book from the previous page"
+                },
+                "after": {
+                  "type": "number",
+                  "description": "next.after from the previous page"
+                },
+                "volunteer_code": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "book",
+                "after",
+                "volunteer_code"
+              ]
+            }
+          },
+          {
+            "name": "start_blind_check",
+            "title": "Start a Blind Check (for readers of the language)",
+            "description": "OPTIONAL lane, only for a user who reads the original language and asks to judge pages themselves: up to five random pages from different books, each with scan, transcription and English. Here the USER is the reviewer: ask for THEIR verdict first, before any opinion of yours, then give your reading with exact quotes, let them accept or reject each point, and call submit_page_review with mode \"blind\" and their final verdict. Never choose the verdict for them. For everyone else use start_review_shift.",
+            "annotations": {
+              "title": "Start a Blind Check",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "language": {
+                  "type": "string",
+                  "description": "Original language the user reads, e.g. \"Latin\"."
+                },
+                "volunteer_code": {
+                  "type": "string"
+                },
+                "pages": {
+                  "type": "number",
+                  "description": "How many pages (1-5, default 5)."
+                }
+              }
+            }
+          },
+          {
+            "name": "submit_page_review",
+            "title": "Submit a Page Review",
+            "description": "Record the verdict on one page of a shift. mode \"book-run\" (start_review_shift / continue_review_shift): the verdict and findings are YOURS, from reading the scan and both texts; set user_looked true if the user checked anything on the page themselves. mode \"blind\" (start_blind_check): the verdict is the USER'S, given before your reading; put yours in assistant_verdict. Verdicts: both_sound (transcription matches the scan and the English matches the original), translation_drift (transcription right, English departs from it), transcription_off (the text does not match the scan), both_off, unclear (the scan or the text cannot be judged). Quote exact words in every finding. A review is evidence about the page; it does not change it.",
+            "annotations": {
+              "title": "Submit a Page Review",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "book-run",
+                    "blind"
+                  ],
+                  "description": "\"book-run\" unless the page came from start_blind_check."
+                },
+                "item_id": {
+                  "type": "string",
+                  "description": "page.item_id (book run) or the item's item_id (blind check)"
+                },
+                "volunteer_code": {
+                  "type": "string"
+                },
+                "verdict": {
+                  "type": "string",
+                  "enum": [
+                    "both_sound",
+                    "translation_drift",
+                    "transcription_off",
+                    "both_off",
+                    "unclear"
+                  ],
+                  "description": "book-run: your verdict. blind: the user's final verdict."
+                },
+                "book_id": {
+                  "type": "string",
+                  "description": "run.book_id (book run)"
+                },
+                "page_number": {
+                  "type": "number",
+                  "description": "page.page_number (book run)"
+                },
+                "user_looked": {
+                  "type": "boolean",
+                  "description": "book-run: true if the user checked something on this page themselves."
+                },
+                "verdict_before_assistant": {
+                  "type": "boolean",
+                  "description": "blind: true if the user committed to a verdict before seeing your reading."
+                },
+                "first_verdict": {
+                  "type": "string",
+                  "enum": [
+                    "both_sound",
+                    "translation_drift",
+                    "transcription_off",
+                    "both_off",
+                    "unclear"
+                  ],
+                  "description": "blind: the user's verdict before your reading, if it changed."
+                },
+                "note": {
+                  "type": "string",
+                  "description": "Anything a later reader should know (optional, max 2000 chars)."
+                },
+                "assistant_verdict": {
+                  "type": "string",
+                  "enum": [
+                    "both_sound",
+                    "translation_drift",
+                    "transcription_off",
+                    "both_off",
+                    "unclear"
+                  ],
+                  "description": "Your own verdict (blind mode; in book-run it equals verdict)."
+                },
+                "assistant_findings": {
+                  "type": "array",
+                  "description": "Problems found, each with an exact quote (max 12).",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "layer": {
+                        "type": "string",
+                        "enum": [
+                          "transcription",
+                          "translation"
+                        ]
+                      },
+                      "quote": {
+                        "type": "string",
+                        "description": "The exact words at issue (max 300 chars)"
+                      },
+                      "problem": {
+                        "type": "string",
+                        "description": "What is wrong, and what the scan or original shows (max 500 chars)"
+                      },
+                      "user_agreed": {
+                        "type": "boolean",
+                        "description": "Only if the user actually weighed in on this point"
+                      }
+                    },
+                    "required": [
+                      "layer",
+                      "problem"
+                    ]
+                  }
+                },
+                "reader_languages": {
+                  "type": "string",
+                  "description": "Languages the user says they read, if they said."
+                },
+                "assistant_model": {
+                  "type": "string",
+                  "description": "Your own model name and version, copied exactly as your instructions or system prompt give it, and whether extended thinking is on. Write \"unknown\" rather than guess; a wrong name is worse than none."
+                },
+                "text_version": {
+                  "type": "object",
+                  "description": "page.text_version, passed back unchanged."
+                },
+                "shift_id": {
+                  "type": "string",
+                  "description": "shift_id (blind check only)"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "How the user wants to be credited (optional)."
+                }
+              },
+              "required": [
+                "item_id",
+                "volunteer_code",
+                "verdict",
+                "assistant_model"
+              ]
+            }
+          },
+          {
+            "name": "propose_correction",
+            "title": "Propose a Correction",
+            "description": "During a review shift, propose a correction to a page's transcription (field \"ocr\") or English (field \"translation\"). A correction is a list of exact span edits: each \"find\" must be copied exactly from the text the shift returned and occur once on the page (add surrounding words if it repeats); \"replace\" is the corrected text (\"\" deletes). Fix only what the scan or the original shows is wrong: misread letters, dropped or added words, a sentence the English skips. Do not restyle or modernise. Propose transcription fixes before translation fixes, as separate calls. Pass base_hash = page.text_version for that field. A proposal does NOT change the page: it is applied only after a second reader agrees, and the volunteer is credited. If the call says the page changed since it was loaded, say so and move on. drafted_by: \"assistant\" if you found and worded it in a book run, \"volunteer\" if the user supplied the wording, \"assistant_accepted\" if you drafted it and the user approved it specifically, \"mixed\" otherwise.",
+            "annotations": {
+              "title": "Propose a Correction",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "item_id": {
+                  "type": "string",
+                  "description": "page.item_id from the shift"
+                },
+                "field": {
+                  "type": "string",
+                  "enum": [
+                    "ocr",
+                    "translation"
+                  ],
+                  "description": "\"ocr\" for the transcription, \"translation\" for the English"
+                },
+                "base_hash": {
+                  "type": "string",
+                  "description": "text_version.ocr or text_version.translation from the page"
+                },
+                "edits": {
+                  "type": "array",
+                  "description": "Span edits (1-30).",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "find": {
+                        "type": "string",
+                        "description": "Exact text currently on the page"
+                      },
+                      "replace": {
+                        "type": "string",
+                        "description": "Corrected text"
+                      },
+                      "reason": {
+                        "type": "string",
+                        "description": "What the scan or the original shows (short)"
+                      }
+                    },
+                    "required": [
+                      "find",
+                      "replace"
+                    ]
+                  }
+                },
+                "volunteer_code": {
+                  "type": "string"
+                },
+                "drafted_by": {
+                  "type": "string",
+                  "enum": [
+                    "assistant",
+                    "volunteer",
+                    "assistant_accepted",
+                    "mixed"
+                  ]
+                },
+                "note": {
+                  "type": "string",
+                  "description": "Anything the second reader should know (optional)"
+                },
+                "assistant_model": {
+                  "type": "string",
+                  "description": "Your own model name and version, copied exactly as your instructions or system prompt give it, and whether extended thinking is on. Write \"unknown\" rather than guess; a wrong name is worse than none."
+                },
+                "shift_id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "How the user wants to be credited (optional)"
+                }
+              },
+              "required": [
+                "item_id",
+                "field",
+                "base_hash",
+                "edits",
+                "volunteer_code",
+                "drafted_by",
+                "assistant_model"
+              ]
+            }
+          },
+          {
+            "name": "get_locus",
+            "title": "Find a Canonical Reference (Bekker / Stephanus)",
+            "description": "Turn a CANONICAL CITATION into the actual leaves that carry it. Aristotle is cited by Bekker number (1094a8, 1447a) and Plato by Stephanus number (Rep. 328b) — the references scholarship has used for centuries, which survive re-typesetting and are shareable in a way a scan page never is. USE THIS FIRST whenever a passage arrives as a canonical reference rather than a page: do not try to derive the page yourself from a book's pagination, which is what produced a wrong guess before this tool existed. Bekker numbers are unique across the whole Aristotelian corpus, so the number alone is enough and it also tells you WHICH WORK you are citing. Stephanus numbers restart in each of the three 1578 volumes, so pass work (\"Republic\", \"Timaeus\") — without it the response lists the candidate dialogues instead of choosing one. Returns every witness the library holds: the Greek reference edition and, where we have one, an English translation of the same lines, each with its scan page, a reader URL and a quote_api link — so you can compare the original against a translation at one reference. Then call get_quote with the returned book_id + page for the verbatim text and a citable shortlink. LIMITS, stated plainly: a witness is only returned where the reference is PRINTED on that leaf (or, in the two root editions, where a verified constant offset brackets it) — nothing is interpolated, so an empty result means this library holds no anchored leaf there, NOT that the citation is wrong; editions_searched shows what was consulted and the range each covers. Line numbers (the \"8\" of 1094a8) are not resolved — you get the right leaf and read the line off it. Two works can share a page where one ends and the next begins (Bekker 184 and 1447 are both such joins), and each leaf is filed by the running head printed on it, so a reference at the very start of a work may come back under its predecessor — always read other_works_at_this_reference before concluding a passage is absent. A bare number that exists in both systems returns Aristotle and Plato leaves together; check the system field on each.",
+            "annotations": {
+              "title": "Find a Canonical Reference",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "reference": {
+                  "type": "string",
+                  "description": "The canonical reference: \"1094a8\", \"1094a\", \"1447\", \"328b\". A leading system name is accepted (\"Bekker 1094a\"), as is a work name (\"Rep. 328b\")."
+                },
+                "work": {
+                  "type": "string",
+                  "description": "The work or dialogue, when the reference needs it (Plato always does): \"Republic\", \"Timaeus\", \"Laws\", \"Nicomachean Ethics\", \"Poetics\". Greek or Latin titles as printed in the editions also resolve."
+                },
+                "system": {
+                  "type": "string",
+                  "description": "Optional: \"bekker\" or \"stephanus\". Inferred from the work when omitted; do not guess it from the number, since the two ranges overlap."
+                }
+              },
+              "required": [
+                "reference"
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "search_library",
+        "title": "Search Library",
+        "description": "RETURNS A LIST OF BOOKS (works on a topic) — NOT passages. PICK THIS to discover which works exist on a subject. → For quotable text use search_translations (exact words) or search_concept (by meaning); if the user already named an author/work, call get_book directly (or list_books to find the ID) — the AI summary + chapter outline is usually the right first answer. Searches titles, authors, subjects, and (as a secondary signal) translated text. Query tips: single distinctive words or short phrases work best (\"memory palace\", \"ouroboros\"); quoted phrases match exactly. Each result includes total_matches (full count) + returned (this page) + offset for pagination.",
+        "annotations": {
+          "title": "Search Library",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Search query — prefer single distinctive concepts (\"alchemy\", \"tree of life\") over long natural-language phrases. Wrap in \"double quotes\" for exact phrase."
+            },
+            "language": {
+              "type": "string",
+              "description": "Filter by original language (e.g., Latin, German, Greek)"
+            },
+            "year_from": {
+              "type": "number",
+              "description": "Publication year range start"
+            },
+            "year_to": {
+              "type": "number",
+              "description": "Publication year range end"
+            },
+            "has_translation": {
+              "type": "boolean",
+              "description": "Only return books with translations"
+            },
+            "sort": {
+              "type": "string",
+              "enum": [
+                "relevance",
+                "date_asc",
+                "date_desc",
+                "title"
+              ]
+            },
+            "limit": {
+              "type": "number",
+              "description": "Max results per page (default 10, max 100)"
+            },
+            "offset": {
+              "type": "number",
+              "description": "Pagination offset (use with limit to page through total_matches; default 0)"
+            }
+          },
+          "required": [
+            "query"
+          ]
+        }
+      },
+      {
+        "name": "search_translations",
+        "title": "Search Translations",
+        "description": "RETURNS QUOTABLE PASSAGES (page-level snippets + citation URLs), matched by KEYWORD/term. PICK THIS to find a quote or textual evidence on a topic across the whole library. → If the modern word won't literally appear in historical texts, use search_concept (matches by meaning); to list which BOOKS cover a topic use search_library; to dig inside one known book use search_within_book; if the user named an author/work, get_book first (its AI summary is usually the right first read). Query tips: a distinctive term (\"wax tablet\") or the sentence you are looking for both work; matching is by word, and a page that prints your words together and in order ranks above one that scatters them. Each passage carries phrase_match (0-1, absolute, not relative to the other results): 1 means the page prints your whole query in order at one place, 0 means your words occur only apart; when every passage is under about 0.2 the library probably does not print that sentence, so try search_concept. It is absent for a one-word query and for a passage found by meaning alone. found_by says which lane found the page: \"keyword\", \"semantic\", or \"both\" (the strongest signal). Each snippet has a snippet_type — \"translation\"/\"ocr\" means it is a verbatim extract from the source text; \"summary\" means it is AI-generated description (do not quote those as the author's words). Response includes total_matches, returned, and offset for pagination. Cross-cultural tip: for pre-modern or non-Western topics, search source-tradition vocabulary rather than modern English terms — e.g. for seminal economy search \"jing\" or \"bindu\" or \"istimnāʾ\", not \"semen retention\"; for female homoeroticism search \"tribade\" or \"sahq\", not \"lesbian\". The corpus is indexed via period translations that use tradition-internal terminology.",
+        "annotations": {
+          "title": "Search Translations",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "A distinctive term (\"harmony of the spheres\", \"active intellect\") or the sentence you are looking for. A multi-word query matches pages printing ANY of its words, ranked so that pages printing them together come first (see phrase_match); wrap in \"double quotes\" to require the exact phrase."
+            },
+            "language": {
+              "type": "string",
+              "description": "Filter by a single original language"
+            },
+            "languages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Filter to any of these languages, e.g. [\"Sanskrit\", \"Arabic\", \"Chinese\"]. Use instead of language when targeting multiple traditions."
+            },
+            "exclude_languages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Exclude these languages, e.g. [\"Latin\", \"French\", \"German\", \"English\"] to surface non-Western sources."
+            },
+            "year_from": {
+              "type": "number"
+            },
+            "year_to": {
+              "type": "number"
+            },
+            "book_id": {
+              "type": "string",
+              "description": "Search within a specific book"
+            },
+            "author": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Keep only passages by these authors, e.g. [\"Ficino\"] or [\"della Porta\", \"Agrippa\"]. Matches by name: every word you give must start a word of the book's author field."
+            },
+            "exclude_authors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Drop passages by these authors, e.g. [\"Agrippa\"]. Use it to iterate a survey: run, see who dominates, exclude, run again."
+            },
+            "max_per_author": {
+              "type": "number",
+              "description": "Hard cap on passages from one author; the rest are DROPPED (unlike diversity, which only re-orders). Set 1 for \"N quotes from N different authors\"."
+            },
+            "max_per_work": {
+              "type": "number",
+              "description": "Hard cap on passages from one WORK (all printings and editions of it count together, via work_id), so seven printings of De occulta philosophia are one witness, not seven."
+            },
+            "diversity": {
+              "type": "string",
+              "enum": [
+                "tradition",
+                "author",
+                "off"
+              ],
+              "description": "Re-order the passages for spread. \"author\": at most one passage per author and per work in each ten, for a cross-author survey. \"tradition\": at most 2 per tradition family and per work. Default \"off\": passages come in relevance order. Nothing is dropped; later pages hold the rest."
+            },
+            "lang": {
+              "type": "string",
+              "description": "ISO code of the EDITION to read, e.g. \"es\". Default \"en\". Most books have only English — call get_book and read `editions`, or list_books with has_edition, to find the ones that do not. The response always states which edition it served."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Max results per page (default 20, max 50)"
+            },
+            "offset": {
+              "type": "number",
+              "description": "Pagination offset (use with limit to page through total_matches; default 0)"
+            }
+          },
+          "required": [
+            "query"
+          ]
+        }
+      },
+      {
+        "name": "search_concept",
+        "title": "Search by Concept",
+        "description": "RETURNS QUOTABLE PASSAGES matched by MEANING (cosine similarity on Gemini embeddings, 768d) — paraphrases and adjacent phrasings match even with zero keyword overlap. PICK THIS when the modern term won't literally appear in historical texts — e.g. \"distributed cognition\" maps to passages about active intellect, art of memory, wax tablet metaphors; \"social contract\" maps to pre-Hobbesian discussions of consent and authority. → For exact words/distinctive terms use search_translations (cheaper, more precise); to list which BOOKS cover a topic use search_library; if the user named an author/work, get_book first (semantic search is expensive — reserve it for cross-corpus discovery). Similarity calibration: 0.70+ is a strong match, 0.55–0.70 is worth reading but verify, below 0.55 is mostly conceptual drift. Set max_per_book to diversify results across many books rather than cluster on one source. Each passage carries a snippet_type — quote only \"translation\" snippets, never \"summary\". Cross-cultural tip: for pre-modern or non-Western topics, also try source-tradition vocabulary — e.g. for seminal economy try \"jing preservation\" or \"bindu yoga\" or \"istimnāʾ\"; for masturbation try \"mollities\" (Latin) or \"hastamaithuna\" (Sanskrit) or \"shouyin\" (Chinese). The corpus is indexed via period translations that use tradition-internal terminology, so adjacent/euphemistic terms often surface material that modern English keywords miss.",
+        "annotations": {
+          "title": "Search by Concept",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "A concept or natural-language description — full sentences are fine (e.g. \"tools that extend the mind beyond the body\"). Unlike search_translations, this does NOT require words that appear in the corpus."
+            },
+            "language": {
+              "type": "string",
+              "description": "Filter by a single original language"
+            },
+            "languages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Filter to any of these languages, e.g. [\"Sanskrit\", \"Arabic\", \"Chinese\"]. Use instead of language when targeting multiple traditions."
+            },
+            "exclude_languages": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Exclude these languages, e.g. [\"Latin\", \"French\", \"German\", \"English\"] to surface non-Western sources."
+            },
+            "year_from": {
+              "type": "number",
+              "description": "Restrict to books published in or after this year (filters out modern editions and translations)."
+            },
+            "year_to": {
+              "type": "number",
+              "description": "Restrict to books published in or before this year."
+            },
+            "max_per_book": {
+              "type": "number",
+              "description": "Cap on passages from any single book. Useful when one book dominates the conceptual neighborhood; for one passage per author or per work use max_per_author / max_per_work."
+            },
+            "author": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Keep only passages by these authors, e.g. [\"Ficino\"] or [\"della Porta\", \"Agrippa\"]. Matches by name: every word you give must start a word of the book's author field."
+            },
+            "exclude_authors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Drop passages by these authors, e.g. [\"Agrippa\"]. Use it to iterate a survey: run, see who dominates, exclude, run again."
+            },
+            "max_per_author": {
+              "type": "number",
+              "description": "Hard cap on passages from one author; the rest are DROPPED (unlike diversity, which only re-orders). Set 1 for \"N quotes from N different authors\"."
+            },
+            "max_per_work": {
+              "type": "number",
+              "description": "Hard cap on passages from one WORK (all printings and editions of it count together, via work_id), so seven printings of De occulta philosophia are one witness, not seven."
+            },
+            "diversity": {
+              "type": "string",
+              "enum": [
+                "tradition",
+                "author",
+                "off"
+              ],
+              "description": "How the passages are spread. Default \"tradition\": each ten holds at most 2 passages per tradition family and per work, so a concept query returns several traditions and not one tradition's nearest pages (a clearly closer match is never passed over). \"author\": at most one per author and per work, for a cross-author survey. \"off\": plain nearest-first; use it when looking for one known passage. A quoted query or one naming a year defaults to \"off\". Each passage carries its book's `tradition` when it has one."
+            },
+            "lang": {
+              "type": "string",
+              "description": "ISO code of the EDITION to read, e.g. \"es\". Default \"en\". Most books have only English — call get_book and read `editions`, or list_books with has_edition, to find the ones that do not. The response always states which edition it served."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Max passages (default 15, max 50)"
+            }
+          },
+          "required": [
+            "query"
+          ]
+        }
+      },
+      {
+        "name": "search_within_book",
+        "title": "Search Within Book",
+        "description": "SEARCHES INSIDE ONE BOOK (requires book_id). PRIMARILY KEYWORD: it runs a lexical search over the book's pages plus a narrow scoped-semantic pass (top ~10), interleaved by relevance. PICK THIS when you know the wording you are looking for, or want every page of one book mentioning a term. → IF YOU ARE SEARCHING FROM A PARAPHRASE, a half-remembered line, or a modern restatement, USE search_concept INSTEAD — it is the meaning-matching tool and it searches the whole corpus, including translations whose vocabulary differs completely from yours (Thomas Taylor writes \"energies\" for energeia and \"felicity\" for eudaimonia, so a sensible modern paraphrase can miss his pages entirely while matching semantically). → To find the book first, use search_library or search_concept, then pass its book_id here. Each result carries score (0-1, normalised within this book) and found_by (\"keyword\", \"semantic\", or \"both\" — both is the strongest signal). Results flagged is_front_matter are the translator's or publisher's words rather than the author's, and are ordered last. Returns OCR and translation snippets with page numbers, ready to cite.",
+        "annotations": {
+          "title": "Search Within Book",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "book_id": {
+              "type": "string",
+              "description": "The book ID to search within"
+            },
+            "query": {
+              "type": "string",
+              "description": "Search query"
+            },
+            "lang": {
+              "type": "string",
+              "description": "ISO code of the EDITION to read, e.g. \"es\". Default \"en\". Most books have only English — call get_book and read `editions`, or list_books with has_edition, to find the ones that do not. The response always states which edition it served."
+            }
+          },
+          "required": [
+            "book_id",
+            "query"
+          ]
+        }
+      },
+      {
+        "name": "list_books",
+        "title": "List Books",
+        "description": "BROWSES/FILTERS THE CATALOG by metadata (canonical author via author_id, title/author/summary words via search, language, category, year range, translation recency) — no page-text matching. PICK THIS to see WHAT EXISTS by an author or in a tradition, or to enumerate a date range. Returns books with title, author (string + canonical author_id + author_url), language, year, and translation progress. → For a relevance-ranked topic search use search_library; for passages on a theme use search_translations (exact words) or search_concept (by meaning).",
+        "annotations": {
+          "title": "List Books",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "search": {
+              "type": "string",
+              "description": "Relevance-ranked word match over title (original, display and English), author, original-script name forms (e.g. Greek), AND the book's AI summary. A hit can name your term in neither title nor author, only in what the book discusses. Diacritic-insensitive. For exactly one person's books use author_id instead."
+            },
+            "author_id": {
+              "type": "string",
+              "description": "Canonical author slug, e.g. \"jan-hus\" — filters to exactly that person's books via the author thesaurus (variant slugs resolve to the canonical person). Every book row in results carries its author_id; the response echoes the canonicalized author."
+            },
+            "edition_key": {
+              "type": "string",
+              "description": "Other digitizations of ONE printing — pass the edition_key from a result row. Only full-quality keys match on both sides, so this answers \"what other scans of this exact edition do you hold?\" and never merges different printings of the same title."
+            },
+            "work_id": {
+              "type": "string",
+              "description": "Every witness of one WORK, across editions, languages and centuries — pass the work_id from a result row or from get_book. Use this instead of a title search whenever you already hold the identifier: witnesses of one work are often titled differently in each language, so a title search finds only the subset that happens to share your wording. Unlike list_editions (which returns the whole set), this composes with language, year_from/year_to and sort."
+            },
+            "year_from": {
+              "type": "number",
+              "description": "Earliest edition year (inclusive). Matches only books with a known numeric year — ~60% of the library."
+            },
+            "year_to": {
+              "type": "number",
+              "description": "Latest edition year (inclusive)."
+            },
+            "language": {
+              "type": "string"
+            },
+            "category": {
+              "type": "string"
+            },
+            "has_edition": {
+              "type": "string",
+              "description": "ISO code — return only books READABLE in that language, e.g. \"es\". Different from `language`, which is the language printed on the leaves of the scan: a Latin book with a Spanish edition matches language=\"Latin\" AND has_edition=\"es\". Each result then also carries url_localized."
+            },
+            "sort": {
+              "type": "string",
+              "enum": [
+                "recent-translation",
+                "recent",
+                "title-asc",
+                "title-desc"
+              ]
+            },
+            "limit": {
+              "type": "number",
+              "description": "Max results (default 100, max 200)"
+            }
+          }
+        }
+      },
+      {
+        "name": "get_book",
+        "title": "Get Book",
+        "description": "READ PIPELINE step 1 — DISCOVER. START HERE for any named work or author. Returns the book's AI-generated summary, chapter list, edition metadata, DOI, page counts, IIIF manifest, and the cover image (inline, so you and the user can see the book). LANGUAGE: `language` is what is printed on THIS EDITION's leaves, which is frequently not the language the work was written in. Where the record knows they differ the response also carries `work_language` and a `translation_note`, and `text_role` (original / period-translation / modern-translation / unclassified) says what kind of witness this is — read them before describing a passage as the author's own words, because an edition can be a translation of a translation (de Slane's 1863 French Muqaddimah, read in English, is English←French←Arabic). Absent `work_language` means the work's language is NOT RECORDED on this record. It is not a statement that the edition is in the work's own language (most records have never been checked; Risner's 1572 Latin Alhazen carries none, and the work is Arabic). Only `text_role: \"original\"` asserts that these are the author's own words in the author's language; `text_role: \"unclassified\"` means nobody has examined it, so do not infer the work's language from `language`, and do not conclude the library lacks a tradition because a `language` filter came back empty. Use list_editions to find an original-language witness. The summary is typically a multi-paragraph orientation covering the book's argument, structure, and significance — often answering the question without further searching. Then: get_book_text to read a chapter or page range (step 2), get_quote / get_quotes to lock specific pages with full citation apparatus (step 3). search_within_book locates passages inside this book. MULTI-WORK VOLUMES: where the scans carry running heads, contains_works lists the works the volume ACTUALLY holds with their page spans, taken from the heads the printer put on each leaf. Trust it over the title — collected-works titles routinely name works the volume does not contain, and the volume holding a work often does not name it. If contains_works is absent the scans have no heads to read; status \"insufficient-heads\" means it was examined and could not be decided. EDITIONS: `editions` says which languages this book can be READ in and how many pages each covers ({ en: 357 } on most books, { en: 357, es: 357 } where a localized edition exists). Pass a code as `lang` to get_quote, get_quotes, get_book_text or search_within_book to read that edition; without it you get English.",
+        "annotations": {
+          "title": "Get Book",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "book_id": {
+              "type": "string",
+              "description": "The book ID"
+            }
+          },
+          "required": [
+            "book_id"
+          ]
+        }
+      },
+      {
+        "name": "get_book_text",
+        "title": "Read Book Text",
+        "description": "READ PIPELINE step 2 — READ. Read a book's text. Call get_book first (step 1) for the chapter list, then come here. Preferred: use the chapter param to read one chapter at a time (includes [Page N] markers for citation). Alternatively, use from/to for explicit page ranges (e.g. from=1 to=50). When you find passages worth quoting, hand the page numbers to get_quote / get_quotes (step 3) for verbatim text + a citation link. TRUNCATION: the response always includes truncated: true/false. When truncated=true, the truncation_note field gives the exact next from/to values to call — this means content was cut short by a page-budget limit, NOT that the book ended. An AI agent MUST NOT infer end-of-book from pages_returned alone; check truncated first. Daily page budgets apply across get_book_text/get_quote/get_quotes: anonymous 500 pages/24h, signed-in 1,000, free Explorer keys 2,000, paid keys uncapped — sign in at sourcelibrary.org/auth/signin or get a key at sourcelibrary.org/developers. Corpus-scale text belongs on the dataset API (sourcelibrary.org/dataset), not on this tool.",
+        "annotations": {
+          "title": "Read Book Text",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "book_id": {
+              "type": "string",
+              "description": "The book ID"
+            },
+            "chapter": {
+              "type": "number",
+              "description": "Chapter index (0-based). Preferred over from/to — returns pre-structured chapter text with embedded [Page N] markers."
+            },
+            "part": {
+              "type": "number",
+              "description": "Part number (1-based) for large chapters split into multiple parts"
+            },
+            "content": {
+              "type": "string",
+              "enum": [
+                "ocr",
+                "translation",
+                "both"
+              ],
+              "description": "Which text to include: ocr (original language), translation (English), or both (default)"
+            },
+            "from": {
+              "type": "number",
+              "description": "Start page number (inclusive). Use with to for explicit page ranges."
+            },
+            "to": {
+              "type": "number",
+              "description": "End page number (inclusive). Recommended chunk size: 50 pages. If the response has truncated=true, use the next from/to from truncation_note."
+            },
+            "format": {
+              "type": "string",
+              "enum": [
+                "json",
+                "plain"
+              ],
+              "description": "json (default, structured with per-page fields) or plain (concatenated text with page markers)"
+            },
+            "lang": {
+              "type": "string",
+              "description": "ISO code of the EDITION to read, e.g. \"es\". Default \"en\". Resolved PER PAGE: a page with no text in that language comes back as English, labelled `translation_lang: \"en\"` (json) or `[Translation — en]` (plain), and the response carries lang_coverage. Chapter text is materialized in English only, so `chapter` with a non-English `lang` is served from the chapter's page range instead."
+            }
+          },
+          "required": [
+            "book_id"
+          ]
+        }
+      },
+      {
+        "name": "get_quote",
+        "title": "Get Quote",
+        "description": "READ PIPELINE step 3 — CITE. Get the exact verbatim text of a single page plus its citation apparatus. ALWAYS use before putting text in quotation marks. The response headline is citation_link (the stable sourcelibrary.org/q/… shortlink) — present it to the user alongside the quote. Render as:\n> [exact translation text, verbatim]\n> — [Author], [citation.locator]. [citation_link]\nPAGE BREAKS: this corpus is paginated from physical leaves, and nearly one prose page-boundary in five has a sentence running across it — sometimes a word split by a hyphen (\"…our move-\" / \"movements…\"). A page that opens or breaks off mid-sentence still reads as complete prose and still carries a perfectly valid citation, so check the continuity field on every response BEFORE quoting: if continues_on_next or continues_from_previous is true, call again with context: true and quote the whole sentence. Quoting a fragment as though it were the author's complete thought is a misattribution even when the page number is right.\nNON-LATIN SCRIPTS: where the page is Greek, Hebrew, Arabic, Sanskrit, Cyrillic and so on, the response also carries romanized — the romanization of the original — so the citation can be shown in three layers: original → romanized → translation → citation_link. It is AI-generated reading apparatus, not a transcription; quote the source from original or translation, never from romanized. Absent on Latin-script pages and on non-Latin pages not yet romanized.\nENGLISH ORIGINALS: where the leaf is already English there is no translation and none is needed — the response omits `translation`, sets `text_source: \"ocr_original\"`, and the verbatim text is `original` (with a `transcription_note`). Quote it as the source's own words, never as a translation, and expect period spelling and long-s (ſ) — it is an uncorrected transcription of the scan. `text_source` is on every response (`translation` otherwise), so branch on it rather than guessing from pages_translated, which is 0 for an English-original book by construction.\nTRANSLATED EDITIONS: `original` means the text printed on this leaf, which on a translated edition is the TRANSLATOR's language, not the author's. When the response carries `translation_note`, the chain is stated there — attribute the wording to the translator and do not offer the passage as evidence of what the author wrote in their own tongue. Call list_editions to find an original-language witness of the same work.\nFor several pages of one book at once, use get_quotes.",
+        "annotations": {
+          "title": "Get Quote",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "book_id": {
+              "type": "string",
+              "description": "The book ID"
+            },
+            "page": {
+              "type": "number",
+              "description": "Page number"
+            },
+            "context": {
+              "type": "boolean",
+              "description": "Also return the full text of the previous and next pages, so a sentence spanning the page break can be read whole. Set this when continuity.continues_from_previous or continues_on_next came back true on an earlier call, or whenever you are about to quote near a page edge."
+            },
+            "include_image": {
+              "type": "boolean",
+              "description": "Also return the scan of the cited leaf as an inline image (display size, ≤1200px). Set this when the user would benefit from SEEING the page — an illustrated leaf, a title page, a diagram, disputed OCR — or asks to see it. The image arrives as an MCP image block you can view and the user sees rendered."
+            },
+            "lang": {
+              "type": "string",
+              "description": "ISO code of the EDITION to quote, e.g. \"es\". Default \"en\". `quote.lang` on every response says which edition was actually served — where no such edition exists the English translation comes back with lang: \"en\" and a lang_note, and it must not be presented as the requested edition. The citation link follows the edition served."
+            }
+          },
+          "required": [
+            "book_id",
+            "page"
+          ]
+        }
+      },
+      {
+        "name": "list_editions",
+        "title": "List Editions of a Work",
+        "description": "Every edition of one work that the library holds — the other witnesses to the same text, across languages and centuries. Give it a book_id (easiest: the id of any edition you already found) or a work_id. USE THIS when a quotation needs checking against more than one witness, when you want the original-language text behind a translation, or when comparing how a passage reads across editions — differences between witnesses are often the finding. Returns language, date, page count and translation coverage per edition, so you can pick the right one to read. Note: for multi-volume collected works the identifier names the SET rather than a single text, and the response says so explicitly when that applies.",
+        "annotations": {
+          "title": "List Editions of a Work",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "book_id": {
+              "type": "string",
+              "description": "Any edition you already have. Its work is looked up and the siblings returned."
+            },
+            "work_id": {
+              "type": "string",
+              "description": "A work identifier, if you already have one (from get_book)."
+            }
+          }
+        }
+      },
+      {
+        "name": "check_duplicate",
+        "title": "Check Holdings",
+        "description": "DOES THE LIBRARY HOLD THIS WORK? Call this BEFORE telling the user the library lacks a book, and before proposing one for acquisition. A miss from list_books or search_library is NOT evidence of absence: list_books matches words and search_library ranks by relevance, so a held book can sit behind dozens of better-ranked hits. Give a title + author (+ year if known), or a library URL (Internet Archive, Gallica, e-rara, BSB, a IIIF manifest). Matches the same scan, the same edition, other editions and the same work, plus near and cross-lingual titles (title in any language). Returns a verdict (same_object / same_edition / possible_same_edition / other_edition / related_title / new), confidence, matches with reasons, ids and URLs, held_not_public (copies held but not yet published: counted, not described), and limits (what the check could not search). A \"new\" verdict from a URL alone has not searched other editions; pass the title and author too.",
+        "annotations": {
+          "title": "Check Holdings",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Title in any language, original or English, e.g. \"Musurgia universalis\"."
+            },
+            "author": {
+              "type": "string",
+              "description": "Author in any form (\"Athanasius Kircher\", \"Kircher, Athanasius\"). Strongly improves matching."
+            },
+            "year": {
+              "type": "number",
+              "description": "Edition year, if known. Separates \"same edition\" from \"another edition\"."
+            },
+            "url": {
+              "type": "string",
+              "description": "A library URL or IIIF manifest for a specific copy (title then optional)."
+            },
+            "ia_id": {
+              "type": "string",
+              "description": "Internet Archive identifier, for an exact same-scan match."
+            },
+            "language": {
+              "type": "string",
+              "description": "Language hint for the cross-lingual title match (optional)."
+            }
+          }
+        }
+      },
+      {
+        "name": "get_quotes",
+        "title": "Get Quotes (batch)",
+        "description": "READ PIPELINE step 3 — CITE, in batch. Get verbatim text + citation_link for SEVERAL pages of a single book in one round-trip, to assemble a multi-passage dossier. Specify either pages (an explicit array, e.g. [12, 40, 41]) or an inclusive from/to range. Max 25 pages per call. Each entry carries its own citation_link to present alongside the quote, and — on non-Latin-script pages that have one — a romanized layer to show between the original and the translation (AI apparatus, not a transcription). Every entry also carries `text_source`: `translation` normally, or `ocr_original` on a leaf that is already English, where the verbatim text is `original` and must be attributed as the source's own words rather than as a translation. One batch can mix both — a Latin volume can hold an English preface. Batch pages count toward the shared daily page budget (see get_book_text); this is a citation tool, and corpus-scale extraction belongs on the dataset API (sourcelibrary.org/dataset).",
+        "annotations": {
+          "title": "Get Quotes (batch)",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "book_id": {
+              "type": "string",
+              "description": "The book ID"
+            },
+            "pages": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "description": "Explicit list of page numbers (e.g. [12, 40, 41]). Use this OR from/to."
+            },
+            "from": {
+              "type": "number",
+              "description": "Start page (inclusive) of a range. Use with to."
+            },
+            "to": {
+              "type": "number",
+              "description": "End page (inclusive) of a range. Use with from."
+            },
+            "include_image": {
+              "type": "boolean",
+              "description": "Also return page scans as inline images (display size). The first 5 pages of the batch get inline image blocks; every entry still carries its page_image_url in the JSON."
+            },
+            "lang": {
+              "type": "string",
+              "description": "ISO code of the EDITION to quote, e.g. \"es\". Default \"en\". Resolved per page — one batch can mix editions, so read `quote.lang` on each entry rather than assuming the whole dossier is in one language."
+            }
+          },
+          "required": [
+            "book_id"
+          ]
+        }
+      },
+      {
+        "name": "search_images",
+        "title": "Search Images",
+        "description": "Search 200,000+ historical illustrations, emblems, engravings, diagrams, AND 24,000+ artworks (paintings, prints, sculptures). Filter by type, subject, figure, symbol, year. Results interleave two collections: illustrations extracted from book pages (each with a page number and book link) and standalone museum artworks (type: \"artwork\"). The first few results also return as inline images YOU can see. Hosts that support MCP Apps render an in-chat image gallery for this tool automatically; on other clients images may sit inside the collapsed tool-result view, so never tell the user images are \"rendered above\" unless the gallery appeared — describe what you see and give each image's url link instead. Every image_url is public and stable — an HTML page that references them directly works in any online browser. If images.length is 0, read the note field — an empty result under a book_id filter means that book has no EXTRACTED images yet, not that the physical book has no plates. A broad query can match tens of thousands (read total): narrow with type/subject/symbol (exact tag strings; look them up with list_image_facets) or page with offset instead of raising limit. On museum-artwork results, a title_is_descriptive flag means the title is an AI description of the picture rather than a title the work was published under — cite such a record by its source_record_title, never by the descriptive one (#4288).",
+        "annotations": {
+          "title": "Search Images",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://source-library/gallery-viewer"
+          }
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Text search (e.g., \"ouroboros\", \"tree of life\")"
+            },
+            "type": {
+              "type": "string",
+              "description": "Image type (woodcut, engraving, emblem, diagram). Best-effort: the medium metadata on museum artworks is unnormalized, so treat results as ranked rather than strictly filtered."
+            },
+            "subject": {
+              "type": "string",
+              "description": "EXACT, case-sensitive match on an extracted subject tag (\"alchemy\", \"medicinal plants\"); a near-miss matches nothing. Look the string up with list_image_facets first, or put loose words in query instead."
+            },
+            "figure": {
+              "type": "string",
+              "description": "EXACT, case-sensitive match on a figure tag (\"Jesus Christ\", \"putti\"). Look it up with list_image_facets."
+            },
+            "symbol": {
+              "type": "string",
+              "description": "EXACT, case-sensitive match on a symbol tag (\"ouroboros\", \"triangle\"). Look it up with list_image_facets."
+            },
+            "year_from": {
+              "type": "number",
+              "description": "CAUTION: reliable only for book illustrations (source_type \"book_illustration\"). On museum-artwork records the year field is dirty — some 17th-century works carry ingest years like 2014, and null years bypass the range check entirely — so never draw a chronological conclusion from a year-filtered artwork result (#4288 tracks the cleanup)."
+            },
+            "year_to": {
+              "type": "number",
+              "description": "See year_from — same reliability caution applies."
+            },
+            "book_id": {
+              "type": "string",
+              "description": "Only return images extracted from this book's pages. Excludes the museum-artwork collection (artworks do not belong to books)."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Max results (default 20, max 50)"
+            },
+            "offset": {
+              "type": "number",
+              "description": "Skip this many book-illustration results — page through a large result set instead of raising limit. The response echoes offset and returns next_offset while more remain. Offsets > 0 return the gallery lane only (the museum-artwork lane has no pagination and is included only on the first page)."
+            },
+            "include_thumbnail_base64": {
+              "type": "boolean",
+              "description": "Embed each result's image as a thumbnail_data_uri (data:image/jpeg;base64,…, ~1000px) directly in the JSON. ONLY useful when your harness consumes tool results programmatically (API/SDK agents that can save the bytes without retyping them) — as a chat assistant you CANNOT copy hundreds of KB of base64 into a file, so do not request this for that purpose. To build a self-contained page from chat instead: fetch the public image_url values with your execution sandbox (if egress is blocked, ask the user to allowlist images.sourcelibrary.org in their network settings), or reference the CDN URLs directly — they are public and stable, so the page works in any online browser. First 6 results only; inline image blocks are suppressed in this mode to keep the payload bounded."
+            }
+          }
+        }
+      },
+      {
+        "name": "list_image_facets",
+        "title": "List Image Facets",
+        "description": "List the legal values of search_images' type, subject, figure and symbol filters, with how many images carry each. Those filters are EXACT string matches on tags an AI extractor wrote, and each vocabulary runs to thousands of strings (e.g. \"musical notes\", \"Jesus Christ\", \"medicinal plants\"), so a guessed value usually matches nothing. Look it up here first. Call with no facet for the top values of all four; with facet + contains to find the exact spelling of a term (\"ouro\" → \"ouroboros\"). Counts cover book illustrations of visible books only (the museum-artwork collection is not counted), and only strings on 3 or more images are listed; the list is refreshed weekly. If contains finds nothing, the tag is absent or rare: use it as free text in search_images' query instead. No URL in this result is a browse page; link images from search_images results.",
+        "annotations": {
+          "title": "List Image Facets",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "facet": {
+              "type": "string",
+              "enum": [
+                "type",
+                "subject",
+                "figure",
+                "symbol"
+              ],
+              "description": "Which filter's vocabulary. Omit for the top values of all four."
+            },
+            "contains": {
+              "type": "string",
+              "description": "Case-insensitive substring to look for, e.g. \"dragon\". Matches are ordered by image count."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Values per facet (default 100 with a facet, 25 without; max 500)."
+            }
+          }
+        }
+      },
+      {
+        "name": "submit_feedback",
+        "title": "Submit Feedback",
+        "description": "Submit feedback, bug reports, or feature requests to the Source Library team. Before proposing NEW functionality, read https://sourcelibrary.org/llms.txt and https://sourcelibrary.org/developers — several past submissions proposed building things that already exist (IIIF manifests, Content Search, DTS), which wastes reviewer time. State in the report which docs you checked. Bug reports with record IDs and reproducing queries are the most actionable kind.",
+        "annotations": {
+          "title": "Submit Feedback",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "string",
+              "description": "Your feedback (2-20000 chars). Long structured reports are welcome — the limit was raised from 5,000 because agent reports were pressing against it and being split across submissions."
+            },
+            "name": {
+              "type": "string"
+            },
+            "email": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "message"
+          ]
+        }
+      },
+      {
+        "name": "share_findings",
+        "title": "Share Findings",
+        "description": "Share a research dossier back to the Source Library team — a title, an optional summary, and an ordered list of citations (the passages your thesis rests on). Each citation is a reference { book_id, page, note }, NOT copied text: the library re-renders the canonical quote from the reference, so links stay authoritative. Use this when the user has assembled a thesis backed by passages across one or more books and wants to contribute it back. Like submit_feedback, this goes to the team for review (not an instant public page).",
+        "annotations": {
+          "title": "Share Findings",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Title of the dossier / thesis (2-300 chars)"
+            },
+            "summary": {
+              "type": "string",
+              "description": "Optional prose summarizing the argument (max 5000 chars)"
+            },
+            "citations": {
+              "type": "array",
+              "description": "Ordered list of supporting passages (1-50). Get book_id + page from get_quote / search_translations.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "book_id": {
+                    "type": "string",
+                    "description": "The book ID"
+                  },
+                  "page": {
+                    "type": "number",
+                    "description": "Page number"
+                  },
+                  "note": {
+                    "type": "string",
+                    "description": "Optional note on why this passage matters"
+                  }
+                },
+                "required": [
+                  "book_id",
+                  "page"
+                ]
+              }
+            },
+            "name": {
+              "type": "string"
+            },
+            "email": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "title",
+            "citations"
+          ]
+        }
+      },
+      {
+        "name": "propose_collection",
+        "title": "Propose a Collection",
+        "description": "Propose a themed collection of books to the Source Library team — a title, a rationale (why these books belong together and what thread connects them), and an ordered list of book ids. Get book ids from search_library / list_books / get_book. Like submit_feedback and share_findings, this goes to the team for REVIEW — it does NOT create a public collection instantly; a curator reviews and approves it. Use this when the user has identified a coherent set of books worth grouping and wants to contribute that curation back.",
+        "annotations": {
+          "title": "Propose a Collection",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Title of the proposed collection (2-200 chars)"
+            },
+            "rationale": {
+              "type": "string",
+              "description": "Why these books belong together and what connects them (max 5000 chars)"
+            },
+            "book_ids": {
+              "type": "array",
+              "description": "Ordered list of book ids to include (1-200). Get ids from search_library / list_books / get_book.",
+              "items": {
+                "type": "string",
+                "description": "A book id"
+              }
+            },
+            "suggested_slug": {
+              "type": "string",
+              "description": "Optional URL slug suggestion, e.g. \"renaissance-astronomy\""
+            },
+            "name": {
+              "type": "string"
+            },
+            "email": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "title",
+            "rationale",
+            "book_ids"
+          ]
+        }
+      },
+      {
+        "name": "start_review_shift",
+        "title": "Start a Review Shift",
+        "description": "Start a volunteer REVIEW SHIFT: the user lends their Claude (you) to Source Library to check one book, page by page, against its scans. Use when the user wants to help Source Library, says \"start a shift\" or \"review pages\", or asks how they can contribute. The user does NOT need to read the book's language: YOU do the checking (scan against transcription, transcription against English) and the user starts the shift, chooses how many pages, watches and asks questions. Returns ONE page: its scan (inline image), our transcription, our English, the last lines of the previous page, and next (pass to continue_review_shift). Follow first_time once, then how_to_run on every page, working through the stretch of pages without stopping between them. With no book, it resumes the user's last run (pass volunteer_code) or picks a book that needs checking; book takes an id, slug or reader URL if the user names one; new_book true skips the resume. Run shifts only while the user is in this conversation; never set one up to run on a schedule or from a script.",
+        "annotations": {
+          "title": "Start a Review Shift",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "volunteer_code": {
+              "type": "string",
+              "description": "The code from the user's earlier shift, if they have one. Omit on a first shift; one is issued."
+            },
+            "book": {
+              "type": "string",
+              "description": "A book the user wants to check: id, slug or sourcelibrary.org reader URL (optional)."
+            },
+            "language": {
+              "type": "string",
+              "description": "Prefer books in this original language, e.g. \"Latin\" (optional; any language works, the user need not read it)."
+            },
+            "new_book": {
+              "type": "boolean",
+              "description": "True to start a different book instead of resuming the last one."
+            }
+          }
+        }
+      },
+      {
+        "name": "continue_review_shift",
+        "title": "Continue a Review Shift",
+        "description": "Next page of the book being reviewed. Call it straight after finishing a page until the stretch the user chose is done, and again when they ask for more. Pass next.book and next.after from the previous page, and volunteer_code. Returns the same shape as start_review_shift; follow how_to_run again. When page is null the book is finished: say so and offer start_review_shift with new_book true.",
+        "annotations": {
+          "title": "Continue a Review Shift",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "book": {
+              "type": "string",
+              "description": "next.book from the previous page"
+            },
+            "after": {
+              "type": "number",
+              "description": "next.after from the previous page"
+            },
+            "volunteer_code": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "book",
+            "after",
+            "volunteer_code"
+          ]
+        }
+      },
+      {
+        "name": "start_blind_check",
+        "title": "Start a Blind Check (for readers of the language)",
+        "description": "OPTIONAL lane, only for a user who reads the original language and asks to judge pages themselves: up to five random pages from different books, each with scan, transcription and English. Here the USER is the reviewer: ask for THEIR verdict first, before any opinion of yours, then give your reading with exact quotes, let them accept or reject each point, and call submit_page_review with mode \"blind\" and their final verdict. Never choose the verdict for them. For everyone else use start_review_shift.",
+        "annotations": {
+          "title": "Start a Blind Check",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "language": {
+              "type": "string",
+              "description": "Original language the user reads, e.g. \"Latin\"."
+            },
+            "volunteer_code": {
+              "type": "string"
+            },
+            "pages": {
+              "type": "number",
+              "description": "How many pages (1-5, default 5)."
+            }
+          }
+        }
+      },
+      {
+        "name": "submit_page_review",
+        "title": "Submit a Page Review",
+        "description": "Record the verdict on one page of a shift. mode \"book-run\" (start_review_shift / continue_review_shift): the verdict and findings are YOURS, from reading the scan and both texts; set user_looked true if the user checked anything on the page themselves. mode \"blind\" (start_blind_check): the verdict is the USER'S, given before your reading; put yours in assistant_verdict. Verdicts: both_sound (transcription matches the scan and the English matches the original), translation_drift (transcription right, English departs from it), transcription_off (the text does not match the scan), both_off, unclear (the scan or the text cannot be judged). Quote exact words in every finding. A review is evidence about the page; it does not change it.",
+        "annotations": {
+          "title": "Submit a Page Review",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "book-run",
+                "blind"
+              ],
+              "description": "\"book-run\" unless the page came from start_blind_check."
+            },
+            "item_id": {
+              "type": "string",
+              "description": "page.item_id (book run) or the item's item_id (blind check)"
+            },
+            "volunteer_code": {
+              "type": "string"
+            },
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "both_sound",
+                "translation_drift",
+                "transcription_off",
+                "both_off",
+                "unclear"
+              ],
+              "description": "book-run: your verdict. blind: the user's final verdict."
+            },
+            "book_id": {
+              "type": "string",
+              "description": "run.book_id (book run)"
+            },
+            "page_number": {
+              "type": "number",
+              "description": "page.page_number (book run)"
+            },
+            "user_looked": {
+              "type": "boolean",
+              "description": "book-run: true if the user checked something on this page themselves."
+            },
+            "verdict_before_assistant": {
+              "type": "boolean",
+              "description": "blind: true if the user committed to a verdict before seeing your reading."
+            },
+            "first_verdict": {
+              "type": "string",
+              "enum": [
+                "both_sound",
+                "translation_drift",
+                "transcription_off",
+                "both_off",
+                "unclear"
+              ],
+              "description": "blind: the user's verdict before your reading, if it changed."
+            },
+            "note": {
+              "type": "string",
+              "description": "Anything a later reader should know (optional, max 2000 chars)."
+            },
+            "assistant_verdict": {
+              "type": "string",
+              "enum": [
+                "both_sound",
+                "translation_drift",
+                "transcription_off",
+                "both_off",
+                "unclear"
+              ],
+              "description": "Your own verdict (blind mode; in book-run it equals verdict)."
+            },
+            "assistant_findings": {
+              "type": "array",
+              "description": "Problems found, each with an exact quote (max 12).",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "layer": {
+                    "type": "string",
+                    "enum": [
+                      "transcription",
+                      "translation"
+                    ]
+                  },
+                  "quote": {
+                    "type": "string",
+                    "description": "The exact words at issue (max 300 chars)"
+                  },
+                  "problem": {
+                    "type": "string",
+                    "description": "What is wrong, and what the scan or original shows (max 500 chars)"
+                  },
+                  "user_agreed": {
+                    "type": "boolean",
+                    "description": "Only if the user actually weighed in on this point"
+                  }
+                },
+                "required": [
+                  "layer",
+                  "problem"
+                ]
+              }
+            },
+            "reader_languages": {
+              "type": "string",
+              "description": "Languages the user says they read, if they said."
+            },
+            "assistant_model": {
+              "type": "string",
+              "description": "Your own model name and version, copied exactly as your instructions or system prompt give it, and whether extended thinking is on. Write \"unknown\" rather than guess; a wrong name is worse than none."
+            },
+            "text_version": {
+              "type": "object",
+              "description": "page.text_version, passed back unchanged."
+            },
+            "shift_id": {
+              "type": "string",
+              "description": "shift_id (blind check only)"
+            },
+            "name": {
+              "type": "string",
+              "description": "How the user wants to be credited (optional)."
+            }
+          },
+          "required": [
+            "item_id",
+            "volunteer_code",
+            "verdict",
+            "assistant_model"
+          ]
+        }
+      },
+      {
+        "name": "propose_correction",
+        "title": "Propose a Correction",
+        "description": "During a review shift, propose a correction to a page's transcription (field \"ocr\") or English (field \"translation\"). A correction is a list of exact span edits: each \"find\" must be copied exactly from the text the shift returned and occur once on the page (add surrounding words if it repeats); \"replace\" is the corrected text (\"\" deletes). Fix only what the scan or the original shows is wrong: misread letters, dropped or added words, a sentence the English skips. Do not restyle or modernise. Propose transcription fixes before translation fixes, as separate calls. Pass base_hash = page.text_version for that field. A proposal does NOT change the page: it is applied only after a second reader agrees, and the volunteer is credited. If the call says the page changed since it was loaded, say so and move on. drafted_by: \"assistant\" if you found and worded it in a book run, \"volunteer\" if the user supplied the wording, \"assistant_accepted\" if you drafted it and the user approved it specifically, \"mixed\" otherwise.",
+        "annotations": {
+          "title": "Propose a Correction",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "item_id": {
+              "type": "string",
+              "description": "page.item_id from the shift"
+            },
+            "field": {
+              "type": "string",
+              "enum": [
+                "ocr",
+                "translation"
+              ],
+              "description": "\"ocr\" for the transcription, \"translation\" for the English"
+            },
+            "base_hash": {
+              "type": "string",
+              "description": "text_version.ocr or text_version.translation from the page"
+            },
+            "edits": {
+              "type": "array",
+              "description": "Span edits (1-30).",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "find": {
+                    "type": "string",
+                    "description": "Exact text currently on the page"
+                  },
+                  "replace": {
+                    "type": "string",
+                    "description": "Corrected text"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "What the scan or the original shows (short)"
+                  }
+                },
+                "required": [
+                  "find",
+                  "replace"
+                ]
+              }
+            },
+            "volunteer_code": {
+              "type": "string"
+            },
+            "drafted_by": {
+              "type": "string",
+              "enum": [
+                "assistant",
+                "volunteer",
+                "assistant_accepted",
+                "mixed"
+              ]
+            },
+            "note": {
+              "type": "string",
+              "description": "Anything the second reader should know (optional)"
+            },
+            "assistant_model": {
+              "type": "string",
+              "description": "Your own model name and version, copied exactly as your instructions or system prompt give it, and whether extended thinking is on. Write \"unknown\" rather than guess; a wrong name is worse than none."
+            },
+            "shift_id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string",
+              "description": "How the user wants to be credited (optional)"
+            }
+          },
+          "required": [
+            "item_id",
+            "field",
+            "base_hash",
+            "edits",
+            "volunteer_code",
+            "drafted_by",
+            "assistant_model"
+          ]
+        }
+      },
+      {
+        "name": "get_locus",
+        "title": "Find a Canonical Reference (Bekker / Stephanus)",
+        "description": "Turn a CANONICAL CITATION into the actual leaves that carry it. Aristotle is cited by Bekker number (1094a8, 1447a) and Plato by Stephanus number (Rep. 328b) — the references scholarship has used for centuries, which survive re-typesetting and are shareable in a way a scan page never is. USE THIS FIRST whenever a passage arrives as a canonical reference rather than a page: do not try to derive the page yourself from a book's pagination, which is what produced a wrong guess before this tool existed. Bekker numbers are unique across the whole Aristotelian corpus, so the number alone is enough and it also tells you WHICH WORK you are citing. Stephanus numbers restart in each of the three 1578 volumes, so pass work (\"Republic\", \"Timaeus\") — without it the response lists the candidate dialogues instead of choosing one. Returns every witness the library holds: the Greek reference edition and, where we have one, an English translation of the same lines, each with its scan page, a reader URL and a quote_api link — so you can compare the original against a translation at one reference. Then call get_quote with the returned book_id + page for the verbatim text and a citable shortlink. LIMITS, stated plainly: a witness is only returned where the reference is PRINTED on that leaf (or, in the two root editions, where a verified constant offset brackets it) — nothing is interpolated, so an empty result means this library holds no anchored leaf there, NOT that the citation is wrong; editions_searched shows what was consulted and the range each covers. Line numbers (the \"8\" of 1094a8) are not resolved — you get the right leaf and read the line off it. Two works can share a page where one ends and the next begins (Bekker 184 and 1447 are both such joins), and each leaf is filed by the running head printed on it, so a reference at the very start of a work may come back under its predecessor — always read other_works_at_this_reference before concluding a passage is absent. A bare number that exists in both systems returns Aristotle and Plato leaves together; check the system field on each.",
+        "annotations": {
+          "title": "Find a Canonical Reference",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "reference": {
+              "type": "string",
+              "description": "The canonical reference: \"1094a8\", \"1094a\", \"1447\", \"328b\". A leading system name is accepted (\"Bekker 1094a\"), as is a work name (\"Rep. 328b\")."
+            },
+            "work": {
+              "type": "string",
+              "description": "The work or dialogue, when the reference needs it (Plato always does): \"Republic\", \"Timaeus\", \"Laws\", \"Nicomachean Ethics\", \"Poetics\". Greek or Latin titles as printed in the editions also resolve."
+            },
+            "system": {
+              "type": "string",
+              "description": "Optional: \"bekker\" or \"stephanus\". Inferred from the work when omitted; do not guess it from the number, since the two ranges overlap."
+            }
+          },
+          "required": [
+            "reference"
+          ]
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-18T00:08:33.192Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-18T00:08:34.244Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-18T00:08:35.294Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-18T00:08:36.346Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 22,
+    "tools_hash": "sha256:ae3d969f3c692b996e359bbd86fa8157cefb229a90016cc2b4c6c3c7c5d40626",
+    "static_tool_tokens": 17988,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F2",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "list_books",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "language"
+      },
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_library",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_library",
+        "message": "Parameter has no description.",
+        "param": "sort"
+      },
+      {
+        "id": "F6",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_translations",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_translations",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_translations",
+        "message": "Parameter has no description.",
+        "param": "year_from"
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_translations",
+        "message": "Parameter has no description.",
+        "param": "year_to"
+      },
+      {
+        "id": "F10",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_concept",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_concept",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_within_book",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_within_book",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_books",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "list_books",
+        "message": "Parameter has no description.",
+        "param": "language"
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "list_books",
+        "message": "Parameter has no description.",
+        "param": "category"
+      },
+      {
+        "id": "F17",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "list_books",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "category"
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "list_books",
+        "message": "Parameter has no description.",
+        "param": "sort"
+      },
+      {
+        "id": "F19",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_book",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_book",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F21",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_book_text",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F22",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_book_text",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F23",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_quote",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F24",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_quote",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F25",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_editions",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F26",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "check_duplicate",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F27",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "check_duplicate",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F28",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_quotes",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F29",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_quotes",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F30",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_images",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F31",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_images",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F32",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_image_facets",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F33",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "submit_feedback",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F34",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "submit_feedback",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F35",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_feedback",
+        "message": "Parameter has no description.",
+        "param": "name"
+      },
+      {
+        "id": "F36",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_feedback",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "name"
+      },
+      {
+        "id": "F37",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_feedback",
+        "message": "Parameter has no description.",
+        "param": "email"
+      },
+      {
+        "id": "F38",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_feedback",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "email"
+      },
+      {
+        "id": "F39",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "share_findings",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F40",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "share_findings",
+        "message": "Parameter has no description.",
+        "param": "name"
+      },
+      {
+        "id": "F41",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "share_findings",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "name"
+      },
+      {
+        "id": "F42",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "share_findings",
+        "message": "Parameter has no description.",
+        "param": "email"
+      },
+      {
+        "id": "F43",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "share_findings",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "email"
+      },
+      {
+        "id": "F44",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "propose_collection",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F45",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "propose_collection",
+        "message": "Parameter has no description.",
+        "param": "name"
+      },
+      {
+        "id": "F46",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "propose_collection",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "name"
+      },
+      {
+        "id": "F47",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "propose_collection",
+        "message": "Parameter has no description.",
+        "param": "email"
+      },
+      {
+        "id": "F48",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "propose_collection",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "email"
+      },
+      {
+        "id": "F49",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "start_review_shift",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F50",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "start_review_shift",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F51",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "continue_review_shift",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F52",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "continue_review_shift",
+        "message": "Parameter has no description.",
+        "param": "volunteer_code"
+      },
+      {
+        "id": "F53",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "continue_review_shift",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "volunteer_code"
+      },
+      {
+        "id": "F54",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "start_blind_check",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F55",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "start_blind_check",
+        "message": "Parameter has no description.",
+        "param": "volunteer_code"
+      },
+      {
+        "id": "F56",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "start_blind_check",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "volunteer_code"
+      },
+      {
+        "id": "F57",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "submit_page_review",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F58",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "submit_page_review",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F59",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "submit_page_review",
+        "message": "Parameter has no description.",
+        "param": "volunteer_code"
+      },
+      {
+        "id": "F60",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "submit_page_review",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "volunteer_code"
+      },
+      {
+        "id": "F61",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "propose_correction",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F62",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "propose_correction",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F63",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "propose_correction",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F64",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "propose_correction",
+        "message": "Parameter has no description.",
+        "param": "volunteer_code"
+      },
+      {
+        "id": "F65",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "propose_correction",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "volunteer_code"
+      },
+      {
+        "id": "F66",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "propose_correction",
+        "message": "Parameter has no description.",
+        "param": "drafted_by"
+      },
+      {
+        "id": "F67",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "propose_correction",
+        "message": "Parameter has no description.",
+        "param": "shift_id"
+      },
+      {
+        "id": "F68",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "propose_correction",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "shift_id"
+      },
+      {
+        "id": "F69",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_locus",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F70",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_locus",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 13,
+      "medium": 45,
+      "warning": 10
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_library",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results per page (default 10, max 100)",
+          "mentions_size_or_cost": true,
+          "described_default": 10
+        },
+        {
+          "tool": "search_library",
+          "path": "inputSchema.properties.offset",
+          "name": "offset",
+          "description": "Pagination offset (use with limit to page through total_matches; default 0)",
+          "mentions_size_or_cost": true,
+          "described_default": 0
+        },
+        {
+          "tool": "search_translations",
+          "path": "inputSchema.properties.exclude_languages",
+          "name": "exclude_languages",
+          "description": "Exclude these languages, e.g. [\"Latin\", \"French\", \"German\", \"English\"] to surface non-Western sources.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "search_translations",
+          "path": "inputSchema.properties.exclude_authors",
+          "name": "exclude_authors",
+          "description": "Drop passages by these authors, e.g. [\"Agrippa\"]. Use it to iterate a survey: run, see who dominates, exclude, run again.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "search_translations",
+          "path": "inputSchema.properties.max_per_author",
+          "name": "max_per_author",
+          "description": "Hard cap on passages from one author; the rest are DROPPED (unlike diversity, which only re-orders). Set 1 for \"N quotes from N different authors\".",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "search_translations",
+          "path": "inputSchema.properties.max_per_work",
+          "name": "max_per_work",
+          "description": "Hard cap on passages from one WORK (all printings and editions of it count together, via work_id), so seven printings of De occulta philosophia are one witness, not seven.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "search_translations",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results per page (default 20, max 50)",
+          "mentions_size_or_cost": true,
+          "described_default": 20
+        },
+        {
+          "tool": "search_translations",
+          "path": "inputSchema.properties.offset",
+          "name": "offset",
+          "description": "Pagination offset (use with limit to page through total_matches; default 0)",
+          "mentions_size_or_cost": true,
+          "described_default": 0
+        },
+        {
+          "tool": "search_concept",
+          "path": "inputSchema.properties.exclude_languages",
+          "name": "exclude_languages",
+          "description": "Exclude these languages, e.g. [\"Latin\", \"French\", \"German\", \"English\"] to surface non-Western sources.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "search_concept",
+          "path": "inputSchema.properties.max_per_book",
+          "name": "max_per_book",
+          "description": "Cap on passages from any single book. Useful when one book dominates the conceptual neighborhood; for one passage per author or per work use max_per_author / max_per_work.",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "search_concept",
+          "path": "inputSchema.properties.exclude_authors",
+          "name": "exclude_authors",
+          "description": "Drop passages by these authors, e.g. [\"Agrippa\"]. Use it to iterate a survey: run, see who dominates, exclude, run again.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "search_concept",
+          "path": "inputSchema.properties.max_per_author",
+          "name": "max_per_author",
+          "description": "Hard cap on passages from one author; the rest are DROPPED (unlike diversity, which only re-orders). Set 1 for \"N quotes from N different authors\".",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "search_concept",
+          "path": "inputSchema.properties.max_per_work",
+          "name": "max_per_work",
+          "description": "Hard cap on passages from one WORK (all printings and editions of it count together, via work_id), so seven printings of De occulta philosophia are one witness, not seven.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "search_concept",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max passages (default 15, max 50)",
+          "mentions_size_or_cost": true,
+          "described_default": 15
+        },
+        {
+          "tool": "list_books",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results (default 100, max 200)",
+          "mentions_size_or_cost": true,
+          "described_default": 100
+        },
+        {
+          "tool": "get_book_text",
+          "path": "inputSchema.properties.format",
+          "name": "format",
+          "description": "json (default, structured with per-page fields) or plain (concatenated text with page markers)",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "get_quote",
+          "path": "inputSchema.properties.include_image",
+          "name": "include_image",
+          "description": "Also return the scan of the cited leaf as an inline image (display size, ≤1200px). Set this when the user would benefit from SEEING the page — an illustrated leaf, a title page, a diagram, disputed OCR — or asks to see it. The image arrives as an MCP image block you can view and the user sees rendered.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "get_quotes",
+          "path": "inputSchema.properties.include_image",
+          "name": "include_image",
+          "description": "Also return page scans as inline images (display size). The first 5 pages of the batch get inline image blocks; every entry still carries its page_image_url in the JSON.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "search_images",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results (default 20, max 50)",
+          "mentions_size_or_cost": true,
+          "described_default": 20
+        },
+        {
+          "tool": "search_images",
+          "path": "inputSchema.properties.offset",
+          "name": "offset",
+          "description": "Skip this many book-illustration results — page through a large result set instead of raising limit. The response echoes offset and returns next_offset while more remain. Offsets > 0 return the gallery lane only (the museum-artwork lane has no pagination and is included only on the first page).",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "search_images",
+          "path": "inputSchema.properties.include_thumbnail_base64",
+          "name": "include_thumbnail_base64",
+          "description": "Embed each result's image as a thumbnail_data_uri (data:image/jpeg;base64,…, ~1000px) directly in the JSON. ONLY useful when your harness consumes tool results programmatically (API/SDK agents that can save the bytes without retyping them) — as a chat assistant you CANNOT copy hundreds of KB of base64 into a file, so do not request this for that purpose. To build a self-contained page from chat instead: fetch the public image_url values with your execution sandbox (if egress is blocked, ask the user to allowlist images.sourcelibrary.org in their network settings), or reference the CDN URLs directly — they are public and stable, so the page works in any online browser. First 6 results only; inline image blocks are suppressed in this mode to keep the payload bounded.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "list_image_facets",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Values per facet (default 100 with a facet, 25 without; max 500).",
+          "mentions_size_or_cost": true,
+          "described_default": 100
+        },
+        {
+          "tool": "share_findings",
+          "path": "inputSchema.properties.summary",
+          "name": "summary",
+          "description": "Optional prose summarizing the argument (max 5000 chars)",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "submit_page_review",
+          "path": "inputSchema.properties.mode",
+          "name": "mode",
+          "description": "\"book-run\" unless the page came from start_blind_check.",
+          "mentions_size_or_cost": true
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "search_translations"
+          ],
+          "path": "inputSchema.properties.max_per_author",
+          "description": "Hard cap on passages from one author; the rest are DROPPED (unlike diversity, which only re-orders). Set 1 for \"N quotes from N different authors\".",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "search_concept"
+          ],
+          "path": "inputSchema.properties.max_per_book",
+          "description": "Cap on passages from any single book. Useful when one book dominates the conceptual neighborhood; for one passage per author or per work use max_per_author / max_per_work.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "search_concept"
+          ],
+          "path": "inputSchema.properties.max_per_author",
+          "description": "Hard cap on passages from one author; the rest are DROPPED (unlike diversity, which only re-orders). Set 1 for \"N quotes from N different authors\".",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "list_books"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "Max results (default 100, max 200)",
+          "default": 100,
+          "default_source": "description",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_quote"
+          ],
+          "description": "READ PIPELINE step 3 — CITE. Get the exact verbatim text of a single page plus its citation apparatus. ALWAYS use before putting text in quotation marks. The response headline is citation_link (the stable sourcelibrary.org/q/… shortlink) — present it to the user alongside the quote. Render as:\n> [exact translation text, verbatim]\n> — [Author], [citation.locator]. [citation_link]\nPAGE BREAKS: this corpus is paginated from physical leaves, and nearly one prose page-boundary in five has a sentence running across it — sometimes a word split by a hyphen (\"…our move-\" / \"movements…\"). A page that opens or breaks off mid-sentence still reads as complete prose and still carries a perfectly valid citation, so check the continuity field on every response BEFORE quoting: if continues_on_next or continues_from_previous is true, call again with context: true and quote the whole sentence. Quoting a fragment as though it were the author's complete thought is a misattribution even when the page number is right.\nNON-LATIN SCRIPTS: where the page is Greek, Hebrew, Arabic, Sanskrit, Cyrillic and so on, the response also carries romanized — the romanization of the original — so the citation can be shown in three layers: original → romanized → translation → citation_link. It is AI-generated reading apparatus, not a transcription; quote the source from original or translation, never from romanized. Absent on Latin-script pages and on non-Latin pages not yet romanized.\nENGLISH ORIGINALS: where the leaf is already English there is no translation and none is needed — the response omits `translation`, sets `text_source: \"ocr_original\"`, and the verbatim text is `original` (with a `transcription_note`). Quote it as the source's own words, never as a translation, and expect period spelling and long-s (ſ) — it is an uncorrected transcription of the scan. `text_source` is on every response (`translation` otherwise), so branch on it rather than guessing from pages_translated, which is 0 for an English-original book by construction.\nTRANSLATED EDITIONS: `original` means the text printed on this leaf, which on a translated edition is the TRANSLATOR's language, not the author's. When the response carries `translation_note`, the chain is stated there — attribute the wording to the translator and do not offer the passage as evidence of what the author wrote in their own tongue. Call list_editions to find an original-language witness of the same work.\nFor several pages of one book at once, use get_quotes.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "list_image_facets"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "Values per facet (default 100 with a facet, 25 without; max 500).",
+          "default": 100,
+          "default_source": "description",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "list_image_facets"
+          ],
+          "description": "List the legal values of search_images' type, subject, figure and symbol filters, with how many images carry each. Those filters are EXACT string matches on tags an AI extractor wrote, and each vocabulary runs to thousands of strings (e.g. \"musical notes\", \"Jesus Christ\", \"medicinal plants\"), so a guessed value usually matches nothing. Look it up here first. Call with no facet for the top values of all four; with facet + contains to find the exact spelling of a term (\"ouro\" → \"ouroboros\"). Counts cover book illustrations of visible books only (the museum-artwork collection is not counted), and only strings on 3 or more images are listed; the list is refreshed weekly. If contains finds nothing, the tag is absent or rare: use it as free text in search_images' query instead. No URL in this result is a browse page; link images from search_images results.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "search_within_book",
+            "list_books"
+          ],
+          "hypothesis": "Read tools share resource terms (book), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "search_within_book",
+            "get_book_text"
+          ],
+          "hypothesis": "Read tools share resource terms (book), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_books",
+            "get_book"
+          ],
+          "hypothesis": "Read tools share resource terms (book), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_books",
+            "get_book_text"
+          ],
+          "hypothesis": "Read tools share resource terms (book), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "search_library",
+      "search_translations",
+      "search_concept",
+      "search_within_book",
+      "list_books",
+      "get_book",
+      "get_book_text",
+      "get_quote",
+      "list_editions",
+      "check_duplicate",
+      "get_quotes",
+      "search_images",
+      "list_image_facets",
+      "start_review_shift",
+      "continue_review_shift",
+      "start_blind_check",
+      "get_locus"
+    ]
+  }
+}

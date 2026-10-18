@@ -1,0 +1,2878 @@
+{
+  "slug": "lnk-bio",
+  "source_url": "https://manufact.com/mcp-catalog/lnk-bio",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:56:09.699Z",
+    "endpoint": "https://mcp.lnk.bio/",
+    "transport": "streamable",
+    "server": {
+      "name": "Lnk.Bio MCP Server",
+      "icons": [
+        {
+          "src": "https://cdn2.lnk.bi/img/favicon/202006sqr/favicon.svg",
+          "mimeType": "image/svg+xml"
+        },
+        {
+          "src": "https://cdn2.lnk.bi/img/favicon/202006sqr/favicon180.png",
+          "mimeType": "image/png",
+          "sizes": [
+            "180x180"
+          ]
+        }
+      ],
+      "version": "2.0.0",
+      "websiteUrl": "https://lnk.bio",
+      "description": "Manage your Lnk.Bio profile: links, pages, blocks, icons, style, fonts, and themes."
+    },
+    "capabilities": {
+      "logging": {},
+      "completions": {},
+      "tools": {}
+    },
+    "instructions": "Use these tools to manage the authenticated user's Lnk.Bio profile. All tools require the user to have connected their Lnk.Bio account.\n\nQUALITY RULES (follow these for every operation):\n\n1. IMAGES ON LINKS: When calling add_link, try to include the image parameter whenever possible. Browse the destination URL to find the site's logo, Open Graph image (og:image), or a representative image. Use the direct, publicly-accessible image URL so Lnk.Bio's server can fetch it. If you cannot find a suitable image, it is OK to create the link without one. NEVER use emojis in link titles. No emoji characters anywhere in link titles. Titles must be clean, plain text only.\n\n2. ALWAYS START WITH get_profile: Before any create, build, or improve operation, call get_profile first to check the current state. This tells you the username and whether a profile picture is set. If profile_pic is empty, set one using update_profile_pic before doing anything else. Ask the user for their preferred image, or use their brand logo from their website. Then call get_style to check if a theme is applied. If no theme is set, apply one using list_themes + apply_theme.\n\n3. SOCIAL ICONS ON EVERY PROFILE: When building or improving a profile, ALWAYS add a BLOCK_ICONS block and populate it with the user's social media links. IMPORTANT: first call list_blocks to check if a BLOCK_ICONS block already exists. If it does, use that block_id. Do NOT create a duplicate. If none exists, the required sequence is: (1) add_block with type=BLOCK_ICONS to create the block, (2) search_icons to find each platform's type_id (e.g. search \"instagram\", \"tiktok\", \"youtube\"), (3) add_icon for each platform with the block_id from step 1. Email, phone, and WhatsApp are also icons (not links). Search \"email\", \"phone\", or \"whatsapp\" to find them. Ask the user which social platforms they use if not already specified.\n\n4. DO NOT ADD BLOCK_TITLE, BLOCK_HEADLINE, OR BLOCK_BUTTON: These blocks must NEVER be added unless the user explicitly asks for one. The BLOCK_PROFILEPIC block IS the header of the page. It already displays the profile picture, name, and username prominently at the top. There is no need for any other heading, title, or welcome message. Adding BLOCK_TITLE or BLOCK_HEADLINE creates an ugly, redundant banner that makes the page look unprofessional. If you feel tempted to add a heading like \"Welcome to...\" or the business name, DO NOT. The BLOCK_PROFILEPIC already handles that. BLOCK_BUTTON must NOT be used to add links. All links must be added via add_link, which places them inside the BLOCK_LNKS container. BLOCK_BUTTON creates a standalone button that looks inconsistent with the rest of the page. Use add_link instead.\n\n5. USE VIDEO BLOCKS: When the user mentions a YouTube, Vimeo, or TikTok video, or when their content includes video URLs, add a BLOCK_VIDEO block via add_block with the video URL in the data field. Only use real, verified video URLs that you know exist. Do NOT invent or guess video URLs. If the user did not provide a specific video URL, ask them for it.\n\n6. BLOCK ORDER MATTERS: The order of blocks on a page determines how the profile looks. BLOCK_PROFILEPIC must ALWAYS be the FIRST block on the page (position 0). When adding blocks with add_block, omit the \"after\" parameter to insert at the beginning, then use sort_blocks at the end to set the correct final order. The recommended block order from top to bottom is:\n   1. BLOCK_PROFILEPIC (profile picture + username) - MUST be first\n   2. BLOCK_BIO (short description of the user or business)\n   3. BLOCK_ICONS (social media icons)\n   4. BLOCK_VIDEO (if applicable - video content goes above links)\n   5. BLOCK_LNKS (links container - links are call-to-action items and go near the bottom)\n   After adding all blocks, call sort_blocks to enforce this order.\n\n7. FULL PROFILE SETUP: When asked to \"create\", \"set up\", or \"build\" a profile, follow this exact order.\n   IMPORTANT: Lnk.Bio separates DATA (profile pic, links) from LAYOUT (blocks that render them). Uploading a profile picture does NOT display it. Adding links does NOT show them. The page needs explicit BLOCK_PROFILEPIC and BLOCK_LNKS blocks to render those. Build the block skeleton FIRST, then populate content.\n\n   PHASE 1 - INSPECT:\n   a) Call get_profile to check the current state\n   b) Call get_style to check if a theme is applied\n   c) Call list_block_types to pick a layout archetype matching the user (creator, business, local_business, musician, journalist, personal)\n   d) Call list_blocks to see the current block structure\n\n   PHASE 2 - BUILD BLOCK SKELETON (structure first, following the chosen archetype):\n   e) Add BLOCK_PROFILEPIC if missing (required for profile picture and username to render)\n   f) Add BLOCK_BIO\n   g) Add BLOCK_ICONS for social media\n   h) Add BLOCK_VIDEO if the user has video content (only with real URLs)\n   i) Add BLOCK_LNKS if missing (required for links to render)\n   j) Add BLOCK_MAP if local business\n   k) Add second BLOCK_ICONS for contact info (email, phone, whatsapp) if business\n   l) Call sort_blocks to set the correct order: BLOCK_PROFILEPIC first\n\n   PHASE 3 - POPULATE CONTENT (data into the skeleton):\n   m) Set the profile picture if missing (update_profile_pic)\n   n) Apply a theme if none is set (list_themes + apply_theme)\n   o) Add social icons (search_icons + add_icon into the BLOCK_ICONS block)\n   p) Add links via add_link (not BLOCK_BUTTON), each with an image when possible\n\n   PHASE 4 - VALIDATE:\n   q) Call list_blocks to confirm the final rendered structure matches the archetype\n   r) Verify BLOCK_PROFILEPIC is at position 0\n\n8. IMPROVING AN EXISTING PROFILE: When asked to \"improve\", \"update\", or \"fix\" a profile, start by auditing the current state: call get_profile, list_blocks, and list_links. Then look for gaps: missing profile picture, no social icons block, links without images, no bio block, no video block, wrong block order (BLOCK_PROFILEPIC not first). Suggest and fix what is missing.\n\nEXAMPLE OF A WELL-DESIGNED PROFILE (top to bottom):\n- BLOCK_PROFILEPIC: logo + @username\n- BLOCK_BIO: \"Learn languages the fun way. Free, fun, and effective lessons.\"\n- BLOCK_ICONS: Instagram, TikTok, YouTube, X, Facebook\n- BLOCK_VIDEO: YouTube trailer embed\n- BLOCK_LNKS: 4 links with clean titles (e.g. \"Start Learning For Free\", \"Download on the App Store\")\n- BLOCK_MAP: (only for local businesses that have a physical location)\n- BLOCK_ICONS: email, phone, whatsapp (contact info as icons, not links)\n- No BLOCK_TITLE, no BLOCK_HEADLINE, no BLOCK_BUTTON, no emojis in titles\nUse this as a reference when building profiles. Adapt the blocks to the user's needs, but follow this general structure.\n\nTECHNICAL REFERENCE:\n- BLOCK_PROFILEPIC is required: a page must contain a BLOCK_PROFILEPIC block for the profile picture and username to appear. The main page has one by default, but new pages do not. Always ensure a BLOCK_PROFILEPIC exists on every page.\n- BLOCK_LNKS is required: a page must contain at least one BLOCK_LNKS block for links (added via add_link) to appear. The main page has one by default, but new pages do not. Always ensure a BLOCK_LNKS exists before adding links to a page.\n- Link IDs: found in meta.id from list_links\n- Block IDs: returned by list_blocks\n- Page IDs: returned by list_pages\n- Call list_block_types to discover available block types and their data format before adding blocks\n- Call search_icons to find icon type_ids before adding icons to a BLOCK_ICONS block\n- Call list_fonts and list_themes to discover available font and theme IDs before applying them",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "get_profile",
+            "inputSchema": {
+              "type": "object",
+              "properties": {}
+            },
+            "description": "Use this as the FIRST call when creating, building, or improving a profile. Returns username, profile URL, and profile picture. If profile_pic is empty or shows the default avatar, set a real one using update_profile_pic. Then call get_style to check the theme, then call list_block_types to pick a layout archetype matching the user (creator, business, local_business, musician, journalist, personal), then call list_blocks to see the current page structure. Follow the archetype's blocks array to build the page. BLOCK_PROFILEPIC must always be first. Add links via add_link. Call sort_blocks at the end to enforce order.",
+            "annotations": {
+              "title": "Get Profile",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "username": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "profile_pic": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          {
+            "name": "update_profile_pic",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "image": {
+                  "type": "string",
+                  "description": "URL of the image to use as profile picture, or empty string to remove."
+                }
+              },
+              "required": [
+                "image"
+              ]
+            },
+            "description": "Use this to upload a profile picture. IMPORTANT: uploading the picture does NOT make it visible. The page must have a BLOCK_PROFILEPIC block for the picture to render. Build the block skeleton first (add_block), then upload the picture. Ask the user for their preferred image, or use their brand logo from their website.",
+            "annotations": {
+              "title": "Update Profile Picture",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "list_links",
+            "inputSchema": {
+              "type": "object",
+              "properties": {}
+            },
+            "description": "Use this to retrieve all links on the user's Lnk.Bio profile. Check the results for links missing images. For every link without an image, browse its destination URL to find the og:image, logo, or favicon, then call edit_link to attach it.",
+            "annotations": {
+              "title": "List Links",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "links": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "image": {
+                        "type": "string"
+                      },
+                      "created_at": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "name": "add_link",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "description": "The display title for the link."
+                },
+                "link": {
+                  "type": "string",
+                  "description": "The destination URL."
+                },
+                "image": {
+                  "type": "string",
+                  "description": "URL of an image to display next to the link. ALWAYS attempt to provide this. Browse the destination URL and look for: 1) og:image meta tag, 2) site logo, 3) apple-touch-icon, 4) favicon. Links without images look incomplete and get far fewer clicks. Must be a publicly accessible URL. Only omit if no image can be found."
+                },
+                "group_id": {
+                  "type": "integer",
+                  "description": "Optional group ID to assign the link to (requires MINI subscription)."
+                },
+                "schedule_from": {
+                  "type": "string",
+                  "description": "Optional RFC3339 datetime after which the link becomes visible."
+                },
+                "schedule_to": {
+                  "type": "string",
+                  "description": "Optional RFC3339 datetime after which the link is hidden."
+                },
+                "position": {
+                  "type": "integer",
+                  "description": "Position to insert the link at. Existing links at this position and below are shifted down. If omitted, the link is added at the top."
+                }
+              },
+              "required": [
+                "title",
+                "link"
+              ]
+            },
+            "description": "Use this to add a link to the profile. IMPORTANT: links are stored but will NOT appear unless the page has a BLOCK_LNKS block. Ensure the block skeleton is built first. ALWAYS attempt to source an image before creating the link: browse the destination URL for the site's og:image, logo, or favicon. Links with images receive 2-3x more clicks than text-only links. Only omit the image if the destination site has no usable image at all. Titles should be clean, plain text (e.g. \"Start Learning For Free\", \"Download the App\").",
+            "annotations": {
+              "title": "Add Link",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "edit_link",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "link_id": {
+                  "type": "integer",
+                  "description": "The ID of the link to edit."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "New display title."
+                },
+                "link": {
+                  "type": "string",
+                  "description": "New destination URL."
+                },
+                "image": {
+                  "type": "string",
+                  "description": "New image URL. Pass an empty string to remove the current image."
+                },
+                "group_id": {
+                  "type": "integer",
+                  "description": "Group to assign the link to. Pass 0 to remove from all groups. Requires MINI subscription."
+                },
+                "schedule_from": {
+                  "type": "string",
+                  "description": "Start of the visibility window in RFC 3339 format. Pass empty string to clear."
+                },
+                "schedule_to": {
+                  "type": "string",
+                  "description": "End of the visibility window in RFC 3339 format. Pass empty string to clear."
+                },
+                "position": {
+                  "type": "integer",
+                  "description": "New position for the link."
+                }
+              },
+              "required": [
+                "link_id"
+              ]
+            },
+            "description": "Update one or more properties of an existing link. Only included fields are updated; omitted fields are left unchanged. Empty strings clear optional fields like image, group_id, and schedule.",
+            "annotations": {
+              "title": "Edit Link",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "delete_link",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "link_id": {
+                  "type": "integer",
+                  "description": "The numeric ID of the link to delete. Find IDs via list_links (meta.id field)."
+                }
+              },
+              "required": [
+                "link_id"
+              ]
+            },
+            "description": "Permanently delete a link from the user's Lnk.Bio profile. This cannot be undone.",
+            "annotations": {
+              "title": "Delete Link",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "sort_links",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "positions": {
+                  "type": "string",
+                  "description": "JSON object mapping link IDs to positions. Example: {\"1234\": 1, \"5678\": 2}"
+                }
+              },
+              "required": [
+                "positions"
+              ]
+            },
+            "description": "Set the position for multiple links at once. Only the specified links are updated; others keep their current position.",
+            "annotations": {
+              "title": "Sort Links",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "list_groups",
+            "inputSchema": {
+              "type": "object",
+              "properties": {}
+            },
+            "description": "Retrieve all link groups on the user's Lnk.Bio profile. Requires a MINI subscription.",
+            "annotations": {
+              "title": "List Groups",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "groups": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "name": "list_pages",
+            "inputSchema": {
+              "type": "object",
+              "properties": {}
+            },
+            "description": "List all pages for the authenticated user, including position, visibility status, and remaining page quota.",
+            "annotations": {
+              "title": "List Pages",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "pages": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "page_id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "position": {
+                        "type": "integer"
+                      },
+                      "is_hidden": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                },
+                "remaining_pages": {
+                  "type": "integer"
+                },
+                "max_pages": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          {
+            "name": "add_page",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "description": "Page title (minimum 5 characters)."
+                },
+                "url": {
+                  "type": "string",
+                  "description": "Custom URL slug for the page. Only lowercase letters, numbers, and hyphens allowed. Requires UNIQUE subscription."
+                },
+                "hidden": {
+                  "type": "string",
+                  "description": "Set to \"true\" or \"1\" to create the page as hidden."
+                }
+              },
+              "required": [
+                "title"
+              ]
+            },
+            "description": "Use this to create a new page. New pages are EMPTY. After creating, you must add at least BLOCK_PROFILEPIC (for the profile picture and username to appear) and BLOCK_LNKS (for links to appear) using add_block. Title must be at least 5 characters. Custom URLs require a UNIQUE subscription.",
+            "annotations": {
+              "title": "Add Page",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "edit_page",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "page_id": {
+                  "type": "string",
+                  "description": "The ID of the page to edit."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "New page title (minimum 5 characters)."
+                },
+                "url": {
+                  "type": "string",
+                  "description": "New URL slug. Requires UNIQUE subscription. Pass empty string to remove."
+                },
+                "hidden": {
+                  "type": "string",
+                  "description": "Set to \"true\"/\"1\" to hide, \"false\"/\"0\" to show."
+                }
+              },
+              "required": [
+                "page_id"
+              ]
+            },
+            "description": "Update properties of an existing page. Only included fields are updated. The main page (PAGE_LNKS) cannot have its URL or icon changed, and cannot be hidden. An empty url string clears the custom URL.",
+            "annotations": {
+              "title": "Edit Page",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "delete_page",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "page_id": {
+                  "type": "string",
+                  "description": "The ID of the page to delete."
+                }
+              },
+              "required": [
+                "page_id"
+              ]
+            },
+            "description": "Permanently delete a page. The main page (PAGE_LNKS) cannot be deleted. This cannot be undone.",
+            "annotations": {
+              "title": "Delete Page",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "sort_pages",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "pages": {
+                  "type": "string",
+                  "description": "JSON array of objects with \"page_id\" and \"position\" (0-based). All pages must be included. Example: [{\"page_id\": \"PAGE_LNKS\", \"position\": 0}]"
+                }
+              },
+              "required": [
+                "pages"
+              ]
+            },
+            "description": "Set the order of all pages. Every page must be included in the request.",
+            "annotations": {
+              "title": "Sort Pages",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "list_blocks",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "page_id": {
+                  "type": "string",
+                  "description": "The page ID. Defaults to the main page if omitted."
+                }
+              }
+            },
+            "description": "Use this to see the current block structure of a page. Call this before adding blocks to avoid duplicates. Check the _hints field in the response for warnings. Correct block order: BLOCK_PROFILEPIC (first, this is the page header), BLOCK_BIO, BLOCK_ICONS, BLOCK_VIDEO, BLOCK_LNKS. Use sort_blocks to fix order if needed.",
+            "annotations": {
+              "title": "List Blocks",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "page_id": {
+                  "type": "string"
+                },
+                "blocks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "position": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "name": "list_block_types",
+            "inputSchema": {
+              "type": "object",
+              "properties": {}
+            },
+            "description": "Use this BEFORE adding any blocks. Returns available block types AND example_layouts with proven archetypes (creator, business, local_business, musician, journalist, personal). Pick the archetype closest to the user, then follow its blocks array as the page structure, its icons list, and its link_titles for clean title inspiration. Check the \"recommended\" and \"warning\" fields on each type. Never add BLOCK_TITLE, BLOCK_HEADLINE, or BLOCK_BUTTON.",
+            "annotations": {
+              "title": "List Block Types",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "add_block",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "description": "Block type constant (e.g. BLOCK_BIO, BLOCK_ICONS, BLOCK_VIDEO, BLOCK_MAP, BLOCK_PROFILEPIC, BLOCK_LNKS). Use list_block_types to see all available types."
+                },
+                "page_id": {
+                  "type": "string",
+                  "description": "The page to add the block to. Defaults to the main page if omitted."
+                },
+                "after": {
+                  "type": "string",
+                  "description": "Block unique ID to insert after. WARNING: if omitted, the block is PREPENDED to the top of the page. Calling add_block multiple times without \"after\" produces REVERSE visual order. Always call sort_blocks after adding all blocks to fix the final order."
+                },
+                "data": {
+                  "type": "string",
+                  "description": "JSON object with block-specific fields. Use list_block_types for the expected format."
+                }
+              },
+              "required": [
+                "type"
+              ]
+            },
+            "description": "Use this to add a structural block to the page layout. Blocks control what is rendered: without BLOCK_PROFILEPIC the profile picture is invisible, without BLOCK_LNKS links are invisible. Build the full block skeleton BEFORE populating content. Call list_blocks first to avoid duplicates. Follow the archetype from list_block_types. WARNING: add_block PREPENDS by default. Calling it multiple times without the \"after\" parameter produces REVERSE visual order. Always call sort_blocks after adding all blocks to set the correct order with BLOCK_PROFILEPIC at position 0. For BLOCK_ICONS: create the block first, then use search_icons + add_icon to populate it. Add links via add_link (they render inside BLOCK_LNKS).",
+            "annotations": {
+              "title": "Add Block",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "delete_block",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "block_id": {
+                  "type": "string",
+                  "description": "The unique ID of the block to delete."
+                },
+                "page_id": {
+                  "type": "string",
+                  "description": "The page containing the block. Defaults to the main page if omitted."
+                }
+              },
+              "required": [
+                "block_id"
+              ]
+            },
+            "description": "Delete a block from a page. The block and its data are permanently removed.",
+            "annotations": {
+              "title": "Delete Block",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "sort_blocks",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "page_id": {
+                  "type": "string",
+                  "description": "The page whose blocks to reorder."
+                },
+                "blocks": {
+                  "type": "string",
+                  "description": "JSON array of objects with \"id\" (block unique ID) and \"position\" (0-based). All blocks must be included."
+                }
+              },
+              "required": [
+                "page_id",
+                "blocks"
+              ]
+            },
+            "description": "Use this after adding all blocks to enforce the correct visual order. Every block currently in the page must be included. BLOCK_PROFILEPIC MUST be at position 0 (first) so the profile picture and name appear at the top. Recommended order: BLOCK_PROFILEPIC, BLOCK_BIO, BLOCK_ICONS, BLOCK_VIDEO, BLOCK_LNKS.",
+            "annotations": {
+              "title": "Sort Blocks",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "list_forms",
+            "inputSchema": {
+              "type": "object",
+              "properties": {}
+            },
+            "description": "List available forms (id, name, type). Use form IDs when creating a BLOCK_FORM block. Requires UNIQUE subscription.",
+            "annotations": {
+              "title": "List Forms",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "forms": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "form_id": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "name": "search_icons",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "search": {
+                  "type": "string",
+                  "description": "Search term to filter icons by name (minimum 3 characters)."
+                }
+              },
+              "required": [
+                "search"
+              ]
+            },
+            "description": "Use this to find icon type_ids before calling add_icon. Every profile should have social media icons. Common searches: \"instagram\", \"tiktok\", \"youtube\", \"twitter\", \"facebook\", \"linkedin\". IMPORTANT: email, phone, and WhatsApp are also icons (not links). When a user wants to add their email, phone, or WhatsApp, search for them here and add them as icons in a BLOCK_ICONS block, not as links. Minimum 3 characters.",
+            "annotations": {
+              "title": "Search Icons",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "icons": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type_id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "icon": {
+                        "type": "string"
+                      },
+                      "example": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "name": "list_icons",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "block_id": {
+                  "type": "string",
+                  "description": "The unique ID of the BLOCK_ICONS block."
+                }
+              },
+              "required": [
+                "block_id"
+              ]
+            },
+            "description": "List all icons in a BLOCK_ICONS block. Returns each icon's type, URL, visibility, and position.",
+            "annotations": {
+              "title": "List Icons",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "block_id": {
+                  "type": "string"
+                },
+                "icons": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "icon_type": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "hidden": {
+                        "type": "boolean"
+                      },
+                      "position": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "name": "add_icon",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "block_id": {
+                  "type": "string",
+                  "description": "The unique ID of the BLOCK_ICONS block."
+                },
+                "icon_type": {
+                  "type": "string",
+                  "description": "The icon type_id (from search_icons results)."
+                },
+                "url": {
+                  "type": "string",
+                  "description": "The URL or value for this icon. For Instagram/TikTok, you can pass just the username."
+                }
+              },
+              "required": [
+                "block_id",
+                "icon_type",
+                "url"
+              ]
+            },
+            "description": "Add an icon to a BLOCK_ICONS block. Each icon type can only appear once per block. Instagram and TikTok usernames are automatically formatted to full URLs.",
+            "annotations": {
+              "title": "Add Icon",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "edit_icon",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "block_id": {
+                  "type": "string",
+                  "description": "The unique ID of the BLOCK_ICONS block."
+                },
+                "icon_type": {
+                  "type": "string",
+                  "description": "The icon type_id to edit."
+                },
+                "url": {
+                  "type": "string",
+                  "description": "The new URL or value for this icon."
+                }
+              },
+              "required": [
+                "block_id",
+                "icon_type",
+                "url"
+              ]
+            },
+            "description": "Update the URL of an existing icon in a BLOCK_ICONS block.",
+            "annotations": {
+              "title": "Edit Icon",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "delete_icon",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "block_id": {
+                  "type": "string",
+                  "description": "The unique ID of the BLOCK_ICONS block."
+                },
+                "icon_type": {
+                  "type": "string",
+                  "description": "The icon type_id to remove."
+                }
+              },
+              "required": [
+                "block_id",
+                "icon_type"
+              ]
+            },
+            "description": "Remove an icon from a BLOCK_ICONS block. The block itself is not deleted, only the specified icon.",
+            "annotations": {
+              "title": "Delete Icon",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "sort_icons",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "block_id": {
+                  "type": "string",
+                  "description": "The unique ID of the BLOCK_ICONS block."
+                },
+                "icons": {
+                  "type": "string",
+                  "description": "JSON array of icon type IDs in the desired order. All icons in the block must be included."
+                }
+              },
+              "required": [
+                "block_id",
+                "icons"
+              ]
+            },
+            "description": "Rearrange the order of icons within a BLOCK_ICONS block. All icons currently in the block must be included.",
+            "annotations": {
+              "title": "Sort Icons",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "get_style",
+            "inputSchema": {
+              "type": "object",
+              "properties": {}
+            },
+            "description": "Use this after get_profile to check the current style. If no theme is applied (theme_id is 0 or empty), apply one using list_themes + apply_theme to give the profile a polished, professional look.",
+            "annotations": {
+              "title": "Get Style",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "colors": {
+                  "type": "object",
+                  "properties": {
+                    "page_bg": {
+                      "type": "string"
+                    },
+                    "page_title": {
+                      "type": "string"
+                    },
+                    "page_text": {
+                      "type": "string"
+                    },
+                    "page_icon": {
+                      "type": "string"
+                    },
+                    "button_bg": {
+                      "type": "string"
+                    },
+                    "button_text": {
+                      "type": "string"
+                    },
+                    "button_border": {
+                      "type": "string"
+                    },
+                    "button_shadow": {
+                      "type": "string"
+                    },
+                    "button_icon_bg": {
+                      "type": "string"
+                    },
+                    "button_icon_text": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "fonts": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "headline": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "wallpapers": {
+                  "type": "object",
+                  "properties": {
+                    "desktop": {
+                      "type": "string"
+                    },
+                    "mobile": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "theme_id": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          {
+            "name": "set_colors",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "page_bg": {
+                  "type": "string",
+                  "description": "Page background color."
+                },
+                "page_title": {
+                  "type": "string",
+                  "description": "Headings, groups, username, arrows color."
+                },
+                "page_text": {
+                  "type": "string",
+                  "description": "Text color."
+                },
+                "page_icon": {
+                  "type": "string",
+                  "description": "Social, music, contact icons color."
+                },
+                "button_bg": {
+                  "type": "string",
+                  "description": "Link background color."
+                },
+                "button_text": {
+                  "type": "string",
+                  "description": "Link title color."
+                },
+                "button_border": {
+                  "type": "string",
+                  "description": "Link border color."
+                },
+                "button_shadow": {
+                  "type": "string",
+                  "description": "Link effect/shadow color."
+                },
+                "button_icon_bg": {
+                  "type": "string",
+                  "description": "Link icon background color."
+                },
+                "button_icon_text": {
+                  "type": "string",
+                  "description": "Link icon text color."
+                }
+              }
+            },
+            "description": "Update one or more color properties. Only included fields are updated. Pass an empty string to reset a color to default. Requires UNIQUE subscription.",
+            "annotations": {
+              "title": "Set Colors",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "set_fonts",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "description": "Font ID for body text."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Font ID for headings."
+                },
+                "headline": {
+                  "type": "string",
+                  "description": "Font ID for headlines."
+                }
+              }
+            },
+            "description": "Update one or more font settings. Use list_fonts to find font IDs. Pass an empty string to reset to default. Requires UNIQUE subscription.",
+            "annotations": {
+              "title": "Set Fonts",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "set_wallpapers",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "mobile": {
+                  "type": "string",
+                  "description": "URL of the mobile wallpaper image. Empty string to remove."
+                },
+                "desktop": {
+                  "type": "string",
+                  "description": "URL of the desktop wallpaper image. Empty string to remove."
+                }
+              }
+            },
+            "description": "Set mobile and/or desktop wallpaper images. Provide a URL to an image (jpg, png, gif, svg). Pass an empty string to remove. Requires UNIQUE subscription.",
+            "annotations": {
+              "title": "Set Wallpapers",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "apply_theme",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "theme_id": {
+                  "type": "integer",
+                  "description": "The ID of the theme to apply."
+                }
+              },
+              "required": [
+                "theme_id"
+              ]
+            },
+            "description": "Apply a free theme to the profile. Use list_themes to find theme IDs. Only free themes can be applied via API. Applying a theme overrides any custom colors, fonts, and wallpapers the user has set.",
+            "annotations": {
+              "title": "Apply Theme",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "reset_theme",
+            "inputSchema": {
+              "type": "object",
+              "properties": {}
+            },
+            "description": "Remove the active theme and reset all colors, wallpapers, and effects to their default values.",
+            "annotations": {
+              "title": "Reset Theme",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "list_fonts",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "search": {
+                  "type": "string",
+                  "description": "Filter fonts by name."
+                }
+              }
+            },
+            "description": "List available font families. Optionally filter by name. Use the font_id when setting fonts via set_fonts.",
+            "annotations": {
+              "title": "List Fonts",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "fonts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "font_id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      },
+                      "weight": {
+                        "type": "string"
+                      },
+                      "is_italic": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "name": "list_themes",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "search": {
+                  "type": "string",
+                  "description": "Filter by theme name, category, or author."
+                },
+                "color": {
+                  "type": "string",
+                  "description": "Filter by color name."
+                }
+              }
+            },
+            "description": "Use this to find a theme for the profile. Every profile should have a theme applied for a professional look. Filter by name or color to match the user's brand. Use the theme_id with apply_theme.",
+            "annotations": {
+              "title": "List Themes",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "themes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "theme_id": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "categories": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "colors": {
+                        "type": "object",
+                        "properties": {
+                          "background": {
+                            "type": "string"
+                          },
+                          "headings": {
+                            "type": "string"
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "links": {
+                            "type": "string"
+                          },
+                          "icons": {
+                            "type": "string"
+                          },
+                          "link_border": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "preview_images": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_profile",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        },
+        "description": "Use this as the FIRST call when creating, building, or improving a profile. Returns username, profile URL, and profile picture. If profile_pic is empty or shows the default avatar, set a real one using update_profile_pic. Then call get_style to check the theme, then call list_block_types to pick a layout archetype matching the user (creator, business, local_business, musician, journalist, personal), then call list_blocks to see the current page structure. Follow the archetype's blocks array to build the page. BLOCK_PROFILEPIC must always be first. Add links via add_link. Call sort_blocks at the end to enforce order.",
+        "annotations": {
+          "title": "Get Profile",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "username": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "profile_pic": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "update_profile_pic",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "image": {
+              "type": "string",
+              "description": "URL of the image to use as profile picture, or empty string to remove."
+            }
+          },
+          "required": [
+            "image"
+          ]
+        },
+        "description": "Use this to upload a profile picture. IMPORTANT: uploading the picture does NOT make it visible. The page must have a BLOCK_PROFILEPIC block for the picture to render. Build the block skeleton first (add_block), then upload the picture. Ask the user for their preferred image, or use their brand logo from their website.",
+        "annotations": {
+          "title": "Update Profile Picture",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "list_links",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        },
+        "description": "Use this to retrieve all links on the user's Lnk.Bio profile. Check the results for links missing images. For every link without an image, browse its destination URL to find the og:image, logo, or favicon, then call edit_link to attach it.",
+        "annotations": {
+          "title": "List Links",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "links": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "image": {
+                    "type": "string"
+                  },
+                  "created_at": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "add_link",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "The display title for the link."
+            },
+            "link": {
+              "type": "string",
+              "description": "The destination URL."
+            },
+            "image": {
+              "type": "string",
+              "description": "URL of an image to display next to the link. ALWAYS attempt to provide this. Browse the destination URL and look for: 1) og:image meta tag, 2) site logo, 3) apple-touch-icon, 4) favicon. Links without images look incomplete and get far fewer clicks. Must be a publicly accessible URL. Only omit if no image can be found."
+            },
+            "group_id": {
+              "type": "integer",
+              "description": "Optional group ID to assign the link to (requires MINI subscription)."
+            },
+            "schedule_from": {
+              "type": "string",
+              "description": "Optional RFC3339 datetime after which the link becomes visible."
+            },
+            "schedule_to": {
+              "type": "string",
+              "description": "Optional RFC3339 datetime after which the link is hidden."
+            },
+            "position": {
+              "type": "integer",
+              "description": "Position to insert the link at. Existing links at this position and below are shifted down. If omitted, the link is added at the top."
+            }
+          },
+          "required": [
+            "title",
+            "link"
+          ]
+        },
+        "description": "Use this to add a link to the profile. IMPORTANT: links are stored but will NOT appear unless the page has a BLOCK_LNKS block. Ensure the block skeleton is built first. ALWAYS attempt to source an image before creating the link: browse the destination URL for the site's og:image, logo, or favicon. Links with images receive 2-3x more clicks than text-only links. Only omit the image if the destination site has no usable image at all. Titles should be clean, plain text (e.g. \"Start Learning For Free\", \"Download the App\").",
+        "annotations": {
+          "title": "Add Link",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "edit_link",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "link_id": {
+              "type": "integer",
+              "description": "The ID of the link to edit."
+            },
+            "title": {
+              "type": "string",
+              "description": "New display title."
+            },
+            "link": {
+              "type": "string",
+              "description": "New destination URL."
+            },
+            "image": {
+              "type": "string",
+              "description": "New image URL. Pass an empty string to remove the current image."
+            },
+            "group_id": {
+              "type": "integer",
+              "description": "Group to assign the link to. Pass 0 to remove from all groups. Requires MINI subscription."
+            },
+            "schedule_from": {
+              "type": "string",
+              "description": "Start of the visibility window in RFC 3339 format. Pass empty string to clear."
+            },
+            "schedule_to": {
+              "type": "string",
+              "description": "End of the visibility window in RFC 3339 format. Pass empty string to clear."
+            },
+            "position": {
+              "type": "integer",
+              "description": "New position for the link."
+            }
+          },
+          "required": [
+            "link_id"
+          ]
+        },
+        "description": "Update one or more properties of an existing link. Only included fields are updated; omitted fields are left unchanged. Empty strings clear optional fields like image, group_id, and schedule.",
+        "annotations": {
+          "title": "Edit Link",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "delete_link",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "link_id": {
+              "type": "integer",
+              "description": "The numeric ID of the link to delete. Find IDs via list_links (meta.id field)."
+            }
+          },
+          "required": [
+            "link_id"
+          ]
+        },
+        "description": "Permanently delete a link from the user's Lnk.Bio profile. This cannot be undone.",
+        "annotations": {
+          "title": "Delete Link",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "sort_links",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "positions": {
+              "type": "string",
+              "description": "JSON object mapping link IDs to positions. Example: {\"1234\": 1, \"5678\": 2}"
+            }
+          },
+          "required": [
+            "positions"
+          ]
+        },
+        "description": "Set the position for multiple links at once. Only the specified links are updated; others keep their current position.",
+        "annotations": {
+          "title": "Sort Links",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "list_groups",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        },
+        "description": "Retrieve all link groups on the user's Lnk.Bio profile. Requires a MINI subscription.",
+        "annotations": {
+          "title": "List Groups",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "groups": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "list_pages",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        },
+        "description": "List all pages for the authenticated user, including position, visibility status, and remaining page quota.",
+        "annotations": {
+          "title": "List Pages",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "pages": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "page_id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "position": {
+                    "type": "integer"
+                  },
+                  "is_hidden": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "remaining_pages": {
+              "type": "integer"
+            },
+            "max_pages": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      {
+        "name": "add_page",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Page title (minimum 5 characters)."
+            },
+            "url": {
+              "type": "string",
+              "description": "Custom URL slug for the page. Only lowercase letters, numbers, and hyphens allowed. Requires UNIQUE subscription."
+            },
+            "hidden": {
+              "type": "string",
+              "description": "Set to \"true\" or \"1\" to create the page as hidden."
+            }
+          },
+          "required": [
+            "title"
+          ]
+        },
+        "description": "Use this to create a new page. New pages are EMPTY. After creating, you must add at least BLOCK_PROFILEPIC (for the profile picture and username to appear) and BLOCK_LNKS (for links to appear) using add_block. Title must be at least 5 characters. Custom URLs require a UNIQUE subscription.",
+        "annotations": {
+          "title": "Add Page",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "edit_page",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "page_id": {
+              "type": "string",
+              "description": "The ID of the page to edit."
+            },
+            "title": {
+              "type": "string",
+              "description": "New page title (minimum 5 characters)."
+            },
+            "url": {
+              "type": "string",
+              "description": "New URL slug. Requires UNIQUE subscription. Pass empty string to remove."
+            },
+            "hidden": {
+              "type": "string",
+              "description": "Set to \"true\"/\"1\" to hide, \"false\"/\"0\" to show."
+            }
+          },
+          "required": [
+            "page_id"
+          ]
+        },
+        "description": "Update properties of an existing page. Only included fields are updated. The main page (PAGE_LNKS) cannot have its URL or icon changed, and cannot be hidden. An empty url string clears the custom URL.",
+        "annotations": {
+          "title": "Edit Page",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "delete_page",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "page_id": {
+              "type": "string",
+              "description": "The ID of the page to delete."
+            }
+          },
+          "required": [
+            "page_id"
+          ]
+        },
+        "description": "Permanently delete a page. The main page (PAGE_LNKS) cannot be deleted. This cannot be undone.",
+        "annotations": {
+          "title": "Delete Page",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "sort_pages",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pages": {
+              "type": "string",
+              "description": "JSON array of objects with \"page_id\" and \"position\" (0-based). All pages must be included. Example: [{\"page_id\": \"PAGE_LNKS\", \"position\": 0}]"
+            }
+          },
+          "required": [
+            "pages"
+          ]
+        },
+        "description": "Set the order of all pages. Every page must be included in the request.",
+        "annotations": {
+          "title": "Sort Pages",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "list_blocks",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "page_id": {
+              "type": "string",
+              "description": "The page ID. Defaults to the main page if omitted."
+            }
+          }
+        },
+        "description": "Use this to see the current block structure of a page. Call this before adding blocks to avoid duplicates. Check the _hints field in the response for warnings. Correct block order: BLOCK_PROFILEPIC (first, this is the page header), BLOCK_BIO, BLOCK_ICONS, BLOCK_VIDEO, BLOCK_LNKS. Use sort_blocks to fix order if needed.",
+        "annotations": {
+          "title": "List Blocks",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "page_id": {
+              "type": "string"
+            },
+            "blocks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "position": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "list_block_types",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        },
+        "description": "Use this BEFORE adding any blocks. Returns available block types AND example_layouts with proven archetypes (creator, business, local_business, musician, journalist, personal). Pick the archetype closest to the user, then follow its blocks array as the page structure, its icons list, and its link_titles for clean title inspiration. Check the \"recommended\" and \"warning\" fields on each type. Never add BLOCK_TITLE, BLOCK_HEADLINE, or BLOCK_BUTTON.",
+        "annotations": {
+          "title": "List Block Types",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "add_block",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Block type constant (e.g. BLOCK_BIO, BLOCK_ICONS, BLOCK_VIDEO, BLOCK_MAP, BLOCK_PROFILEPIC, BLOCK_LNKS). Use list_block_types to see all available types."
+            },
+            "page_id": {
+              "type": "string",
+              "description": "The page to add the block to. Defaults to the main page if omitted."
+            },
+            "after": {
+              "type": "string",
+              "description": "Block unique ID to insert after. WARNING: if omitted, the block is PREPENDED to the top of the page. Calling add_block multiple times without \"after\" produces REVERSE visual order. Always call sort_blocks after adding all blocks to fix the final order."
+            },
+            "data": {
+              "type": "string",
+              "description": "JSON object with block-specific fields. Use list_block_types for the expected format."
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        "description": "Use this to add a structural block to the page layout. Blocks control what is rendered: without BLOCK_PROFILEPIC the profile picture is invisible, without BLOCK_LNKS links are invisible. Build the full block skeleton BEFORE populating content. Call list_blocks first to avoid duplicates. Follow the archetype from list_block_types. WARNING: add_block PREPENDS by default. Calling it multiple times without the \"after\" parameter produces REVERSE visual order. Always call sort_blocks after adding all blocks to set the correct order with BLOCK_PROFILEPIC at position 0. For BLOCK_ICONS: create the block first, then use search_icons + add_icon to populate it. Add links via add_link (they render inside BLOCK_LNKS).",
+        "annotations": {
+          "title": "Add Block",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "delete_block",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "block_id": {
+              "type": "string",
+              "description": "The unique ID of the block to delete."
+            },
+            "page_id": {
+              "type": "string",
+              "description": "The page containing the block. Defaults to the main page if omitted."
+            }
+          },
+          "required": [
+            "block_id"
+          ]
+        },
+        "description": "Delete a block from a page. The block and its data are permanently removed.",
+        "annotations": {
+          "title": "Delete Block",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "sort_blocks",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "page_id": {
+              "type": "string",
+              "description": "The page whose blocks to reorder."
+            },
+            "blocks": {
+              "type": "string",
+              "description": "JSON array of objects with \"id\" (block unique ID) and \"position\" (0-based). All blocks must be included."
+            }
+          },
+          "required": [
+            "page_id",
+            "blocks"
+          ]
+        },
+        "description": "Use this after adding all blocks to enforce the correct visual order. Every block currently in the page must be included. BLOCK_PROFILEPIC MUST be at position 0 (first) so the profile picture and name appear at the top. Recommended order: BLOCK_PROFILEPIC, BLOCK_BIO, BLOCK_ICONS, BLOCK_VIDEO, BLOCK_LNKS.",
+        "annotations": {
+          "title": "Sort Blocks",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "list_forms",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        },
+        "description": "List available forms (id, name, type). Use form IDs when creating a BLOCK_FORM block. Requires UNIQUE subscription.",
+        "annotations": {
+          "title": "List Forms",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "forms": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "form_id": {
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "search_icons",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "search": {
+              "type": "string",
+              "description": "Search term to filter icons by name (minimum 3 characters)."
+            }
+          },
+          "required": [
+            "search"
+          ]
+        },
+        "description": "Use this to find icon type_ids before calling add_icon. Every profile should have social media icons. Common searches: \"instagram\", \"tiktok\", \"youtube\", \"twitter\", \"facebook\", \"linkedin\". IMPORTANT: email, phone, and WhatsApp are also icons (not links). When a user wants to add their email, phone, or WhatsApp, search for them here and add them as icons in a BLOCK_ICONS block, not as links. Minimum 3 characters.",
+        "annotations": {
+          "title": "Search Icons",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "icons": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type_id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "icon": {
+                    "type": "string"
+                  },
+                  "example": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "list_icons",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "block_id": {
+              "type": "string",
+              "description": "The unique ID of the BLOCK_ICONS block."
+            }
+          },
+          "required": [
+            "block_id"
+          ]
+        },
+        "description": "List all icons in a BLOCK_ICONS block. Returns each icon's type, URL, visibility, and position.",
+        "annotations": {
+          "title": "List Icons",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "block_id": {
+              "type": "string"
+            },
+            "icons": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "icon_type": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "hidden": {
+                    "type": "boolean"
+                  },
+                  "position": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "add_icon",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "block_id": {
+              "type": "string",
+              "description": "The unique ID of the BLOCK_ICONS block."
+            },
+            "icon_type": {
+              "type": "string",
+              "description": "The icon type_id (from search_icons results)."
+            },
+            "url": {
+              "type": "string",
+              "description": "The URL or value for this icon. For Instagram/TikTok, you can pass just the username."
+            }
+          },
+          "required": [
+            "block_id",
+            "icon_type",
+            "url"
+          ]
+        },
+        "description": "Add an icon to a BLOCK_ICONS block. Each icon type can only appear once per block. Instagram and TikTok usernames are automatically formatted to full URLs.",
+        "annotations": {
+          "title": "Add Icon",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "edit_icon",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "block_id": {
+              "type": "string",
+              "description": "The unique ID of the BLOCK_ICONS block."
+            },
+            "icon_type": {
+              "type": "string",
+              "description": "The icon type_id to edit."
+            },
+            "url": {
+              "type": "string",
+              "description": "The new URL or value for this icon."
+            }
+          },
+          "required": [
+            "block_id",
+            "icon_type",
+            "url"
+          ]
+        },
+        "description": "Update the URL of an existing icon in a BLOCK_ICONS block.",
+        "annotations": {
+          "title": "Edit Icon",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "delete_icon",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "block_id": {
+              "type": "string",
+              "description": "The unique ID of the BLOCK_ICONS block."
+            },
+            "icon_type": {
+              "type": "string",
+              "description": "The icon type_id to remove."
+            }
+          },
+          "required": [
+            "block_id",
+            "icon_type"
+          ]
+        },
+        "description": "Remove an icon from a BLOCK_ICONS block. The block itself is not deleted, only the specified icon.",
+        "annotations": {
+          "title": "Delete Icon",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "sort_icons",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "block_id": {
+              "type": "string",
+              "description": "The unique ID of the BLOCK_ICONS block."
+            },
+            "icons": {
+              "type": "string",
+              "description": "JSON array of icon type IDs in the desired order. All icons in the block must be included."
+            }
+          },
+          "required": [
+            "block_id",
+            "icons"
+          ]
+        },
+        "description": "Rearrange the order of icons within a BLOCK_ICONS block. All icons currently in the block must be included.",
+        "annotations": {
+          "title": "Sort Icons",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "get_style",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        },
+        "description": "Use this after get_profile to check the current style. If no theme is applied (theme_id is 0 or empty), apply one using list_themes + apply_theme to give the profile a polished, professional look.",
+        "annotations": {
+          "title": "Get Style",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "colors": {
+              "type": "object",
+              "properties": {
+                "page_bg": {
+                  "type": "string"
+                },
+                "page_title": {
+                  "type": "string"
+                },
+                "page_text": {
+                  "type": "string"
+                },
+                "page_icon": {
+                  "type": "string"
+                },
+                "button_bg": {
+                  "type": "string"
+                },
+                "button_text": {
+                  "type": "string"
+                },
+                "button_border": {
+                  "type": "string"
+                },
+                "button_shadow": {
+                  "type": "string"
+                },
+                "button_icon_bg": {
+                  "type": "string"
+                },
+                "button_icon_text": {
+                  "type": "string"
+                }
+              }
+            },
+            "fonts": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "headline": {
+                  "type": "string"
+                }
+              }
+            },
+            "wallpapers": {
+              "type": "object",
+              "properties": {
+                "desktop": {
+                  "type": "string"
+                },
+                "mobile": {
+                  "type": "string"
+                }
+              }
+            },
+            "theme_id": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      {
+        "name": "set_colors",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "page_bg": {
+              "type": "string",
+              "description": "Page background color."
+            },
+            "page_title": {
+              "type": "string",
+              "description": "Headings, groups, username, arrows color."
+            },
+            "page_text": {
+              "type": "string",
+              "description": "Text color."
+            },
+            "page_icon": {
+              "type": "string",
+              "description": "Social, music, contact icons color."
+            },
+            "button_bg": {
+              "type": "string",
+              "description": "Link background color."
+            },
+            "button_text": {
+              "type": "string",
+              "description": "Link title color."
+            },
+            "button_border": {
+              "type": "string",
+              "description": "Link border color."
+            },
+            "button_shadow": {
+              "type": "string",
+              "description": "Link effect/shadow color."
+            },
+            "button_icon_bg": {
+              "type": "string",
+              "description": "Link icon background color."
+            },
+            "button_icon_text": {
+              "type": "string",
+              "description": "Link icon text color."
+            }
+          }
+        },
+        "description": "Update one or more color properties. Only included fields are updated. Pass an empty string to reset a color to default. Requires UNIQUE subscription.",
+        "annotations": {
+          "title": "Set Colors",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "set_fonts",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "description": "Font ID for body text."
+            },
+            "title": {
+              "type": "string",
+              "description": "Font ID for headings."
+            },
+            "headline": {
+              "type": "string",
+              "description": "Font ID for headlines."
+            }
+          }
+        },
+        "description": "Update one or more font settings. Use list_fonts to find font IDs. Pass an empty string to reset to default. Requires UNIQUE subscription.",
+        "annotations": {
+          "title": "Set Fonts",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "set_wallpapers",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "mobile": {
+              "type": "string",
+              "description": "URL of the mobile wallpaper image. Empty string to remove."
+            },
+            "desktop": {
+              "type": "string",
+              "description": "URL of the desktop wallpaper image. Empty string to remove."
+            }
+          }
+        },
+        "description": "Set mobile and/or desktop wallpaper images. Provide a URL to an image (jpg, png, gif, svg). Pass an empty string to remove. Requires UNIQUE subscription.",
+        "annotations": {
+          "title": "Set Wallpapers",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "apply_theme",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "theme_id": {
+              "type": "integer",
+              "description": "The ID of the theme to apply."
+            }
+          },
+          "required": [
+            "theme_id"
+          ]
+        },
+        "description": "Apply a free theme to the profile. Use list_themes to find theme IDs. Only free themes can be applied via API. Applying a theme overrides any custom colors, fonts, and wallpapers the user has set.",
+        "annotations": {
+          "title": "Apply Theme",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "reset_theme",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        },
+        "description": "Remove the active theme and reset all colors, wallpapers, and effects to their default values.",
+        "annotations": {
+          "title": "Reset Theme",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "list_fonts",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "search": {
+              "type": "string",
+              "description": "Filter fonts by name."
+            }
+          }
+        },
+        "description": "List available font families. Optionally filter by name. Use the font_id when setting fonts via set_fonts.",
+        "annotations": {
+          "title": "List Fonts",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "fonts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "font_id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string"
+                  },
+                  "weight": {
+                    "type": "string"
+                  },
+                  "is_italic": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "list_themes",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "search": {
+              "type": "string",
+              "description": "Filter by theme name, category, or author."
+            },
+            "color": {
+              "type": "string",
+              "description": "Filter by color name."
+            }
+          }
+        },
+        "description": "Use this to find a theme for the profile. Every profile should have a theme applied for a professional look. Filter by name or color to match the user's brand. Use the theme_id with apply_theme.",
+        "annotations": {
+          "title": "List Themes",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "themes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "theme_id": {
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "categories": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "colors": {
+                    "type": "object",
+                    "properties": {
+                      "background": {
+                        "type": "string"
+                      },
+                      "headings": {
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      },
+                      "links": {
+                        "type": "string"
+                      },
+                      "icons": {
+                        "type": "string"
+                      },
+                      "link_border": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "preview_images": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:56:06.471Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:56:07.523Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:56:08.572Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:56:09.624Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 33,
+    "tools_hash": "sha256:df4a9875bb557eade70cf4764f88c8369d23ecd288761be01f464ae0189f0b83",
+    "static_tool_tokens": 7086,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "update_profile_pic",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "add_link",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "edit_link",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "edit_link",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "delete_link",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "delete_link",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "sort_links",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "sort_links",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_groups",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_pages",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "add_page",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "edit_page",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "edit_page",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "delete_page",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "delete_page",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "sort_pages",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "sort_pages",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_block_types",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F22",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "add_block",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F23",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "delete_block",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F24",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "delete_block",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F25",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "sort_blocks",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F26",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_icons",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F27",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "add_icon",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F28",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "add_icon",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F29",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "edit_icon",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F30",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "edit_icon",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F31",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "delete_icon",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F32",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "delete_icon",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F33",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "sort_icons",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F34",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "sort_icons",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F35",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "set_colors",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F36",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "set_colors",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F37",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "set_fonts",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F38",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "set_wallpapers",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F39",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "set_wallpapers",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F40",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "apply_theme",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F41",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "reset_theme",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F42",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "reset_theme",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 39,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "list_links"
+          ],
+          "description": "Use this to retrieve all links on the user's Lnk.Bio profile. Check the results for links missing images. For every link without an image, browse its destination URL to find the og:image, logo, or favicon, then call edit_link to attach it.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "add_link"
+          ],
+          "description": "Use this to add a link to the profile. IMPORTANT: links are stored but will NOT appear unless the page has a BLOCK_LNKS block. Ensure the block skeleton is built first. ALWAYS attempt to source an image before creating the link: browse the destination URL for the site's og:image, logo, or favicon. Links with images receive 2-3x more clicks than text-only links. Only omit the image if the destination site has no usable image at all. Titles should be clean, plain text (e.g. \"Start Learning For Free\", \"Download the App\").",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "list_groups"
+          ],
+          "description": "Retrieve all link groups on the user's Lnk.Bio profile. Requires a MINI subscription.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "list_pages"
+          ],
+          "description": "List all pages for the authenticated user, including position, visibility status, and remaining page quota.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "sort_pages"
+          ],
+          "description": "Set the order of all pages. Every page must be included in the request.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "add_block"
+          ],
+          "description": "Use this to add a structural block to the page layout. Blocks control what is rendered: without BLOCK_PROFILEPIC the profile picture is invisible, without BLOCK_LNKS links are invisible. Build the full block skeleton BEFORE populating content. Call list_blocks first to avoid duplicates. Follow the archetype from list_block_types. WARNING: add_block PREPENDS by default. Calling it multiple times without the \"after\" parameter produces REVERSE visual order. Always call sort_blocks after adding all blocks to set the correct order with BLOCK_PROFILEPIC at position 0. For BLOCK_ICONS: create the block first, then use search_icons + add_icon to populate it. Add links via add_link (they render inside BLOCK_LNKS).",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "sort_blocks"
+          ],
+          "description": "Use this after adding all blocks to enforce the correct visual order. Every block currently in the page must be included. BLOCK_PROFILEPIC MUST be at position 0 (first) so the profile picture and name appear at the top. Recommended order: BLOCK_PROFILEPIC, BLOCK_BIO, BLOCK_ICONS, BLOCK_VIDEO, BLOCK_LNKS.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "list_icons"
+          ],
+          "description": "List all icons in a BLOCK_ICONS block. Returns each icon's type, URL, visibility, and position.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "sort_icons"
+          ],
+          "description": "Rearrange the order of icons within a BLOCK_ICONS block. All icons currently in the block must be included.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "reset_theme"
+          ],
+          "description": "Remove the active theme and reset all colors, wallpapers, and effects to their default values.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_blocks",
+            "list_block_types"
+          ],
+          "hypothesis": "Read tools share resource terms (block), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "search_icons",
+            "list_icons"
+          ],
+          "hypothesis": "Read tools share resource terms (icon), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "get_profile",
+      "list_links",
+      "list_groups",
+      "list_pages",
+      "list_blocks",
+      "list_block_types",
+      "list_forms",
+      "search_icons",
+      "list_icons",
+      "get_style",
+      "list_fonts",
+      "list_themes"
+    ]
+  }
+}

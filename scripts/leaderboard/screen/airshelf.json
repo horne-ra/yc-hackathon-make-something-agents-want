@@ -1,0 +1,2642 @@
+{
+  "slug": "airshelf",
+  "source_url": "https://manufact.com/mcp-catalog/airshelf",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:25:31.069Z",
+    "endpoint": "https://mcp.airshelf.ai/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "AirShelf",
+      "version": "1.0.0"
+    },
+    "capabilities": {
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "You are using the AirShelf Catalog — a cross-vendor, datasheet-grounded B2B product catalog. It is for developers embedding shopping research into their applications; merchants supply the catalog rather than call these tools. Act as a consultative product advisor, not a search box.\n\nTERMS\n- A golden record is AirShelf's verified product record, and provenance identifies which page each fact came from.\n- Verified means matched to an AirShelf catalog record. Live-unverified means confirmed on a live page during this run but not yet in the catalog; MPN-confirmed means that live page matched the manufacturer part number.\n- The market parameter biases discovery and marketplace checks toward seller pages serving that country. \"Available in <market>\" means the seller page serves that market, not that stock is guaranteed.\n\nWORKFLOW\n1. Understand the need. If the request lacks a use case, ask ONE focused qualifying question, paired with a useful insight (\"these run 50k labels/day — is that your volume?\"). Stop as soon as you can recommend; never ask more than ~3 questions. If the message already has a use case + any of (budget, volume, environment, timeline), skip qualifying and recommend immediately.\n2. Recommend from real data. Search the catalog before answering a product question — it is CROSS-VENDOR, so find the best fit across brands rather than pre-filtering to one. Use the get/compare/equivalents tools to support the pick. In 1–2 sentences, say WHY it fits the buyer's stated need.\n3. Quote only on a real buying signal — after you have recommended a product AND the buyer explicitly wants to proceed (\"get a quote\", \"pricing\", \"talk to sales\"). Pass the buyer's own name and work email, and include the context you already gathered rather than re-asking. Resolve the merchant first where the server exposes a merchant list. A quote request is confirmed by the buyer from their own inbox before the merchant sees it, so tell them to expect that email.\n\nGROUNDING\n- Only state specs that appear in tool results. Do not assert a spec that is not present in the product's golden record — a field it does not list is \"not confirmed\", never an inference, and spec_absence_note names those fields. If unsure about a capability, say so and suggest confirming with the merchant.\n- Search the catalog before handing a product question to a human. The catalog is grounded and usually has the answer, so a handoff without a search is rarely the right move; when the response says weak_match or no_match, say what could not be matched instead of substituting a product that violates the constraint.\n- Present each product on its own merit. Do not repeat or validate a competitor's specs the buyer quotes, and avoid superlatives (\"best\", \"leading\", \"outperforms\") — let the buyer compare.\n- Do not invent pricing, contract terms, or commitments — a quote hands those to the merchant's sales team.\n- Live-lookup results (tier3 blocks, find_products candidates) are single-source and unverified. Cite their source_url with any fact taken from them, and keep them separate from verified catalog rows.\n- NEVER put a capability on a named machine that its record does not state. Measured 2026-08-21 against 26 shopper questions; these are the four shapes it actually takes, in order of frequency, and all four are forbidden:\n  (a) CLASS GENERALIZATION — \"all-in-ones usually include an ADF\", \"printers like this handle thousands of pages a month\". Usually true, still a fabrication once attached to a specific model.\n  (b) UNPACKING A COMPOUND TERM — the record says \"all-in-one\"; the answer says \"combines printing, scanning and copying\". You have turned one stated word into three unstated capabilities. Repeat the vendor's term; do not enumerate what you think it contains.\n  (c) DERIVED NUMBERS — \"roughly 60 labels per minute\" computed from a print speed, \"3,000 pages a month\" inferred from a duty cycle. A number you calculated is not a number the vendor published. State the figure the record gives, in the unit it gives it.\n  (d) BENEFIT AND OUTCOME CLAIMS — \"eliminates cartridge costs\", \"satisfies your return-label requirement\", \"cost-effective for your volume\". These read as helpfulness and assert product behaviour nobody documented.\n  (e) INFERRING ONE CAPABILITY FROM ANOTHER — \"it is wireless, so it still prints when the internet is down\", \"it has an ADF, so it does duplex scanning\". Two specs that usually travel together are still two specs; the record either states the second one or it does not.\n  (f) NEGATIVE CAPABILITY CLAIMS — \"it cannot print on plain paper\", \"it does not support Chromebooks\". Saying what a machine CANNOT do is as much a claim as saying what it can, and steering a buyer away on an unstated limitation is the same defect pointed the other way. The honest form is \"the record does not show plain-paper support\", never \"it cannot\".\n  A HEDGE DOES NOT LICENSE ANY OF THEM: \"typically has duplex, though the record does not confirm it\" still put duplex on the machine. Name the missing field and stop. This applies to EVERY product you name, including one mentioned in a single clause in passing.\n- If the request is not about sourcing products, say so briefly and redirect to what the catalog covers.\n\nANSWERING WELL\n- When the buyer asks for several options, give at least two; when one candidate uniquely satisfies a constraint they named, pick that one rather than averaging across the two you happened to compare.\n- Accessories (keycap sets, toner cartridges, ribbon rolls, sample packs, cables) are not answers to a \"which product should I buy\" question, even when they rank highly.\n- Treat form factor as a hard constraint: \"A4-only fleet policy\" or \"desktop\" rules out an A3 floor-standing device.\n- On comparisons, state each must-have fact before the recommendation (\"K5X is 87 keys, $109; K3X is 84 keys, $89; both hot-swap + wired\") rather than jumping to the pick.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "search_catalog",
+            "title": "Search product catalog",
+            "description": "Search the AirShelf cross-vendor product catalog by natural-language query. The catalog covers industrial-automation, wiring-devices, digital-signage, business-display, mfp, barcode-printer, laser-printer, inkjet-printer, mechanical-keyboards, cybersecurity, threat-intelligence-platform. Industrial-automation and wiring-device rows are indexed by manufacturer part number, so a brand or part number in the query (\"Pepperl+Fuchs retroreflective sensor\", \"IN5409\") retrieves more reliably than a bare product type; those rows carry no normalized spec facets, so the `specs` filter does not apply to them. Returns ranked products with prices, specs, and per-row match accounting.\nEach row includes `unverified_specs`, the normalized spec names that lack claim-level receipts; never use those as decisive facts.\nExample queries: \"tactile mechanical keyboard under $150\", \"Toshiba A3 colour multifunction device\", \"industrial barcode printer for a warehouse\", \"threat-intelligence platform with dark-web monitoring\".\n\nResult fields:\n• canonical_name — the exact catalog name of the product.\n• spec_absence_note — spec fields absent from this product's golden record (AirShelf's verified product record); null when nothing is missing.\n• constraint_match_score and matched_criteria — query constraints supported by claim-level receipts. unverified_criteria names matching catalog values that still need confirmation; missing_criteria names values that are absent or conflict.\n• parsed.price_availability — all_null = true means every returned price is null. For quote-gated B2B pricing, a null price with a quote path is expected rather than an error; query_had_budget reports whether the query carried one.\n• result.commercial_data — branch on actionable before using price or stock. Observations older than 24 hours are withheld from result.price/result.inStock and retained only as labelled last_observed history.\n• parsed.weak_match — the response contains an unresolved constraint, query match, or product-identity warning. parsed.unverified_identity_count counts returned names without an identity receipt. parsed.no_match — no product satisfies a hard constraint, and candidates violating it were excluded server-side.\n\nOn a miss or near-miss for a specific brand+model the response may also carry a `tier3` block, meaning a real-time lookup for the exact SKU asked about; it can appear alongside fuzzy-neighbour rows.\n• tier3.status = \"resolved\" — a single-source reading of the page at tier3.source_url. MPN-confirmed means the live lookup matched the manufacturer part number. Its verification is \"live-unverified\": confirmed on a live page during this run, but not yet matched to an AirShelf catalog record. A verified row is matched to the catalog record. tier3.cached = true means it came from a recent prior lookup, with fetched_at recording when the page was read.\n• tier3.status = \"abstain\" — the lookup could not confirm the product exists as asked, so no specs, price, or availability were established. tier3.guidance describes the quote-request path.\n• tier3.status = \"declined\" — an applicable lookup did not run; tier3.reason says why (disabled, rate_limited, daily_cap, negative_cache, error). No specs or availability were established, and none should be inferred.\nNo tier3 block at all means a live lookup was not applicable to this query (no parseable brand+model identity).\n\nOptional `market` (ISO 3166-1 alpha-2, e.g. \"TH\") excludes catalog rows whose country-specific URL conflicts with the buyer market and scopes tier3 lookup/cache. A remaining global URL is not local-availability proof: parsed.weak_match stays true and unsatisfied_constraints includes market_availability until every returned row has a matching country receipt. \"Available in <market>\" still does not guarantee stock.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "q": {
+                  "type": "string",
+                  "description": "Natural-language query, at most 200 characters. Supports budget hints (e.g. \"under $150\").",
+                  "minLength": 0,
+                  "maxLength": 200
+                },
+                "category": {
+                  "description": "Optional category filter (industrial-automation, wiring-devices, digital-signage, business-display, mfp, barcode-printer, laser-printer, inkjet-printer, mechanical-keyboards, cybersecurity, threat-intelligence-platform)",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 20,
+                  "description": "Max results",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 200
+                },
+                "market": {
+                  "description": "Buyer market as an assigned ISO 3166-1 alpha-2 country code (e.g. \"TH\", \"AU\"). Conflicting country receipts are excluded; global URLs remain market-unverified.",
+                  "type": "string"
+                },
+                "merchant": {
+                  "description": "Optional merchant slug (e.g. \"toshiba\", \"cyble\") from list_merchants. Scopes the search to that merchant's own shelf, which is a SEPARATE substrate from the cross-vendor catalog: it is reached only when the cross-vendor catalog returns nothing, and its rows carry the merchant's own product data rather than datasheet-extracted golden records. Omit it for cross-vendor search, which is the default and the right choice for \"what should I buy\".",
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+                },
+                "specs": {
+                  "description": "Hard spec facets, e.g. {\"form_factor\":\"desktop\",\"print_speed_ppm\":33}. Filters by exact/range spec match.",
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "boolean"
+                      }
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "q"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "refused"
+                  ]
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "results": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "slug": {
+                        "type": "string"
+                      },
+                      "canonical_name": {
+                        "type": "string"
+                      },
+                      "manufacturer": {
+                        "type": "string"
+                      },
+                      "modelName": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "currency": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "category": {
+                        "type": "string"
+                      },
+                      "qualityScore": {
+                        "type": "number"
+                      },
+                      "constraint_match_score": {
+                        "type": "number"
+                      },
+                      "spec_absence_note": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "slug"
+                    ],
+                    "additionalProperties": {}
+                  }
+                },
+                "count": {
+                  "type": "number"
+                },
+                "query": {
+                  "type": "string"
+                },
+                "parsed": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                },
+                "took_ms": {
+                  "type": "number"
+                },
+                "tier3": {
+                  "type": "object",
+                  "properties": {
+                    "tier": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "resolved",
+                        "abstain",
+                        "declined"
+                      ]
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "guidance": {
+                      "type": "string"
+                    },
+                    "identity": {
+                      "type": "object",
+                      "properties": {
+                        "brand": {
+                          "type": "string"
+                        },
+                        "model": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "brand",
+                        "model"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "mpn_confirmed": {
+                      "type": "boolean"
+                    },
+                    "source_url": {
+                      "type": "string"
+                    },
+                    "source_tier": {
+                      "type": "string"
+                    },
+                    "cached": {
+                      "type": "boolean"
+                    },
+                    "verification": {
+                      "type": "string"
+                    },
+                    "product": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "tier",
+                    "status"
+                  ],
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "results"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "find_products",
+            "title": "Discover and verify products for a need",
+            "description": "Discover candidate products for a buyer need. Takes a need in natural language (e.g. \"best value home espresso machine\", market \"TH\"), checks the verified catalog first, then uses live web discovery only when the catalog has no candidates. Returns up to 3 candidates with explicit fit accounting.\n\nfind_products is the quick candidate-list tool; research_shopping is the full verified-research job. For a specific brand+model, search_catalog is cheaper and returns the same live-lookup block on a miss.\n\nResponse fields:\n• candidates[].verification — \"catalog-candidate\" for a catalog starting point whose fit still needs checking, or \"live-unverified\" for a live page read during this run.\n• candidates[].status — \"resolved\" means both identity and the parsed buyer constraints were supported by the cited page; \"abstain\" means identity or need fit could not be established. Inspect constraint_check for matched, conflicting, and unverified requirements.\n• candidates[].constraint_check.receipts maps each receipt-backed matched requirement to its supporting source URL and trust label.\n• Candidates come from current web-search results, so they are a sample of what the market offers rather than a ranking.\n• status at the top level — \"no_match\" means discovery ran but no candidate was confirmed as satisfying the need; \"disabled\", \"rate_limited\", or \"unavailable\" means no discovery ran.\n\n• live_discovery.status=\"unavailable\" means receipted catalog candidates were returned while live discovery was unavailable.\n\nOptional `market` (ISO 3166-1 alpha-2) biases discovery and marketplace checks toward seller pages serving that country and scopes the lookup cache. \"Available in <market>\" means the seller page serves that market, not that stock is guaranteed.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "need": {
+                  "type": "string",
+                  "description": "The buyer need in natural language, e.g. \"quiet mechanical keyboard for open office\" or \"best value home espresso machine\".",
+                  "minLength": 3,
+                  "maxLength": 200
+                },
+                "market": {
+                  "description": "Buyer market as ISO 3166-1 alpha-2 country code (e.g. \"TH\"). Biases discovery and marketplace checks toward seller pages serving that country and scopes the cache; availability is not a stock guarantee.",
+                  "type": "string"
+                },
+                "max": {
+                  "default": 3,
+                  "description": "Max candidates to verify (each costs a live lookup; capped at 3).",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3
+                }
+              },
+              "required": [
+                "need"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "need": {
+                  "type": "string"
+                },
+                "market": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "no_match",
+                    "disabled",
+                    "rate_limited",
+                    "unavailable",
+                    "error",
+                    "refused"
+                  ]
+                },
+                "error": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "verification": {
+                  "type": "string"
+                },
+                "guidance": {
+                  "type": "string"
+                },
+                "live_discovery": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "const": "unavailable"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "guidance": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ],
+                  "additionalProperties": false
+                },
+                "serp_considered": {
+                  "type": "number"
+                },
+                "candidates": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "query": {
+                        "type": "string"
+                      },
+                      "tier": {
+                        "type": "number"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "resolved",
+                          "abstain",
+                          "declined"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string"
+                      },
+                      "guidance": {
+                        "type": "string"
+                      },
+                      "identity": {
+                        "type": "object",
+                        "properties": {
+                          "brand": {
+                            "type": "string"
+                          },
+                          "model": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "brand",
+                          "model"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "mpn_confirmed": {
+                        "type": "boolean"
+                      },
+                      "source_url": {
+                        "type": "string"
+                      },
+                      "source_tier": {
+                        "type": "string"
+                      },
+                      "cached": {
+                        "type": "boolean"
+                      },
+                      "verification": {
+                        "type": "string"
+                      },
+                      "product": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {}
+                      }
+                    },
+                    "required": [
+                      "query",
+                      "tier",
+                      "status"
+                    ],
+                    "additionalProperties": {}
+                  }
+                },
+                "took_ms": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "candidates"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "research_shopping",
+            "title": "Research a considered purchase",
+            "description": "research_shopping is the full verified-research job; find_products is the quick candidate-list tool. It runs as a background job and returns status \"running\" with a research ID while the minutes-long research continues; the same research ID returns the run on later polls until completion. Unsafe medical, legal, financial-advice, and professional-service asks return status \"refused\" before any work is queued. Completed runs return a researched recommendation with per-claim source receipts, or an explicit refusal when evidence is insufficient. Missing decision details return clarification questions before research starts. `market` biases discovery and marketplace checks toward seller pages serving that country; \"available in <market>\" means the seller page serves that market, not that stock is guaranteed. Example answer keys include {\"budget\":\"500 USD\",\"market\":\"US\",\"category\":\"espresso machine\"}.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "need": {
+                  "description": "Buyer need in natural language. Required when starting a new research run.",
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                },
+                "market": {
+                  "description": "Buyer market as an ISO 3166-1 alpha-2 country code. Biases discovery and marketplace checks toward seller pages serving that country; availability is not a stock guarantee.",
+                  "type": "string"
+                },
+                "persona": {
+                  "description": "Research persona; b2b produces a quotation/RFQ pack.",
+                  "type": "string",
+                  "enum": [
+                    "consumer",
+                    "b2b"
+                  ]
+                },
+                "answers": {
+                  "description": "Answers to clarification questions. Set accept_defaults:true to accept budget and market defaults; it does not waive product type, use case, or must-have requirements.",
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                },
+                "research_id": {
+                  "description": "Existing research run identifier to read instead of starting a new run.",
+                  "type": "string"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "needs_input",
+                    "running",
+                    "complete",
+                    "failed",
+                    "refused"
+                  ]
+                },
+                "research_id": {
+                  "type": "string"
+                },
+                "accepted_defaults": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "questions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "enum": [
+                          "budget",
+                          "market",
+                          "category"
+                        ]
+                      },
+                      "question": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "question"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "stage_counters": {
+                  "description": "Progress counters for a running research job. Individual counters may be absent.",
+                  "type": "object",
+                  "properties": {
+                    "candidates_found": {
+                      "description": "Candidates found during discovery.",
+                      "type": "number"
+                    },
+                    "verified": {
+                      "description": "Candidates examined during verification, not a count of candidates that passed.",
+                      "type": "number"
+                    },
+                    "listings_checked": {
+                      "description": "Market listing URLs recorded during commercial checks.",
+                      "type": "number"
+                    },
+                    "stage": {
+                      "description": "Current pipeline stage identifier, or queued before work starts.",
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": {}
+                },
+                "elapsed_seconds": {
+                  "type": "number"
+                },
+                "eta_seconds": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "outcome": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "recommend",
+                        "conditional",
+                        "insufficient_evidence",
+                        "no_candidate_passes",
+                        "defer"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "dossier": {},
+                "reason": {
+                  "type": "string"
+                },
+                "stage": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "get_product",
+            "title": "Get product details",
+            "description": "Get the full golden record (AirShelf's verified product record) and latest price for one catalog product by slug (\"<manufacturer>-<model>\").\n\nReturns the product's specs and provenance (which page each fact came from), plus canonical_name (its exact catalog name). A field's evidence_sha256 is the SHA-256 of the source document AirShelf archived when it extracted that claim. A caller holding the same bytes can compare the hash to check that the cited document has not changed. AirShelf does not serve those archived bytes, and the hash does not promise they remain retrievable. Branch on commercial_data.actionable before using price or stock: observations older than 24 hours are withheld from latestPrice and retained only as labelled last_observed history. For quote-gated B2B pricing, a null price with a quote path is expected rather than an error. In clients that render MCP Apps the response also draws one product card per call. related_products — relationships extracted from vendor documents (e.g. compatible toner or drum accessories with their source quotes, functional equivalents, supersessions); each entry names the related catalog slug, the relation type, its direction (direction is \"from_this\" when the relation reads this-product → related-product, \"to_this\" when it reads related-product → this-product), and the source URL and quote the relation was extracted from.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Composite slug, e.g. toshiba-b-ex4t1-ts12-qm-r"
+                }
+              },
+              "required": [
+                "slug"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://airshelf/product-card.html"
+              },
+              "ui/resourceUri": "ui://airshelf/product-card.html",
+              "openai/outputTemplate": "ui://airshelf/product-card.html",
+              "openai/toolInvocation/invoking": "Looking up product details…",
+              "openai/toolInvocation/invoked": "Product details ready",
+              "openai/widgetAccessible": true
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "imageUrl": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "benefits": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "productId": {
+                  "type": "string"
+                },
+                "buyUrl": {
+                  "type": "string"
+                },
+                "buttonLabel": {
+                  "type": "string"
+                },
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "quote",
+                    "link"
+                  ]
+                },
+                "pricing_gated": {
+                  "type": "boolean"
+                },
+                "related_products": {
+                  "description": "Documented related catalog products, including accessories, equivalents and replacements.",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "slug": {
+                        "type": "string"
+                      },
+                      "relation": {
+                        "type": "string",
+                        "description": "Relationship type recorded from vendor documents."
+                      },
+                      "direction": {
+                        "type": "string",
+                        "enum": [
+                          "from_this",
+                          "to_this"
+                        ],
+                        "description": "from_this means this product points to the related product; to_this means the reverse."
+                      },
+                      "source": {
+                        "description": "Stored source URL, quote, section or page for the relationship; null when none was recorded.",
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "slug",
+                      "relation",
+                      "direction"
+                    ],
+                    "additionalProperties": {}
+                  }
+                },
+                "product": {
+                  "type": "object",
+                  "properties": {
+                    "lifecycle_status": {
+                      "description": "Retirement marker from stored product evidence. current means no retirement marker was found.",
+                      "type": "string",
+                      "enum": [
+                        "current",
+                        "retired"
+                      ]
+                    },
+                    "pdfFilenames": {
+                      "description": "Stored source PDF filenames. A filename is not a download URL.",
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "sources": {
+                      "description": "Stored evidence sources. Imports may preserve a source object, use ref instead of url, or list plain strings. Null when unavailable.",
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "url": {
+                                        "description": "Source document or product-page URL when recorded.",
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "type": {
+                                        "description": "Stored source type, such as pdf or product_page.",
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "additionalProperties": {}
+                                  },
+                                  {
+                                    "type": "string"
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            }
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "latestPrice": {
+                      "description": "Latest valid price observation within 24 hours. Null when absent or stale; stale history remains in commercial_data.last_observed.",
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "price": {
+                              "type": "number"
+                            },
+                            "currency": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "retailer": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "inStock": {
+                              "anyOf": [
+                                {
+                                  "type": "boolean"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "capturedAt": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "price",
+                            "currency",
+                            "retailer",
+                            "inStock",
+                            "capturedAt"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "related_products": {
+                      "description": "Documented related catalog products, including accessories, equivalents and replacements.",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string"
+                          },
+                          "relation": {
+                            "type": "string",
+                            "description": "Relationship type recorded from vendor documents."
+                          },
+                          "direction": {
+                            "type": "string",
+                            "enum": [
+                              "from_this",
+                              "to_this"
+                            ],
+                            "description": "from_this means this product points to the related product; to_this means the reverse."
+                          },
+                          "source": {
+                            "description": "Stored source URL, quote, section or page for the relationship; null when none was recorded.",
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "relation",
+                          "direction"
+                        ],
+                        "additionalProperties": {}
+                      }
+                    },
+                    "updatedAt": {
+                      "description": "Catalog row update time as an ISO 8601 timestamp, not a per-claim verification time.",
+                      "type": "string"
+                    },
+                    "qualityScore": {
+                      "description": "Percentage of golden-record fields with claim-level citations. Zero when there are no fields.",
+                      "type": "number"
+                    },
+                    "cited_field_count": {
+                      "description": "Number of golden-record fields with claim-level citations.",
+                      "type": "number"
+                    },
+                    "field_count": {
+                      "description": "Total golden-record fields used as the evidence coverage denominator.",
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "title",
+                "productId",
+                "buttonLabel",
+                "action"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "compare_products",
+            "title": "Compare products",
+            "description": "Compare 2-10 catalog products side-by-side on their datasheet specs. Slugs come from search_catalog and are case-insensitive and dash-tolerant (\"e-STUDIO 331AC\", \"toshiba-e-studio-331ac\" and \"e-studio331ac\" all resolve to the same product).\n\nReturns one item per product with canonical_name and spec_absence_note (spec fields absent from that product's golden record, AirShelf's verified product record). Branch on each item's commercial_data.actionable before using price or stock; stale observations are withheld from action fields. A slug that does not resolve comes back as not_found with a did_you_mean suggestion. The `provenance` option adds the source page and source type already stored with each fact.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "slugs": {
+                  "minItems": 2,
+                  "maxItems": 10,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Catalog slugs to compare"
+                },
+                "provenance": {
+                  "description": "Include the stored source page and source type for each fact",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "slugs"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "slug": {
+                        "type": "string"
+                      },
+                      "canonical_name": {
+                        "type": "string"
+                      },
+                      "manufacturer": {
+                        "type": "string"
+                      },
+                      "modelName": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "spec_absence_note": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "slug"
+                    ],
+                    "additionalProperties": {}
+                  }
+                },
+                "count": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "items"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "explain_product",
+            "title": "Explain how a record was built",
+            "description": "Explain the evidence behind a catalog row. Returns stored processing stages when available and always returns a golden-record field summary with source coverage. A field's evidence_sha256 is the SHA-256 of the source document AirShelf archived when it extracted that claim. A caller holding the same bytes can compare the hash to check that the cited document has not changed. AirShelf does not serve those archived bytes, and the hash does not promise they remain retrievable. record.scraped_at is the catalog row's scrape time, not a per-claim evidence capture time.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Composite slug to explain"
+                }
+              },
+              "required": [
+                "slug"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string"
+                },
+                "sku": {
+                  "type": "string"
+                },
+                "canonical_name": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "trace_status": {
+                  "type": "string",
+                  "enum": [
+                    "available",
+                    "not_recorded"
+                  ]
+                },
+                "count": {
+                  "type": "number"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "trace": {},
+                "record": {}
+              },
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "list_merchants",
+            "title": "List merchants",
+            "description": "List public AirShelf merchants that have an assigned slug and at least one active product. Internal/demo and empty catalogs are excluded. Returns each merchant's name, slug, and product count; the slug is the `merchant` argument for request_quote.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {}
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "merchants": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "slug": {
+                        "type": "string"
+                      },
+                      "product_count": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "domain": {
+                        "type": "string"
+                      },
+                      "manifest_url": {
+                        "description": "Merchant agent manifest URL with supported endpoints and capabilities.",
+                        "type": "string"
+                      },
+                      "products_url": {
+                        "description": "Merchant product-listing endpoint URL.",
+                        "type": "string"
+                      },
+                      "search_url": {
+                        "description": "Merchant-scoped product-search endpoint URL.",
+                        "type": "string"
+                      },
+                      "checkout_capability": {
+                        "description": "shopify indicates a connected Shopify store; redirect sends the buyer to the product page.",
+                        "type": "string",
+                        "enum": [
+                          "shopify",
+                          "redirect"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "slug",
+                      "product_count"
+                    ],
+                    "additionalProperties": {}
+                  }
+                },
+                "total": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "merchants"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "request_quote",
+            "title": "Request a quote from a merchant",
+            "description": "Send a quote request for catalog products to a merchant's sales team on behalf of a named buyer.\n\nThis is a two-step, double opt-in flow. The first call emails a confirmation link to `contact.email` and returns status \"confirmation_required\"; no lead exists and no merchant is contacted until the buyer confirms. A later call with the same arguments reports \"awaiting_confirmation\" while the email is unconfirmed, or \"received\" with a reference_number after confirmation.\n\nMerchant slugs come from list_merchants. Network-catalog brands that are absent from that list use merchant:\"airshelf-network\" with brandSlug:\"<manufacturer-slug>\"; AirShelf routes the confirmed request to that brand.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "merchant": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Merchant slug or id (from list_merchants), or \"airshelf-network\" for network-catalog brands"
+                },
+                "products": {
+                  "default": [],
+                  "description": "Catalog slugs the buyer is interested in; may be omitted when attaching contact to a rep desk reference",
+                  "maxItems": 50,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "quantity": {
+                  "description": "Units the buyer wants",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "contact": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Buyer name"
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email",
+                      "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                      "description": "Buyer work email"
+                    },
+                    "company": {
+                      "description": "Buyer company",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "email"
+                  ],
+                  "description": "Buyer contact details"
+                },
+                "notes": {
+                  "description": "Any extra context from the buyer",
+                  "type": "string"
+                },
+                "reference": {
+                  "description": "Rep desk trace returned by ask, so confirmed contact reaches the same request",
+                  "type": "string",
+                  "pattern": "^REQ-[A-Z0-9-]{1,4}-[A-Z0-9]{6}$"
+                },
+                "brandSlug": {
+                  "description": "Manufacturer slug (from search results) — required with merchant:\"airshelf-network\" so the lead reaches the right brand",
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "merchant",
+                "contact"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "reference_number": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "next_step": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "search_catalog",
+        "title": "Search product catalog",
+        "description": "Search the AirShelf cross-vendor product catalog by natural-language query. The catalog covers industrial-automation, wiring-devices, digital-signage, business-display, mfp, barcode-printer, laser-printer, inkjet-printer, mechanical-keyboards, cybersecurity, threat-intelligence-platform. Industrial-automation and wiring-device rows are indexed by manufacturer part number, so a brand or part number in the query (\"Pepperl+Fuchs retroreflective sensor\", \"IN5409\") retrieves more reliably than a bare product type; those rows carry no normalized spec facets, so the `specs` filter does not apply to them. Returns ranked products with prices, specs, and per-row match accounting.\nEach row includes `unverified_specs`, the normalized spec names that lack claim-level receipts; never use those as decisive facts.\nExample queries: \"tactile mechanical keyboard under $150\", \"Toshiba A3 colour multifunction device\", \"industrial barcode printer for a warehouse\", \"threat-intelligence platform with dark-web monitoring\".\n\nResult fields:\n• canonical_name — the exact catalog name of the product.\n• spec_absence_note — spec fields absent from this product's golden record (AirShelf's verified product record); null when nothing is missing.\n• constraint_match_score and matched_criteria — query constraints supported by claim-level receipts. unverified_criteria names matching catalog values that still need confirmation; missing_criteria names values that are absent or conflict.\n• parsed.price_availability — all_null = true means every returned price is null. For quote-gated B2B pricing, a null price with a quote path is expected rather than an error; query_had_budget reports whether the query carried one.\n• result.commercial_data — branch on actionable before using price or stock. Observations older than 24 hours are withheld from result.price/result.inStock and retained only as labelled last_observed history.\n• parsed.weak_match — the response contains an unresolved constraint, query match, or product-identity warning. parsed.unverified_identity_count counts returned names without an identity receipt. parsed.no_match — no product satisfies a hard constraint, and candidates violating it were excluded server-side.\n\nOn a miss or near-miss for a specific brand+model the response may also carry a `tier3` block, meaning a real-time lookup for the exact SKU asked about; it can appear alongside fuzzy-neighbour rows.\n• tier3.status = \"resolved\" — a single-source reading of the page at tier3.source_url. MPN-confirmed means the live lookup matched the manufacturer part number. Its verification is \"live-unverified\": confirmed on a live page during this run, but not yet matched to an AirShelf catalog record. A verified row is matched to the catalog record. tier3.cached = true means it came from a recent prior lookup, with fetched_at recording when the page was read.\n• tier3.status = \"abstain\" — the lookup could not confirm the product exists as asked, so no specs, price, or availability were established. tier3.guidance describes the quote-request path.\n• tier3.status = \"declined\" — an applicable lookup did not run; tier3.reason says why (disabled, rate_limited, daily_cap, negative_cache, error). No specs or availability were established, and none should be inferred.\nNo tier3 block at all means a live lookup was not applicable to this query (no parseable brand+model identity).\n\nOptional `market` (ISO 3166-1 alpha-2, e.g. \"TH\") excludes catalog rows whose country-specific URL conflicts with the buyer market and scopes tier3 lookup/cache. A remaining global URL is not local-availability proof: parsed.weak_match stays true and unsatisfied_constraints includes market_availability until every returned row has a matching country receipt. \"Available in <market>\" still does not guarantee stock.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string",
+              "description": "Natural-language query, at most 200 characters. Supports budget hints (e.g. \"under $150\").",
+              "minLength": 0,
+              "maxLength": 200
+            },
+            "category": {
+              "description": "Optional category filter (industrial-automation, wiring-devices, digital-signage, business-display, mfp, barcode-printer, laser-printer, inkjet-printer, mechanical-keyboards, cybersecurity, threat-intelligence-platform)",
+              "type": "string"
+            },
+            "limit": {
+              "default": 20,
+              "description": "Max results",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "market": {
+              "description": "Buyer market as an assigned ISO 3166-1 alpha-2 country code (e.g. \"TH\", \"AU\"). Conflicting country receipts are excluded; global URLs remain market-unverified.",
+              "type": "string"
+            },
+            "merchant": {
+              "description": "Optional merchant slug (e.g. \"toshiba\", \"cyble\") from list_merchants. Scopes the search to that merchant's own shelf, which is a SEPARATE substrate from the cross-vendor catalog: it is reached only when the cross-vendor catalog returns nothing, and its rows carry the merchant's own product data rather than datasheet-extracted golden records. Omit it for cross-vendor search, which is the default and the right choice for \"what should I buy\".",
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+            },
+            "specs": {
+              "description": "Hard spec facets, e.g. {\"form_factor\":\"desktop\",\"print_speed_ppm\":33}. Filters by exact/range spec match.",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "q"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "refused"
+              ]
+            },
+            "reason": {
+              "type": "string"
+            },
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string"
+                  },
+                  "canonical_name": {
+                    "type": "string"
+                  },
+                  "manufacturer": {
+                    "type": "string"
+                  },
+                  "modelName": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "currency": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "category": {
+                    "type": "string"
+                  },
+                  "qualityScore": {
+                    "type": "number"
+                  },
+                  "constraint_match_score": {
+                    "type": "number"
+                  },
+                  "spec_absence_note": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "slug"
+                ],
+                "additionalProperties": {}
+              }
+            },
+            "count": {
+              "type": "number"
+            },
+            "query": {
+              "type": "string"
+            },
+            "parsed": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            },
+            "took_ms": {
+              "type": "number"
+            },
+            "tier3": {
+              "type": "object",
+              "properties": {
+                "tier": {
+                  "type": "number"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "resolved",
+                    "abstain",
+                    "declined"
+                  ]
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "guidance": {
+                  "type": "string"
+                },
+                "identity": {
+                  "type": "object",
+                  "properties": {
+                    "brand": {
+                      "type": "string"
+                    },
+                    "model": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "brand",
+                    "model"
+                  ],
+                  "additionalProperties": false
+                },
+                "mpn_confirmed": {
+                  "type": "boolean"
+                },
+                "source_url": {
+                  "type": "string"
+                },
+                "source_tier": {
+                  "type": "string"
+                },
+                "cached": {
+                  "type": "boolean"
+                },
+                "verification": {
+                  "type": "string"
+                },
+                "product": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "tier",
+                "status"
+              ],
+              "additionalProperties": {}
+            }
+          },
+          "required": [
+            "results"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "find_products",
+        "title": "Discover and verify products for a need",
+        "description": "Discover candidate products for a buyer need. Takes a need in natural language (e.g. \"best value home espresso machine\", market \"TH\"), checks the verified catalog first, then uses live web discovery only when the catalog has no candidates. Returns up to 3 candidates with explicit fit accounting.\n\nfind_products is the quick candidate-list tool; research_shopping is the full verified-research job. For a specific brand+model, search_catalog is cheaper and returns the same live-lookup block on a miss.\n\nResponse fields:\n• candidates[].verification — \"catalog-candidate\" for a catalog starting point whose fit still needs checking, or \"live-unverified\" for a live page read during this run.\n• candidates[].status — \"resolved\" means both identity and the parsed buyer constraints were supported by the cited page; \"abstain\" means identity or need fit could not be established. Inspect constraint_check for matched, conflicting, and unverified requirements.\n• candidates[].constraint_check.receipts maps each receipt-backed matched requirement to its supporting source URL and trust label.\n• Candidates come from current web-search results, so they are a sample of what the market offers rather than a ranking.\n• status at the top level — \"no_match\" means discovery ran but no candidate was confirmed as satisfying the need; \"disabled\", \"rate_limited\", or \"unavailable\" means no discovery ran.\n\n• live_discovery.status=\"unavailable\" means receipted catalog candidates were returned while live discovery was unavailable.\n\nOptional `market` (ISO 3166-1 alpha-2) biases discovery and marketplace checks toward seller pages serving that country and scopes the lookup cache. \"Available in <market>\" means the seller page serves that market, not that stock is guaranteed.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "need": {
+              "type": "string",
+              "description": "The buyer need in natural language, e.g. \"quiet mechanical keyboard for open office\" or \"best value home espresso machine\".",
+              "minLength": 3,
+              "maxLength": 200
+            },
+            "market": {
+              "description": "Buyer market as ISO 3166-1 alpha-2 country code (e.g. \"TH\"). Biases discovery and marketplace checks toward seller pages serving that country and scopes the cache; availability is not a stock guarantee.",
+              "type": "string"
+            },
+            "max": {
+              "default": 3,
+              "description": "Max candidates to verify (each costs a live lookup; capped at 3).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            }
+          },
+          "required": [
+            "need"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "need": {
+              "type": "string"
+            },
+            "market": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "ok",
+                "no_match",
+                "disabled",
+                "rate_limited",
+                "unavailable",
+                "error",
+                "refused"
+              ]
+            },
+            "error": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "verification": {
+              "type": "string"
+            },
+            "guidance": {
+              "type": "string"
+            },
+            "live_discovery": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "const": "unavailable"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "guidance": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "additionalProperties": false
+            },
+            "serp_considered": {
+              "type": "number"
+            },
+            "candidates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string"
+                  },
+                  "tier": {
+                    "type": "number"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "resolved",
+                      "abstain",
+                      "declined"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "guidance": {
+                    "type": "string"
+                  },
+                  "identity": {
+                    "type": "object",
+                    "properties": {
+                      "brand": {
+                        "type": "string"
+                      },
+                      "model": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "brand",
+                      "model"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "mpn_confirmed": {
+                    "type": "boolean"
+                  },
+                  "source_url": {
+                    "type": "string"
+                  },
+                  "source_tier": {
+                    "type": "string"
+                  },
+                  "cached": {
+                    "type": "boolean"
+                  },
+                  "verification": {
+                    "type": "string"
+                  },
+                  "product": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "query",
+                  "tier",
+                  "status"
+                ],
+                "additionalProperties": {}
+              }
+            },
+            "took_ms": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "candidates"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "research_shopping",
+        "title": "Research a considered purchase",
+        "description": "research_shopping is the full verified-research job; find_products is the quick candidate-list tool. It runs as a background job and returns status \"running\" with a research ID while the minutes-long research continues; the same research ID returns the run on later polls until completion. Unsafe medical, legal, financial-advice, and professional-service asks return status \"refused\" before any work is queued. Completed runs return a researched recommendation with per-claim source receipts, or an explicit refusal when evidence is insufficient. Missing decision details return clarification questions before research starts. `market` biases discovery and marketplace checks toward seller pages serving that country; \"available in <market>\" means the seller page serves that market, not that stock is guaranteed. Example answer keys include {\"budget\":\"500 USD\",\"market\":\"US\",\"category\":\"espresso machine\"}.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "need": {
+              "description": "Buyer need in natural language. Required when starting a new research run.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "market": {
+              "description": "Buyer market as an ISO 3166-1 alpha-2 country code. Biases discovery and marketplace checks toward seller pages serving that country; availability is not a stock guarantee.",
+              "type": "string"
+            },
+            "persona": {
+              "description": "Research persona; b2b produces a quotation/RFQ pack.",
+              "type": "string",
+              "enum": [
+                "consumer",
+                "b2b"
+              ]
+            },
+            "answers": {
+              "description": "Answers to clarification questions. Set accept_defaults:true to accept budget and market defaults; it does not waive product type, use case, or must-have requirements.",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            },
+            "research_id": {
+              "description": "Existing research run identifier to read instead of starting a new run.",
+              "type": "string"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "needs_input",
+                "running",
+                "complete",
+                "failed",
+                "refused"
+              ]
+            },
+            "research_id": {
+              "type": "string"
+            },
+            "accepted_defaults": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "questions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "enum": [
+                      "budget",
+                      "market",
+                      "category"
+                    ]
+                  },
+                  "question": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key",
+                  "question"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "stage_counters": {
+              "description": "Progress counters for a running research job. Individual counters may be absent.",
+              "type": "object",
+              "properties": {
+                "candidates_found": {
+                  "description": "Candidates found during discovery.",
+                  "type": "number"
+                },
+                "verified": {
+                  "description": "Candidates examined during verification, not a count of candidates that passed.",
+                  "type": "number"
+                },
+                "listings_checked": {
+                  "description": "Market listing URLs recorded during commercial checks.",
+                  "type": "number"
+                },
+                "stage": {
+                  "description": "Current pipeline stage identifier, or queued before work starts.",
+                  "type": "string"
+                }
+              },
+              "additionalProperties": {}
+            },
+            "elapsed_seconds": {
+              "type": "number"
+            },
+            "eta_seconds": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "outcome": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "recommend",
+                    "conditional",
+                    "insufficient_evidence",
+                    "no_candidate_passes",
+                    "defer"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "dossier": {},
+            "reason": {
+              "type": "string"
+            },
+            "stage": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "get_product",
+        "title": "Get product details",
+        "description": "Get the full golden record (AirShelf's verified product record) and latest price for one catalog product by slug (\"<manufacturer>-<model>\").\n\nReturns the product's specs and provenance (which page each fact came from), plus canonical_name (its exact catalog name). A field's evidence_sha256 is the SHA-256 of the source document AirShelf archived when it extracted that claim. A caller holding the same bytes can compare the hash to check that the cited document has not changed. AirShelf does not serve those archived bytes, and the hash does not promise they remain retrievable. Branch on commercial_data.actionable before using price or stock: observations older than 24 hours are withheld from latestPrice and retained only as labelled last_observed history. For quote-gated B2B pricing, a null price with a quote path is expected rather than an error. In clients that render MCP Apps the response also draws one product card per call. related_products — relationships extracted from vendor documents (e.g. compatible toner or drum accessories with their source quotes, functional equivalents, supersessions); each entry names the related catalog slug, the relation type, its direction (direction is \"from_this\" when the relation reads this-product → related-product, \"to_this\" when it reads related-product → this-product), and the source URL and quote the relation was extracted from.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Composite slug, e.g. toshiba-b-ex4t1-ts12-qm-r"
+            }
+          },
+          "required": [
+            "slug"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://airshelf/product-card.html"
+          },
+          "ui/resourceUri": "ui://airshelf/product-card.html",
+          "openai/outputTemplate": "ui://airshelf/product-card.html",
+          "openai/toolInvocation/invoking": "Looking up product details…",
+          "openai/toolInvocation/invoked": "Product details ready",
+          "openai/widgetAccessible": true
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "imageUrl": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "benefits": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "productId": {
+              "type": "string"
+            },
+            "buyUrl": {
+              "type": "string"
+            },
+            "buttonLabel": {
+              "type": "string"
+            },
+            "action": {
+              "type": "string",
+              "enum": [
+                "quote",
+                "link"
+              ]
+            },
+            "pricing_gated": {
+              "type": "boolean"
+            },
+            "related_products": {
+              "description": "Documented related catalog products, including accessories, equivalents and replacements.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string"
+                  },
+                  "relation": {
+                    "type": "string",
+                    "description": "Relationship type recorded from vendor documents."
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "from_this",
+                      "to_this"
+                    ],
+                    "description": "from_this means this product points to the related product; to_this means the reverse."
+                  },
+                  "source": {
+                    "description": "Stored source URL, quote, section or page for the relationship; null when none was recorded.",
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {}
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "slug",
+                  "relation",
+                  "direction"
+                ],
+                "additionalProperties": {}
+              }
+            },
+            "product": {
+              "type": "object",
+              "properties": {
+                "lifecycle_status": {
+                  "description": "Retirement marker from stored product evidence. current means no retirement marker was found.",
+                  "type": "string",
+                  "enum": [
+                    "current",
+                    "retired"
+                  ]
+                },
+                "pdfFilenames": {
+                  "description": "Stored source PDF filenames. A filename is not a download URL.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "sources": {
+                  "description": "Stored evidence sources. Imports may preserve a source object, use ref instead of url, or list plain strings. Null when unavailable.",
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "url": {
+                                    "description": "Source document or product-page URL when recorded.",
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "type": {
+                                    "description": "Stored source type, such as pdf or product_page.",
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": {}
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "latestPrice": {
+                  "description": "Latest valid price observation within 24 hours. Null when absent or stale; stale history remains in commercial_data.last_observed.",
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "price": {
+                          "type": "number"
+                        },
+                        "currency": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "retailer": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "inStock": {
+                          "anyOf": [
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "capturedAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "price",
+                        "currency",
+                        "retailer",
+                        "inStock",
+                        "capturedAt"
+                      ],
+                      "additionalProperties": {}
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "related_products": {
+                  "description": "Documented related catalog products, including accessories, equivalents and replacements.",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "slug": {
+                        "type": "string"
+                      },
+                      "relation": {
+                        "type": "string",
+                        "description": "Relationship type recorded from vendor documents."
+                      },
+                      "direction": {
+                        "type": "string",
+                        "enum": [
+                          "from_this",
+                          "to_this"
+                        ],
+                        "description": "from_this means this product points to the related product; to_this means the reverse."
+                      },
+                      "source": {
+                        "description": "Stored source URL, quote, section or page for the relationship; null when none was recorded.",
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "slug",
+                      "relation",
+                      "direction"
+                    ],
+                    "additionalProperties": {}
+                  }
+                },
+                "updatedAt": {
+                  "description": "Catalog row update time as an ISO 8601 timestamp, not a per-claim verification time.",
+                  "type": "string"
+                },
+                "qualityScore": {
+                  "description": "Percentage of golden-record fields with claim-level citations. Zero when there are no fields.",
+                  "type": "number"
+                },
+                "cited_field_count": {
+                  "description": "Number of golden-record fields with claim-level citations.",
+                  "type": "number"
+                },
+                "field_count": {
+                  "description": "Total golden-record fields used as the evidence coverage denominator.",
+                  "type": "number"
+                }
+              },
+              "additionalProperties": {}
+            }
+          },
+          "required": [
+            "title",
+            "productId",
+            "buttonLabel",
+            "action"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "compare_products",
+        "title": "Compare products",
+        "description": "Compare 2-10 catalog products side-by-side on their datasheet specs. Slugs come from search_catalog and are case-insensitive and dash-tolerant (\"e-STUDIO 331AC\", \"toshiba-e-studio-331ac\" and \"e-studio331ac\" all resolve to the same product).\n\nReturns one item per product with canonical_name and spec_absence_note (spec fields absent from that product's golden record, AirShelf's verified product record). Branch on each item's commercial_data.actionable before using price or stock; stale observations are withheld from action fields. A slug that does not resolve comes back as not_found with a did_you_mean suggestion. The `provenance` option adds the source page and source type already stored with each fact.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "slugs": {
+              "minItems": 2,
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Catalog slugs to compare"
+            },
+            "provenance": {
+              "description": "Include the stored source page and source type for each fact",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "slugs"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string"
+                  },
+                  "canonical_name": {
+                    "type": "string"
+                  },
+                  "manufacturer": {
+                    "type": "string"
+                  },
+                  "modelName": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "spec_absence_note": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "slug"
+                ],
+                "additionalProperties": {}
+              }
+            },
+            "count": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "explain_product",
+        "title": "Explain how a record was built",
+        "description": "Explain the evidence behind a catalog row. Returns stored processing stages when available and always returns a golden-record field summary with source coverage. A field's evidence_sha256 is the SHA-256 of the source document AirShelf archived when it extracted that claim. A caller holding the same bytes can compare the hash to check that the cited document has not changed. AirShelf does not serve those archived bytes, and the hash does not promise they remain retrievable. record.scraped_at is the catalog row's scrape time, not a per-claim evidence capture time.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Composite slug to explain"
+            }
+          },
+          "required": [
+            "slug"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string"
+            },
+            "sku": {
+              "type": "string"
+            },
+            "canonical_name": {
+              "type": "string"
+            },
+            "category": {
+              "type": "string"
+            },
+            "trace_status": {
+              "type": "string",
+              "enum": [
+                "available",
+                "not_recorded"
+              ]
+            },
+            "count": {
+              "type": "number"
+            },
+            "note": {
+              "type": "string"
+            },
+            "trace": {},
+            "record": {}
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "list_merchants",
+        "title": "List merchants",
+        "description": "List public AirShelf merchants that have an assigned slug and at least one active product. Internal/demo and empty catalogs are excluded. Returns each merchant's name, slug, and product count; the slug is the `merchant` argument for request_quote.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "merchants": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "product_count": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "domain": {
+                    "type": "string"
+                  },
+                  "manifest_url": {
+                    "description": "Merchant agent manifest URL with supported endpoints and capabilities.",
+                    "type": "string"
+                  },
+                  "products_url": {
+                    "description": "Merchant product-listing endpoint URL.",
+                    "type": "string"
+                  },
+                  "search_url": {
+                    "description": "Merchant-scoped product-search endpoint URL.",
+                    "type": "string"
+                  },
+                  "checkout_capability": {
+                    "description": "shopify indicates a connected Shopify store; redirect sends the buyer to the product page.",
+                    "type": "string",
+                    "enum": [
+                      "shopify",
+                      "redirect"
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "slug",
+                  "product_count"
+                ],
+                "additionalProperties": {}
+              }
+            },
+            "total": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "merchants"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "request_quote",
+        "title": "Request a quote from a merchant",
+        "description": "Send a quote request for catalog products to a merchant's sales team on behalf of a named buyer.\n\nThis is a two-step, double opt-in flow. The first call emails a confirmation link to `contact.email` and returns status \"confirmation_required\"; no lead exists and no merchant is contacted until the buyer confirms. A later call with the same arguments reports \"awaiting_confirmation\" while the email is unconfirmed, or \"received\" with a reference_number after confirmation.\n\nMerchant slugs come from list_merchants. Network-catalog brands that are absent from that list use merchant:\"airshelf-network\" with brandSlug:\"<manufacturer-slug>\"; AirShelf routes the confirmed request to that brand.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "merchant": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Merchant slug or id (from list_merchants), or \"airshelf-network\" for network-catalog brands"
+            },
+            "products": {
+              "default": [],
+              "description": "Catalog slugs the buyer is interested in; may be omitted when attaching contact to a rep desk reference",
+              "maxItems": 50,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "quantity": {
+              "description": "Units the buyer wants",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "contact": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Buyer name"
+                },
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                  "description": "Buyer work email"
+                },
+                "company": {
+                  "description": "Buyer company",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "email"
+              ],
+              "description": "Buyer contact details"
+            },
+            "notes": {
+              "description": "Any extra context from the buyer",
+              "type": "string"
+            },
+            "reference": {
+              "description": "Rep desk trace returned by ask, so confirmed contact reaches the same request",
+              "type": "string",
+              "pattern": "^REQ-[A-Z0-9-]{1,4}-[A-Z0-9]{6}$"
+            },
+            "brandSlug": {
+              "description": "Manufacturer slug (from search results) — required with merchant:\"airshelf-network\" so the lead reaches the right brand",
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "merchant",
+            "contact"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "reference_number": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "next_step": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:25:27.442Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:25:28.493Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:25:29.544Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:25:30.595Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 8,
+    "tools_hash": "sha256:351897d9697837ef1d9bda7792bf8f9c9128a7f953fc189d8eaa6368592891c7",
+    "static_tool_tokens": 6252,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_catalog",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "find_products",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F6",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_product",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "compare_products",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_merchants",
+        "message": "Description does not say when to use this tool."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 2,
+      "warning": 3
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_catalog",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results",
+          "mentions_size_or_cost": true,
+          "default": 20,
+          "maximum": 200
+        },
+        {
+          "tool": "find_products",
+          "path": "inputSchema.properties.max",
+          "name": "max",
+          "description": "Max candidates to verify (each costs a live lookup; capped at 3).",
+          "mentions_size_or_cost": true,
+          "default": 3,
+          "maximum": 3
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "search_catalog"
+          ],
+          "description": "Search the AirShelf cross-vendor product catalog by natural-language query. The catalog covers industrial-automation, wiring-devices, digital-signage, business-display, mfp, barcode-printer, laser-printer, inkjet-printer, mechanical-keyboards, cybersecurity, threat-intelligence-platform. Industrial-automation and wiring-device rows are indexed by manufacturer part number, so a brand or part number in the query (\"Pepperl+Fuchs retroreflective sensor\", \"IN5409\") retrieves more reliably than a bare product type; those rows carry no normalized spec facets, so the `specs` filter does not apply to them. Returns ranked products with prices, specs, and per-row match accounting.\nEach row includes `unverified_specs`, the normalized spec names that lack claim-level receipts; never use those as decisive facts.\nExample queries: \"tactile mechanical keyboard under $150\", \"Toshiba A3 colour multifunction device\", \"industrial barcode printer for a warehouse\", \"threat-intelligence platform with dark-web monitoring\".\n\nResult fields:\n• canonical_name — the exact catalog name of the product.\n• spec_absence_note — spec fields absent from this product's golden record (AirShelf's verified product record); null when nothing is missing.\n• constraint_match_score and matched_criteria — query constraints supported by claim-level receipts. unverified_criteria names matching catalog values that still need confirmation; missing_criteria names values that are absent or conflict.\n• parsed.price_availability — all_null = true means every returned price is null. For quote-gated B2B pricing, a null price with a quote path is expected rather than an error; query_had_budget reports whether the query carried one.\n• result.commercial_data — branch on actionable before using price or stock. Observations older than 24 hours are withheld from result.price/result.inStock and retained only as labelled last_observed history.\n• parsed.weak_match — the response contains an unresolved constraint, query match, or product-identity warning. parsed.unverified_identity_count counts returned names without an identity receipt. parsed.no_match — no product satisfies a hard constraint, and candidates violating it were excluded server-side.\n\nOn a miss or near-miss for a specific brand+model the response may also carry a `tier3` block, meaning a real-time lookup for the exact SKU asked about; it can appear alongside fuzzy-neighbour rows.\n• tier3.status = \"resolved\" — a single-source reading of the page at tier3.source_url. MPN-confirmed means the live lookup matched the manufacturer part number. Its verification is \"live-unverified\": confirmed on a live page during this run, but not yet matched to an AirShelf catalog record. A verified row is matched to the catalog record. tier3.cached = true means it came from a recent prior lookup, with fetched_at recording when the page was read.\n• tier3.status = \"abstain\" — the lookup could not confirm the product exists as asked, so no specs, price, or availability were established. tier3.guidance describes the quote-request path.\n• tier3.status = \"declined\" — an applicable lookup did not run; tier3.reason says why (disabled, rate_limited, daily_cap, negative_cache, error). No specs or availability were established, and none should be inferred.\nNo tier3 block at all means a live lookup was not applicable to this query (no parseable brand+model identity).\n\nOptional `market` (ISO 3166-1 alpha-2, e.g. \"TH\") excludes catalog rows whose country-specific URL conflicts with the buyer market and scopes tier3 lookup/cache. A remaining global URL is not local-availability proof: parsed.weak_match stays true and unsatisfied_constraints includes market_availability until every returned row has a matching country receipt. \"Available in <market>\" still does not guarantee stock.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "compare_products"
+          ],
+          "description": "Compare 2-10 catalog products side-by-side on their datasheet specs. Slugs come from search_catalog and are case-insensitive and dash-tolerant (\"e-STUDIO 331AC\", \"toshiba-e-studio-331ac\" and \"e-studio331ac\" all resolve to the same product).\n\nReturns one item per product with canonical_name and spec_absence_note (spec fields absent from that product's golden record, AirShelf's verified product record). Branch on each item's commercial_data.actionable before using price or stock; stale observations are withheld from action fields. A slug that does not resolve comes back as not_found with a did_you_mean suggestion. The `provenance` option adds the source page and source type already stored with each fact.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "find_products",
+            "get_product"
+          ],
+          "hypothesis": "Read tools share resource terms (product), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "search_catalog",
+      "find_products",
+      "get_product",
+      "compare_products",
+      "explain_product",
+      "list_merchants"
+    ]
+  }
+}

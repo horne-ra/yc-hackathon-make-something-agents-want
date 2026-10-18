@@ -1,0 +1,3186 @@
+{
+  "slug": "routific",
+  "source_url": "https://manufact.com/mcp-catalog/routific",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-18T00:06:13.465Z",
+    "endpoint": "https://mcp.routific.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "Routific Route Optimizer",
+      "version": "1.0.0"
+    },
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Optimize routes with Routific (https://routific.com) — answered in chat, or set up on a map in the\nuser's Routific account.\n\nSTEP 1 — before optimizing, ask once where they want the result, unless their request already says:\n  \"Do you want the plan here in chat, or set up in your Routific account so you can see it on a map and dispatch\n  it to your drivers? The map needs a Routific account (free plan: 100 orders a month, sign up at\n  https://plan.routific.com/signup?utm_source=mcp), and the stops are added as orders to your account.\"\nIf they mention a map, Routific, the app, drivers' phones or dispatching, that's the map. If they say \"just tell\nme\" or similar, that's chat. Then run exactly ONE optimization for that choice — never plan in chat first and then\nagain on the map.\n\nSTEP 2 — chat:\n- optimize_route: one driver, up to 8 stops. No sign-in, nothing saved.\n- create_optimization: more stops, several drivers/vehicles, time windows, or capacity. Requires signing in;\n  nothing is saved. It waits and returns the plan; only very large runs need a follow-up with get_optimization and\n  get_schedule_solution.\nNever split a long stop list into several optimize_route calls: separately optimized chunks aren't an optimized\nroute — use create_optimization instead. If they later ask for the chat plan on a map, use show_on_map and say\nRoutific plans it again, so the result can differ slightly.\n\nSTEP 3 — map: call show_on_map ONCE with every stop, one driver per vehicle, and the date (the day they mentioned,\notherwise today). Pass the depot as { address } in each driver's startLocation (and endLocation if they return), or\ncoordinates the user gave; never invent coordinates. Service time (duration) is in seconds — 300 is 5 minutes.\nshow_on_map adds the orders, creates the routes, optimizes only those, waits, and returns view_in_app with a short\nsummary. The user chose to see the plan in Routific, so the link IS the answer: start your reply with it on its own\nline, bold — **🗺️ [Open in Routific →](view_in_app)** — then one or two short lines (date, stops and routes, anything\nunscheduled, where the depot was placed). Don't list the stops or ETAs. From Routific they can adjust the plan and\ndispatch it to their drivers' phones.\n\nTo change orders afterwards, use the ids from show_on_map, or list_routes with include_orders to find a day's\norders. Use update_orders for the same change on many orders (one call, not one per order); addTags keeps existing\ntags. Tags are routing requirements (an order tagged X needs a route tagged X), so for a plain label prefer\ncustomFields or instructions. Other tools: get_route_timeline, get_order, update_order, delete_orders.\nConfirm before deleting orders. Tools that take workspaceUuid can omit it when the account has one workspace.\n\nTalking to the user: they plan deliveries; they don't build this integration. Talk about their stops, routes,\ndrivers and orders in plain language. Don't mention tool names, field names, ids, HTTP codes or API details, and\ndon't present problems as bug reports or suggest raising them with anyone. If something didn't work, say briefly\nwhat didn't happen and what they can do: try again, change it in Routific, or contact Routific support at\nsupport@routific.com. Stick to helping with their routes; don't bring in unrelated company or project context.\n\nIf a tool reports that the account hit its plan's monthly order limit, tell the user to log in to their Routific\naccount and upgrade their plan. Don't retry or split the request.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "optimize_route",
+            "title": "Optimize Route",
+            "description": "Only for when the user chose the plan in chat. If the user hasn't said whether they want the plan here in chat or set up on a map in their Routific account, ask them first and wait for the answer — don't call any planning tool until they've chosen. Optimize the visiting order of a list of addresses (a single-vehicle delivery/service route). Returns the optimal stop sequence with an ETA and driving distance for each stop, plus total travel time and distance. Addresses are geocoded automatically; include city and region in every address for reliable results. Maximum 8 stops per request (free demo limit). Never split a longer stop list into multiple calls: chunks optimized separately are not jointly optimal, so the combined result would NOT be an optimized route. If there are more than 8 stops or several drivers, use create_optimization instead (requires signing in). Docs: https://docs.routific.com/reference/vrp-long.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "stops": {
+                  "minItems": 2,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 3
+                  },
+                  "description": "Addresses to visit, e.g. '800 Robson St, Vancouver, BC, Canada'. Always include city and region/country."
+                },
+                "start_address": {
+                  "description": "Where the driver starts (depot, office, home). If omitted, the first entry in `stops` is used as the starting point.",
+                  "type": "string"
+                },
+                "return_to_start": {
+                  "description": "If true, the route ends back at the starting location. Default false.",
+                  "type": "boolean"
+                },
+                "departure_time": {
+                  "description": "Departure time in 24h hh:mm format used to compute ETAs. Default \"09:00\".",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "stops"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "create_optimization",
+            "title": "Create Optimization (Routific account)",
+            "description": "Only for when the user chose the plan in chat. If the user hasn't said whether they want the plan here in chat or set up on a map in their Routific account, ask them first and wait for the answer — don't call any planning tool until they've chosen. Run a full multi-vehicle route optimization on YOUR Routific organization (requires signing in). This is a self-contained 'one-off' schedule: pass the fleet inline as `routesData` (vehicles, up to 500) and the stops inline as `ordersData` (deliveries/visits, up to 5,000) — no workspace or pre-created records are needed. The engine assigns every order to a route while respecting time windows, capacity, and tags. Waits for the result (up to ~45s) and returns the solved plan: each vehicle's stops in order with ETAs, plus anything left unscheduled. Very large runs may still be going when it returns; then it gives an actionUuid to check with get_optimization and fetch with get_schedule_solution. Nothing is saved to the user's workspace. Docs: https://api-docs.routific.com/reference/one-off-scheduling.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "routesData": {
+                  "minItems": 1,
+                  "maxItems": 500,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "Human-readable vehicle or driver name (must be unique)."
+                      },
+                      "constraints": {
+                        "description": "Shift window, capacity, start/end locations, and tags for this vehicle.",
+                        "type": "object",
+                        "properties": {
+                          "startTime": {
+                            "description": "Earliest the vehicle can start its shift, 24h HH:mm.",
+                            "type": "string"
+                          },
+                          "endTime": {
+                            "description": "Latest the vehicle must finish its shift, 24h HH:mm.",
+                            "type": "string"
+                          },
+                          "capacity": {
+                            "description": "Total load the vehicle can carry; compared against each order's `load`.",
+                            "type": "number"
+                          },
+                          "startLocations": {
+                            "description": "Where the vehicle starts its shift (the depot).",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "address": {
+                                  "description": "Street address, including city and region/country (e.g. '800 Robson St, Vancouver, BC, Canada'). Provide this and/or latitude+longitude.",
+                                  "type": "string"
+                                },
+                                "latitude": {
+                                  "description": "Latitude in decimal degrees.",
+                                  "type": "number"
+                                },
+                                "longitude": {
+                                  "description": "Longitude in decimal degrees.",
+                                  "type": "number"
+                                }
+                              }
+                            }
+                          },
+                          "endLocations": {
+                            "description": "Where the vehicle ends its shift. Omit to end at the final stop.",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "address": {
+                                  "description": "Street address, including city and region/country (e.g. '800 Robson St, Vancouver, BC, Canada'). Provide this and/or latitude+longitude.",
+                                  "type": "string"
+                                },
+                                "latitude": {
+                                  "description": "Latitude in decimal degrees.",
+                                  "type": "number"
+                                },
+                                "longitude": {
+                                  "description": "Longitude in decimal degrees.",
+                                  "type": "number"
+                                }
+                              }
+                            }
+                          },
+                          "tags": {
+                            "description": "Skills/zones this vehicle can serve; matched against each order's `tags`.",
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ]
+                  },
+                  "description": "The fleet: the vehicles/drivers orders can be scheduled onto (max 500)."
+                },
+                "ordersData": {
+                  "minItems": 1,
+                  "maxItems": 5000,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "Human-readable order or customer name."
+                      },
+                      "locations": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "address": {
+                              "description": "Street address, including city and region/country (e.g. '800 Robson St, Vancouver, BC, Canada'). Provide this and/or latitude+longitude.",
+                              "type": "string"
+                            },
+                            "latitude": {
+                              "description": "Latitude in decimal degrees.",
+                              "type": "number"
+                            },
+                            "longitude": {
+                              "description": "Longitude in decimal degrees.",
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "description": "The stop's location (address and/or coordinates)."
+                      },
+                      "duration": {
+                        "description": "Service time spent at the stop, in seconds (e.g. 900 for 15 minutes).",
+                        "type": "number"
+                      },
+                      "load": {
+                        "description": "Capacity units this order consumes; compared against a route's `capacity`.",
+                        "type": "number"
+                      },
+                      "timeWindows": {
+                        "description": "Allowed arrival windows for this stop. Omit to allow any time.",
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "startTime": {
+                              "type": "string",
+                              "description": "Window opens at, 24h HH:mm."
+                            },
+                            "endTime": {
+                              "type": "string",
+                              "description": "Window closes at, 24h HH:mm."
+                            }
+                          },
+                          "required": [
+                            "startTime",
+                            "endTime"
+                          ]
+                        }
+                      },
+                      "tags": {
+                        "description": "Requirements for this stop; matched against a route's `tags`.",
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "customerOrderNumber": {
+                        "description": "Customer-facing order number.",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "locations"
+                    ]
+                  },
+                  "description": "The stops to schedule: deliveries or visits (max 5,000)."
+                },
+                "options": {
+                  "description": "Optimization preferences.",
+                  "type": "object",
+                  "properties": {
+                    "minimizeRoutes": {
+                      "description": "Solve with the fewest vehicles possible.",
+                      "type": "boolean"
+                    },
+                    "balanceType": {
+                      "description": "Balance workload across vehicles: 'time' evens out working time, 'orders' evens out stop counts, 'none' disables.",
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "orders",
+                        "time"
+                      ]
+                    },
+                    "flexibleStartTime": {
+                      "description": "Allow vehicles to start later than their `startTime` to reduce idle waiting.",
+                      "type": "boolean"
+                    },
+                    "excludeTolls": {
+                      "description": "Avoid toll roads.",
+                      "type": "boolean"
+                    },
+                    "excludeFerry": {
+                      "description": "Avoid ferry routes.",
+                      "type": "boolean"
+                    },
+                    "squashDuration": {
+                      "description": "Reduce service duration, in seconds, for consecutive stops at the same location.",
+                      "type": "number"
+                    },
+                    "defaultOrderDuration": {
+                      "description": "Service time, in seconds, for orders that omit their own `duration` (e.g. 900 for 15 minutes).",
+                      "type": "number"
+                    },
+                    "allowCapacityOverload": {
+                      "description": "Permit routes to exceed vehicle capacity.",
+                      "type": "boolean"
+                    },
+                    "allowRouteOvertime": {
+                      "description": "Permit routes to run past the vehicle's `endTime`.",
+                      "type": "boolean"
+                    },
+                    "allowVisitLateness": {
+                      "description": "Permit arrival after an order's time window.",
+                      "type": "boolean"
+                    }
+                  }
+                }
+              },
+              "required": [
+                "routesData",
+                "ordersData"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_optimization",
+            "title": "Get Optimization Result",
+            "description": "Poll the status/result of an optimization started with `create_optimization`, by its actionUuid. Returns `{ status }` while the job is `pending`, and the solved schedule once the status is `finished` (or an error once `failed`). Docs: https://api-docs.routific.com/reference/fetch-schedule-status.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "actionUuid": {
+                  "type": "string",
+                  "description": "The actionUuid returned by create_optimization."
+                }
+              },
+              "required": [
+                "actionUuid"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "show_on_map",
+            "title": "Show on a Map in Routific",
+            "description": "Only for when the user chose the map in Routific (or asked for Routific, a map, or dispatch). If the user hasn't said whether they want the plan here in chat or set up on a map in their Routific account, ask them first and wait for the answer — don't call any planning tool until they've chosen. Put a plan on the map in the user's Routific account in ONE call: adds the stops as orders for the date, creates a route per driver (depot addresses are looked up on the map), optimizes only those orders onto those routes, waits for the result, and returns the 'Open in Routific' link (view_in_app) with a short summary — no stop list, since the user sees the plan in Routific. Use this when the user wants the result on a map / in Routific — instead of, not after, optimizing in chat. Nothing else in their workspace is touched. Orders count toward their plan. Answer as the result's `reply` field says: link first.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "workspaceUuid": {
+                  "description": "Workspace uuid from list_workspaces. Optional when the account has exactly one workspace.",
+                  "type": "string"
+                },
+                "date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "The delivery day, YYYY-MM-DD."
+                },
+                "stops": {
+                  "minItems": 1,
+                  "maxItems": 500,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "type": "string",
+                        "minLength": 3,
+                        "description": "Full street address with city and region, e.g. '800 Robson St, Vancouver, BC, Canada'."
+                      },
+                      "latitude": {
+                        "description": "Only if the user gave exact coordinates; the address is still shown.",
+                        "type": "number"
+                      },
+                      "longitude": {
+                        "type": "number"
+                      },
+                      "name": {
+                        "description": "Customer or stop name. Defaults to the address.",
+                        "type": "string"
+                      },
+                      "duration": {
+                        "description": "Service time in SECONDS (300 = 5 minutes).",
+                        "type": "number"
+                      },
+                      "timeWindows": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "startTime": {
+                              "type": "string",
+                              "description": "24h HH:mm"
+                            },
+                            "endTime": {
+                              "type": "string",
+                              "description": "24h HH:mm"
+                            }
+                          },
+                          "required": [
+                            "startTime",
+                            "endTime"
+                          ]
+                        }
+                      },
+                      "instructions": {
+                        "description": "Notes for the driver.",
+                        "type": "string"
+                      },
+                      "phone": {
+                        "type": "string"
+                      },
+                      "email": {
+                        "type": "string"
+                      },
+                      "load": {
+                        "type": "number"
+                      },
+                      "customerOrderNumber": {
+                        "type": "string"
+                      },
+                      "tags": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "packages": {
+                        "description": "Package barcodes for the driver to scan.",
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "barcode": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "barcode"
+                          ]
+                        }
+                      },
+                      "customFields": {
+                        "description": "Values for custom fields that already exist on the account (they aren't created here).",
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "address"
+                    ]
+                  },
+                  "description": "Every stop, once each (not the depot)."
+                },
+                "drivers": {
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "Driver or vehicle name, e.g. 'Van 1'."
+                      },
+                      "startTime": {
+                        "type": "string",
+                        "description": "Shift start, 24h HH:mm (their departure time)."
+                      },
+                      "endTime": {
+                        "type": "string",
+                        "description": "Shift end, 24h HH:mm."
+                      },
+                      "startLocation": {
+                        "type": "object",
+                        "properties": {
+                          "address": {
+                            "type": "string"
+                          },
+                          "latitude": {
+                            "type": "number"
+                          },
+                          "longitude": {
+                            "type": "number"
+                          }
+                        },
+                        "description": "{ address } (looked up on the map) or { latitude, longitude }. Never invent coordinates."
+                      },
+                      "endLocation": {
+                        "description": "Usually the same as startLocation when they return to the depot.",
+                        "type": "object",
+                        "properties": {
+                          "address": {
+                            "type": "string"
+                          },
+                          "latitude": {
+                            "type": "number"
+                          },
+                          "longitude": {
+                            "type": "number"
+                          }
+                        }
+                      },
+                      "capacity": {
+                        "type": "number"
+                      },
+                      "tags": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "startTime",
+                      "endTime"
+                    ]
+                  },
+                  "description": "One entry per driver/vehicle."
+                },
+                "options": {
+                  "description": "Optimization preferences.",
+                  "type": "object",
+                  "properties": {
+                    "minimizeRoutes": {
+                      "description": "Solve with the fewest vehicles possible.",
+                      "type": "boolean"
+                    },
+                    "balanceType": {
+                      "description": "Balance workload across vehicles: 'time' evens out working time, 'orders' evens out stop counts, 'none' disables.",
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "orders",
+                        "time"
+                      ]
+                    },
+                    "flexibleStartTime": {
+                      "description": "Allow vehicles to start later than their `startTime` to reduce idle waiting.",
+                      "type": "boolean"
+                    },
+                    "excludeTolls": {
+                      "description": "Avoid toll roads.",
+                      "type": "boolean"
+                    },
+                    "excludeFerry": {
+                      "description": "Avoid ferry routes.",
+                      "type": "boolean"
+                    },
+                    "squashDuration": {
+                      "description": "Reduce service duration, in seconds, for consecutive stops at the same location.",
+                      "type": "number"
+                    },
+                    "defaultOrderDuration": {
+                      "description": "Service time, in seconds, for orders that omit their own `duration` (e.g. 900 for 15 minutes).",
+                      "type": "number"
+                    },
+                    "allowCapacityOverload": {
+                      "description": "Permit routes to exceed vehicle capacity.",
+                      "type": "boolean"
+                    },
+                    "allowRouteOvertime": {
+                      "description": "Permit routes to run past the vehicle's `endTime`.",
+                      "type": "boolean"
+                    },
+                    "allowVisitLateness": {
+                      "description": "Permit arrival after an order's time window.",
+                      "type": "boolean"
+                    }
+                  }
+                }
+              },
+              "required": [
+                "date",
+                "stops",
+                "drivers"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "schedule_orders",
+            "title": "Schedule Orders (in workspace)",
+            "description": "Run Routific's optimizer on the user's workspace for a date: assigns the orders to the routes and sequences each route, like the Schedule button in the app. With only a date, it schedules every unscheduled order for that date across all unlocked routes; pass orders/routes to restrict it. The result is saved in the workspace. When setting up a plan from chat, pass only the orders and routes you just created. Waits for the run to finish (up to ~45s) and returns how many orders were scheduled; then share view_in_app as an 'Open in Routific' link. If it's still running when it returns, check again with `get_schedule_action`. Docs: https://api-docs.routific.com/reference/schedule-orders.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "workspaceUuid": {
+                  "description": "Workspace uuid from list_workspaces. Optional when the account has exactly one workspace.",
+                  "type": "string"
+                },
+                "date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "The day to schedule, YYYY-MM-DD."
+                },
+                "orders": {
+                  "description": "Only schedule these order uuids.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "routes": {
+                  "description": "Only use these route uuids.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "options": {
+                  "description": "Optimization preferences.",
+                  "type": "object",
+                  "properties": {
+                    "minimizeRoutes": {
+                      "description": "Solve with the fewest vehicles possible.",
+                      "type": "boolean"
+                    },
+                    "balanceType": {
+                      "description": "Balance workload across vehicles: 'time' evens out working time, 'orders' evens out stop counts, 'none' disables.",
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "orders",
+                        "time"
+                      ]
+                    },
+                    "flexibleStartTime": {
+                      "description": "Allow vehicles to start later than their `startTime` to reduce idle waiting.",
+                      "type": "boolean"
+                    },
+                    "excludeTolls": {
+                      "description": "Avoid toll roads.",
+                      "type": "boolean"
+                    },
+                    "excludeFerry": {
+                      "description": "Avoid ferry routes.",
+                      "type": "boolean"
+                    },
+                    "squashDuration": {
+                      "description": "Reduce service duration, in seconds, for consecutive stops at the same location.",
+                      "type": "number"
+                    },
+                    "defaultOrderDuration": {
+                      "description": "Service time, in seconds, for orders that omit their own `duration` (e.g. 900 for 15 minutes).",
+                      "type": "number"
+                    },
+                    "allowCapacityOverload": {
+                      "description": "Permit routes to exceed vehicle capacity.",
+                      "type": "boolean"
+                    },
+                    "allowRouteOvertime": {
+                      "description": "Permit routes to run past the vehicle's `endTime`.",
+                      "type": "boolean"
+                    },
+                    "allowVisitLateness": {
+                      "description": "Permit arrival after an order's time window.",
+                      "type": "boolean"
+                    }
+                  }
+                }
+              },
+              "required": [
+                "date"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "list_schedules",
+            "title": "List Schedules",
+            "description": "List schedules (keyset-paginated). Filter by workspace, date, or status.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "workspaceUuid": {
+                  "type": "string"
+                },
+                "date": {
+                  "description": "ISO8601 date filter.",
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "limit": {
+                  "description": "Max items to return (keyset pagination).",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "cursor": {
+                  "description": "Opaque pagination cursor from a previous response's `nextCursor`.",
+                  "type": "string"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_schedule_action",
+            "title": "Get Schedule Action Status",
+            "description": "Poll a schedule action's status by its actionUuid.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "actionUuid": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "actionUuid"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_schedule_solution",
+            "title": "Get Schedule Solution",
+            "description": "Fetch the full solved solution of a finished optimization, by its actionUuid: `{ routes, orders, unscheduledOrders }` — the per-vehicle stop sequences with ETAs, plus any orders that could not be scheduled. Call this once `get_optimization` reports the action `finished` (use the same actionUuid returned by `create_optimization`). Docs: https://api-docs.routific.com/reference/fetch-scheduled-solution.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "actionUuid": {
+                  "type": "string",
+                  "description": "The actionUuid returned by create_optimization (status must be `finished`)."
+                }
+              },
+              "required": [
+                "actionUuid"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "list_routes",
+            "title": "List Routes",
+            "description": "List a workspace's routes for a date: uuid, name, driver, status, order count, working time, distance. Set include_orders to also get each route's order uuids in stop order — the way to find a day's orders for follow-up edits (update_order / update_orders / delete_orders). Docs: https://api-docs.routific.com/reference/fetch-routes.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "workspaceUuid": {
+                  "description": "Workspace uuid from list_workspaces. Optional when the account has exactly one workspace.",
+                  "type": "string"
+                },
+                "date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "The day, YYYY-MM-DD."
+                },
+                "include_orders": {
+                  "description": "Also return each route's order uuids (one extra read per route).",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "date"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_route",
+            "title": "Get Route",
+            "description": "Get a single route by its uuid.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "uuid": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "uuid"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_route_timeline",
+            "title": "Get Route Timeline",
+            "description": "Get a route's timeline (stops in order with ETAs), keyset-paginated.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "uuid": {
+                  "type": "string"
+                },
+                "limit": {
+                  "description": "Max items to return (keyset pagination).",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "cursor": {
+                  "description": "Opaque pagination cursor from a previous response's `nextCursor`.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "uuid"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "create_routes",
+            "title": "Create Routes",
+            "description": "Create routes in a workspace (batch, max 50). Each route: { name, date (ISO8601), startTime, endTime (military time), startLocation?, endLocation?, capacity?, tags? }. One route per driver or vehicle. startLocation/endLocation: pass { address } (full street address with city and region — it's looked up on the map for you) or { latitude, longitude }. Never invent coordinates. The result lists where each address was placed under `geocoded_depots`; tell the user, so a wrong match is caught. Omit the locations if the user hasn't given a depot.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "workspaceUuid": {
+                  "description": "Workspace uuid from list_workspaces. Optional when the account has exactly one workspace.",
+                  "type": "string"
+                },
+                "routes": {
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "description": "Routes to create (PostRoutePublicDto[])."
+                }
+              },
+              "required": [
+                "routes"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_order",
+            "title": "Get Order",
+            "description": "Get a single order (visit) by its uuid.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "uuid": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "uuid"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "create_orders",
+            "title": "Create Orders",
+            "description": "Create orders (visits) in a workspace (batch). Each order: { locations (required): [{ address, latitude?, longitude? }], name?, email?, duration? (service time in SECONDS, e.g. 300 for 5 minutes), phone?, instructions?, load?, timeWindows?, packages?, tags?, customFields?, deliveryDate? }. Set deliveryDate (YYYY-MM-DD) so the orders can be scheduled for that day with schedule_orders. Orders count toward the account's monthly plan.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "workspaceUuid": {
+                  "description": "Workspace uuid from list_workspaces. Optional when the account has exactly one workspace.",
+                  "type": "string"
+                },
+                "orders": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "description": "Orders to create (PostVisitPublicDto[])."
+                }
+              },
+              "required": [
+                "orders"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "update_order",
+            "title": "Update Order",
+            "description": "Change fields on an existing order (scheduled or not). Pass ONLY the fields to change — everything else is kept; null clears a field. Pass `locations` to change the address (it re-geocodes); `duration` is service time in SECONDS (300 = 5 minutes). Editing a scheduled order re-times its route and may be async (returns an action to poll with `get_order_action`).",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "uuid": {
+                  "type": "string"
+                },
+                "order": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {},
+                  "description": "Only the fields to change, e.g. { timeWindows: [{ startTime: '09:00', endTime: '12:00' }] }."
+                }
+              },
+              "required": [
+                "uuid",
+                "order"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "update_orders",
+            "title": "Update Orders (bulk)",
+            "description": "Apply the same change to many orders in one call (up to 200) — use this instead of calling update_order once per order. Pass the order uuids (from show_on_map or list_routes with include_orders), the fields to change in `order` (everything else is kept; duration is in SECONDS), and/or addTags / removeTags to change tags while keeping the existing ones. Note: tags are routing requirements — an order tagged X can only go on a route tagged X — so for a plain label prefer customFields or instructions. Returns per-order results.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "uuids": {
+                  "minItems": 1,
+                  "maxItems": 200,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "The orders to change."
+                },
+                "order": {
+                  "description": "Fields to set on every order, e.g. { instructions: 'Leave at door' }.",
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                },
+                "addTags": {
+                  "description": "Tags to add, keeping each order's existing tags.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "removeTags": {
+                  "description": "Tags to remove.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "uuids"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "delete_order",
+            "title": "Delete Order",
+            "description": "Permanently delete a single order by uuid, including one already on a route (the route is re-timed). Deleting a scheduled order is async (poll with `get_order_action`). Only call this after the user has explicitly confirmed — it can't be undone.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "uuid": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "uuid"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "delete_orders",
+            "title": "Delete Orders (bulk)",
+            "description": "Permanently delete multiple orders in a workspace by uuid (max 500), including ones already on a route. May be async (poll with `get_order_action`). Only call this after the user has explicitly confirmed — it can't be undone.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "workspaceUuid": {
+                  "description": "Workspace uuid from list_workspaces. Optional when the account has exactly one workspace.",
+                  "type": "string"
+                },
+                "uuids": {
+                  "minItems": 1,
+                  "maxItems": 500,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Order uuids to delete."
+                }
+              },
+              "required": [
+                "uuids"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_order_action",
+            "title": "Get Order Action Status",
+            "description": "Poll an order async action (update/delete) by its actionUuid.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "actionUuid": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "actionUuid"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "list_workspaces",
+            "title": "List Workspaces",
+            "description": "List the organization's workspaces (keyset-paginated). Workspaces scope routes/orders.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "limit": {
+                  "description": "Max items to return (keyset pagination).",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "cursor": {
+                  "description": "Opaque pagination cursor from a previous response's `nextCursor`.",
+                  "type": "string"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "optimize_route",
+        "title": "Optimize Route",
+        "description": "Only for when the user chose the plan in chat. If the user hasn't said whether they want the plan here in chat or set up on a map in their Routific account, ask them first and wait for the answer — don't call any planning tool until they've chosen. Optimize the visiting order of a list of addresses (a single-vehicle delivery/service route). Returns the optimal stop sequence with an ETA and driving distance for each stop, plus total travel time and distance. Addresses are geocoded automatically; include city and region in every address for reliable results. Maximum 8 stops per request (free demo limit). Never split a longer stop list into multiple calls: chunks optimized separately are not jointly optimal, so the combined result would NOT be an optimized route. If there are more than 8 stops or several drivers, use create_optimization instead (requires signing in). Docs: https://docs.routific.com/reference/vrp-long.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "stops": {
+              "minItems": 2,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 3
+              },
+              "description": "Addresses to visit, e.g. '800 Robson St, Vancouver, BC, Canada'. Always include city and region/country."
+            },
+            "start_address": {
+              "description": "Where the driver starts (depot, office, home). If omitted, the first entry in `stops` is used as the starting point.",
+              "type": "string"
+            },
+            "return_to_start": {
+              "description": "If true, the route ends back at the starting location. Default false.",
+              "type": "boolean"
+            },
+            "departure_time": {
+              "description": "Departure time in 24h hh:mm format used to compute ETAs. Default \"09:00\".",
+              "type": "string"
+            }
+          },
+          "required": [
+            "stops"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "create_optimization",
+        "title": "Create Optimization (Routific account)",
+        "description": "Only for when the user chose the plan in chat. If the user hasn't said whether they want the plan here in chat or set up on a map in their Routific account, ask them first and wait for the answer — don't call any planning tool until they've chosen. Run a full multi-vehicle route optimization on YOUR Routific organization (requires signing in). This is a self-contained 'one-off' schedule: pass the fleet inline as `routesData` (vehicles, up to 500) and the stops inline as `ordersData` (deliveries/visits, up to 5,000) — no workspace or pre-created records are needed. The engine assigns every order to a route while respecting time windows, capacity, and tags. Waits for the result (up to ~45s) and returns the solved plan: each vehicle's stops in order with ETAs, plus anything left unscheduled. Very large runs may still be going when it returns; then it gives an actionUuid to check with get_optimization and fetch with get_schedule_solution. Nothing is saved to the user's workspace. Docs: https://api-docs.routific.com/reference/one-off-scheduling.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "routesData": {
+              "minItems": 1,
+              "maxItems": 500,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Human-readable vehicle or driver name (must be unique)."
+                  },
+                  "constraints": {
+                    "description": "Shift window, capacity, start/end locations, and tags for this vehicle.",
+                    "type": "object",
+                    "properties": {
+                      "startTime": {
+                        "description": "Earliest the vehicle can start its shift, 24h HH:mm.",
+                        "type": "string"
+                      },
+                      "endTime": {
+                        "description": "Latest the vehicle must finish its shift, 24h HH:mm.",
+                        "type": "string"
+                      },
+                      "capacity": {
+                        "description": "Total load the vehicle can carry; compared against each order's `load`.",
+                        "type": "number"
+                      },
+                      "startLocations": {
+                        "description": "Where the vehicle starts its shift (the depot).",
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "address": {
+                              "description": "Street address, including city and region/country (e.g. '800 Robson St, Vancouver, BC, Canada'). Provide this and/or latitude+longitude.",
+                              "type": "string"
+                            },
+                            "latitude": {
+                              "description": "Latitude in decimal degrees.",
+                              "type": "number"
+                            },
+                            "longitude": {
+                              "description": "Longitude in decimal degrees.",
+                              "type": "number"
+                            }
+                          }
+                        }
+                      },
+                      "endLocations": {
+                        "description": "Where the vehicle ends its shift. Omit to end at the final stop.",
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "address": {
+                              "description": "Street address, including city and region/country (e.g. '800 Robson St, Vancouver, BC, Canada'). Provide this and/or latitude+longitude.",
+                              "type": "string"
+                            },
+                            "latitude": {
+                              "description": "Latitude in decimal degrees.",
+                              "type": "number"
+                            },
+                            "longitude": {
+                              "description": "Longitude in decimal degrees.",
+                              "type": "number"
+                            }
+                          }
+                        }
+                      },
+                      "tags": {
+                        "description": "Skills/zones this vehicle can serve; matched against each order's `tags`.",
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              },
+              "description": "The fleet: the vehicles/drivers orders can be scheduled onto (max 500)."
+            },
+            "ordersData": {
+              "minItems": 1,
+              "maxItems": 5000,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Human-readable order or customer name."
+                  },
+                  "locations": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "address": {
+                          "description": "Street address, including city and region/country (e.g. '800 Robson St, Vancouver, BC, Canada'). Provide this and/or latitude+longitude.",
+                          "type": "string"
+                        },
+                        "latitude": {
+                          "description": "Latitude in decimal degrees.",
+                          "type": "number"
+                        },
+                        "longitude": {
+                          "description": "Longitude in decimal degrees.",
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "description": "The stop's location (address and/or coordinates)."
+                  },
+                  "duration": {
+                    "description": "Service time spent at the stop, in seconds (e.g. 900 for 15 minutes).",
+                    "type": "number"
+                  },
+                  "load": {
+                    "description": "Capacity units this order consumes; compared against a route's `capacity`.",
+                    "type": "number"
+                  },
+                  "timeWindows": {
+                    "description": "Allowed arrival windows for this stop. Omit to allow any time.",
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "startTime": {
+                          "type": "string",
+                          "description": "Window opens at, 24h HH:mm."
+                        },
+                        "endTime": {
+                          "type": "string",
+                          "description": "Window closes at, 24h HH:mm."
+                        }
+                      },
+                      "required": [
+                        "startTime",
+                        "endTime"
+                      ]
+                    }
+                  },
+                  "tags": {
+                    "description": "Requirements for this stop; matched against a route's `tags`.",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "customerOrderNumber": {
+                    "description": "Customer-facing order number.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "locations"
+                ]
+              },
+              "description": "The stops to schedule: deliveries or visits (max 5,000)."
+            },
+            "options": {
+              "description": "Optimization preferences.",
+              "type": "object",
+              "properties": {
+                "minimizeRoutes": {
+                  "description": "Solve with the fewest vehicles possible.",
+                  "type": "boolean"
+                },
+                "balanceType": {
+                  "description": "Balance workload across vehicles: 'time' evens out working time, 'orders' evens out stop counts, 'none' disables.",
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "orders",
+                    "time"
+                  ]
+                },
+                "flexibleStartTime": {
+                  "description": "Allow vehicles to start later than their `startTime` to reduce idle waiting.",
+                  "type": "boolean"
+                },
+                "excludeTolls": {
+                  "description": "Avoid toll roads.",
+                  "type": "boolean"
+                },
+                "excludeFerry": {
+                  "description": "Avoid ferry routes.",
+                  "type": "boolean"
+                },
+                "squashDuration": {
+                  "description": "Reduce service duration, in seconds, for consecutive stops at the same location.",
+                  "type": "number"
+                },
+                "defaultOrderDuration": {
+                  "description": "Service time, in seconds, for orders that omit their own `duration` (e.g. 900 for 15 minutes).",
+                  "type": "number"
+                },
+                "allowCapacityOverload": {
+                  "description": "Permit routes to exceed vehicle capacity.",
+                  "type": "boolean"
+                },
+                "allowRouteOvertime": {
+                  "description": "Permit routes to run past the vehicle's `endTime`.",
+                  "type": "boolean"
+                },
+                "allowVisitLateness": {
+                  "description": "Permit arrival after an order's time window.",
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "required": [
+            "routesData",
+            "ordersData"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_optimization",
+        "title": "Get Optimization Result",
+        "description": "Poll the status/result of an optimization started with `create_optimization`, by its actionUuid. Returns `{ status }` while the job is `pending`, and the solved schedule once the status is `finished` (or an error once `failed`). Docs: https://api-docs.routific.com/reference/fetch-schedule-status.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "actionUuid": {
+              "type": "string",
+              "description": "The actionUuid returned by create_optimization."
+            }
+          },
+          "required": [
+            "actionUuid"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "show_on_map",
+        "title": "Show on a Map in Routific",
+        "description": "Only for when the user chose the map in Routific (or asked for Routific, a map, or dispatch). If the user hasn't said whether they want the plan here in chat or set up on a map in their Routific account, ask them first and wait for the answer — don't call any planning tool until they've chosen. Put a plan on the map in the user's Routific account in ONE call: adds the stops as orders for the date, creates a route per driver (depot addresses are looked up on the map), optimizes only those orders onto those routes, waits for the result, and returns the 'Open in Routific' link (view_in_app) with a short summary — no stop list, since the user sees the plan in Routific. Use this when the user wants the result on a map / in Routific — instead of, not after, optimizing in chat. Nothing else in their workspace is touched. Orders count toward their plan. Answer as the result's `reply` field says: link first.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "workspaceUuid": {
+              "description": "Workspace uuid from list_workspaces. Optional when the account has exactly one workspace.",
+              "type": "string"
+            },
+            "date": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "The delivery day, YYYY-MM-DD."
+            },
+            "stops": {
+              "minItems": 1,
+              "maxItems": 500,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "address": {
+                    "type": "string",
+                    "minLength": 3,
+                    "description": "Full street address with city and region, e.g. '800 Robson St, Vancouver, BC, Canada'."
+                  },
+                  "latitude": {
+                    "description": "Only if the user gave exact coordinates; the address is still shown.",
+                    "type": "number"
+                  },
+                  "longitude": {
+                    "type": "number"
+                  },
+                  "name": {
+                    "description": "Customer or stop name. Defaults to the address.",
+                    "type": "string"
+                  },
+                  "duration": {
+                    "description": "Service time in SECONDS (300 = 5 minutes).",
+                    "type": "number"
+                  },
+                  "timeWindows": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "startTime": {
+                          "type": "string",
+                          "description": "24h HH:mm"
+                        },
+                        "endTime": {
+                          "type": "string",
+                          "description": "24h HH:mm"
+                        }
+                      },
+                      "required": [
+                        "startTime",
+                        "endTime"
+                      ]
+                    }
+                  },
+                  "instructions": {
+                    "description": "Notes for the driver.",
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "load": {
+                    "type": "number"
+                  },
+                  "customerOrderNumber": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "packages": {
+                    "description": "Package barcodes for the driver to scan.",
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "barcode": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "barcode"
+                      ]
+                    }
+                  },
+                  "customFields": {
+                    "description": "Values for custom fields that already exist on the account (they aren't created here).",
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "address"
+                ]
+              },
+              "description": "Every stop, once each (not the depot)."
+            },
+            "drivers": {
+              "minItems": 1,
+              "maxItems": 50,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Driver or vehicle name, e.g. 'Van 1'."
+                  },
+                  "startTime": {
+                    "type": "string",
+                    "description": "Shift start, 24h HH:mm (their departure time)."
+                  },
+                  "endTime": {
+                    "type": "string",
+                    "description": "Shift end, 24h HH:mm."
+                  },
+                  "startLocation": {
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "type": "string"
+                      },
+                      "latitude": {
+                        "type": "number"
+                      },
+                      "longitude": {
+                        "type": "number"
+                      }
+                    },
+                    "description": "{ address } (looked up on the map) or { latitude, longitude }. Never invent coordinates."
+                  },
+                  "endLocation": {
+                    "description": "Usually the same as startLocation when they return to the depot.",
+                    "type": "object",
+                    "properties": {
+                      "address": {
+                        "type": "string"
+                      },
+                      "latitude": {
+                        "type": "number"
+                      },
+                      "longitude": {
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "capacity": {
+                    "type": "number"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "startTime",
+                  "endTime"
+                ]
+              },
+              "description": "One entry per driver/vehicle."
+            },
+            "options": {
+              "description": "Optimization preferences.",
+              "type": "object",
+              "properties": {
+                "minimizeRoutes": {
+                  "description": "Solve with the fewest vehicles possible.",
+                  "type": "boolean"
+                },
+                "balanceType": {
+                  "description": "Balance workload across vehicles: 'time' evens out working time, 'orders' evens out stop counts, 'none' disables.",
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "orders",
+                    "time"
+                  ]
+                },
+                "flexibleStartTime": {
+                  "description": "Allow vehicles to start later than their `startTime` to reduce idle waiting.",
+                  "type": "boolean"
+                },
+                "excludeTolls": {
+                  "description": "Avoid toll roads.",
+                  "type": "boolean"
+                },
+                "excludeFerry": {
+                  "description": "Avoid ferry routes.",
+                  "type": "boolean"
+                },
+                "squashDuration": {
+                  "description": "Reduce service duration, in seconds, for consecutive stops at the same location.",
+                  "type": "number"
+                },
+                "defaultOrderDuration": {
+                  "description": "Service time, in seconds, for orders that omit their own `duration` (e.g. 900 for 15 minutes).",
+                  "type": "number"
+                },
+                "allowCapacityOverload": {
+                  "description": "Permit routes to exceed vehicle capacity.",
+                  "type": "boolean"
+                },
+                "allowRouteOvertime": {
+                  "description": "Permit routes to run past the vehicle's `endTime`.",
+                  "type": "boolean"
+                },
+                "allowVisitLateness": {
+                  "description": "Permit arrival after an order's time window.",
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "required": [
+            "date",
+            "stops",
+            "drivers"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "schedule_orders",
+        "title": "Schedule Orders (in workspace)",
+        "description": "Run Routific's optimizer on the user's workspace for a date: assigns the orders to the routes and sequences each route, like the Schedule button in the app. With only a date, it schedules every unscheduled order for that date across all unlocked routes; pass orders/routes to restrict it. The result is saved in the workspace. When setting up a plan from chat, pass only the orders and routes you just created. Waits for the run to finish (up to ~45s) and returns how many orders were scheduled; then share view_in_app as an 'Open in Routific' link. If it's still running when it returns, check again with `get_schedule_action`. Docs: https://api-docs.routific.com/reference/schedule-orders.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "workspaceUuid": {
+              "description": "Workspace uuid from list_workspaces. Optional when the account has exactly one workspace.",
+              "type": "string"
+            },
+            "date": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "The day to schedule, YYYY-MM-DD."
+            },
+            "orders": {
+              "description": "Only schedule these order uuids.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "routes": {
+              "description": "Only use these route uuids.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "options": {
+              "description": "Optimization preferences.",
+              "type": "object",
+              "properties": {
+                "minimizeRoutes": {
+                  "description": "Solve with the fewest vehicles possible.",
+                  "type": "boolean"
+                },
+                "balanceType": {
+                  "description": "Balance workload across vehicles: 'time' evens out working time, 'orders' evens out stop counts, 'none' disables.",
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "orders",
+                    "time"
+                  ]
+                },
+                "flexibleStartTime": {
+                  "description": "Allow vehicles to start later than their `startTime` to reduce idle waiting.",
+                  "type": "boolean"
+                },
+                "excludeTolls": {
+                  "description": "Avoid toll roads.",
+                  "type": "boolean"
+                },
+                "excludeFerry": {
+                  "description": "Avoid ferry routes.",
+                  "type": "boolean"
+                },
+                "squashDuration": {
+                  "description": "Reduce service duration, in seconds, for consecutive stops at the same location.",
+                  "type": "number"
+                },
+                "defaultOrderDuration": {
+                  "description": "Service time, in seconds, for orders that omit their own `duration` (e.g. 900 for 15 minutes).",
+                  "type": "number"
+                },
+                "allowCapacityOverload": {
+                  "description": "Permit routes to exceed vehicle capacity.",
+                  "type": "boolean"
+                },
+                "allowRouteOvertime": {
+                  "description": "Permit routes to run past the vehicle's `endTime`.",
+                  "type": "boolean"
+                },
+                "allowVisitLateness": {
+                  "description": "Permit arrival after an order's time window.",
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "required": [
+            "date"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "list_schedules",
+        "title": "List Schedules",
+        "description": "List schedules (keyset-paginated). Filter by workspace, date, or status.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "workspaceUuid": {
+              "type": "string"
+            },
+            "date": {
+              "description": "ISO8601 date filter.",
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "limit": {
+              "description": "Max items to return (keyset pagination).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "cursor": {
+              "description": "Opaque pagination cursor from a previous response's `nextCursor`.",
+              "type": "string"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_schedule_action",
+        "title": "Get Schedule Action Status",
+        "description": "Poll a schedule action's status by its actionUuid.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "actionUuid": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "actionUuid"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_schedule_solution",
+        "title": "Get Schedule Solution",
+        "description": "Fetch the full solved solution of a finished optimization, by its actionUuid: `{ routes, orders, unscheduledOrders }` — the per-vehicle stop sequences with ETAs, plus any orders that could not be scheduled. Call this once `get_optimization` reports the action `finished` (use the same actionUuid returned by `create_optimization`). Docs: https://api-docs.routific.com/reference/fetch-scheduled-solution.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "actionUuid": {
+              "type": "string",
+              "description": "The actionUuid returned by create_optimization (status must be `finished`)."
+            }
+          },
+          "required": [
+            "actionUuid"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "list_routes",
+        "title": "List Routes",
+        "description": "List a workspace's routes for a date: uuid, name, driver, status, order count, working time, distance. Set include_orders to also get each route's order uuids in stop order — the way to find a day's orders for follow-up edits (update_order / update_orders / delete_orders). Docs: https://api-docs.routific.com/reference/fetch-routes.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "workspaceUuid": {
+              "description": "Workspace uuid from list_workspaces. Optional when the account has exactly one workspace.",
+              "type": "string"
+            },
+            "date": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "The day, YYYY-MM-DD."
+            },
+            "include_orders": {
+              "description": "Also return each route's order uuids (one extra read per route).",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "date"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_route",
+        "title": "Get Route",
+        "description": "Get a single route by its uuid.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "uuid": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "uuid"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_route_timeline",
+        "title": "Get Route Timeline",
+        "description": "Get a route's timeline (stops in order with ETAs), keyset-paginated.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "uuid": {
+              "type": "string"
+            },
+            "limit": {
+              "description": "Max items to return (keyset pagination).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "cursor": {
+              "description": "Opaque pagination cursor from a previous response's `nextCursor`.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "uuid"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "create_routes",
+        "title": "Create Routes",
+        "description": "Create routes in a workspace (batch, max 50). Each route: { name, date (ISO8601), startTime, endTime (military time), startLocation?, endLocation?, capacity?, tags? }. One route per driver or vehicle. startLocation/endLocation: pass { address } (full street address with city and region — it's looked up on the map for you) or { latitude, longitude }. Never invent coordinates. The result lists where each address was placed under `geocoded_depots`; tell the user, so a wrong match is caught. Omit the locations if the user hasn't given a depot.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "workspaceUuid": {
+              "description": "Workspace uuid from list_workspaces. Optional when the account has exactly one workspace.",
+              "type": "string"
+            },
+            "routes": {
+              "minItems": 1,
+              "maxItems": 50,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              "description": "Routes to create (PostRoutePublicDto[])."
+            }
+          },
+          "required": [
+            "routes"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_order",
+        "title": "Get Order",
+        "description": "Get a single order (visit) by its uuid.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "uuid": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "uuid"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "create_orders",
+        "title": "Create Orders",
+        "description": "Create orders (visits) in a workspace (batch). Each order: { locations (required): [{ address, latitude?, longitude? }], name?, email?, duration? (service time in SECONDS, e.g. 300 for 5 minutes), phone?, instructions?, load?, timeWindows?, packages?, tags?, customFields?, deliveryDate? }. Set deliveryDate (YYYY-MM-DD) so the orders can be scheduled for that day with schedule_orders. Orders count toward the account's monthly plan.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "workspaceUuid": {
+              "description": "Workspace uuid from list_workspaces. Optional when the account has exactly one workspace.",
+              "type": "string"
+            },
+            "orders": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              "description": "Orders to create (PostVisitPublicDto[])."
+            }
+          },
+          "required": [
+            "orders"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "update_order",
+        "title": "Update Order",
+        "description": "Change fields on an existing order (scheduled or not). Pass ONLY the fields to change — everything else is kept; null clears a field. Pass `locations` to change the address (it re-geocodes); `duration` is service time in SECONDS (300 = 5 minutes). Editing a scheduled order re-times its route and may be async (returns an action to poll with `get_order_action`).",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "uuid": {
+              "type": "string"
+            },
+            "order": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {},
+              "description": "Only the fields to change, e.g. { timeWindows: [{ startTime: '09:00', endTime: '12:00' }] }."
+            }
+          },
+          "required": [
+            "uuid",
+            "order"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "update_orders",
+        "title": "Update Orders (bulk)",
+        "description": "Apply the same change to many orders in one call (up to 200) — use this instead of calling update_order once per order. Pass the order uuids (from show_on_map or list_routes with include_orders), the fields to change in `order` (everything else is kept; duration is in SECONDS), and/or addTags / removeTags to change tags while keeping the existing ones. Note: tags are routing requirements — an order tagged X can only go on a route tagged X — so for a plain label prefer customFields or instructions. Returns per-order results.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "uuids": {
+              "minItems": 1,
+              "maxItems": 200,
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "The orders to change."
+            },
+            "order": {
+              "description": "Fields to set on every order, e.g. { instructions: 'Leave at door' }.",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            },
+            "addTags": {
+              "description": "Tags to add, keeping each order's existing tags.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "removeTags": {
+              "description": "Tags to remove.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "uuids"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "delete_order",
+        "title": "Delete Order",
+        "description": "Permanently delete a single order by uuid, including one already on a route (the route is re-timed). Deleting a scheduled order is async (poll with `get_order_action`). Only call this after the user has explicitly confirmed — it can't be undone.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "uuid": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "uuid"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "delete_orders",
+        "title": "Delete Orders (bulk)",
+        "description": "Permanently delete multiple orders in a workspace by uuid (max 500), including ones already on a route. May be async (poll with `get_order_action`). Only call this after the user has explicitly confirmed — it can't be undone.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "workspaceUuid": {
+              "description": "Workspace uuid from list_workspaces. Optional when the account has exactly one workspace.",
+              "type": "string"
+            },
+            "uuids": {
+              "minItems": 1,
+              "maxItems": 500,
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Order uuids to delete."
+            }
+          },
+          "required": [
+            "uuids"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_order_action",
+        "title": "Get Order Action Status",
+        "description": "Poll an order async action (update/delete) by its actionUuid.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "actionUuid": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "actionUuid"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "list_workspaces",
+        "title": "List Workspaces",
+        "description": "List the organization's workspaces (keyset-paginated). Workspaces scope routes/orders.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Max items to return (keyset pagination).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "cursor": {
+              "description": "Opaque pagination cursor from a previous response's `nextCursor`.",
+              "type": "string"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-18T00:06:10.086Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-18T00:06:11.138Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-18T00:06:12.189Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-18T00:06:13.239Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 20,
+    "tools_hash": "sha256:0cdea4607ac667b0d85cfd80fcb21b602615add1fdc48f757aa15a2fb19bd19f",
+    "static_tool_tokens": 10109,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F1",
+        "severity": "high",
+        "kind": "sibling_overlap",
+        "tools": [
+          "get_schedule_action",
+          "get_schedule_solution"
+        ],
+        "message": "Both tools read the same resource, at least one description is under 60 characters, and neither says when to use it instead of the other.",
+        "evidence": {
+          "shared_noun": "schedule",
+          "verbs": [
+            "get",
+            "get"
+          ],
+          "description_chars": [
+            50,
+            403
+          ],
+          "cross_reference": false
+        }
+      },
+      {
+        "id": "F2",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "list_schedules",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "workspaceUuid"
+      },
+      {
+        "id": "F4",
+        "severity": "high",
+        "kind": "sibling_overlap",
+        "tools": [
+          "get_schedule_action",
+          "get_order_action"
+        ],
+        "message": "Both tools read the same resource, at least one description is under 60 characters, and neither says when to use it instead of the other.",
+        "evidence": {
+          "shared_noun": "action",
+          "verbs": [
+            "get",
+            "get"
+          ],
+          "description_chars": [
+            50,
+            61
+          ],
+          "cross_reference": false
+        }
+      },
+      {
+        "id": "F5",
+        "severity": "high",
+        "kind": "sibling_overlap",
+        "tools": [
+          "get_route",
+          "get_route_timeline"
+        ],
+        "message": "Both tools read the same resource, at least one description is under 60 characters, and neither says when to use it instead of the other.",
+        "evidence": {
+          "shared_noun": "route",
+          "verbs": [
+            "get",
+            "get"
+          ],
+          "description_chars": [
+            31,
+            68
+          ],
+          "cross_reference": false
+        }
+      },
+      {
+        "id": "F6",
+        "severity": "high",
+        "kind": "sibling_overlap",
+        "tools": [
+          "get_order",
+          "get_order_action"
+        ],
+        "message": "Both tools read the same resource, at least one description is under 60 characters, and neither says when to use it instead of the other.",
+        "evidence": {
+          "shared_noun": "order",
+          "verbs": [
+            "get",
+            "get"
+          ],
+          "description_chars": [
+            39,
+            61
+          ],
+          "cross_reference": false
+        }
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "optimize_route",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F8",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "create_optimization",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "create_optimization",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_optimization",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_optimization",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "show_on_map",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "schedule_orders",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_schedules",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_schedules",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "list_schedules",
+        "message": "Parameter has no description.",
+        "param": "workspaceUuid"
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "list_schedules",
+        "message": "Parameter has no description.",
+        "param": "status"
+      },
+      {
+        "id": "F18",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "list_schedules",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "status"
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_schedule_action",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_schedule_action",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_schedule_action",
+        "message": "Parameter has no description.",
+        "param": "actionUuid"
+      },
+      {
+        "id": "F22",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_schedule_action",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "actionUuid"
+      },
+      {
+        "id": "F23",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_schedule_solution",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F24",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_routes",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F25",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_routes",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F26",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_route",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F27",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_route",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F28",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_route",
+        "message": "Parameter has no description.",
+        "param": "uuid"
+      },
+      {
+        "id": "F29",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_route",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "uuid"
+      },
+      {
+        "id": "F30",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_route_timeline",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F31",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_route_timeline",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F32",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_route_timeline",
+        "message": "Parameter has no description.",
+        "param": "uuid"
+      },
+      {
+        "id": "F33",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_route_timeline",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "uuid"
+      },
+      {
+        "id": "F34",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "create_routes",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F35",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "create_routes",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F36",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_order",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F37",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_order",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F38",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_order",
+        "message": "Parameter has no description.",
+        "param": "uuid"
+      },
+      {
+        "id": "F39",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_order",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "uuid"
+      },
+      {
+        "id": "F40",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "create_orders",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F41",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "create_orders",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F42",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "update_order",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F43",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "update_order",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F44",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "update_order",
+        "message": "Parameter has no description.",
+        "param": "uuid"
+      },
+      {
+        "id": "F45",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "update_order",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "uuid"
+      },
+      {
+        "id": "F46",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "update_orders",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F47",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "delete_order",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F48",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "delete_order",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F49",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "delete_order",
+        "message": "Parameter has no description.",
+        "param": "uuid"
+      },
+      {
+        "id": "F50",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "delete_order",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "uuid"
+      },
+      {
+        "id": "F51",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "delete_orders",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F52",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "delete_orders",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F53",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_order_action",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F54",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_order_action",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F55",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_order_action",
+        "message": "Parameter has no description.",
+        "param": "actionUuid"
+      },
+      {
+        "id": "F56",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_order_action",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "actionUuid"
+      },
+      {
+        "id": "F57",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_workspaces",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F58",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_workspaces",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 13,
+      "medium": 43,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "optimize_route",
+          "path": "inputSchema.properties.return_to_start",
+          "name": "return_to_start",
+          "description": "If true, the route ends back at the starting location. Default false.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "create_optimization",
+          "path": "inputSchema.properties.ordersData.items.properties.duration",
+          "name": "duration",
+          "description": "Service time spent at the stop, in seconds (e.g. 900 for 15 minutes).",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "create_optimization",
+          "path": "inputSchema.properties.options.properties.excludeTolls",
+          "name": "excludeTolls",
+          "description": "Avoid toll roads.",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "create_optimization",
+          "path": "inputSchema.properties.options.properties.excludeFerry",
+          "name": "excludeFerry",
+          "description": "Avoid ferry routes.",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "show_on_map",
+          "path": "inputSchema.properties.stops.items.properties.duration",
+          "name": "duration",
+          "description": "Service time in SECONDS (300 = 5 minutes).",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "show_on_map",
+          "path": "inputSchema.properties.stops.items.properties.customFields",
+          "name": "customFields",
+          "description": "Values for custom fields that already exist on the account (they aren't created here).",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "show_on_map",
+          "path": "inputSchema.properties.options.properties.excludeTolls",
+          "name": "excludeTolls",
+          "description": "Avoid toll roads.",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "show_on_map",
+          "path": "inputSchema.properties.options.properties.excludeFerry",
+          "name": "excludeFerry",
+          "description": "Avoid ferry routes.",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "schedule_orders",
+          "path": "inputSchema.properties.options.properties.excludeTolls",
+          "name": "excludeTolls",
+          "description": "Avoid toll roads.",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "schedule_orders",
+          "path": "inputSchema.properties.options.properties.excludeFerry",
+          "name": "excludeFerry",
+          "description": "Avoid ferry routes.",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "list_schedules",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max items to return (keyset pagination).",
+          "mentions_size_or_cost": true,
+          "maximum": 100
+        },
+        {
+          "tool": "list_schedules",
+          "path": "inputSchema.properties.cursor",
+          "name": "cursor",
+          "description": "Opaque pagination cursor from a previous response's `nextCursor`.",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "list_routes",
+          "path": "inputSchema.properties.include_orders",
+          "name": "include_orders",
+          "description": "Also return each route's order uuids (one extra read per route).",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "get_route_timeline",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max items to return (keyset pagination).",
+          "mentions_size_or_cost": true,
+          "maximum": 100
+        },
+        {
+          "tool": "get_route_timeline",
+          "path": "inputSchema.properties.cursor",
+          "name": "cursor",
+          "description": "Opaque pagination cursor from a previous response's `nextCursor`.",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "list_workspaces",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max items to return (keyset pagination).",
+          "mentions_size_or_cost": true,
+          "maximum": 100
+        },
+        {
+          "tool": "list_workspaces",
+          "path": "inputSchema.properties.cursor",
+          "name": "cursor",
+          "description": "Opaque pagination cursor from a previous response's `nextCursor`.",
+          "mentions_size_or_cost": false
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "create_optimization"
+          ],
+          "path": "inputSchema.properties.ordersData.items.properties.duration",
+          "description": "Service time spent at the stop, in seconds (e.g. 900 for 15 minutes).",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "create_optimization"
+          ],
+          "path": "inputSchema.properties.options.properties.excludeTolls",
+          "description": "Avoid toll roads.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "create_optimization"
+          ],
+          "path": "inputSchema.properties.options.properties.excludeFerry",
+          "description": "Avoid ferry routes.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "show_on_map"
+          ],
+          "path": "inputSchema.properties.stops.items.properties.duration",
+          "description": "Service time in SECONDS (300 = 5 minutes).",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "show_on_map"
+          ],
+          "path": "inputSchema.properties.stops.items.properties.customFields",
+          "description": "Values for custom fields that already exist on the account (they aren't created here).",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "show_on_map"
+          ],
+          "path": "inputSchema.properties.options.properties.excludeTolls",
+          "description": "Avoid toll roads.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "show_on_map"
+          ],
+          "path": "inputSchema.properties.options.properties.excludeFerry",
+          "description": "Avoid ferry routes.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "schedule_orders"
+          ],
+          "path": "inputSchema.properties.options.properties.excludeTolls",
+          "description": "Avoid toll roads.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "schedule_orders"
+          ],
+          "path": "inputSchema.properties.options.properties.excludeFerry",
+          "description": "Avoid ferry routes.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "schedule_orders"
+          ],
+          "description": "Run Routific's optimizer on the user's workspace for a date: assigns the orders to the routes and sequences each route, like the Schedule button in the app. With only a date, it schedules every unscheduled order for that date across all unlocked routes; pass orders/routes to restrict it. The result is saved in the workspace. When setting up a plan from chat, pass only the orders and routes you just created. Waits for the run to finish (up to ~45s) and returns how many orders were scheduled; then share view_in_app as an 'Open in Routific' link. If it's still running when it returns, check again with `get_schedule_action`. Docs: https://api-docs.routific.com/reference/schedule-orders.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "list_schedules"
+          ],
+          "path": "inputSchema.properties.cursor",
+          "description": "Opaque pagination cursor from a previous response's `nextCursor`.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "list_routes"
+          ],
+          "path": "inputSchema.properties.include_orders",
+          "description": "Also return each route's order uuids (one extra read per route).",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get_route_timeline"
+          ],
+          "path": "inputSchema.properties.cursor",
+          "description": "Opaque pagination cursor from a previous response's `nextCursor`.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "update_order"
+          ],
+          "description": "Change fields on an existing order (scheduled or not). Pass ONLY the fields to change — everything else is kept; null clears a field. Pass `locations` to change the address (it re-geocodes); `duration` is service time in SECONDS (300 = 5 minutes). Editing a scheduled order re-times its route and may be async (returns an action to poll with `get_order_action`).",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "update_orders"
+          ],
+          "description": "Apply the same change to many orders in one call (up to 200) — use this instead of calling update_order once per order. Pass the order uuids (from show_on_map or list_routes with include_orders), the fields to change in `order` (everything else is kept; duration is in SECONDS), and/or addTags / removeTags to change tags while keeping the existing ones. Note: tags are routing requirements — an order tagged X can only go on a route tagged X — so for a plain label prefer customFields or instructions. Returns per-order results.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "list_workspaces"
+          ],
+          "path": "inputSchema.properties.cursor",
+          "description": "Opaque pagination cursor from a previous response's `nextCursor`.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_schedules",
+            "get_schedule_action"
+          ],
+          "hypothesis": "Read tools share resource terms (schedule), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_schedules",
+            "get_schedule_solution"
+          ],
+          "hypothesis": "Read tools share resource terms (schedule), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_schedule_action",
+            "get_schedule_solution"
+          ],
+          "hypothesis": "Read tools share resource terms (schedule), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_schedule_action",
+            "get_order_action"
+          ],
+          "hypothesis": "Read tools share resource terms (action), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_routes",
+            "get_route"
+          ],
+          "hypothesis": "Read tools share resource terms (route), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_routes",
+            "get_route_timeline"
+          ],
+          "hypothesis": "Read tools share resource terms (route), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_route",
+            "get_route_timeline"
+          ],
+          "hypothesis": "Read tools share resource terms (route), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_order",
+            "get_order_action"
+          ],
+          "hypothesis": "Read tools share resource terms (order), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "optimize_route",
+      "get_optimization",
+      "list_schedules",
+      "get_schedule_action",
+      "get_schedule_solution",
+      "list_routes",
+      "get_route",
+      "get_route_timeline",
+      "get_order",
+      "get_order_action",
+      "list_workspaces"
+    ]
+  }
+}

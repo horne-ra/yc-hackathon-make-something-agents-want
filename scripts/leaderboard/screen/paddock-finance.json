@@ -1,0 +1,1238 @@
+{
+  "slug": "paddock-finance",
+  "source_url": "https://manufact.com/mcp-catalog/paddock-finance",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-18T00:01:40.279Z",
+    "endpoint": "https://paddock.finance/api/mcp/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "Paddock",
+      "version": "3.6.0"
+    },
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Agent payments have no chargeback. Paddock is pre-payment verification for AI agents. get_market_summary needs no key. Other tools take an api_key argument: a free key is issued with an email at paddock.finance/docs and has a daily limit; paid keys remove it. Tools only read data. Paddock never makes payments and never writes anything on the user's behalf.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "verify_before_pay",
+            "title": "Verify Before Pay",
+            "description": "Should my agent pay this endpoint right now? Free key - a free pk_free_ key covers it against a shared 10 calls/day; $0.25 per call via x402 beyond it. Over MCP only, 1 free trial call/day is available without a key. CALL THIS BEFORE YOUR AGENT AUTHORIZES ANY x402 PAYMENT. An unpaid GET and POST at query time decode the 402 from the body AND the payment-required header; HTTP 200 is never treated as live. A contract mismatch is route:false and names the field (network, asset, seller, price). Includes independent paid-fulfillment results where available — whether a third party has actually paid this endpoint and got a valid response back, with the settlement hash. Test the result with route === true: the string \"inconclusive\" is truthy, and it is the one case where you must not pay on our say-so. The bias is deliberate: where evidence is incomplete, verify_before_pay favors inconclusive over a false pass — it will more often decline to clear a good endpoint than clear a bad one. route: true means the live contract matched your expectations — it is not an all-clear on every signal: stale settlement, a circular flag, a payTo divergence, and a failed request pre-flight can each coexist with it, so read the checks block rather than route alone. route_state carries the same verdict as route, always as a string (\"true\", \"false\", \"inconclusive\"), for clients that cannot type a boolean-or-string field. contract_and_request_ok is the narrower combined verdict: true only when route is true AND your own declared request passed pre-flight, false when either is bad, and the string \"not_assessed\" when a term was never established (usually because you passed no intended_params). Test it with === true; contract_and_request_ok_excludes names the risk categories it is silent on. No success-rate field is returned, deliberately: Paddock observes settlements, not failed calls, so recency and frequency are reported instead. Pass attest: true to also issue a signed, publicly fetchable record of this verdict — returns an attestation id and a URL a third party can verify independently against Paddock's published key.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "endpoint_url": {
+                  "description": "The resource URL your agent is about to pay, e.g. 'https://api.example.com/x402/search'. This is what gets probed.",
+                  "type": "string"
+                },
+                "pay_to": {
+                  "description": "The recipient wallet from the 402 you are about to settle. CHECKED against the live challenge: if this endpoint is not currently asking to be paid at that wallet, route is false. Give this, endpoint_url, or both.",
+                  "type": "string"
+                },
+                "expect_network": {
+                  "description": "Network you expect, e.g. 'eip155:8453' or 'base'. A mismatch returns route:false.",
+                  "type": "string"
+                },
+                "expect_asset": {
+                  "description": "Asset contract address you expect, e.g. Base USDC. A mismatch returns route:false.",
+                  "type": "string"
+                },
+                "expect_seller": {
+                  "description": "Seller domain you expect, e.g. 'api.example.com'. A mismatch returns route:false.",
+                  "type": "string"
+                },
+                "expect_price_usdc": {
+                  "description": "Price in dollars you expect to pay, e.g. 0.01. Any difference returns route:false and names the field.",
+                  "type": "number"
+                },
+                "intended_params": {
+                  "description": "Parameter NAMES your request will carry, comma-separated or as a query string, e.g. 'slug,limit' or '?slug=amazon-us'. Values are discarded. Checked against the schema the 402 declares; a missing required name is reported and does NOT change route.",
+                  "type": "string"
+                },
+                "intended_params_empty": {
+                  "description": "Set true if your paid request will carry NO parameters at all. That is an assertion and it is checked: against a challenge that declares anything required, an empty request fails pre-flight. Omitting both this and intended_params means 'I have not told you', which is reported, never read as 'none'. Passing both is an error.",
+                  "type": "boolean"
+                },
+                "attest": {
+                  "description": "Also issue a signed, publicly fetchable record of this verdict. Returns an attestation id and a URL a third party can verify independently against Paddock's published key.",
+                  "type": "boolean"
+                },
+                "api_key": {
+                  "description": "Paddock API key. A free key (pk_free_) is enough for this tool — POST an email to paddock.finance/api/keys/free to get one. Builder/Pro Agent keys also work.",
+                  "type": "string"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "check_payee",
+            "title": "Check Payee",
+            "description": "Is this the seller's wallet, before my agent pays it? Fast payee check before an agent pays. Send the resource URL and the payment terms you are about to sign: payee wallet, network and amount. Paddock answers from its daily settlement record in one call, with no live probe, and returns pass, warn, fail or unknown. Only fail recommends blocking. Free without a key up to 25 checks a day, or 1000 a day with a free key. For a full check against the seller's live payment terms, use verify_before_pay. Past the free limits, $0.01 per call over x402.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "description": "The resource URL the agent is about to pay"
+                },
+                "pay_to": {
+                  "type": "string",
+                  "description": "The payee wallet from the payment requirements"
+                },
+                "network": {
+                  "type": "string",
+                  "description": "CAIP-2 or x402 friendly name, e.g. eip155:8453, base, solana"
+                },
+                "asset": {
+                  "description": "Token address. Echoed back, not checked",
+                  "type": "string"
+                },
+                "amount_atomic": {
+                  "description": "Amount in atomic units",
+                  "type": "string"
+                },
+                "api_key": {
+                  "description": "Paddock API key. A free key (pk_free_) is enough for this tool — POST an email to paddock.finance/api/keys/free to get one. Builder/Pro Agent keys also work.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url",
+                "pay_to",
+                "network"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_market_summary",
+            "title": "Get Market Summary",
+            "description": "How big is agent commerce today? (The citation number.) Keyless - no key, no payment, no rate limit. Returns daily transactions, USDC spend, unique buyer agents, live providers, and top categories by share. Each category's share_of_transactions is its share of CATEGORIZED (attributed) transactions — named categories only, NOT a share of the full-ecosystem daily_transactions total; only the top 6 are returned, so the shown shares sum to <100% by design.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {}
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_liveness",
+            "title": "Get Liveness",
+            "description": "Was this domain up at last night's probe, per someone who isn't the seller? Free key - a free pk_free_ key covers it against a shared 10 calls/day; $0.001 per call via x402 beyond it. Over MCP only, 1 free trial call/day is available without a key. Per-domain 7-day share of probes that succeeded, latency p50/p95, sample counts, and last-probe time — including domains with no payment history at all. Sourced from an independent third-party monitoring feed, captured NIGHTLY: this is a daily series, not a live probe — for a check taken at query time use verify_before_pay. up is 7-day share of probes that succeeded >= 0.95 across every probed endpoint on the domain.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "domain": {
+                  "type": "string",
+                  "description": "Service domain to look up, e.g. 'api.example.com'"
+                },
+                "api_key": {
+                  "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "domain"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_circular_signal",
+            "title": "Get Circular Signal",
+            "description": "Is this facilitator's volume real, or is it paying itself? Paid - $0.99 per call via x402, or a Builder / Pro Agent key. Over MCP only, 1 free trial call/day is available without a key. Wash/circular-settlement signal per facilitator: flagged clusters, flagged volume and share, self-funding percentage, detection date. Methodology public (v0.1). Patterns attach to the facilitator only — no seller wallet addresses, operator identity, or per-wallet rows are ever returned.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "window": {
+                  "description": "Reporting window for the trend context (default 30d).",
+                  "type": "string",
+                  "enum": [
+                    "7d",
+                    "30d"
+                  ]
+                },
+                "api_key": {
+                  "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+                  "type": "string"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_best_value_provider",
+            "title": "Get Best-Value Provider",
+            "description": "Which provider in this category should my agent pick? Paid - $0.02 per call via x402, or a Builder / Pro Agent key. Over MCP only, 1 free trial call/day is available without a key. Ranks a category by reliability (7-day share of probes that succeeded), reputation (unique buyers), and price, returning every input so the score can be checked. The composite formula is published in the route and in the docs, and Paddock does not sell positions in this ranking. Valid categories: llm, data, search, infra, content, markets, payments, comms (aliases accepted).",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "category": {
+                  "type": "string",
+                  "description": "Category name, e.g. 'llm', 'data', 'markets'"
+                },
+                "api_key": {
+                  "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "category"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_category_detail",
+            "title": "Get Category Detail",
+            "description": "Who's selling in this category, and who's actually getting paid? Free key - a free pk_free_ key covers it against a shared 10 calls/day. Every service in a category with daily transactions, USDC volume, unique buyers, and reliability score, from the nightly snapshot. Valid categories: llm, data, search, infra, content, markets, payments, comms. Accepts common aliases (e.g. 'LLM inference' -> llm, 'scraping' -> data, 'trading' -> markets, 'defi' -> markets).",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "category": {
+                  "type": "string",
+                  "description": "Category name, e.g. 'llm', 'data', 'markets'"
+                },
+                "api_key": {
+                  "description": "Paddock API key. A free key (pk_free_) is enough for this tool — POST an email to paddock.finance/api/keys/free to get one. Builder/Pro Agent keys also work.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "category"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_niche_gaps",
+            "title": "Get Niche Gaps",
+            "description": "Where is demand outrunning supply? Free key - a free pk_free_ key covers it against a shared 10 calls/day; $0.01 per call via x402 beyond it. Over MCP only, 1 free trial call/day is available without a key. Every category ranked by opportunity score (high volume, few providers), with concentration and an Open/Tightening/Consolidating/Mature signal, and the published thresholds behind that label.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "top": {
+                  "description": "Optional: return only the top N categories by opportunity_score (1-50).",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50
+                },
+                "api_key": {
+                  "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+                  "type": "string"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_changes",
+            "title": "Get Changes",
+            "description": "What changed since a date I name? Paid - $0.10 per call via x402, or a Builder / Pro Agent key. Over MCP only, 1 free trial call/day is available without a key. Diffs today against any snapshot up to 90 days back — new services, retired services, category share shifts, top movers, with the figures on both sides.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "since": {
+                  "type": "string",
+                  "description": "Comparison date in YYYY-MM-DD format, earlier than today (UTC), max 90 days back."
+                },
+                "api_key": {
+                  "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "since"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_whale_activity",
+            "title": "Get Whale Activity",
+            "description": "Where did the large settlements go? Paid - $0.99 per call via x402, or a Builder / Pro Agent key. Over MCP only, 1 free trial call/day is available without a key. Large settlements over a window, aggregated by facilitator, category and size band, plus per-category mover counts. Size and where, never who — no individual seller identity is returned.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "window": {
+                  "description": "Mover comparison window in days (1-90, default 7).",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 90
+                },
+                "min_usd": {
+                  "description": "Large-settlement threshold in USD (default 1000).",
+                  "type": "number",
+                  "minimum": 0
+                },
+                "api_key": {
+                  "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+                  "type": "string"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_token_metrics",
+            "title": "Get Token Metrics",
+            "description": "Is today's number a real move or ordinary noise? Free key - a free pk_free_ key covers it against a shared 10 calls/day; $0.01 per call via x402 beyond it. Over MCP only, 1 free trial call/day is available without a key. Paddock's own first-party series — the same chart data the public /charts page reads — queryable by metric and date range. Metrics: spend_share_over_time, daily_transactions, category_concentration, new_services, liveness_score, aci. The aci metric returns the Agent Commerce Index series, which is SUSPENDED (ADR 0006): existing prints are retained and served, no new prints are computed, so that series does not advance. This is Paddock's series, not token prices; third-party token market data is deliberately not resold here.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "metric": {
+                  "type": "string",
+                  "enum": [
+                    "spend_share_over_time",
+                    "daily_transactions",
+                    "category_concentration",
+                    "new_services",
+                    "liveness_score",
+                    "aci",
+                    "settled_share_by_service"
+                  ],
+                  "description": "Which series to return."
+                },
+                "days": {
+                  "description": "Lookback window in days for the chart series (1-730, default 90).",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 730
+                },
+                "category": {
+                  "description": "Category id for category_concentration (e.g. 'llm').",
+                  "type": "string"
+                },
+                "from": {
+                  "description": "Start month YYYY-MM (aci metric only).",
+                  "type": "string"
+                },
+                "to": {
+                  "description": "End month YYYY-MM (aci metric only).",
+                  "type": "string"
+                },
+                "api_key": {
+                  "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "metric"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_provider_revenue",
+            "title": "Get Provider Revenue",
+            "description": "Who earns the most, and how much of the market can that answer see? Paid - $0.99 per call via x402, or a Builder / Pro Agent key. Over MCP only, 1 free trial call/day is available without a key. Resolved by payTo wallet attribution, not by counting events. ATTRIBUTED universe only, never the full-ecosystem census: facilitator pass-through and circular-flagged wallets are excluded from the leaderboard; unresolved wallets are not dropped — they surface as one explicit unattributed row (transaction share only, no dollar figure exists for them). Also reports whether the recipient list was complete on every aggregated day, and flags (retroactive_exclusion_caveat) any day before 2026-07-28 where a wallet added to the exclusion lists afterward could not be retroactively re-checked.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "window": {
+                  "description": "Days to aggregate (1-90, default 7).",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 90
+                },
+                "top": {
+                  "description": "Return only the top N providers by revenue_usd (1-100, default 20).",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "api_key": {
+                  "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+                  "type": "string"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_report_data",
+            "title": "Get Report Data",
+            "description": "What are the numbers behind the monthly report? Paid - $0.99 per call via x402, or a Builder / Pro Agent key. Metadata is free. No free trial on this tool. The monthly State of Agent Commerce as structured JSON: every figure with its universe label and methodology version, plus trends, category breakdowns, protocol comparison and reliability. Any Agent Commerce Index (ACI) block is a retained historical print — the index is suspended (ADR 0006) and no new prints are computed. Free metadata (title, TOC, executive summary excerpt) is available without payment at /api/mcp/report-data.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "month": {
+                  "description": "Optional report month in YYYY-MM format (e.g. 2026-06). Defaults to the latest published month.",
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}$"
+                },
+                "api_key": {
+                  "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+                  "type": "string"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "verify_before_pay",
+        "title": "Verify Before Pay",
+        "description": "Should my agent pay this endpoint right now? Free key - a free pk_free_ key covers it against a shared 10 calls/day; $0.25 per call via x402 beyond it. Over MCP only, 1 free trial call/day is available without a key. CALL THIS BEFORE YOUR AGENT AUTHORIZES ANY x402 PAYMENT. An unpaid GET and POST at query time decode the 402 from the body AND the payment-required header; HTTP 200 is never treated as live. A contract mismatch is route:false and names the field (network, asset, seller, price). Includes independent paid-fulfillment results where available — whether a third party has actually paid this endpoint and got a valid response back, with the settlement hash. Test the result with route === true: the string \"inconclusive\" is truthy, and it is the one case where you must not pay on our say-so. The bias is deliberate: where evidence is incomplete, verify_before_pay favors inconclusive over a false pass — it will more often decline to clear a good endpoint than clear a bad one. route: true means the live contract matched your expectations — it is not an all-clear on every signal: stale settlement, a circular flag, a payTo divergence, and a failed request pre-flight can each coexist with it, so read the checks block rather than route alone. route_state carries the same verdict as route, always as a string (\"true\", \"false\", \"inconclusive\"), for clients that cannot type a boolean-or-string field. contract_and_request_ok is the narrower combined verdict: true only when route is true AND your own declared request passed pre-flight, false when either is bad, and the string \"not_assessed\" when a term was never established (usually because you passed no intended_params). Test it with === true; contract_and_request_ok_excludes names the risk categories it is silent on. No success-rate field is returned, deliberately: Paddock observes settlements, not failed calls, so recency and frequency are reported instead. Pass attest: true to also issue a signed, publicly fetchable record of this verdict — returns an attestation id and a URL a third party can verify independently against Paddock's published key.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "endpoint_url": {
+              "description": "The resource URL your agent is about to pay, e.g. 'https://api.example.com/x402/search'. This is what gets probed.",
+              "type": "string"
+            },
+            "pay_to": {
+              "description": "The recipient wallet from the 402 you are about to settle. CHECKED against the live challenge: if this endpoint is not currently asking to be paid at that wallet, route is false. Give this, endpoint_url, or both.",
+              "type": "string"
+            },
+            "expect_network": {
+              "description": "Network you expect, e.g. 'eip155:8453' or 'base'. A mismatch returns route:false.",
+              "type": "string"
+            },
+            "expect_asset": {
+              "description": "Asset contract address you expect, e.g. Base USDC. A mismatch returns route:false.",
+              "type": "string"
+            },
+            "expect_seller": {
+              "description": "Seller domain you expect, e.g. 'api.example.com'. A mismatch returns route:false.",
+              "type": "string"
+            },
+            "expect_price_usdc": {
+              "description": "Price in dollars you expect to pay, e.g. 0.01. Any difference returns route:false and names the field.",
+              "type": "number"
+            },
+            "intended_params": {
+              "description": "Parameter NAMES your request will carry, comma-separated or as a query string, e.g. 'slug,limit' or '?slug=amazon-us'. Values are discarded. Checked against the schema the 402 declares; a missing required name is reported and does NOT change route.",
+              "type": "string"
+            },
+            "intended_params_empty": {
+              "description": "Set true if your paid request will carry NO parameters at all. That is an assertion and it is checked: against a challenge that declares anything required, an empty request fails pre-flight. Omitting both this and intended_params means 'I have not told you', which is reported, never read as 'none'. Passing both is an error.",
+              "type": "boolean"
+            },
+            "attest": {
+              "description": "Also issue a signed, publicly fetchable record of this verdict. Returns an attestation id and a URL a third party can verify independently against Paddock's published key.",
+              "type": "boolean"
+            },
+            "api_key": {
+              "description": "Paddock API key. A free key (pk_free_) is enough for this tool — POST an email to paddock.finance/api/keys/free to get one. Builder/Pro Agent keys also work.",
+              "type": "string"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "check_payee",
+        "title": "Check Payee",
+        "description": "Is this the seller's wallet, before my agent pays it? Fast payee check before an agent pays. Send the resource URL and the payment terms you are about to sign: payee wallet, network and amount. Paddock answers from its daily settlement record in one call, with no live probe, and returns pass, warn, fail or unknown. Only fail recommends blocking. Free without a key up to 25 checks a day, or 1000 a day with a free key. For a full check against the seller's live payment terms, use verify_before_pay. Past the free limits, $0.01 per call over x402.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "The resource URL the agent is about to pay"
+            },
+            "pay_to": {
+              "type": "string",
+              "description": "The payee wallet from the payment requirements"
+            },
+            "network": {
+              "type": "string",
+              "description": "CAIP-2 or x402 friendly name, e.g. eip155:8453, base, solana"
+            },
+            "asset": {
+              "description": "Token address. Echoed back, not checked",
+              "type": "string"
+            },
+            "amount_atomic": {
+              "description": "Amount in atomic units",
+              "type": "string"
+            },
+            "api_key": {
+              "description": "Paddock API key. A free key (pk_free_) is enough for this tool — POST an email to paddock.finance/api/keys/free to get one. Builder/Pro Agent keys also work.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "url",
+            "pay_to",
+            "network"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_market_summary",
+        "title": "Get Market Summary",
+        "description": "How big is agent commerce today? (The citation number.) Keyless - no key, no payment, no rate limit. Returns daily transactions, USDC spend, unique buyer agents, live providers, and top categories by share. Each category's share_of_transactions is its share of CATEGORIZED (attributed) transactions — named categories only, NOT a share of the full-ecosystem daily_transactions total; only the top 6 are returned, so the shown shares sum to <100% by design.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_liveness",
+        "title": "Get Liveness",
+        "description": "Was this domain up at last night's probe, per someone who isn't the seller? Free key - a free pk_free_ key covers it against a shared 10 calls/day; $0.001 per call via x402 beyond it. Over MCP only, 1 free trial call/day is available without a key. Per-domain 7-day share of probes that succeeded, latency p50/p95, sample counts, and last-probe time — including domains with no payment history at all. Sourced from an independent third-party monitoring feed, captured NIGHTLY: this is a daily series, not a live probe — for a check taken at query time use verify_before_pay. up is 7-day share of probes that succeeded >= 0.95 across every probed endpoint on the domain.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "domain": {
+              "type": "string",
+              "description": "Service domain to look up, e.g. 'api.example.com'"
+            },
+            "api_key": {
+              "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "domain"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_circular_signal",
+        "title": "Get Circular Signal",
+        "description": "Is this facilitator's volume real, or is it paying itself? Paid - $0.99 per call via x402, or a Builder / Pro Agent key. Over MCP only, 1 free trial call/day is available without a key. Wash/circular-settlement signal per facilitator: flagged clusters, flagged volume and share, self-funding percentage, detection date. Methodology public (v0.1). Patterns attach to the facilitator only — no seller wallet addresses, operator identity, or per-wallet rows are ever returned.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "window": {
+              "description": "Reporting window for the trend context (default 30d).",
+              "type": "string",
+              "enum": [
+                "7d",
+                "30d"
+              ]
+            },
+            "api_key": {
+              "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+              "type": "string"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_best_value_provider",
+        "title": "Get Best-Value Provider",
+        "description": "Which provider in this category should my agent pick? Paid - $0.02 per call via x402, or a Builder / Pro Agent key. Over MCP only, 1 free trial call/day is available without a key. Ranks a category by reliability (7-day share of probes that succeeded), reputation (unique buyers), and price, returning every input so the score can be checked. The composite formula is published in the route and in the docs, and Paddock does not sell positions in this ranking. Valid categories: llm, data, search, infra, content, markets, payments, comms (aliases accepted).",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "category": {
+              "type": "string",
+              "description": "Category name, e.g. 'llm', 'data', 'markets'"
+            },
+            "api_key": {
+              "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "category"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_category_detail",
+        "title": "Get Category Detail",
+        "description": "Who's selling in this category, and who's actually getting paid? Free key - a free pk_free_ key covers it against a shared 10 calls/day. Every service in a category with daily transactions, USDC volume, unique buyers, and reliability score, from the nightly snapshot. Valid categories: llm, data, search, infra, content, markets, payments, comms. Accepts common aliases (e.g. 'LLM inference' -> llm, 'scraping' -> data, 'trading' -> markets, 'defi' -> markets).",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "category": {
+              "type": "string",
+              "description": "Category name, e.g. 'llm', 'data', 'markets'"
+            },
+            "api_key": {
+              "description": "Paddock API key. A free key (pk_free_) is enough for this tool — POST an email to paddock.finance/api/keys/free to get one. Builder/Pro Agent keys also work.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "category"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_niche_gaps",
+        "title": "Get Niche Gaps",
+        "description": "Where is demand outrunning supply? Free key - a free pk_free_ key covers it against a shared 10 calls/day; $0.01 per call via x402 beyond it. Over MCP only, 1 free trial call/day is available without a key. Every category ranked by opportunity score (high volume, few providers), with concentration and an Open/Tightening/Consolidating/Mature signal, and the published thresholds behind that label.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "top": {
+              "description": "Optional: return only the top N categories by opportunity_score (1-50).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "api_key": {
+              "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+              "type": "string"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_changes",
+        "title": "Get Changes",
+        "description": "What changed since a date I name? Paid - $0.10 per call via x402, or a Builder / Pro Agent key. Over MCP only, 1 free trial call/day is available without a key. Diffs today against any snapshot up to 90 days back — new services, retired services, category share shifts, top movers, with the figures on both sides.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "since": {
+              "type": "string",
+              "description": "Comparison date in YYYY-MM-DD format, earlier than today (UTC), max 90 days back."
+            },
+            "api_key": {
+              "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "since"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_whale_activity",
+        "title": "Get Whale Activity",
+        "description": "Where did the large settlements go? Paid - $0.99 per call via x402, or a Builder / Pro Agent key. Over MCP only, 1 free trial call/day is available without a key. Large settlements over a window, aggregated by facilitator, category and size band, plus per-category mover counts. Size and where, never who — no individual seller identity is returned.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "window": {
+              "description": "Mover comparison window in days (1-90, default 7).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 90
+            },
+            "min_usd": {
+              "description": "Large-settlement threshold in USD (default 1000).",
+              "type": "number",
+              "minimum": 0
+            },
+            "api_key": {
+              "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+              "type": "string"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_token_metrics",
+        "title": "Get Token Metrics",
+        "description": "Is today's number a real move or ordinary noise? Free key - a free pk_free_ key covers it against a shared 10 calls/day; $0.01 per call via x402 beyond it. Over MCP only, 1 free trial call/day is available without a key. Paddock's own first-party series — the same chart data the public /charts page reads — queryable by metric and date range. Metrics: spend_share_over_time, daily_transactions, category_concentration, new_services, liveness_score, aci. The aci metric returns the Agent Commerce Index series, which is SUSPENDED (ADR 0006): existing prints are retained and served, no new prints are computed, so that series does not advance. This is Paddock's series, not token prices; third-party token market data is deliberately not resold here.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "metric": {
+              "type": "string",
+              "enum": [
+                "spend_share_over_time",
+                "daily_transactions",
+                "category_concentration",
+                "new_services",
+                "liveness_score",
+                "aci",
+                "settled_share_by_service"
+              ],
+              "description": "Which series to return."
+            },
+            "days": {
+              "description": "Lookback window in days for the chart series (1-730, default 90).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 730
+            },
+            "category": {
+              "description": "Category id for category_concentration (e.g. 'llm').",
+              "type": "string"
+            },
+            "from": {
+              "description": "Start month YYYY-MM (aci metric only).",
+              "type": "string"
+            },
+            "to": {
+              "description": "End month YYYY-MM (aci metric only).",
+              "type": "string"
+            },
+            "api_key": {
+              "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "metric"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_provider_revenue",
+        "title": "Get Provider Revenue",
+        "description": "Who earns the most, and how much of the market can that answer see? Paid - $0.99 per call via x402, or a Builder / Pro Agent key. Over MCP only, 1 free trial call/day is available without a key. Resolved by payTo wallet attribution, not by counting events. ATTRIBUTED universe only, never the full-ecosystem census: facilitator pass-through and circular-flagged wallets are excluded from the leaderboard; unresolved wallets are not dropped — they surface as one explicit unattributed row (transaction share only, no dollar figure exists for them). Also reports whether the recipient list was complete on every aggregated day, and flags (retroactive_exclusion_caveat) any day before 2026-07-28 where a wallet added to the exclusion lists afterward could not be retroactively re-checked.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "window": {
+              "description": "Days to aggregate (1-90, default 7).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 90
+            },
+            "top": {
+              "description": "Return only the top N providers by revenue_usd (1-100, default 20).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "api_key": {
+              "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+              "type": "string"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_report_data",
+        "title": "Get Report Data",
+        "description": "What are the numbers behind the monthly report? Paid - $0.99 per call via x402, or a Builder / Pro Agent key. Metadata is free. No free trial on this tool. The monthly State of Agent Commerce as structured JSON: every figure with its universe label and methodology version, plus trends, category breakdowns, protocol comparison and reliability. Any Agent Commerce Index (ACI) block is a retained historical print — the index is suspended (ADR 0006) and no new prints are computed. Free metadata (title, TOC, executive summary excerpt) is available without payment at /api/mcp/report-data.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "month": {
+              "description": "Optional report month in YYYY-MM format (e.g. 2026-06). Defaults to the latest published month.",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$"
+            },
+            "api_key": {
+              "description": "Optional Paddock API key (Builder/Pro Agent subscription). Omit to use the free trial (1 call/day) or to see x402 pay-per-query payment details.",
+              "type": "string"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-18T00:01:36.939Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-18T00:01:37.990Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-18T00:01:39.042Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-18T00:01:40.094Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 13,
+    "tools_hash": "sha256:7660c6cb5c9722718d9a75a9ba991808f74b8a8a3c7573bd2a094af886494283",
+    "static_tool_tokens": 6651,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "verify_before_pay",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "verify_before_pay",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "check_payee",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_market_summary",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_market_summary",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_liveness",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_circular_signal",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_circular_signal",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_best_value_provider",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_best_value_provider",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_category_detail",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_category_detail",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_niche_gaps",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_niche_gaps",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_changes",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_changes",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_whale_activity",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_whale_activity",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F22",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_token_metrics",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F23",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_token_metrics",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F24",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_provider_revenue",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F25",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_provider_revenue",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F26",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_report_data",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F27",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_report_data",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 23,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "get_circular_signal",
+          "path": "inputSchema.properties.window",
+          "name": "window",
+          "description": "Reporting window for the trend context (default 30d).",
+          "mentions_size_or_cost": true,
+          "described_default": 30
+        },
+        {
+          "tool": "get_whale_activity",
+          "path": "inputSchema.properties.window",
+          "name": "window",
+          "description": "Mover comparison window in days (1-90, default 7).",
+          "mentions_size_or_cost": true,
+          "described_default": 7,
+          "maximum": 90
+        },
+        {
+          "tool": "get_provider_revenue",
+          "path": "inputSchema.properties.window",
+          "name": "window",
+          "description": "Days to aggregate (1-90, default 7).",
+          "mentions_size_or_cost": true,
+          "described_default": 7,
+          "maximum": 90
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "verify_before_pay"
+          ],
+          "description": "Should my agent pay this endpoint right now? Free key - a free pk_free_ key covers it against a shared 10 calls/day; $0.25 per call via x402 beyond it. Over MCP only, 1 free trial call/day is available without a key. CALL THIS BEFORE YOUR AGENT AUTHORIZES ANY x402 PAYMENT. An unpaid GET and POST at query time decode the 402 from the body AND the payment-required header; HTTP 200 is never treated as live. A contract mismatch is route:false and names the field (network, asset, seller, price). Includes independent paid-fulfillment results where available — whether a third party has actually paid this endpoint and got a valid response back, with the settlement hash. Test the result with route === true: the string \"inconclusive\" is truthy, and it is the one case where you must not pay on our say-so. The bias is deliberate: where evidence is incomplete, verify_before_pay favors inconclusive over a false pass — it will more often decline to clear a good endpoint than clear a bad one. route: true means the live contract matched your expectations — it is not an all-clear on every signal: stale settlement, a circular flag, a payTo divergence, and a failed request pre-flight can each coexist with it, so read the checks block rather than route alone. route_state carries the same verdict as route, always as a string (\"true\", \"false\", \"inconclusive\"), for clients that cannot type a boolean-or-string field. contract_and_request_ok is the narrower combined verdict: true only when route is true AND your own declared request passed pre-flight, false when either is bad, and the string \"not_assessed\" when a term was never established (usually because you passed no intended_params). Test it with === true; contract_and_request_ok_excludes names the risk categories it is silent on. No success-rate field is returned, deliberately: Paddock observes settlements, not failed calls, so recency and frequency are reported instead. Pass attest: true to also issue a signed, publicly fetchable record of this verdict — returns an attestation id and a URL a third party can verify independently against Paddock's published key.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_liveness"
+          ],
+          "description": "Was this domain up at last night's probe, per someone who isn't the seller? Free key - a free pk_free_ key covers it against a shared 10 calls/day; $0.001 per call via x402 beyond it. Over MCP only, 1 free trial call/day is available without a key. Per-domain 7-day share of probes that succeeded, latency p50/p95, sample counts, and last-probe time — including domains with no payment history at all. Sourced from an independent third-party monitoring feed, captured NIGHTLY: this is a daily series, not a live probe — for a check taken at query time use verify_before_pay. up is 7-day share of probes that succeeded >= 0.95 across every probed endpoint on the domain.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_provider_revenue"
+          ],
+          "description": "Who earns the most, and how much of the market can that answer see? Paid - $0.99 per call via x402, or a Builder / Pro Agent key. Over MCP only, 1 free trial call/day is available without a key. Resolved by payTo wallet attribution, not by counting events. ATTRIBUTED universe only, never the full-ecosystem census: facilitator pass-through and circular-flagged wallets are excluded from the leaderboard; unresolved wallets are not dropped — they surface as one explicit unattributed row (transaction share only, no dollar figure exists for them). Also reports whether the recipient list was complete on every aggregated day, and flags (retroactive_exclusion_caveat) any day before 2026-07-28 where a wallet added to the exclusion lists afterward could not be retroactively re-checked.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_best_value_provider",
+            "get_provider_revenue"
+          ],
+          "hypothesis": "Read tools share resource terms (provider), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "verify_before_pay",
+      "check_payee",
+      "get_market_summary",
+      "get_liveness",
+      "get_circular_signal",
+      "get_best_value_provider",
+      "get_category_detail",
+      "get_niche_gaps",
+      "get_changes",
+      "get_whale_activity",
+      "get_token_metrics",
+      "get_provider_revenue",
+      "get_report_data"
+    ]
+  }
+}

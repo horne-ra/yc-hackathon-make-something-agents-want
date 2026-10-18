@@ -1,0 +1,919 @@
+{
+  "slug": "pick-your-match",
+  "source_url": "https://manufact.com/mcp-catalog/pick-your-match",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:24:28.441Z",
+    "endpoint": "https://pym-mcp.gauvendi.workers.dev/",
+    "transport": "streamable",
+    "server": {
+      "name": "pickyourmatch",
+      "title": "Pick Your Match — Direct Hotel Search",
+      "icons": [
+        {
+          "src": "https://pickyourmatch.com/icon-512.png",
+          "mimeType": "image/png",
+          "sizes": [
+            "512x512"
+          ]
+        },
+        {
+          "src": "https://pickyourmatch.com/apple-touch-icon.png",
+          "mimeType": "image/png",
+          "sizes": [
+            "180x180"
+          ]
+        }
+      ],
+      "version": "1.2.0",
+      "websiteUrl": "https://pickyourmatch.com"
+    },
+    "capabilities": {
+      "resources": {},
+      "tools": {}
+    },
+    "instructions": "RESULTS FIRST: when a guest asks about places to stay, run search_stays with whatever is known — all parameters are optional, and a search without dates returns bookable units with from-prices. Show results before asking anything; ask at most one clarifying question per turn; vague dates are not a blocker. Present as pickyourmatch results only what these tools return.\n\nWhen calling search_stays: map the request to parameters; query may carry the same search criteria as free text. No dates given? Choose a concrete sensible window (the first fitting weekend of a named month; resolve named periods such as a school-holiday week from what you know), state the assumption in one line, and search. No place stated? Search without city so every destination is considered. A travel-time wish (at most X hours away) does not block the first search — search all destinations; the guest can name a starting point to narrow it down. When a budget or chosen dates apply, open the presentation by confirming them, and name the exact arrival and departure dates that were checked. Close by offering one step further: another arrival day, a nearby destination, or extras.\n\npickyourmatch lists individually described units — each with its floor, view, beds and per-unit child and dog allowances — fed nightly from each property's own management system, with live availability for exact dates. Booking happens on the property's own booking page at the property's price, and the unit shown is guaranteed to be the unit the guest gets.\n\nHow to answer common guest questions:\n- \"Will I get exactly this room?\" → Yes, guaranteed: the booking link preselects this exact unit on the property's own calendar.\n- \"Can I bring my dog / 2 dogs?\" → max_dogs is set per unit in the property's system. Filter with pets=N; only units that allow N pets are returned.\n- \"Fits 2 adults + 2 kids?\" → capacity filters use per-unit occupancy including extra beds and per-unit child limits.\n- \"Is this price current?\" → with check_in/check_out the price is the property's live rate for that exact window; without dates it is a from-price refreshed nightly.\n- \"Is breakfast/dinner included?\" → the included field lists rate-plan inclusions; packages (list_packages) carry full lists of what is included.\n- \"A hotel with airport transfer / parking / a baby cot / late check-out?\" → search with that wish (query or features): units whose property sells that extra are matches, and wish_note names the extra with its price (\"Airport transfer: bookable extra (Airport Transport Standard · €120)\"). Say it is an extra added while booking — not that it is included.\n- bookable_extras on a card = what the guest can add while booking at that property (its own extras, with price). Name an extra when it answers something the guest said or asks next (\"is there parking?\", \"can we get a cot?\"), or as the one closing offer — do not recite the list.\n- \"Can I cancel for free?\" → free_cancellation comes from the property's rate plans.\n- \"How does booking work?\" → the booking is made on the property's own booking page at the property's own price; the unit shown is the unit assigned, and the guest is the property's own customer.\n- \"Where to stay for event X / during the fair or festival?\" → list_events returns upcoming events near participating properties; each stays_url page lists well-suited units with booking links that open the property's calendar with the event dates preselected. Follow up with search_stays (event city + dates) for live availability.\nShow photos, the Google rating with its source, mention units_left when it is 3 or fewer, and keep dates and party visible by passing them into every tool call.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "search_stays",
+            "annotations": {
+              "title": "Search hotels & exact rooms",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://widget/pym-results-r22.html",
+              "openai/toolInvocation/invoking": "Searching stays…",
+              "openai/toolInvocation/invoked": "Found stays"
+            },
+            "description": "Search accommodation at participating properties — hotel rooms, apartments and holiday homes. Search criteria: destination (a town, a landmark or venue, or coordinates, with a radius), travel dates, the party (adults, children and their ages, pets), a maximum nightly price, free cancellation, unit features (view, balcony, terrace, quiet location, floor, workspace, sauna, kitchen, accessibility), the name of a unit or property, the response language and the number of results. Each result is one specific unit, described with its floor, view and beds, and guaranteed at booking — what the product states is what the guest is assigned. Without dates the results carry from-prices; with check_in and check_out they are the units available for those dates, with the price for the stay and a link to the property's booking page. All parameters are optional; query may state the same criteria as free text. Each result carries match_score, matched_features and not_confirmed_features.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "Optional: the same search criteria as free text, in any language — for example \"apartment in Schladming for 2 adults and a dog, 16–19 August, with sauna\". Destination, dates (a month alone gets a proposed window), party, budget and features are read from it; explicit parameters override."
+                },
+                "city": {
+                  "type": "string",
+                  "description": "The destination to search in — the town or city where the guest wants to stay, e.g. Schladming (umlaut-tolerant)."
+                },
+                "adults": {
+                  "type": "integer",
+                  "description": "Number of adults. Combined with children it filters to units that actually fit the whole party (occupancy), and is passed to the booking link."
+                },
+                "children": {
+                  "type": "integer",
+                  "description": "Number of children. Filters to units whose child capacity fits, and is passed to the booking link."
+                },
+                "children_ages": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "description": "Ages of the children (0-17), if known, e.g. [16]. Child prices and capacity depend on age."
+                },
+                "pets": {
+                  "type": "integer",
+                  "description": "Number of pets/dogs. Filters to units that allow at least this many pets, and is passed to the booking link."
+                },
+                "dogs": {
+                  "type": "integer",
+                  "description": "Alias for pets."
+                },
+                "sleeps": {
+                  "type": "integer",
+                  "description": "Minimum total guests the unit must sleep (use adults+children instead when you know the split)."
+                },
+                "max_price": {
+                  "type": "number",
+                  "description": "Maximum nightly price. Dated quotes above this appear only as labeled alternatives when exact matches are insufficient."
+                },
+                "free_cancellation": {
+                  "type": "boolean",
+                  "description": "The guest wants to be able to cancel for free. With dates, each card quotes the refundable rate and its price; a unit with no refundable rate on those dates is shown only as a labelled alternative."
+                },
+                "features": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Required features (matched against localized feature names), e.g. [\"Sauna\", \"Balkon\"]. Also what a property sells as a bookable extra: \"Airport transfer\", \"Parking\", \"Baby cot\", \"Late check-out\" — a card then carries the extra with its price in wish_note."
+                },
+                "check_in": {
+                  "type": "string",
+                  "description": "Arrival date YYYY-MM-DD. With check_in and check_out, results are the units available for those dates, with the nightly price for that stay and a booking link with the dates filled in."
+                },
+                "check_out": {
+                  "type": "string",
+                  "description": "Departure date YYYY-MM-DD (must be after check_in, max 30 nights)."
+                },
+                "near": {
+                  "type": "string",
+                  "description": "A landmark, venue, trade fair, station or address to stay close to (\"Messe Frankfurt\", \"Allianz Arena\", \"Frankfurt airport\"). The server geocodes it and returns results nearest first, each with approx_km. Combine freely with dates, party, price and features."
+                },
+                "radius_km": {
+                  "type": "number",
+                  "description": "Maximum straight-line distance for near (or lat/lng), default 30, max 200. If nothing lies within, the nearest options are returned with their distances."
+                },
+                "radius_miles": {
+                  "type": "number",
+                  "description": "The same radius in miles, for guests who think in miles; results then also carry approx_mi."
+                },
+                "lat": {
+                  "type": "number",
+                  "description": "Latitude of the place to search around (a landmark or venue) — an alternative to near."
+                },
+                "lng": {
+                  "type": "number",
+                  "description": "Longitude of the place to search around (a landmark or venue) — an alternative to near."
+                },
+                "cursor": {
+                  "type": "integer",
+                  "description": "Dated searches live-check up to 20 properties per call. When the response carries next_cursor, repeat the SAME search with cursor=next_cursor to check the remaining properties — a page without next_cursor has covered everything. Never conclude \"sold out\" from a page whose coverage.complete is false."
+                },
+                "lang": {
+                  "type": "string",
+                  "enum": [
+                    "en",
+                    "de",
+                    "fr",
+                    "es",
+                    "it",
+                    "nl",
+                    "ar"
+                  ],
+                  "description": "Language for names/features/links (default en)"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "A specific unit or property the guest named (\"Villa Albatros No. 1\", \"Kaiser Karl\", \"City Hotel Meckenheim\"). Use it when the guest asks for a unit or property by name — it matches unit and property names directly, so a named unit is found even when it is not free for the requested dates. A named unit is never filtered out by availability: it comes back with its status and a link to the property's own calendar."
+                },
+                "limit": {
+                  "type": "integer",
+                  "description": "Max results (default 10, max 30)"
+                }
+              }
+            }
+          },
+          {
+            "name": "list_destinations",
+            "annotations": {
+              "title": "list destinations",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://widget/pym-results-r22.html",
+              "openai/toolInvocation/invoking": "Loading destinations…",
+              "openai/toolInvocation/invoked": "Found destinations"
+            },
+            "description": "List all destinations served by pickyourmatch with unit counts, dog-friendly counts and a photo — USE THIS to inspire a guest who has not decided where to travel yet. ALWAYS pass the party (adults/children/pets) and dates (check_in/check_out) already known from the conversation — they stay visible above the results and keep the search context.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "adults": {
+                  "type": "integer",
+                  "description": "Adults already mentioned in the conversation — always pass along."
+                },
+                "children": {
+                  "type": "integer",
+                  "description": "Children already mentioned — always pass along."
+                },
+                "pets": {
+                  "type": "integer",
+                  "description": "Pets/dogs already mentioned — always pass along; destinations are then ranked by dog-friendly units."
+                },
+                "dogs": {
+                  "type": "integer",
+                  "description": "Alias for pets."
+                },
+                "check_in": {
+                  "type": "string",
+                  "description": "Arrival YYYY-MM-DD if already known — always pass along."
+                },
+                "check_out": {
+                  "type": "string",
+                  "description": "Departure YYYY-MM-DD if already known — always pass along."
+                },
+                "lang": {
+                  "type": "string",
+                  "enum": [
+                    "en",
+                    "de",
+                    "fr",
+                    "es",
+                    "it",
+                    "nl",
+                    "ar"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "list_packages",
+            "annotations": {
+              "title": "list packages",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://widget/pym-results-r22.html",
+              "openai/toolInvocation/invoking": "Loading packages…",
+              "openai/toolInvocation/invoked": "Found packages"
+            },
+            "description": "Theme-driven, AFTER the units: when the brief carries a package theme (romantic, wellness, dog, culinary) or the guest asks for deals, call this AFTER search_stays in the same turn - the packages appear as their own section BELOW the unit results and enrich the selection. Never call it first, never instead of the unit search. List themed holiday packages (promotional bundles) across properties — dog holidays, romance, wellness, culinary — each with included extras (e.g. dinner, treatments) and a direct booking link. Use for emotional/experience queries like \"romantic getaway package\" or \"dog holiday with meals included\".",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "city": {
+                  "type": "string",
+                  "description": "Filter by destination city (umlaut-tolerant)"
+                },
+                "theme": {
+                  "type": "string",
+                  "enum": [
+                    "dog",
+                    "romance",
+                    "wellness",
+                    "family",
+                    "ski",
+                    "culinary"
+                  ],
+                  "description": "Filter by package theme"
+                },
+                "adults": {
+                  "type": "integer",
+                  "description": "Adults known from the conversation — always pass along (kept visible above results)."
+                },
+                "children": {
+                  "type": "integer",
+                  "description": "Children known from the conversation — always pass along."
+                },
+                "pets": {
+                  "type": "integer",
+                  "description": "Pets/dogs known from the conversation — always pass along."
+                },
+                "dogs": {
+                  "type": "integer",
+                  "description": "Alias for pets."
+                },
+                "check_in": {
+                  "type": "string",
+                  "description": "Arrival YYYY-MM-DD if known — always pass along."
+                },
+                "check_out": {
+                  "type": "string",
+                  "description": "Departure YYYY-MM-DD if known — always pass along."
+                },
+                "lang": {
+                  "type": "string",
+                  "enum": [
+                    "en",
+                    "de",
+                    "fr",
+                    "es",
+                    "it",
+                    "nl",
+                    "ar"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "list_events",
+            "annotations": {
+              "title": "list events",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "description": "List upcoming events (concerts, festivals, trade fairs, sports, conferences) near pickyourmatch properties — each with a \"where to stay\" page whose booking links open the property’s own calendar with the event dates preselected. USE THIS whenever a guest asks for accommodation during/for a specific event or asks what is happening at a destination — e.g. \"where should I stay for the Frankfurt Book Fair?\", \"hotel for Oktoberfest that allows my dog\", \"apartment for the ski race in Schladming\". Combine with search_stays to add room features: event + exact room + direct booking in one answer.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "city": {
+                  "type": "string",
+                  "description": "Filter by destination city (umlaut-tolerant)"
+                },
+                "query": {
+                  "type": "string",
+                  "description": "Match against the event name, e.g. \"Oktoberfest\""
+                },
+                "from": {
+                  "type": "string",
+                  "description": "Only events ending on/after this date YYYY-MM-DD"
+                },
+                "to": {
+                  "type": "string",
+                  "description": "Only events starting on/before this date YYYY-MM-DD"
+                },
+                "limit": {
+                  "type": "integer",
+                  "description": "Max results (default 20, max 50)"
+                }
+              }
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "total": {
+                  "type": "integer",
+                  "description": "Number of events matching the filters (before limit)"
+                },
+                "lang": {
+                  "type": "string",
+                  "description": "Language of the response"
+                },
+                "city": {
+                  "type": "string",
+                  "description": "Echo of the city filter, if given"
+                },
+                "query": {
+                  "type": "string",
+                  "description": "Echo of the name query, if given"
+                },
+                "guidance": {
+                  "type": "string",
+                  "description": "How to present the results / what to do when empty"
+                },
+                "events": {
+                  "type": "array",
+                  "description": "Upcoming events, soonest first",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "Event name"
+                      },
+                      "start": {
+                        "type": "string",
+                        "description": "Start date YYYY-MM-DD"
+                      },
+                      "end": {
+                        "type": "string",
+                        "description": "End date YYYY-MM-DD"
+                      },
+                      "location": {
+                        "type": "string",
+                        "description": "Venue or locality of the event"
+                      },
+                      "city": {
+                        "type": "string",
+                        "description": "Destination city of the nearby property"
+                      },
+                      "property": {
+                        "type": "string",
+                        "description": "Nearby pickyourmatch property name"
+                      },
+                      "stays_url": {
+                        "type": "string",
+                        "description": "Where-to-stay guide page: suited units with booking links that have the event dates preselected"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "start",
+                      "city",
+                      "property",
+                      "stays_url"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "total",
+                "events",
+                "guidance"
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "search_stays",
+        "annotations": {
+          "title": "Search hotels & exact rooms",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://widget/pym-results-r22.html",
+          "openai/toolInvocation/invoking": "Searching stays…",
+          "openai/toolInvocation/invoked": "Found stays"
+        },
+        "description": "Search accommodation at participating properties — hotel rooms, apartments and holiday homes. Search criteria: destination (a town, a landmark or venue, or coordinates, with a radius), travel dates, the party (adults, children and their ages, pets), a maximum nightly price, free cancellation, unit features (view, balcony, terrace, quiet location, floor, workspace, sauna, kitchen, accessibility), the name of a unit or property, the response language and the number of results. Each result is one specific unit, described with its floor, view and beds, and guaranteed at booking — what the product states is what the guest is assigned. Without dates the results carry from-prices; with check_in and check_out they are the units available for those dates, with the price for the stay and a link to the property's booking page. All parameters are optional; query may state the same criteria as free text. Each result carries match_score, matched_features and not_confirmed_features.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Optional: the same search criteria as free text, in any language — for example \"apartment in Schladming for 2 adults and a dog, 16–19 August, with sauna\". Destination, dates (a month alone gets a proposed window), party, budget and features are read from it; explicit parameters override."
+            },
+            "city": {
+              "type": "string",
+              "description": "The destination to search in — the town or city where the guest wants to stay, e.g. Schladming (umlaut-tolerant)."
+            },
+            "adults": {
+              "type": "integer",
+              "description": "Number of adults. Combined with children it filters to units that actually fit the whole party (occupancy), and is passed to the booking link."
+            },
+            "children": {
+              "type": "integer",
+              "description": "Number of children. Filters to units whose child capacity fits, and is passed to the booking link."
+            },
+            "children_ages": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "description": "Ages of the children (0-17), if known, e.g. [16]. Child prices and capacity depend on age."
+            },
+            "pets": {
+              "type": "integer",
+              "description": "Number of pets/dogs. Filters to units that allow at least this many pets, and is passed to the booking link."
+            },
+            "dogs": {
+              "type": "integer",
+              "description": "Alias for pets."
+            },
+            "sleeps": {
+              "type": "integer",
+              "description": "Minimum total guests the unit must sleep (use adults+children instead when you know the split)."
+            },
+            "max_price": {
+              "type": "number",
+              "description": "Maximum nightly price. Dated quotes above this appear only as labeled alternatives when exact matches are insufficient."
+            },
+            "free_cancellation": {
+              "type": "boolean",
+              "description": "The guest wants to be able to cancel for free. With dates, each card quotes the refundable rate and its price; a unit with no refundable rate on those dates is shown only as a labelled alternative."
+            },
+            "features": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Required features (matched against localized feature names), e.g. [\"Sauna\", \"Balkon\"]. Also what a property sells as a bookable extra: \"Airport transfer\", \"Parking\", \"Baby cot\", \"Late check-out\" — a card then carries the extra with its price in wish_note."
+            },
+            "check_in": {
+              "type": "string",
+              "description": "Arrival date YYYY-MM-DD. With check_in and check_out, results are the units available for those dates, with the nightly price for that stay and a booking link with the dates filled in."
+            },
+            "check_out": {
+              "type": "string",
+              "description": "Departure date YYYY-MM-DD (must be after check_in, max 30 nights)."
+            },
+            "near": {
+              "type": "string",
+              "description": "A landmark, venue, trade fair, station or address to stay close to (\"Messe Frankfurt\", \"Allianz Arena\", \"Frankfurt airport\"). The server geocodes it and returns results nearest first, each with approx_km. Combine freely with dates, party, price and features."
+            },
+            "radius_km": {
+              "type": "number",
+              "description": "Maximum straight-line distance for near (or lat/lng), default 30, max 200. If nothing lies within, the nearest options are returned with their distances."
+            },
+            "radius_miles": {
+              "type": "number",
+              "description": "The same radius in miles, for guests who think in miles; results then also carry approx_mi."
+            },
+            "lat": {
+              "type": "number",
+              "description": "Latitude of the place to search around (a landmark or venue) — an alternative to near."
+            },
+            "lng": {
+              "type": "number",
+              "description": "Longitude of the place to search around (a landmark or venue) — an alternative to near."
+            },
+            "cursor": {
+              "type": "integer",
+              "description": "Dated searches live-check up to 20 properties per call. When the response carries next_cursor, repeat the SAME search with cursor=next_cursor to check the remaining properties — a page without next_cursor has covered everything. Never conclude \"sold out\" from a page whose coverage.complete is false."
+            },
+            "lang": {
+              "type": "string",
+              "enum": [
+                "en",
+                "de",
+                "fr",
+                "es",
+                "it",
+                "nl",
+                "ar"
+              ],
+              "description": "Language for names/features/links (default en)"
+            },
+            "name": {
+              "type": "string",
+              "description": "A specific unit or property the guest named (\"Villa Albatros No. 1\", \"Kaiser Karl\", \"City Hotel Meckenheim\"). Use it when the guest asks for a unit or property by name — it matches unit and property names directly, so a named unit is found even when it is not free for the requested dates. A named unit is never filtered out by availability: it comes back with its status and a link to the property's own calendar."
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Max results (default 10, max 30)"
+            }
+          }
+        }
+      },
+      {
+        "name": "list_destinations",
+        "annotations": {
+          "title": "list destinations",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://widget/pym-results-r22.html",
+          "openai/toolInvocation/invoking": "Loading destinations…",
+          "openai/toolInvocation/invoked": "Found destinations"
+        },
+        "description": "List all destinations served by pickyourmatch with unit counts, dog-friendly counts and a photo — USE THIS to inspire a guest who has not decided where to travel yet. ALWAYS pass the party (adults/children/pets) and dates (check_in/check_out) already known from the conversation — they stay visible above the results and keep the search context.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "adults": {
+              "type": "integer",
+              "description": "Adults already mentioned in the conversation — always pass along."
+            },
+            "children": {
+              "type": "integer",
+              "description": "Children already mentioned — always pass along."
+            },
+            "pets": {
+              "type": "integer",
+              "description": "Pets/dogs already mentioned — always pass along; destinations are then ranked by dog-friendly units."
+            },
+            "dogs": {
+              "type": "integer",
+              "description": "Alias for pets."
+            },
+            "check_in": {
+              "type": "string",
+              "description": "Arrival YYYY-MM-DD if already known — always pass along."
+            },
+            "check_out": {
+              "type": "string",
+              "description": "Departure YYYY-MM-DD if already known — always pass along."
+            },
+            "lang": {
+              "type": "string",
+              "enum": [
+                "en",
+                "de",
+                "fr",
+                "es",
+                "it",
+                "nl",
+                "ar"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "list_packages",
+        "annotations": {
+          "title": "list packages",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://widget/pym-results-r22.html",
+          "openai/toolInvocation/invoking": "Loading packages…",
+          "openai/toolInvocation/invoked": "Found packages"
+        },
+        "description": "Theme-driven, AFTER the units: when the brief carries a package theme (romantic, wellness, dog, culinary) or the guest asks for deals, call this AFTER search_stays in the same turn - the packages appear as their own section BELOW the unit results and enrich the selection. Never call it first, never instead of the unit search. List themed holiday packages (promotional bundles) across properties — dog holidays, romance, wellness, culinary — each with included extras (e.g. dinner, treatments) and a direct booking link. Use for emotional/experience queries like \"romantic getaway package\" or \"dog holiday with meals included\".",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string",
+              "description": "Filter by destination city (umlaut-tolerant)"
+            },
+            "theme": {
+              "type": "string",
+              "enum": [
+                "dog",
+                "romance",
+                "wellness",
+                "family",
+                "ski",
+                "culinary"
+              ],
+              "description": "Filter by package theme"
+            },
+            "adults": {
+              "type": "integer",
+              "description": "Adults known from the conversation — always pass along (kept visible above results)."
+            },
+            "children": {
+              "type": "integer",
+              "description": "Children known from the conversation — always pass along."
+            },
+            "pets": {
+              "type": "integer",
+              "description": "Pets/dogs known from the conversation — always pass along."
+            },
+            "dogs": {
+              "type": "integer",
+              "description": "Alias for pets."
+            },
+            "check_in": {
+              "type": "string",
+              "description": "Arrival YYYY-MM-DD if known — always pass along."
+            },
+            "check_out": {
+              "type": "string",
+              "description": "Departure YYYY-MM-DD if known — always pass along."
+            },
+            "lang": {
+              "type": "string",
+              "enum": [
+                "en",
+                "de",
+                "fr",
+                "es",
+                "it",
+                "nl",
+                "ar"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "name": "list_events",
+        "annotations": {
+          "title": "list events",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "description": "List upcoming events (concerts, festivals, trade fairs, sports, conferences) near pickyourmatch properties — each with a \"where to stay\" page whose booking links open the property’s own calendar with the event dates preselected. USE THIS whenever a guest asks for accommodation during/for a specific event or asks what is happening at a destination — e.g. \"where should I stay for the Frankfurt Book Fair?\", \"hotel for Oktoberfest that allows my dog\", \"apartment for the ski race in Schladming\". Combine with search_stays to add room features: event + exact room + direct booking in one answer.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string",
+              "description": "Filter by destination city (umlaut-tolerant)"
+            },
+            "query": {
+              "type": "string",
+              "description": "Match against the event name, e.g. \"Oktoberfest\""
+            },
+            "from": {
+              "type": "string",
+              "description": "Only events ending on/after this date YYYY-MM-DD"
+            },
+            "to": {
+              "type": "string",
+              "description": "Only events starting on/before this date YYYY-MM-DD"
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Max results (default 20, max 50)"
+            }
+          }
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "total": {
+              "type": "integer",
+              "description": "Number of events matching the filters (before limit)"
+            },
+            "lang": {
+              "type": "string",
+              "description": "Language of the response"
+            },
+            "city": {
+              "type": "string",
+              "description": "Echo of the city filter, if given"
+            },
+            "query": {
+              "type": "string",
+              "description": "Echo of the name query, if given"
+            },
+            "guidance": {
+              "type": "string",
+              "description": "How to present the results / what to do when empty"
+            },
+            "events": {
+              "type": "array",
+              "description": "Upcoming events, soonest first",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Event name"
+                  },
+                  "start": {
+                    "type": "string",
+                    "description": "Start date YYYY-MM-DD"
+                  },
+                  "end": {
+                    "type": "string",
+                    "description": "End date YYYY-MM-DD"
+                  },
+                  "location": {
+                    "type": "string",
+                    "description": "Venue or locality of the event"
+                  },
+                  "city": {
+                    "type": "string",
+                    "description": "Destination city of the nearby property"
+                  },
+                  "property": {
+                    "type": "string",
+                    "description": "Nearby pickyourmatch property name"
+                  },
+                  "stays_url": {
+                    "type": "string",
+                    "description": "Where-to-stay guide page: suited units with booking links that have the event dates preselected"
+                  }
+                },
+                "required": [
+                  "name",
+                  "start",
+                  "city",
+                  "property",
+                  "stays_url"
+                ]
+              }
+            }
+          },
+          "required": [
+            "total",
+            "events",
+            "guidance"
+          ]
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:24:25.143Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:24:26.196Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:24:27.247Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:24:28.299Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 4,
+    "tools_hash": "sha256:9e23466fab51cb4a8591a1090351299a7371b3e545cdf412b919172b15f04de5",
+    "static_tool_tokens": 3628,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "search_stays",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_stays",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_destinations",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "list_destinations",
+        "message": "Parameter has no description.",
+        "param": "lang"
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_packages",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "list_packages",
+        "message": "Parameter has no description.",
+        "param": "lang"
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 6,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_stays",
+          "path": "inputSchema.properties.max_price",
+          "name": "max_price",
+          "description": "Maximum nightly price. Dated quotes above this appear only as labeled alternatives when exact matches are insufficient.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "search_stays",
+          "path": "inputSchema.properties.cursor",
+          "name": "cursor",
+          "description": "Dated searches live-check up to 20 properties per call. When the response carries next_cursor, repeat the SAME search with cursor=next_cursor to check the remaining properties — a page without next_cursor has covered everything. Never conclude \"sold out\" from a page whose coverage.complete is false.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "search_stays",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results (default 10, max 30)",
+          "mentions_size_or_cost": true,
+          "described_default": 10
+        },
+        {
+          "tool": "list_events",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results (default 20, max 50)",
+          "mentions_size_or_cost": true,
+          "described_default": 20
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "search_stays"
+          ],
+          "description": "Search accommodation at participating properties — hotel rooms, apartments and holiday homes. Search criteria: destination (a town, a landmark or venue, or coordinates, with a radius), travel dates, the party (adults, children and their ages, pets), a maximum nightly price, free cancellation, unit features (view, balcony, terrace, quiet location, floor, workspace, sauna, kitchen, accessibility), the name of a unit or property, the response language and the number of results. Each result is one specific unit, described with its floor, view and beds, and guaranteed at booking — what the product states is what the guest is assigned. Without dates the results carry from-prices; with check_in and check_out they are the units available for those dates, with the price for the stay and a link to the property's booking page. All parameters are optional; query may state the same criteria as free text. Each result carries match_score, matched_features and not_confirmed_features.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "list_destinations"
+          ],
+          "description": "List all destinations served by pickyourmatch with unit counts, dog-friendly counts and a photo — USE THIS to inspire a guest who has not decided where to travel yet. ALWAYS pass the party (adults/children/pets) and dates (check_in/check_out) already known from the conversation — they stay visible above the results and keep the search context.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "search_stays",
+      "list_destinations",
+      "list_packages",
+      "list_events"
+    ]
+  }
+}

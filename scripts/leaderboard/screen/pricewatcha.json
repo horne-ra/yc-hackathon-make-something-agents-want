@@ -1,0 +1,3401 @@
+{
+  "slug": "pricewatcha",
+  "source_url": "https://manufact.com/mcp-catalog/pricewatcha",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-18T00:03:38.952Z",
+    "endpoint": "https://mcp.pricewatcha.com/",
+    "transport": "streamable",
+    "server": {
+      "name": "pricewatcha",
+      "version": "0.1.7"
+    },
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Pricewatcha turns public product URLs into structured price intelligence.\n\nWorkflow:\n1. Use get_api_status to verify the API is reachable.\n2. track_product submits a URL and waits briefly (~25s). Fast shops return status \"completed\" with product.\n3. If track_product returns status \"running\", poll get_job_status with the job_id until completed or failed.\n4. get_product / get_price_history / search_products read product-level catalog data.\n5. For continuous price updates (API key): watch_product / list_watchlist, or pass watch=true on track_product. Creating a price alert also watches the product.\n6. Price alerts: create_price_alert / list_price_alerts / get_price_alert / update_price_alert / delete_price_alert. These require a Pricewatcha API key (pwk_live_...). You can notify on any drop or rise without a numeric threshold (notify_on_drop / notify_on_rise), and optionally add min/max thresholds.\n\nRate limits (important):\n- Prefer one track at a time; avoid bursting many track_product calls. Limits are per client (~2 concurrent tracks, ~10/min, ~40/hour, ~80/day).\n- When polling get_job_status, use exponential backoff (start ~3–5s, then increase; do not poll every 1–2s). Job polls are limited (~40/min).\n- On error.code \"rate_limited\" or http_status 429: wait retry_after_seconds (or several seconds) before retrying; do not immediately retry in a tight loop.\n- Spread tracks over time rather than submitting many URLs back-to-back.\n\nProduct IDs: demo_* (samples), prod_* (all catalog products). Demo: demo_iphone_15_pro, demo_galaxy_s24.\nCatalog reads need no API key. Alert and watchlist tools require api_key. Prices are informational; merchant sites are authoritative.\n\nTool errors use structured objects: error.code, error.message, error.http_status, error.retry_recommended, error.retry_after_seconds.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "get_api_status",
+            "title": "Get API status",
+            "description": "Check whether the Pricewatcha public API is available. Returns health and discovery metadata. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {}
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "base_url": {
+                  "type": "string"
+                },
+                "health": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "service": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "service",
+                    "version"
+                  ],
+                  "additionalProperties": true
+                },
+                "api": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "agent_ready": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "version",
+                    "status"
+                  ],
+                  "additionalProperties": true
+                }
+              },
+              "required": [
+                "base_url",
+                "health",
+                "api"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "track_product",
+            "title": "Track product",
+            "description": "Submit a public product URL for price tracking. Waits up to ~25s server-side; fast shops return status \"completed\" with product in one call. Slow jobs return status \"running\" with job_id — poll get_job_status. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "Public product page URL from a supported shop"
+                },
+                "api_key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Optional API key (pwk_live_...). Required for watch/refresh."
+                },
+                "watch": {
+                  "type": "boolean",
+                  "description": "If true (API key required), enroll the product for continuous scheduler updates."
+                },
+                "refresh": {
+                  "type": "boolean",
+                  "description": "If true (API key required), force a re-scrape even if the URL is already in the catalog."
+                }
+              },
+              "required": [
+                "url"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "job_id": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "running",
+                    "completed",
+                    "failed"
+                  ]
+                },
+                "product": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "product_id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "shop": {
+                          "type": "string"
+                        },
+                        "product_url": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "current_price": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "last_checked_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "product_id",
+                        "name",
+                        "shop",
+                        "currency"
+                      ],
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "error": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "http_status": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "retry_recommended": {
+                          "type": "boolean"
+                        },
+                        "retry_after_seconds": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "retry_recommended"
+                      ],
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "hint": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "job_id",
+                "status"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "get_job_status",
+            "title": "Get job status",
+            "description": "Poll an async tracking job by job_id. Returns status (queued, running, completed, or failed). On completion, product is populated; on scrape failure, error is populated (HTTP 200 job lookup — not a transport error). On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "job_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Job ID from track_product"
+                }
+              },
+              "required": [
+                "job_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "job_id": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "running",
+                    "completed",
+                    "failed"
+                  ]
+                },
+                "product": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "product_id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "shop": {
+                          "type": "string"
+                        },
+                        "product_url": {
+                          "type": "string"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "current_price": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "last_checked_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "product_id",
+                        "name",
+                        "shop",
+                        "currency"
+                      ],
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "error": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "http_status": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "retry_recommended": {
+                          "type": "boolean"
+                        },
+                        "retry_after_seconds": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message",
+                        "retry_recommended"
+                      ],
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "hint": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "job_id",
+                "status"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "get_product",
+            "title": "Get product",
+            "description": "Get structured product price intelligence by product_id (e.g. demo_iphone_15_pro or prod_xxx from a completed job). On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "product_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Public product ID"
+                }
+              },
+              "required": [
+                "product_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "product_id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "shop": {
+                  "type": "string"
+                },
+                "product_url": {
+                  "type": "string"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "current_price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "type": "string"
+                },
+                "last_checked_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "preview": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "product_id",
+                "name",
+                "shop",
+                "currency"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "get_price_history",
+            "title": "Get price history",
+            "description": "Get historical prices, aggregates (low/high/average), trend, and data points for a product. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "product_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Public product ID"
+                }
+              },
+              "required": [
+                "product_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "product_id": {
+                  "type": "string"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "current_price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "historical_low": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "historical_high": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "average_price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "trend": {
+                  "type": "string",
+                  "enum": [
+                    "upward",
+                    "downward",
+                    "stable",
+                    "unknown"
+                  ]
+                },
+                "data_points": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "date": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "date",
+                      "price"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "preview": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "product_id",
+                "currency",
+                "data_points"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "search_products",
+            "title": "Search products",
+            "description": "Searches the Pricewatcha product catalog by keyword (token AND; word order does not matter). Supports minus-prefixed exclude terms: e.g. \"iPhone 15 -cover -case\" returns devices only. Returns product-level data only — not user accounts or alert settings. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Search keywords (token AND). Supports minus-prefixed exclude terms: e.g. \"iPhone 15 -cover -case\""
+                }
+              },
+              "required": [
+                "query"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer"
+                },
+                "results": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "product_id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "shop": {
+                        "type": "string"
+                      },
+                      "product_url": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "current_price": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "preview": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "product_id",
+                      "name",
+                      "shop"
+                    ],
+                    "additionalProperties": true
+                  }
+                }
+              },
+              "required": [
+                "query",
+                "count",
+                "results"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "create_price_alert",
+            "title": "Create price alert",
+            "description": "Create a price alert for a product. Use notify_on_drop / notify_on_rise for any price change without a numeric threshold, and/or min_threshold_price / max_threshold_price for target prices. At least one of those four settings is required. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "api_key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Pricewatcha API key (pwk_live_...)"
+                },
+                "product_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Public product ID (prod_... or demo_...)"
+                },
+                "notify_on_drop": {
+                  "type": "boolean",
+                  "description": "Notify on any price drop. No threshold required."
+                },
+                "notify_on_rise": {
+                  "type": "boolean",
+                  "description": "Notify on any price increase. No threshold required."
+                },
+                "min_threshold_price": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Notify when the price drops to or below this value."
+                },
+                "max_threshold_price": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Notify when the price rises to or above this value."
+                },
+                "notify_email": {
+                  "type": "boolean",
+                  "description": "Send email notifications (default true)"
+                },
+                "webhook_url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "Optional HTTPS webhook URL"
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 128,
+                  "description": "Optional alert name"
+                }
+              },
+              "required": [
+                "api_key",
+                "product_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "alert_id": {
+                  "type": "integer"
+                },
+                "product_id": {
+                  "type": "string"
+                },
+                "min_threshold_price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "max_threshold_price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "notify_on_drop": {
+                  "type": "boolean"
+                },
+                "notify_on_rise": {
+                  "type": "boolean"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "webhook_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "notify_email": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "is_active": {
+                  "type": "boolean"
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                },
+                "last_triggered_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "alert_id",
+                "product_id",
+                "notify_on_drop",
+                "notify_on_rise",
+                "currency",
+                "notify_email",
+                "is_active",
+                "created_at",
+                "updated_at"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "list_price_alerts",
+            "title": "List price alerts",
+            "description": "List your price alerts. Optionally filter by product_id. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "api_key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Pricewatcha API key (pwk_live_...)"
+                },
+                "product_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Optional public product ID filter"
+                }
+              },
+              "required": [
+                "api_key"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "type": "integer"
+                },
+                "alerts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "alert_id": {
+                        "type": "integer"
+                      },
+                      "product_id": {
+                        "type": "string"
+                      },
+                      "min_threshold_price": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "max_threshold_price": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "notify_on_drop": {
+                        "type": "boolean"
+                      },
+                      "notify_on_rise": {
+                        "type": "boolean"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "webhook_url": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "notify_email": {
+                        "type": "boolean"
+                      },
+                      "name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "is_active": {
+                        "type": "boolean"
+                      },
+                      "created_at": {
+                        "type": "string"
+                      },
+                      "updated_at": {
+                        "type": "string"
+                      },
+                      "last_triggered_at": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "alert_id",
+                      "product_id",
+                      "notify_on_drop",
+                      "notify_on_rise",
+                      "currency",
+                      "notify_email",
+                      "is_active",
+                      "created_at",
+                      "updated_at"
+                    ],
+                    "additionalProperties": true
+                  }
+                }
+              },
+              "required": [
+                "count",
+                "alerts"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "get_price_alert",
+            "title": "Get price alert",
+            "description": "Get one price alert by alert_id. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "api_key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Pricewatcha API key (pwk_live_...)"
+                },
+                "alert_id": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "description": "Alert ID from create_price_alert or list_price_alerts"
+                }
+              },
+              "required": [
+                "api_key",
+                "alert_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "alert_id": {
+                  "type": "integer"
+                },
+                "product_id": {
+                  "type": "string"
+                },
+                "min_threshold_price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "max_threshold_price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "notify_on_drop": {
+                  "type": "boolean"
+                },
+                "notify_on_rise": {
+                  "type": "boolean"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "webhook_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "notify_email": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "is_active": {
+                  "type": "boolean"
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                },
+                "last_triggered_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "alert_id",
+                "product_id",
+                "notify_on_drop",
+                "notify_on_rise",
+                "currency",
+                "notify_email",
+                "is_active",
+                "created_at",
+                "updated_at"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "update_price_alert",
+            "title": "Update price alert",
+            "description": "Update a price alert. You can switch to threshold-free notify_on_drop / notify_on_rise, change thresholds, or toggle is_active. At least one setting must remain. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "api_key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Pricewatcha API key (pwk_live_...)"
+                },
+                "alert_id": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "description": "Alert ID to update"
+                },
+                "notify_on_drop": {
+                  "type": "boolean",
+                  "description": "Notify on any price drop. No threshold required."
+                },
+                "notify_on_rise": {
+                  "type": "boolean",
+                  "description": "Notify on any price increase. No threshold required."
+                },
+                "min_threshold_price": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Min threshold, or null to clear."
+                },
+                "max_threshold_price": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Max threshold, or null to clear."
+                },
+                "notify_email": {
+                  "type": "boolean"
+                },
+                "webhook_url": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "is_active": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "api_key",
+                "alert_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "alert_id": {
+                  "type": "integer"
+                },
+                "product_id": {
+                  "type": "string"
+                },
+                "min_threshold_price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "max_threshold_price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "notify_on_drop": {
+                  "type": "boolean"
+                },
+                "notify_on_rise": {
+                  "type": "boolean"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "webhook_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "notify_email": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "is_active": {
+                  "type": "boolean"
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                },
+                "last_triggered_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "alert_id",
+                "product_id",
+                "notify_on_drop",
+                "notify_on_rise",
+                "currency",
+                "notify_email",
+                "is_active",
+                "created_at",
+                "updated_at"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "delete_price_alert",
+            "title": "Delete price alert",
+            "description": "Delete a price alert. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "api_key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Pricewatcha API key (pwk_live_...)"
+                },
+                "alert_id": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "description": "Alert ID to delete"
+                }
+              },
+              "required": [
+                "api_key",
+                "alert_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "deleted": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "alert_id": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "deleted",
+                "alert_id"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "watch_product",
+            "title": "Watch product",
+            "description": "Add a catalog product to your account watchlist so the price scheduler keeps updating it. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "api_key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Pricewatcha API key (pwk_live_...)"
+                },
+                "product_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Public product ID (prod_... or demo_...)"
+                }
+              },
+              "required": [
+                "api_key",
+                "product_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "product_id": {
+                  "type": "string"
+                },
+                "watching": {
+                  "type": "boolean"
+                },
+                "watched_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "product_id",
+                "watching"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "unwatch_product",
+            "title": "Unwatch product",
+            "description": "Remove a product from your account watchlist. Fails while an active price alert exists for the product. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "api_key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Pricewatcha API key (pwk_live_...)"
+                },
+                "product_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Public product ID (prod_... or demo_...)"
+                }
+              },
+              "required": [
+                "api_key",
+                "product_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "product_id": {
+                  "type": "string"
+                },
+                "watching": {
+                  "type": "boolean"
+                },
+                "watched_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "product_id",
+                "watching"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "list_watchlist",
+            "title": "List watchlist",
+            "description": "List products your account watches for continuous price updates. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "api_key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Pricewatcha API key (pwk_live_...)"
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 200,
+                  "description": "Max items (default 50)"
+                },
+                "offset": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Items to skip (default 0)"
+                }
+              },
+              "required": [
+                "api_key"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "product_id": {
+                        "type": "string"
+                      },
+                      "watched_at": {
+                        "type": "string"
+                      },
+                      "product": {
+                        "type": "object",
+                        "properties": {
+                          "product_id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "shop": {
+                            "type": "string"
+                          },
+                          "product_url": {
+                            "type": "string"
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "current_price": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "last_checked_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "preview": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "product_id",
+                          "name",
+                          "shop",
+                          "currency"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": [
+                      "product_id",
+                      "watched_at",
+                      "product"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "total": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "items",
+                "total"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "get_watch_status",
+            "title": "Get watch status",
+            "description": "Check whether your account watches a product for continuous updates. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "api_key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Pricewatcha API key (pwk_live_...)"
+                },
+                "product_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Public product ID (prod_... or demo_...)"
+                }
+              },
+              "required": [
+                "api_key",
+                "product_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "product_id": {
+                  "type": "string"
+                },
+                "watching": {
+                  "type": "boolean"
+                },
+                "watched_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "product_id",
+                "watching"
+              ],
+              "additionalProperties": true,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_api_status",
+        "title": "Get API status",
+        "description": "Check whether the Pricewatcha public API is available. Returns health and discovery metadata. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "base_url": {
+              "type": "string"
+            },
+            "health": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "service": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "status",
+                "service",
+                "version"
+              ],
+              "additionalProperties": true
+            },
+            "api": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "agent_ready": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name",
+                "version",
+                "status"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "base_url",
+            "health",
+            "api"
+          ],
+          "additionalProperties": true,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "track_product",
+        "title": "Track product",
+        "description": "Submit a public product URL for price tracking. Waits up to ~25s server-side; fast shops return status \"completed\" with product in one call. Slow jobs return status \"running\" with job_id — poll get_job_status. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "description": "Public product page URL from a supported shop"
+            },
+            "api_key": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Optional API key (pwk_live_...). Required for watch/refresh."
+            },
+            "watch": {
+              "type": "boolean",
+              "description": "If true (API key required), enroll the product for continuous scheduler updates."
+            },
+            "refresh": {
+              "type": "boolean",
+              "description": "If true (API key required), force a re-scrape even if the URL is already in the catalog."
+            }
+          },
+          "required": [
+            "url"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "job_id": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "queued",
+                "running",
+                "completed",
+                "failed"
+              ]
+            },
+            "product": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "product_id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "shop": {
+                      "type": "string"
+                    },
+                    "product_url": {
+                      "type": "string"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "current_price": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "last_checked_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "product_id",
+                    "name",
+                    "shop",
+                    "currency"
+                  ],
+                  "additionalProperties": true
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "error": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "http_status": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "retry_recommended": {
+                      "type": "boolean"
+                    },
+                    "retry_after_seconds": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "retry_recommended"
+                  ],
+                  "additionalProperties": true
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "hint": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "job_id",
+            "status"
+          ],
+          "additionalProperties": true,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get_job_status",
+        "title": "Get job status",
+        "description": "Poll an async tracking job by job_id. Returns status (queued, running, completed, or failed). On completion, product is populated; on scrape failure, error is populated (HTTP 200 job lookup — not a transport error). On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "job_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Job ID from track_product"
+            }
+          },
+          "required": [
+            "job_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "job_id": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "queued",
+                "running",
+                "completed",
+                "failed"
+              ]
+            },
+            "product": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "product_id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "shop": {
+                      "type": "string"
+                    },
+                    "product_url": {
+                      "type": "string"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "current_price": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "last_checked_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "product_id",
+                    "name",
+                    "shop",
+                    "currency"
+                  ],
+                  "additionalProperties": true
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "error": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "http_status": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "retry_recommended": {
+                      "type": "boolean"
+                    },
+                    "retry_after_seconds": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "retry_recommended"
+                  ],
+                  "additionalProperties": true
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "hint": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "job_id",
+            "status"
+          ],
+          "additionalProperties": true,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get_product",
+        "title": "Get product",
+        "description": "Get structured product price intelligence by product_id (e.g. demo_iphone_15_pro or prod_xxx from a completed job). On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "product_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Public product ID"
+            }
+          },
+          "required": [
+            "product_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "product_id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "shop": {
+              "type": "string"
+            },
+            "product_url": {
+              "type": "string"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "current_price": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "status": {
+              "type": "string"
+            },
+            "last_checked_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "preview": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "product_id",
+            "name",
+            "shop",
+            "currency"
+          ],
+          "additionalProperties": true,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get_price_history",
+        "title": "Get price history",
+        "description": "Get historical prices, aggregates (low/high/average), trend, and data points for a product. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "product_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Public product ID"
+            }
+          },
+          "required": [
+            "product_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "product_id": {
+              "type": "string"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "current_price": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "historical_low": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "historical_high": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "average_price": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "trend": {
+              "type": "string",
+              "enum": [
+                "upward",
+                "downward",
+                "stable",
+                "unknown"
+              ]
+            },
+            "data_points": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "date",
+                  "price"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "preview": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "product_id",
+            "currency",
+            "data_points"
+          ],
+          "additionalProperties": true,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "search_products",
+        "title": "Search products",
+        "description": "Searches the Pricewatcha product catalog by keyword (token AND; word order does not matter). Supports minus-prefixed exclude terms: e.g. \"iPhone 15 -cover -case\" returns devices only. Returns product-level data only — not user accounts or alert settings. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Search keywords (token AND). Supports minus-prefixed exclude terms: e.g. \"iPhone 15 -cover -case\""
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "count": {
+              "type": "integer"
+            },
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "product_id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "shop": {
+                    "type": "string"
+                  },
+                  "product_url": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "current_price": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "preview": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "product_id",
+                  "name",
+                  "shop"
+                ],
+                "additionalProperties": true
+              }
+            }
+          },
+          "required": [
+            "query",
+            "count",
+            "results"
+          ],
+          "additionalProperties": true,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "create_price_alert",
+        "title": "Create price alert",
+        "description": "Create a price alert for a product. Use notify_on_drop / notify_on_rise for any price change without a numeric threshold, and/or min_threshold_price / max_threshold_price for target prices. At least one of those four settings is required. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Pricewatcha API key (pwk_live_...)"
+            },
+            "product_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Public product ID (prod_... or demo_...)"
+            },
+            "notify_on_drop": {
+              "type": "boolean",
+              "description": "Notify on any price drop. No threshold required."
+            },
+            "notify_on_rise": {
+              "type": "boolean",
+              "description": "Notify on any price increase. No threshold required."
+            },
+            "min_threshold_price": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Notify when the price drops to or below this value."
+            },
+            "max_threshold_price": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Notify when the price rises to or above this value."
+            },
+            "notify_email": {
+              "type": "boolean",
+              "description": "Send email notifications (default true)"
+            },
+            "webhook_url": {
+              "type": "string",
+              "format": "uri",
+              "description": "Optional HTTPS webhook URL"
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 128,
+              "description": "Optional alert name"
+            }
+          },
+          "required": [
+            "api_key",
+            "product_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "alert_id": {
+              "type": "integer"
+            },
+            "product_id": {
+              "type": "string"
+            },
+            "min_threshold_price": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "max_threshold_price": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "notify_on_drop": {
+              "type": "boolean"
+            },
+            "notify_on_rise": {
+              "type": "boolean"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "webhook_url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "notify_email": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "is_active": {
+              "type": "boolean"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "updated_at": {
+              "type": "string"
+            },
+            "last_triggered_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "alert_id",
+            "product_id",
+            "notify_on_drop",
+            "notify_on_rise",
+            "currency",
+            "notify_email",
+            "is_active",
+            "created_at",
+            "updated_at"
+          ],
+          "additionalProperties": true,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "list_price_alerts",
+        "title": "List price alerts",
+        "description": "List your price alerts. Optionally filter by product_id. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Pricewatcha API key (pwk_live_...)"
+            },
+            "product_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Optional public product ID filter"
+            }
+          },
+          "required": [
+            "api_key"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "integer"
+            },
+            "alerts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "alert_id": {
+                    "type": "integer"
+                  },
+                  "product_id": {
+                    "type": "string"
+                  },
+                  "min_threshold_price": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "max_threshold_price": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "notify_on_drop": {
+                    "type": "boolean"
+                  },
+                  "notify_on_rise": {
+                    "type": "boolean"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "webhook_url": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "notify_email": {
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "updated_at": {
+                    "type": "string"
+                  },
+                  "last_triggered_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "alert_id",
+                  "product_id",
+                  "notify_on_drop",
+                  "notify_on_rise",
+                  "currency",
+                  "notify_email",
+                  "is_active",
+                  "created_at",
+                  "updated_at"
+                ],
+                "additionalProperties": true
+              }
+            }
+          },
+          "required": [
+            "count",
+            "alerts"
+          ],
+          "additionalProperties": true,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get_price_alert",
+        "title": "Get price alert",
+        "description": "Get one price alert by alert_id. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Pricewatcha API key (pwk_live_...)"
+            },
+            "alert_id": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "Alert ID from create_price_alert or list_price_alerts"
+            }
+          },
+          "required": [
+            "api_key",
+            "alert_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "alert_id": {
+              "type": "integer"
+            },
+            "product_id": {
+              "type": "string"
+            },
+            "min_threshold_price": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "max_threshold_price": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "notify_on_drop": {
+              "type": "boolean"
+            },
+            "notify_on_rise": {
+              "type": "boolean"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "webhook_url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "notify_email": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "is_active": {
+              "type": "boolean"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "updated_at": {
+              "type": "string"
+            },
+            "last_triggered_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "alert_id",
+            "product_id",
+            "notify_on_drop",
+            "notify_on_rise",
+            "currency",
+            "notify_email",
+            "is_active",
+            "created_at",
+            "updated_at"
+          ],
+          "additionalProperties": true,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "update_price_alert",
+        "title": "Update price alert",
+        "description": "Update a price alert. You can switch to threshold-free notify_on_drop / notify_on_rise, change thresholds, or toggle is_active. At least one setting must remain. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Pricewatcha API key (pwk_live_...)"
+            },
+            "alert_id": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "Alert ID to update"
+            },
+            "notify_on_drop": {
+              "type": "boolean",
+              "description": "Notify on any price drop. No threshold required."
+            },
+            "notify_on_rise": {
+              "type": "boolean",
+              "description": "Notify on any price increase. No threshold required."
+            },
+            "min_threshold_price": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Min threshold, or null to clear."
+            },
+            "max_threshold_price": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Max threshold, or null to clear."
+            },
+            "notify_email": {
+              "type": "boolean"
+            },
+            "webhook_url": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uri"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "is_active": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "api_key",
+            "alert_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "alert_id": {
+              "type": "integer"
+            },
+            "product_id": {
+              "type": "string"
+            },
+            "min_threshold_price": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "max_threshold_price": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "notify_on_drop": {
+              "type": "boolean"
+            },
+            "notify_on_rise": {
+              "type": "boolean"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "webhook_url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "notify_email": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "is_active": {
+              "type": "boolean"
+            },
+            "created_at": {
+              "type": "string"
+            },
+            "updated_at": {
+              "type": "string"
+            },
+            "last_triggered_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "alert_id",
+            "product_id",
+            "notify_on_drop",
+            "notify_on_rise",
+            "currency",
+            "notify_email",
+            "is_active",
+            "created_at",
+            "updated_at"
+          ],
+          "additionalProperties": true,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "delete_price_alert",
+        "title": "Delete price alert",
+        "description": "Delete a price alert. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Pricewatcha API key (pwk_live_...)"
+            },
+            "alert_id": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "Alert ID to delete"
+            }
+          },
+          "required": [
+            "api_key",
+            "alert_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "deleted": {
+              "type": "boolean",
+              "const": true
+            },
+            "alert_id": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "deleted",
+            "alert_id"
+          ],
+          "additionalProperties": true,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "watch_product",
+        "title": "Watch product",
+        "description": "Add a catalog product to your account watchlist so the price scheduler keeps updating it. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Pricewatcha API key (pwk_live_...)"
+            },
+            "product_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Public product ID (prod_... or demo_...)"
+            }
+          },
+          "required": [
+            "api_key",
+            "product_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "product_id": {
+              "type": "string"
+            },
+            "watching": {
+              "type": "boolean"
+            },
+            "watched_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "product_id",
+            "watching"
+          ],
+          "additionalProperties": true,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "unwatch_product",
+        "title": "Unwatch product",
+        "description": "Remove a product from your account watchlist. Fails while an active price alert exists for the product. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Pricewatcha API key (pwk_live_...)"
+            },
+            "product_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Public product ID (prod_... or demo_...)"
+            }
+          },
+          "required": [
+            "api_key",
+            "product_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "product_id": {
+              "type": "string"
+            },
+            "watching": {
+              "type": "boolean"
+            },
+            "watched_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "product_id",
+            "watching"
+          ],
+          "additionalProperties": true,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "list_watchlist",
+        "title": "List watchlist",
+        "description": "List products your account watches for continuous price updates. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Pricewatcha API key (pwk_live_...)"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "description": "Max items (default 50)"
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Items to skip (default 0)"
+            }
+          },
+          "required": [
+            "api_key"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "product_id": {
+                    "type": "string"
+                  },
+                  "watched_at": {
+                    "type": "string"
+                  },
+                  "product": {
+                    "type": "object",
+                    "properties": {
+                      "product_id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "shop": {
+                        "type": "string"
+                      },
+                      "product_url": {
+                        "type": "string"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "current_price": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "last_checked_at": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "preview": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "product_id",
+                      "name",
+                      "shop",
+                      "currency"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "required": [
+                  "product_id",
+                  "watched_at",
+                  "product"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "total": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "items",
+            "total"
+          ],
+          "additionalProperties": true,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get_watch_status",
+        "title": "Get watch status",
+        "description": "Check whether your account watches a product for continuous updates. Requires a Pricewatcha API key (pwk_live_...) from https://pricewatcha.com/profile#api-keys. On failure, returns a structured error object with fields error.code, error.message, error.http_status, error.retry_recommended, and error.retry_after_seconds.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Pricewatcha API key (pwk_live_...)"
+            },
+            "product_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Public product ID (prod_... or demo_...)"
+            }
+          },
+          "required": [
+            "api_key",
+            "product_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "product_id": {
+              "type": "string"
+            },
+            "watching": {
+              "type": "boolean"
+            },
+            "watched_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "product_id",
+            "watching"
+          ],
+          "additionalProperties": true,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-18T00:03:35.525Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-18T00:03:36.575Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-18T00:03:37.626Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-18T00:03:38.676Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 15,
+    "tools_hash": "sha256:d2bf4f8d4f0493ab63b9342e4a960710dc339f24385e32009568706dc28168c6",
+    "static_tool_tokens": 5074,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F2",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "update_price_alert",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "name"
+      },
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_api_status",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "track_product",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_job_status",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_product",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_price_history",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "search_products",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_price_alerts",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_price_alert",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "update_price_alert",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "update_price_alert",
+        "message": "Parameter has no description.",
+        "param": "notify_email"
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "update_price_alert",
+        "message": "Parameter has no description.",
+        "param": "webhook_url"
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "update_price_alert",
+        "message": "Parameter has no description.",
+        "param": "name"
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "update_price_alert",
+        "message": "Parameter has no description.",
+        "param": "is_active"
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "delete_price_alert",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "watch_product",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "unwatch_product",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_watchlist",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_watch_status",
+        "message": "Description does not say when to use this tool."
+      }
+    ],
+    "severity_counts": {
+      "high": 1,
+      "medium": 18,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "create_price_alert",
+          "path": "inputSchema.properties.max_threshold_price",
+          "name": "max_threshold_price",
+          "description": "Notify when the price rises to or above this value.",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "update_price_alert",
+          "path": "inputSchema.properties.max_threshold_price",
+          "name": "max_threshold_price",
+          "description": "Max threshold, or null to clear.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "list_watchlist",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max items (default 50)",
+          "mentions_size_or_cost": true,
+          "described_default": 50,
+          "maximum": 200
+        },
+        {
+          "tool": "list_watchlist",
+          "path": "inputSchema.properties.offset",
+          "name": "offset",
+          "description": "Items to skip (default 0)",
+          "mentions_size_or_cost": true,
+          "described_default": 0
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "create_price_alert"
+          ],
+          "path": "inputSchema.properties.max_threshold_price",
+          "description": "Notify when the price rises to or above this value.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "list_watchlist"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "Max items (default 50)",
+          "default": 50,
+          "default_source": "description",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_api_status",
+            "get_job_status"
+          ],
+          "hypothesis": "Read tools share resource terms (statu), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_api_status",
+            "get_watch_status"
+          ],
+          "hypothesis": "Read tools share resource terms (statu), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_job_status",
+            "get_watch_status"
+          ],
+          "hypothesis": "Read tools share resource terms (statu), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_product",
+            "search_products"
+          ],
+          "hypothesis": "Read tools share resource terms (product), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_price_history",
+            "list_price_alerts"
+          ],
+          "hypothesis": "Read tools share resource terms (price), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_price_history",
+            "get_price_alert"
+          ],
+          "hypothesis": "Read tools share resource terms (price), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_price_alerts",
+            "get_price_alert"
+          ],
+          "hypothesis": "Read tools share resource terms (price, alert), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "get_api_status",
+      "get_job_status",
+      "get_product",
+      "get_price_history",
+      "search_products",
+      "list_price_alerts",
+      "get_price_alert",
+      "list_watchlist",
+      "get_watch_status"
+    ]
+  }
+}

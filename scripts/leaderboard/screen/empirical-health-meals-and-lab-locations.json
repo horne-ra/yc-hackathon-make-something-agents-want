@@ -1,0 +1,769 @@
+{
+  "slug": "empirical-health-meals-and-lab-locations",
+  "source_url": "https://manufact.com/mcp-catalog/empirical-health-meals-and-lab-locations",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:25:19.701Z",
+    "endpoint": "https://app.empirical.health/api/mcp/tools",
+    "transport": "streamable",
+    "server": {
+      "name": "empirical-health",
+      "title": "Empirical Health — Meals and Lab Locations",
+      "icons": [
+        {
+          "src": "https://app.empirical.health/images/app-icon.png",
+          "mimeType": "image/png"
+        }
+      ],
+      "version": "2.0.0",
+      "websiteUrl": "https://www.empirical.health"
+    },
+    "capabilities": {
+      "tools": {}
+    },
+    "instructions": "Anonymous, read-only discovery of nearby lab locations and indexed restaurant meals. No account, patient records, image uploads, meal logging, ordering, payments, or appointment booking. Use a location the user supplies for the task. Lab distances can use approximate city coordinates. Meal nutrition can be estimated or incomplete; ranking preferences are distinct from hard nutrient limits. Results do not establish current hours, availability, or allergy safety. Empty results describe indexed coverage, not proof that no nearby options exist.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "find_lab_locations",
+            "title": "Find nearby blood-draw locations",
+            "description": "Find nearby Empirical blood-draw locations from a local Quest/BioReference directory. No authentication. Returns addresses, distances, coordinate accuracy and snapshot provenance. Hours and appointment availability are not checked; this does not book a test. An empty list means no indexed matches.",
+            "inputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "zipCode": {
+                  "description": "US ZIP code, optionally ZIP+4.",
+                  "type": "string",
+                  "pattern": "^\\d{5}(?:-\\d{4})?$"
+                },
+                "radius": {
+                  "description": "Search radius in miles from the ZIP centroid.",
+                  "default": 25,
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "const": 10
+                    },
+                    {
+                      "type": "number",
+                      "const": 20
+                    },
+                    {
+                      "type": "number",
+                      "const": 25
+                    },
+                    {
+                      "type": "number",
+                      "const": 50
+                    },
+                    {
+                      "type": "number",
+                      "const": 100
+                    }
+                  ]
+                },
+                "labSlug": {
+                  "description": "Defaults to BioReference for NY/NJ, Quest elsewhere.",
+                  "type": "string",
+                  "enum": [
+                    "quest",
+                    "bioreference"
+                  ]
+                },
+                "limit": {
+                  "default": 5,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 20
+                }
+              },
+              "required": [
+                "zipCode"
+              ],
+              "additionalProperties": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "error"
+                  ]
+                },
+                "data": {
+                  "type": "object",
+                  "description": "Lab locations or ranked meals, with coverage and provenance metadata."
+                },
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "retryable"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "find_healthy_meals",
+            "title": "Find nearby meals by nutrition",
+            "description": "Find and rank indexed restaurant meals near a US ZIP code or coordinates, using Empirical app nutrition scoring and optional hard nutrient limits. No authentication. Searches up to 50 nearest indexed restaurants; returns up to 20 meals. Missing nutrients never satisfy a requested limit. Returns nutrition source labels; no live availability, allergy safety, ordering, or meal logging.",
+            "inputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "location": {
+                  "description": "A ZIP code or coordinates supplied for this search; no address geocoding.",
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "zipCode": {
+                          "description": "US ZIP code, optionally ZIP+4.",
+                          "type": "string",
+                          "pattern": "^\\d{5}(?:-\\d{4})?$"
+                        }
+                      },
+                      "required": [
+                        "zipCode"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "latitude": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "longitude": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "latitude",
+                        "longitude"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
+                "radiusMiles": {
+                  "default": 5,
+                  "type": "number",
+                  "minimum": 0.1,
+                  "maximum": 25
+                },
+                "limit": {
+                  "default": 5,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 20
+                },
+                "preferences": {
+                  "description": "Ranking preferences, not hard thresholds.",
+                  "default": [],
+                  "maxItems": 4,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "high_fiber",
+                      "low_sat_fat",
+                      "high_potassium",
+                      "low_sodium"
+                    ]
+                  }
+                },
+                "minProteinGrams": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 500
+                },
+                "minFiberGrams": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "maxCalories": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 10000
+                },
+                "maxSaturatedFatGrams": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 500
+                },
+                "maxSodiumMg": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 20000
+                }
+              },
+              "required": [
+                "location"
+              ],
+              "additionalProperties": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "ok",
+                    "error"
+                  ]
+                },
+                "data": {
+                  "type": "object",
+                  "description": "Lab locations or ranked meals, with coverage and provenance metadata."
+                },
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "retryable": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message",
+                    "retryable"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "find_lab_locations",
+        "title": "Find nearby blood-draw locations",
+        "description": "Find nearby Empirical blood-draw locations from a local Quest/BioReference directory. No authentication. Returns addresses, distances, coordinate accuracy and snapshot provenance. Hours and appointment availability are not checked; this does not book a test. An empty list means no indexed matches.",
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "zipCode": {
+              "description": "US ZIP code, optionally ZIP+4.",
+              "type": "string",
+              "pattern": "^\\d{5}(?:-\\d{4})?$"
+            },
+            "radius": {
+              "description": "Search radius in miles from the ZIP centroid.",
+              "default": 25,
+              "anyOf": [
+                {
+                  "type": "number",
+                  "const": 10
+                },
+                {
+                  "type": "number",
+                  "const": 20
+                },
+                {
+                  "type": "number",
+                  "const": 25
+                },
+                {
+                  "type": "number",
+                  "const": 50
+                },
+                {
+                  "type": "number",
+                  "const": 100
+                }
+              ]
+            },
+            "labSlug": {
+              "description": "Defaults to BioReference for NY/NJ, Quest elsewhere.",
+              "type": "string",
+              "enum": [
+                "quest",
+                "bioreference"
+              ]
+            },
+            "limit": {
+              "default": 5,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          },
+          "required": [
+            "zipCode"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "ok",
+                "error"
+              ]
+            },
+            "data": {
+              "type": "object",
+              "description": "Lab locations or ranked meals, with coverage and provenance metadata."
+            },
+            "error": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "find_healthy_meals",
+        "title": "Find nearby meals by nutrition",
+        "description": "Find and rank indexed restaurant meals near a US ZIP code or coordinates, using Empirical app nutrition scoring and optional hard nutrient limits. No authentication. Searches up to 50 nearest indexed restaurants; returns up to 20 meals. Missing nutrients never satisfy a requested limit. Returns nutrition source labels; no live availability, allergy safety, ordering, or meal logging.",
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "location": {
+              "description": "A ZIP code or coordinates supplied for this search; no address geocoding.",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "zipCode": {
+                      "description": "US ZIP code, optionally ZIP+4.",
+                      "type": "string",
+                      "pattern": "^\\d{5}(?:-\\d{4})?$"
+                    }
+                  },
+                  "required": [
+                    "zipCode"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "latitude": {
+                      "type": "number",
+                      "minimum": -90,
+                      "maximum": 90
+                    },
+                    "longitude": {
+                      "type": "number",
+                      "minimum": -180,
+                      "maximum": 180
+                    }
+                  },
+                  "required": [
+                    "latitude",
+                    "longitude"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "radiusMiles": {
+              "default": 5,
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 25
+            },
+            "limit": {
+              "default": 5,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            },
+            "preferences": {
+              "description": "Ranking preferences, not hard thresholds.",
+              "default": [],
+              "maxItems": 4,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "high_fiber",
+                  "low_sat_fat",
+                  "high_potassium",
+                  "low_sodium"
+                ]
+              }
+            },
+            "minProteinGrams": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 500
+            },
+            "minFiberGrams": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "maxCalories": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "maxSaturatedFatGrams": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 500
+            },
+            "maxSodiumMg": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 20000
+            }
+          },
+          "required": [
+            "location"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "ok",
+                "error"
+              ]
+            },
+            "data": {
+              "type": "object",
+              "description": "Lab locations or ranked meals, with coverage and provenance metadata."
+            },
+            "error": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "retryable": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "retryable"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:25:16.392Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:25:17.444Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:25:18.496Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:25:19.546Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 2,
+    "tools_hash": "sha256:100766b2cbf42d61dab87553284a3b90e26e7a97f363b6a68f80333b0f3a107a",
+    "static_tool_tokens": 1568,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "find_lab_locations",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "find_lab_locations",
+        "message": "Parameter has no description.",
+        "param": "limit"
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "find_healthy_meals",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "find_healthy_meals",
+        "message": "Parameter has no description.",
+        "param": "radiusMiles"
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "find_healthy_meals",
+        "message": "Parameter has no description.",
+        "param": "limit"
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "find_healthy_meals",
+        "message": "Parameter has no description.",
+        "param": "minProteinGrams"
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "find_healthy_meals",
+        "message": "Parameter has no description.",
+        "param": "minFiberGrams"
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "find_healthy_meals",
+        "message": "Parameter has no description.",
+        "param": "maxCalories"
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "find_healthy_meals",
+        "message": "Parameter has no description.",
+        "param": "maxSaturatedFatGrams"
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "find_healthy_meals",
+        "message": "Parameter has no description.",
+        "param": "maxSodiumMg"
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 10,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "find_lab_locations",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": 5,
+          "maximum": 20
+        },
+        {
+          "tool": "find_healthy_meals",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": 5,
+          "maximum": 20
+        },
+        {
+          "tool": "find_healthy_meals",
+          "path": "inputSchema.properties.maxCalories",
+          "name": "maxCalories",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "maximum": 10000
+        },
+        {
+          "tool": "find_healthy_meals",
+          "path": "inputSchema.properties.maxSaturatedFatGrams",
+          "name": "maxSaturatedFatGrams",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "maximum": 500
+        },
+        {
+          "tool": "find_healthy_meals",
+          "path": "inputSchema.properties.maxSodiumMg",
+          "name": "maxSodiumMg",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "maximum": 20000
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "find_lab_locations"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "find_healthy_meals"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "find_healthy_meals"
+          ],
+          "path": "inputSchema.properties.maxCalories",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "find_healthy_meals"
+          ],
+          "path": "inputSchema.properties.maxSaturatedFatGrams",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "find_healthy_meals"
+          ],
+          "path": "inputSchema.properties.maxSodiumMg",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "find_lab_locations",
+      "find_healthy_meals"
+    ]
+  }
+}

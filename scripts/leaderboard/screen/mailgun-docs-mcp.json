@@ -1,0 +1,403 @@
+{
+  "slug": "mailgun-docs-mcp",
+  "source_url": "https://manufact.com/mcp-catalog/mailgun-docs-mcp",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:25:51.993Z",
+    "endpoint": "https://documentation.mailgun.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "Docs MCP server",
+      "version": "2026-10-17"
+    },
+    "capabilities": {
+      "logging": {},
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "This server exposes documentation tools (API discovery, endpoint details, security schemes, full-text search) through `describe-tools` and `execute`:\n- `describe-tools` returns the exact TypeScript signatures of the sandbox tools.\n- `execute` runs JavaScript that calls those tools on the global `tools` object.\nWorkflow: analyze the request, call `describe-tools` once with `tools` set to only the names it needs, then batch everything into a single `execute` script. Minimize round-trips and never guess tool signatures.\n\nAvailable tools (exact signatures come from `describe-tools`):\n- listApis — Lists the APIs documented in this project\n- getEndpoints — Get all endpoints for a specific API. When several definiti…\n- getEndpointInfo — Get comprehensive information about specific endpoint inclu…\n- getSecuritySchemes — Get the security schemes for a specific API. When several d…\n- getFullApiDescription — Get the complete OpenAPI description. When several definiti…\n- search — Search across the documentation to fetch relevant content f…",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "execute",
+            "title": "Query the docs with code",
+            "description": "Run JavaScript in a sandbox against the tools for the documentation at https://documentation.mailgun.com. The tools are on the global `tools` object.\nThe only extra global is `tools` - there is no `fetch`, `console`, `setTimeout`, `require`, or Node.js API; all I/O goes through `tools`.\n\nWorkflow - minimize round-trips; one `describe-tools` call plus one `execute` call covers most requests:\n1. Analyze the request and decide which sandbox tools it needs.\n2. Call `describe-tools` with those names to get their exact TypeScript signatures - inputs, result shapes, and a worked example. NEVER call `execute` with guessed method names, parameter names, enum values, or result field names: read fields off the declared return types, not from assumptions.\n3. Batch everything into a SINGLE script: chain tool calls, pass one call's output into the next, process results in plain JavaScript, and `return` only what the request needs.\n\nAvailable tools (exact signatures come from `describe-tools`):\n- listApis — Lists the APIs documented in this project\n- getEndpoints — Get all endpoints for a specific API. When several definiti…\n- getEndpointInfo — Get comprehensive information about specific endpoint inclu…\n- getSecuritySchemes — Get the security schemes for a specific API. When several d…\n- getFullApiDescription — Get the complete OpenAPI description. When several definiti…\n- search — Search across the documentation to fetch relevant content f…",
+            "inputSchema": {
+              "type": "object",
+              "required": [
+                "code",
+                "description"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "description": "JavaScript to run in the sandbox. Return a value to receive it as the result.",
+                  "minLength": 1
+                },
+                "description": {
+                  "type": "string",
+                  "description": "A short, human-readable summary of what this code does.",
+                  "minLength": 1
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "title": "Query the docs with code"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "description": "The value the code returned, as JSON"
+                },
+                "error": {
+                  "type": "string",
+                  "description": "Why the code failed. Set only on a failed call"
+                }
+              }
+            }
+          },
+          {
+            "name": "describe-tools",
+            "title": "Get docs function signatures",
+            "description": "Get the exact TypeScript signatures of the sandbox tools available to `execute`.\nAnalyze the user request first, then pass `tools` with only the tool names the request needs (every name is listed in this input schema / description); omit `tools` only when you cannot tell which tools apply.\nAlways call this before your first `execute` and never guess signatures. Request every tool the task may need in ONE call instead of calling this repeatedly.",
+            "inputSchema": {
+              "type": "object",
+              "required": [],
+              "additionalProperties": false,
+              "properties": {
+                "tools": {
+                  "type": "array",
+                  "description": "Tool names to describe: listApis, getEndpoints, getEndpointInfo, getSecuritySchemes, getFullApiDescription, search. Omit to describe everything.",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "listApis",
+                      "getEndpoints",
+                      "getEndpointInfo",
+                      "getSecuritySchemes",
+                      "getFullApiDescription",
+                      "search"
+                    ]
+                  },
+                  "nullable": true
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "title": "Get docs function signatures"
+            }
+          },
+          {
+            "name": "submit-feedback",
+            "title": "Submit feedback",
+            "description": "Report a documentation page that is wrong or incomplete",
+            "inputSchema": {
+              "type": "object",
+              "required": [
+                "path",
+                "summary"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "Path or URL of the documentation page the feedback is about (e.g. /guides/auth)",
+                  "minLength": 1,
+                  "maxLength": 1000
+                },
+                "summary": {
+                  "type": "string",
+                  "description": "One sentence that names what is wrong with the page",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                "details": {
+                  "type": "string",
+                  "description": "Expected versus actual behavior, missing steps, or the snippet that failed",
+                  "maxLength": 4000,
+                  "nullable": true
+                },
+                "targetFeature": {
+                  "type": "string",
+                  "description": "The API or feature the page documents",
+                  "maxLength": 500,
+                  "nullable": true
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true,
+              "title": "Submit feedback"
+            },
+            "outputSchema": {
+              "type": "object",
+              "required": [
+                "status",
+                "page",
+                "message"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "page": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "execute",
+        "title": "Query the docs with code",
+        "description": "Run JavaScript in a sandbox against the tools for the documentation at https://documentation.mailgun.com. The tools are on the global `tools` object.\nThe only extra global is `tools` - there is no `fetch`, `console`, `setTimeout`, `require`, or Node.js API; all I/O goes through `tools`.\n\nWorkflow - minimize round-trips; one `describe-tools` call plus one `execute` call covers most requests:\n1. Analyze the request and decide which sandbox tools it needs.\n2. Call `describe-tools` with those names to get their exact TypeScript signatures - inputs, result shapes, and a worked example. NEVER call `execute` with guessed method names, parameter names, enum values, or result field names: read fields off the declared return types, not from assumptions.\n3. Batch everything into a SINGLE script: chain tool calls, pass one call's output into the next, process results in plain JavaScript, and `return` only what the request needs.\n\nAvailable tools (exact signatures come from `describe-tools`):\n- listApis — Lists the APIs documented in this project\n- getEndpoints — Get all endpoints for a specific API. When several definiti…\n- getEndpointInfo — Get comprehensive information about specific endpoint inclu…\n- getSecuritySchemes — Get the security schemes for a specific API. When several d…\n- getFullApiDescription — Get the complete OpenAPI description. When several definiti…\n- search — Search across the documentation to fetch relevant content f…",
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "code",
+            "description"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "JavaScript to run in the sandbox. Return a value to receive it as the result.",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string",
+              "description": "A short, human-readable summary of what this code does.",
+              "minLength": 1
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "title": "Query the docs with code"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "result": {
+              "description": "The value the code returned, as JSON"
+            },
+            "error": {
+              "type": "string",
+              "description": "Why the code failed. Set only on a failed call"
+            }
+          }
+        }
+      },
+      {
+        "name": "describe-tools",
+        "title": "Get docs function signatures",
+        "description": "Get the exact TypeScript signatures of the sandbox tools available to `execute`.\nAnalyze the user request first, then pass `tools` with only the tool names the request needs (every name is listed in this input schema / description); omit `tools` only when you cannot tell which tools apply.\nAlways call this before your first `execute` and never guess signatures. Request every tool the task may need in ONE call instead of calling this repeatedly.",
+        "inputSchema": {
+          "type": "object",
+          "required": [],
+          "additionalProperties": false,
+          "properties": {
+            "tools": {
+              "type": "array",
+              "description": "Tool names to describe: listApis, getEndpoints, getEndpointInfo, getSecuritySchemes, getFullApiDescription, search. Omit to describe everything.",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "listApis",
+                  "getEndpoints",
+                  "getEndpointInfo",
+                  "getSecuritySchemes",
+                  "getFullApiDescription",
+                  "search"
+                ]
+              },
+              "nullable": true
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "title": "Get docs function signatures"
+        }
+      },
+      {
+        "name": "submit-feedback",
+        "title": "Submit feedback",
+        "description": "Report a documentation page that is wrong or incomplete",
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "path",
+            "summary"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Path or URL of the documentation page the feedback is about (e.g. /guides/auth)",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            "summary": {
+              "type": "string",
+              "description": "One sentence that names what is wrong with the page",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "details": {
+              "type": "string",
+              "description": "Expected versus actual behavior, missing steps, or the snippet that failed",
+              "maxLength": 4000,
+              "nullable": true
+            },
+            "targetFeature": {
+              "type": "string",
+              "description": "The API or feature the page documents",
+              "maxLength": 500,
+              "nullable": true
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true,
+          "title": "Submit feedback"
+        },
+        "outputSchema": {
+          "type": "object",
+          "required": [
+            "status",
+            "page",
+            "message"
+          ],
+          "properties": {
+            "status": {
+              "type": "string"
+            },
+            "page": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:25:48.552Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:25:49.603Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:25:50.654Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:25:51.705Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 3,
+    "tools_hash": "sha256:31d749570e5e25abe1b935f4d676db1d2b5a3731d2795865db939826c22fd617",
+    "static_tool_tokens": 1592,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "execute",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "describe-tools",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "submit-feedback",
+        "message": "Description does not say when to use this tool."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 2,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "submit-feedback",
+          "path": "inputSchema.properties.summary",
+          "name": "summary",
+          "description": "One sentence that names what is wrong with the page",
+          "mentions_size_or_cost": true
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "execute"
+          ],
+          "description": "Run JavaScript in a sandbox against the tools for the documentation at https://documentation.mailgun.com. The tools are on the global `tools` object.\nThe only extra global is `tools` - there is no `fetch`, `console`, `setTimeout`, `require`, or Node.js API; all I/O goes through `tools`.\n\nWorkflow - minimize round-trips; one `describe-tools` call plus one `execute` call covers most requests:\n1. Analyze the request and decide which sandbox tools it needs.\n2. Call `describe-tools` with those names to get their exact TypeScript signatures - inputs, result shapes, and a worked example. NEVER call `execute` with guessed method names, parameter names, enum values, or result field names: read fields off the declared return types, not from assumptions.\n3. Batch everything into a SINGLE script: chain tool calls, pass one call's output into the next, process results in plain JavaScript, and `return` only what the request needs.\n\nAvailable tools (exact signatures come from `describe-tools`):\n- listApis — Lists the APIs documented in this project\n- getEndpoints — Get all endpoints for a specific API. When several definiti…\n- getEndpointInfo — Get comprehensive information about specific endpoint inclu…\n- getSecuritySchemes — Get the security schemes for a specific API. When several d…\n- getFullApiDescription — Get the complete OpenAPI description. When several definiti…\n- search — Search across the documentation to fetch relevant content f…",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "execute",
+      "describe-tools"
+    ]
+  }
+}

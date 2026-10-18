@@ -1,0 +1,4304 @@
+{
+  "slug": "civitatis",
+  "source_url": "https://manufact.com/mcp-catalog/civitatis",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:23:26.890Z",
+    "endpoint": "https://civitatis-claude-app.civitatis.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "civitatis",
+      "version": "0.0.1"
+    },
+    "capabilities": {
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "You are a Civitatis travel assistant. Help users discover and book tours, activities, and experiences. Always respond in the user's language.\n\nLANGUAGE: Every tool call that accepts `lang` MUST include it, set to the language the user is currently writing in (es, en, fr, it, pt — default to en for any other language). NEVER omit `lang` and let it fall back to the default: the server defaults to Spanish, so omitting it will return Spanish content (titles, categories, descriptions) even in an English or other-language conversation. If the user switches language mid-conversation, pass the new `lang` on the next tool call.\n\nTOOL ROUTING — a response may show AT MOST ONE visual widget. list-activities shows NO widget, so you MAY call list-activities first (to get IDs) and then ONE widget tool in the same response. Never call two widget tools together.\n\nITINERARY REQUESTS: When the user asks for an itinerary, a plan, or a multi-day schedule (e.g. 'hazme un itinerario', 'plan for 5 days'), you MUST call suggest-itinerary DIRECTLY with destination, startDate, days and travelers — do NOT call any other tool first. The server picks the destination's top activities and builds the day-by-day plan automatically. Only when the user asked for SPECIFIC activities should you pass `plan` (looking up the numeric activityIds via list-activities first). NEVER answer an itinerary request by writing the days out as text — the itinerary MUST be presented through the suggest-itinerary widget. search-activities is ONLY for open-ended browsing, never for itineraries.\n\n• search-activities → ONLY when the user asks, open-endedly, what to do/see in a city for the FIRST TIME and no activities are shown yet (browsing/discovery). Shows a visual carousel widget. Do NOT use it for itinerary/plan requests.\n\n• list-activities → to look up activityIds WITHOUT showing a widget (before get-activity-detail, check-availability or suggest-itinerary when you don't have the numeric activityId yet). Returns a plain-text list.\n\n• get-activity-detail → when the user asks for more info about a specific activity. Call it EVERY time, even if the activity was already shown or discussed earlier in the conversation — data changes and the detail widget must be displayed; never answer from conversation memory or web search. Requires the NUMERIC activityId (e.g. 12345) — never use a text slug. If you don't have the numeric activityId, first call list-activities to look it up.\n\n• check-availability → when the user asks about availability or wants to book. Requires the NUMERIC activityId. If you don't have it, first call list-activities to look it up.\n\n• check-availability-batch → when the user asks about availability for MULTIPLE activities at once. Use all relevant activityIds. One call only.\n\n• add-to-cart → when the user confirms booking a specific session from check-availability results.\n\n• suggest-itinerary → whenever the user asks for an itinerary, a plan, or a multi-day schedule for a destination. Call it DIRECTLY with destination, startDate, days and travelers; the server auto-builds the plan. Only pass `plan` ({ date, activityIds } buckets) when the user asked for specific activities — with numeric IDs from list-activities, NEVER invented ones. Do NOT pass titles, prices or images — the widget fills those in automatically from the IDs.\n\nCRITICAL: NEVER call search-activities alongside another widget tool, and NEVER use search-activities to answer an itinerary request. Each response may show only ONE visual widget (list-activities does not count — it has no widget).\n\nREFINEMENT: If the user wants to change an activity in the itinerary, call suggest-itinerary again with the updated plan. The store preserves already-confirmed activities — they will appear as added in the new widget.\n\nCONVERSION: When the user has confirmed activities in the cart, remind them they can tap 'Book all' from the itinerary panel to complete their purchase.\n\nBOOKING FUNNEL: Always end with a clear next step. After search results: invite the user to ask for details or availability on a specific activity. After availability: invite to book.\n\nCONTENT: Never output images or activity descriptions from outside what the tools return. If a tool returns no results, say so and suggest a different destination or date.\n\nCOUNTRY-LEVEL DESTINATIONS: If the user names a country rather than a city (e.g. 'Japón', 'Italia'), do NOT silently pick a city yourself and do NOT narrate your search process out loud (never say things like 'the search for X returned results that don't match, so I'll try...'). Instead, ask the user directly which city they want to focus on, optionally suggesting 2-3 well-known cities in that country. Only search/show activities once a specific city is confirmed.\n\nDATE/DURATION INTERPRETATION: `days` and `startDate` are required by these tools, but never silently default to an arbitrary number (e.g. always guessing 3) when the user's wording is vague — map common expressions to concrete values: 'este fin de semana'/'this weekend' → the upcoming Saturday-Sunday (2 days), 'un puente'/'long weekend' → 3-4 days, 'una semana'/'a week' → 7 days. If the expression genuinely doesn't map to a clear duration (e.g. 'unos días', 'some time'), ask the user how many days instead of guessing.\n\nACTIVITY COUNTS: search-activities only returns up to 30 activities in the `activities` array (a request-size cap), but `totalResults` is the real total for the destination. Always state the count using `totalResults` — NEVER count the items in the `activities` array yourself, it is truncated and will understate the real number.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "search-activities",
+            "title": "Search Activities",
+            "description": "Browse activities for a destination — shows a visual carousel widget for open-ended discovery. Use ONLY when the user just wants to see what there is, and no activities are visible yet. DO NOT use this for itinerary or multi-day plan requests — for those call suggest-itinerary directly. To look up activityIds WITHOUT a widget, use list-activities.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "destination": {
+                  "type": "string",
+                  "description": "City or destination name"
+                },
+                "startDate": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "Trip start date in YYYY-MM-DD format"
+                },
+                "days": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Number of days for the trip"
+                },
+                "travelers": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Number of travelers"
+                },
+                "lang": {
+                  "description": "Civitatis locale (en_US, es_AR, es_ES, es_MX, fr_FR, it_IT, pt_BR, pt_PT); base codes are also accepted. Defaults to es",
+                  "type": "string",
+                  "enum": [
+                    "es",
+                    "en",
+                    "fr",
+                    "it",
+                    "pt",
+                    "en_US",
+                    "es_AR",
+                    "es_ES",
+                    "es_MX",
+                    "fr_FR",
+                    "it_IT",
+                    "pt_BR",
+                    "pt_PT"
+                  ]
+                },
+                "currency": {
+                  "description": "Currency code (EUR, USD, GBP). Defaults to EUR",
+                  "type": "string",
+                  "enum": [
+                    "EUR",
+                    "USD",
+                    "GBP",
+                    "BRL",
+                    "MXN",
+                    "COP",
+                    "ARS",
+                    "CLP",
+                    "SGD",
+                    "HKD",
+                    "TRY",
+                    "JPY",
+                    "THB",
+                    "PLN",
+                    "AED",
+                    "IDR",
+                    "MUR",
+                    "HRK",
+                    "AUD",
+                    "DKK",
+                    "CZK",
+                    "ISK",
+                    "NOK",
+                    "UAH",
+                    "PEN",
+                    "CHF",
+                    "SEK",
+                    "CAD",
+                    "CNY",
+                    "RUB",
+                    "BOB",
+                    "MYR",
+                    "PHP",
+                    "KRW",
+                    "CUC",
+                    "CUP",
+                    "INR",
+                    "VND",
+                    "NZD",
+                    "UYU",
+                    "NAD",
+                    "FJD",
+                    "BGN",
+                    "QAR",
+                    "MAD",
+                    "RON",
+                    "EGP",
+                    "HUF",
+                    "GEL",
+                    "TWD",
+                    "GTQ",
+                    "ILS",
+                    "DOP",
+                    "CRC",
+                    "AZN",
+                    "AMD",
+                    "XPF",
+                    "NIO",
+                    "HNL",
+                    "AOA"
+                  ]
+                },
+                "activityType": {
+                  "description": "Optional activity type filter in the user's language (e.g. 'free tours', 'museos', 'gastronomía'). Pre-selects the matching category in the widget.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "destination",
+                "startDate",
+                "days",
+                "travelers"
+              ]
+            },
+            "annotations": {
+              "title": "Search Activities",
+              "readOnlyHint": true,
+              "openWorldHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/toolInvocation/invoking": "Searching Civitatis activities…",
+              "openai/toolInvocation/invoked": "Activities found",
+              "skybridge/devtoolsDefaults": {
+                "destination": "Madrid",
+                "startDate": "2026-10-12",
+                "days": 3,
+                "travelers": 2,
+                "lang": "es",
+                "currency": "EUR"
+              },
+              "openai/outputTemplate": "ui://views/apps-sdk/search-activities.html?v=370c89be",
+              "ui/resourceUri": "ui://views/ext-apps/search-activities.html?v=370c89be",
+              "ui": {
+                "resourceUri": "ui://views/ext-apps/search-activities.html?v=370c89be"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "destination": {
+                  "type": "string"
+                },
+                "destinationId": {
+                  "type": "string"
+                },
+                "destinationUrl": {
+                  "type": "string"
+                },
+                "startDate": {
+                  "type": "string"
+                },
+                "days": {
+                  "type": "number"
+                },
+                "travelers": {
+                  "type": "number"
+                },
+                "activities": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "longDescription": {
+                        "type": "string"
+                      },
+                      "priceAmount": {
+                        "type": "number"
+                      },
+                      "originalPrice": {
+                        "type": "number"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "showPriceFrom": {
+                        "type": "boolean"
+                      },
+                      "discount": {
+                        "type": "string"
+                      },
+                      "durationMinutes": {
+                        "type": "number"
+                      },
+                      "durationText": {
+                        "type": "string"
+                      },
+                      "category": {
+                        "type": "string"
+                      },
+                      "categoryId": {
+                        "type": "string"
+                      },
+                      "rating": {
+                        "type": "number"
+                      },
+                      "reviewCount": {
+                        "type": "number"
+                      },
+                      "imageUrl": {
+                        "type": "string"
+                      },
+                      "detailImageUrl": {
+                        "type": "string"
+                      },
+                      "thumbnailUrl": {
+                        "type": "string"
+                      },
+                      "galleryImages": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "caption": {
+                              "type": "string"
+                            },
+                            "imageUrl": {
+                              "type": "string"
+                            },
+                            "thumbnailUrl": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "caption",
+                            "imageUrl",
+                            "thumbnailUrl"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "reviews": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "language": {
+                              "type": "string"
+                            },
+                            "score": {
+                              "type": "number"
+                            },
+                            "authorName": {
+                              "type": "string"
+                            },
+                            "comment": {
+                              "type": "string"
+                            },
+                            "travelerType": {
+                              "type": "string"
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "providerAnswer": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "language",
+                            "score",
+                            "authorName",
+                            "comment",
+                            "travelerType",
+                            "createdAt"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "reviewsTotal": {
+                        "type": "number"
+                      },
+                      "bookingUrl": {
+                        "type": "string"
+                      },
+                      "cancelPolicy": {
+                        "type": "string"
+                      },
+                      "hasFreeCancellation": {
+                        "type": "boolean"
+                      },
+                      "tags": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "destinationName": {
+                        "type": "string"
+                      },
+                      "isGoldenTour": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "title",
+                      "description",
+                      "priceAmount",
+                      "currency",
+                      "showPriceFrom",
+                      "durationMinutes",
+                      "durationText",
+                      "category",
+                      "categoryId",
+                      "rating",
+                      "reviewCount",
+                      "imageUrl",
+                      "thumbnailUrl",
+                      "bookingUrl",
+                      "cancelPolicy",
+                      "hasFreeCancellation",
+                      "tags"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "categories": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "label"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "totalResults": {
+                  "type": "number"
+                },
+                "initialCategoryId": {
+                  "type": "string"
+                },
+                "isCountryLevel": {
+                  "type": "boolean"
+                },
+                "autoSelectedFromCountry": {
+                  "type": "string"
+                },
+                "lang": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "destination",
+                "destinationUrl",
+                "startDate",
+                "days",
+                "travelers",
+                "activities",
+                "categories",
+                "totalResults"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "list-activities",
+            "title": "List Activities",
+            "description": "Look up activities (with numeric IDs) for a destination as PLAIN TEXT, without showing any widget. Use this to obtain activityIds before suggest-itinerary, get-activity-detail or check-availability when you don't already have them. Returns a text list of 'title (activityId=NNN)'.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "destination": {
+                  "type": "string",
+                  "description": "City or destination name"
+                },
+                "lang": {
+                  "description": "Civitatis locale (en_US, es_AR, es_ES, es_MX, fr_FR, it_IT, pt_BR, pt_PT); base codes are also accepted. Defaults to es",
+                  "type": "string",
+                  "enum": [
+                    "es",
+                    "en",
+                    "fr",
+                    "it",
+                    "pt",
+                    "en_US",
+                    "es_AR",
+                    "es_ES",
+                    "es_MX",
+                    "fr_FR",
+                    "it_IT",
+                    "pt_BR",
+                    "pt_PT"
+                  ]
+                },
+                "currency": {
+                  "description": "Currency code (EUR, USD, GBP). Defaults to EUR",
+                  "type": "string",
+                  "enum": [
+                    "EUR",
+                    "USD",
+                    "GBP",
+                    "BRL",
+                    "MXN",
+                    "COP",
+                    "ARS",
+                    "CLP",
+                    "SGD",
+                    "HKD",
+                    "TRY",
+                    "JPY",
+                    "THB",
+                    "PLN",
+                    "AED",
+                    "IDR",
+                    "MUR",
+                    "HRK",
+                    "AUD",
+                    "DKK",
+                    "CZK",
+                    "ISK",
+                    "NOK",
+                    "UAH",
+                    "PEN",
+                    "CHF",
+                    "SEK",
+                    "CAD",
+                    "CNY",
+                    "RUB",
+                    "BOB",
+                    "MYR",
+                    "PHP",
+                    "KRW",
+                    "CUC",
+                    "CUP",
+                    "INR",
+                    "VND",
+                    "NZD",
+                    "UYU",
+                    "NAD",
+                    "FJD",
+                    "BGN",
+                    "QAR",
+                    "MAD",
+                    "RON",
+                    "EGP",
+                    "HUF",
+                    "GEL",
+                    "TWD",
+                    "GTQ",
+                    "ILS",
+                    "DOP",
+                    "CRC",
+                    "AZN",
+                    "AMD",
+                    "XPF",
+                    "NIO",
+                    "HNL",
+                    "AOA"
+                  ]
+                },
+                "travelers": {
+                  "description": "Number of travelers, used for pricing. Defaults to 1",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "destination"
+              ]
+            },
+            "annotations": {
+              "title": "List Activities",
+              "readOnlyHint": true,
+              "openWorldHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/toolInvocation/invoking": "Looking up activities…",
+              "openai/toolInvocation/invoked": "Activities retrieved"
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "destination": {
+                  "type": "string"
+                },
+                "total": {
+                  "type": "number"
+                },
+                "activities": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "priceAmount": {
+                        "type": "number"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "durationText": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "title",
+                      "priceAmount",
+                      "currency",
+                      "durationText"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "autoSelectedFromCountry": {
+                  "type": "string"
+                },
+                "lang": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "destination",
+                "total",
+                "activities"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "get-activity-detail",
+            "title": "Activity Details",
+            "description": "Get full details of a specific activity: images, long description, highlights, cancellation policy, reviews, and price. Use it whenever the user asks for more info, details, description or highlights of a specific activity, including activities already mentioned earlier in the conversation — catalog data such as prices and policies changes over time, so fresh details come from this tool and are presented in its detail widget. Requires the NUMERIC activityId (e.g. 12345); look it up with list-activities if you only have a name.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "activityId": {
+                  "type": "string",
+                  "description": "Activity ID from search-activities results"
+                },
+                "lang": {
+                  "description": "Civitatis locale (en_US, es_AR, es_ES, es_MX, fr_FR, it_IT, pt_BR, pt_PT); base codes are also accepted. Defaults to es",
+                  "type": "string",
+                  "enum": [
+                    "es",
+                    "en",
+                    "fr",
+                    "it",
+                    "pt",
+                    "en_US",
+                    "es_AR",
+                    "es_ES",
+                    "es_MX",
+                    "fr_FR",
+                    "it_IT",
+                    "pt_BR",
+                    "pt_PT"
+                  ]
+                },
+                "currency": {
+                  "description": "Currency code (EUR, USD, GBP). Defaults to EUR",
+                  "type": "string",
+                  "enum": [
+                    "EUR",
+                    "USD",
+                    "GBP",
+                    "BRL",
+                    "MXN",
+                    "COP",
+                    "ARS",
+                    "CLP",
+                    "SGD",
+                    "HKD",
+                    "TRY",
+                    "JPY",
+                    "THB",
+                    "PLN",
+                    "AED",
+                    "IDR",
+                    "MUR",
+                    "HRK",
+                    "AUD",
+                    "DKK",
+                    "CZK",
+                    "ISK",
+                    "NOK",
+                    "UAH",
+                    "PEN",
+                    "CHF",
+                    "SEK",
+                    "CAD",
+                    "CNY",
+                    "RUB",
+                    "BOB",
+                    "MYR",
+                    "PHP",
+                    "KRW",
+                    "CUC",
+                    "CUP",
+                    "INR",
+                    "VND",
+                    "NZD",
+                    "UYU",
+                    "NAD",
+                    "FJD",
+                    "BGN",
+                    "QAR",
+                    "MAD",
+                    "RON",
+                    "EGP",
+                    "HUF",
+                    "GEL",
+                    "TWD",
+                    "GTQ",
+                    "ILS",
+                    "DOP",
+                    "CRC",
+                    "AZN",
+                    "AMD",
+                    "XPF",
+                    "NIO",
+                    "HNL",
+                    "AOA"
+                  ]
+                }
+              },
+              "required": [
+                "activityId"
+              ]
+            },
+            "annotations": {
+              "title": "Activity Details",
+              "readOnlyHint": true,
+              "openWorldHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/toolInvocation/invoking": "Loading activity details…",
+              "openai/toolInvocation/invoked": "Activity details loaded",
+              "openai/outputTemplate": "ui://views/apps-sdk/activity-detail.html?v=75e34228",
+              "ui/resourceUri": "ui://views/ext-apps/activity-detail.html?v=75e34228",
+              "ui": {
+                "resourceUri": "ui://views/ext-apps/activity-detail.html?v=75e34228"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "longDescription": {
+                  "type": "string"
+                },
+                "priceAmount": {
+                  "type": "number"
+                },
+                "originalPrice": {
+                  "type": "number"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "showPriceFrom": {
+                  "type": "boolean"
+                },
+                "discount": {
+                  "type": "string"
+                },
+                "durationMinutes": {
+                  "type": "number"
+                },
+                "durationText": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "categoryId": {
+                  "type": "string"
+                },
+                "rating": {
+                  "type": "number"
+                },
+                "reviewCount": {
+                  "type": "number"
+                },
+                "imageUrl": {
+                  "type": "string"
+                },
+                "detailImageUrl": {
+                  "type": "string"
+                },
+                "thumbnailUrl": {
+                  "type": "string"
+                },
+                "galleryImages": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "caption": {
+                        "type": "string"
+                      },
+                      "imageUrl": {
+                        "type": "string"
+                      },
+                      "thumbnailUrl": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "caption",
+                      "imageUrl",
+                      "thumbnailUrl"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "reviews": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "language": {
+                        "type": "string"
+                      },
+                      "score": {
+                        "type": "number"
+                      },
+                      "authorName": {
+                        "type": "string"
+                      },
+                      "comment": {
+                        "type": "string"
+                      },
+                      "travelerType": {
+                        "type": "string"
+                      },
+                      "createdAt": {
+                        "type": "string"
+                      },
+                      "providerAnswer": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "language",
+                      "score",
+                      "authorName",
+                      "comment",
+                      "travelerType",
+                      "createdAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "reviewsTotal": {
+                  "type": "number"
+                },
+                "bookingUrl": {
+                  "type": "string"
+                },
+                "cancelPolicy": {
+                  "type": "string"
+                },
+                "hasFreeCancellation": {
+                  "type": "boolean"
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "destinationName": {
+                  "type": "string"
+                },
+                "isGoldenTour": {
+                  "type": "boolean"
+                },
+                "lang": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "description",
+                "priceAmount",
+                "currency",
+                "showPriceFrom",
+                "durationMinutes",
+                "durationText",
+                "category",
+                "categoryId",
+                "rating",
+                "reviewCount",
+                "imageUrl",
+                "thumbnailUrl",
+                "bookingUrl",
+                "cancelPolicy",
+                "hasFreeCancellation",
+                "tags"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "check-availability",
+            "title": "Check Availability",
+            "description": "Check available time slots for a specific activity on a given date. Call this INSTEAD OF search-activities when the user asks about availability, dates, or schedules for an activity already shown in the conversation. Requires activityId from prior search results.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "activityId": {
+                  "type": "string",
+                  "description": "Activity ID from search-activities or get-activity-detail"
+                },
+                "date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "Date to check in YYYY-MM-DD format"
+                },
+                "travelers": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Number of travelers"
+                },
+                "pax": {
+                  "description": "Traveler breakdown. If provided, takes precedence over `travelers`.",
+                  "type": "object",
+                  "properties": {
+                    "adults": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "children": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "adults"
+                  ]
+                },
+                "activityTitle": {
+                  "description": "Activity title, passed through to the widget for itinerary display",
+                  "type": "string"
+                },
+                "activityBookingUrl": {
+                  "description": "Activity booking URL, passed through to the widget",
+                  "type": "string"
+                },
+                "activityDurationText": {
+                  "description": "Human-readable activity duration (e.g. '2h'), passed through to the widget",
+                  "type": "string"
+                },
+                "lang": {
+                  "description": "Civitatis locale (en_US, es_AR, es_ES, es_MX, fr_FR, it_IT, pt_BR, pt_PT); base codes are also accepted. Defaults to es",
+                  "type": "string",
+                  "enum": [
+                    "es",
+                    "en",
+                    "fr",
+                    "it",
+                    "pt",
+                    "en_US",
+                    "es_AR",
+                    "es_ES",
+                    "es_MX",
+                    "fr_FR",
+                    "it_IT",
+                    "pt_BR",
+                    "pt_PT"
+                  ]
+                },
+                "currency": {
+                  "description": "Currency code (EUR, USD, GBP). Defaults to EUR",
+                  "type": "string",
+                  "enum": [
+                    "EUR",
+                    "USD",
+                    "GBP",
+                    "BRL",
+                    "MXN",
+                    "COP",
+                    "ARS",
+                    "CLP",
+                    "SGD",
+                    "HKD",
+                    "TRY",
+                    "JPY",
+                    "THB",
+                    "PLN",
+                    "AED",
+                    "IDR",
+                    "MUR",
+                    "HRK",
+                    "AUD",
+                    "DKK",
+                    "CZK",
+                    "ISK",
+                    "NOK",
+                    "UAH",
+                    "PEN",
+                    "CHF",
+                    "SEK",
+                    "CAD",
+                    "CNY",
+                    "RUB",
+                    "BOB",
+                    "MYR",
+                    "PHP",
+                    "KRW",
+                    "CUC",
+                    "CUP",
+                    "INR",
+                    "VND",
+                    "NZD",
+                    "UYU",
+                    "NAD",
+                    "FJD",
+                    "BGN",
+                    "QAR",
+                    "MAD",
+                    "RON",
+                    "EGP",
+                    "HUF",
+                    "GEL",
+                    "TWD",
+                    "GTQ",
+                    "ILS",
+                    "DOP",
+                    "CRC",
+                    "AZN",
+                    "AMD",
+                    "XPF",
+                    "NIO",
+                    "HNL",
+                    "AOA"
+                  ]
+                }
+              },
+              "required": [
+                "activityId",
+                "date",
+                "travelers"
+              ]
+            },
+            "annotations": {
+              "title": "Check Availability",
+              "readOnlyHint": true,
+              "openWorldHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/toolInvocation/invoking": "Checking availability…",
+              "openai/toolInvocation/invoked": "Availability checked",
+              "openai/outputTemplate": "ui://views/apps-sdk/availability-check.html?v=c1633748",
+              "ui/resourceUri": "ui://views/ext-apps/availability-check.html?v=c1633748",
+              "ui": {
+                "resourceUri": "ui://views/ext-apps/availability-check.html?v=c1633748"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "activityId": {
+                  "type": "string"
+                },
+                "date": {
+                  "type": "string"
+                },
+                "requestedDate": {
+                  "type": "string"
+                },
+                "nextAvailableDate": {
+                  "type": "string"
+                },
+                "travelers": {
+                  "type": "number"
+                },
+                "pax": {
+                  "type": "object",
+                  "properties": {
+                    "adults": {
+                      "type": "number"
+                    },
+                    "children": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "adults",
+                    "children"
+                  ],
+                  "additionalProperties": false
+                },
+                "activityTitle": {
+                  "type": "string"
+                },
+                "activityBookingUrl": {
+                  "type": "string"
+                },
+                "activityDurationText": {
+                  "type": "string"
+                },
+                "sessions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "time": {
+                        "type": "string"
+                      },
+                      "activityId": {
+                        "type": "string"
+                      },
+                      "modalityId": {
+                        "type": "string"
+                      },
+                      "ticketTypeId": {
+                        "type": "string"
+                      },
+                      "priceAmount": {
+                        "type": "number"
+                      },
+                      "currency": {
+                        "type": "string"
+                      },
+                      "spots": {
+                        "anyOf": [
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "modalityDetail": {
+                        "type": "string"
+                      },
+                      "ticketTypeDetail": {
+                        "type": "string"
+                      },
+                      "isSecondaryProvider": {
+                        "type": "boolean"
+                      },
+                      "ticketTypes": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "detail": {
+                              "type": "string"
+                            },
+                            "priceAmount": {
+                              "type": "number"
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "canBookAlone": {
+                              "type": "boolean"
+                            },
+                            "maxPaxes": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "detail",
+                            "priceAmount",
+                            "currency",
+                            "canBookAlone",
+                            "maxPaxes"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "time",
+                      "activityId",
+                      "modalityId",
+                      "ticketTypeId",
+                      "priceAmount",
+                      "currency",
+                      "spots",
+                      "modalityDetail",
+                      "ticketTypeDetail",
+                      "isSecondaryProvider",
+                      "ticketTypes"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "lang": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "activityId",
+                "date",
+                "travelers",
+                "pax",
+                "sessions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "add-to-cart",
+            "title": "Add to Cart",
+            "description": "Add an activity session to the cart and get a checkout URL. Call this when the user wants to book or reserve an activity. Requires activityId, date and time; pass modalityId and ticketTypeId too when check-availability gave them to you, and the server resolves them from the calendar when it did not. To add another item to the SAME cart, pass both cartId AND cartToken exactly as returned by the previous add-to-cart call — cartId alone is rejected.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "activityId": {
+                  "type": "string",
+                  "description": "Activity ID (use activityId from the session in check-availability, not the original search ID)"
+                },
+                "date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "Date in YYYY-MM-DD format"
+                },
+                "time": {
+                  "type": "string",
+                  "description": "Session time in HH:MM format from check-availability"
+                },
+                "modalityId": {
+                  "description": "Modality ID from the session in check-availability. Omit it if you do not have one — the server resolves it from the calendar.",
+                  "type": "string"
+                },
+                "ticketTypeId": {
+                  "description": "Ticket type ID from check-availability. Omit it if you do not have one — the server resolves it from the calendar. (For multi-pax bookings with several ticket types, use the ticketTypes array instead.)",
+                  "type": "string"
+                },
+                "travelers": {
+                  "description": "Number of travelers (legacy — use ticketTypes array instead)",
+                  "type": "number"
+                },
+                "ticketTypes": {
+                  "description": "Ticket types with quantities. Use this instead of ticketTypeId+travelers for multi-pax bookings.",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "Ticket type ID from check-availability"
+                      },
+                      "quantity": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991,
+                        "description": "Number of tickets"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "quantity"
+                    ]
+                  }
+                },
+                "cartId": {
+                  "description": "Existing cart ID to add to (from a previous add-to-cart call). Requires cartToken from that same call — a cartId without its matching cartToken is rejected.",
+                  "type": "string"
+                },
+                "cartToken": {
+                  "description": "Cart token returned by the previous add-to-cart call for this cart. Required together with cartId to add to an existing cart.",
+                  "type": "string"
+                },
+                "currency": {
+                  "description": "Currency code (EUR, USD, GBP). Defaults to EUR",
+                  "type": "string",
+                  "enum": [
+                    "EUR",
+                    "USD",
+                    "GBP",
+                    "BRL",
+                    "MXN",
+                    "COP",
+                    "ARS",
+                    "CLP",
+                    "SGD",
+                    "HKD",
+                    "TRY",
+                    "JPY",
+                    "THB",
+                    "PLN",
+                    "AED",
+                    "IDR",
+                    "MUR",
+                    "HRK",
+                    "AUD",
+                    "DKK",
+                    "CZK",
+                    "ISK",
+                    "NOK",
+                    "UAH",
+                    "PEN",
+                    "CHF",
+                    "SEK",
+                    "CAD",
+                    "CNY",
+                    "RUB",
+                    "BOB",
+                    "MYR",
+                    "PHP",
+                    "KRW",
+                    "CUC",
+                    "CUP",
+                    "INR",
+                    "VND",
+                    "NZD",
+                    "UYU",
+                    "NAD",
+                    "FJD",
+                    "BGN",
+                    "QAR",
+                    "MAD",
+                    "RON",
+                    "EGP",
+                    "HUF",
+                    "GEL",
+                    "TWD",
+                    "GTQ",
+                    "ILS",
+                    "DOP",
+                    "CRC",
+                    "AZN",
+                    "AMD",
+                    "XPF",
+                    "NIO",
+                    "HNL",
+                    "AOA"
+                  ]
+                },
+                "lang": {
+                  "description": "Civitatis locale (en_US, es_AR, es_ES, es_MX, fr_FR, it_IT, pt_BR, pt_PT); base codes are also accepted. Defaults to es",
+                  "type": "string",
+                  "enum": [
+                    "es",
+                    "en",
+                    "fr",
+                    "it",
+                    "pt",
+                    "en_US",
+                    "es_AR",
+                    "es_ES",
+                    "es_MX",
+                    "fr_FR",
+                    "it_IT",
+                    "pt_BR",
+                    "pt_PT"
+                  ]
+                }
+              },
+              "required": [
+                "activityId",
+                "date",
+                "time"
+              ]
+            },
+            "annotations": {
+              "title": "Add to Cart",
+              "readOnlyHint": false,
+              "openWorldHint": true,
+              "destructiveHint": false,
+              "idempotentHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/toolInvocation/invoking": "Adding to your cart…",
+              "openai/toolInvocation/invoked": "Added to cart"
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "cartId": {
+                  "type": "string"
+                },
+                "cartToken": {
+                  "type": "string"
+                },
+                "pin": {
+                  "type": "number"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "activityId": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "date": {
+                        "type": "string"
+                      },
+                      "time": {
+                        "type": "string"
+                      },
+                      "modalityDetail": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "activityId",
+                      "date",
+                      "time"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "checkoutUrl": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "cartId",
+                "cartToken",
+                "pin",
+                "items",
+                "currency",
+                "checkoutUrl"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "check-availability-batch",
+            "title": "Check Availability (Multiple)",
+            "description": "Check availability for MULTIPLE activities on the same date in one call. Use this when the user asks which of several activities are available on a specific date. More efficient than calling check-availability multiple times.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "activities": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "activityId": {
+                        "type": "string",
+                        "description": "Activity ID"
+                      },
+                      "activityTitle": {
+                        "type": "string"
+                      },
+                      "activityBookingUrl": {
+                        "type": "string"
+                      },
+                      "activityDurationText": {
+                        "type": "string"
+                      },
+                      "thumbnailUrl": {
+                        "description": "Activity thumbnail URL from search results, passed through to the widget",
+                        "type": "string"
+                      },
+                      "imageUrl": {
+                        "description": "Activity image URL (grid size) from search results, passed through to the widget",
+                        "type": "string"
+                      },
+                      "rating": {
+                        "description": "Activity rating from search results, passed through to the widget",
+                        "type": "number"
+                      },
+                      "description": {
+                        "description": "Short activity description from search results, passed through to the widget",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "activityId"
+                    ]
+                  },
+                  "description": "List of activities to check"
+                },
+                "date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "Date to check in YYYY-MM-DD format"
+                },
+                "travelers": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Number of travelers"
+                },
+                "pax": {
+                  "description": "Traveler breakdown. If provided, takes precedence over `travelers`.",
+                  "type": "object",
+                  "properties": {
+                    "adults": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "children": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "adults"
+                  ]
+                },
+                "lang": {
+                  "description": "Civitatis locale (en_US, es_AR, es_ES, es_MX, fr_FR, it_IT, pt_BR, pt_PT); base codes are also accepted. Defaults to es",
+                  "type": "string",
+                  "enum": [
+                    "es",
+                    "en",
+                    "fr",
+                    "it",
+                    "pt",
+                    "en_US",
+                    "es_AR",
+                    "es_ES",
+                    "es_MX",
+                    "fr_FR",
+                    "it_IT",
+                    "pt_BR",
+                    "pt_PT"
+                  ]
+                },
+                "currency": {
+                  "description": "Currency code (EUR, USD, GBP). Defaults to EUR",
+                  "type": "string",
+                  "enum": [
+                    "EUR",
+                    "USD",
+                    "GBP",
+                    "BRL",
+                    "MXN",
+                    "COP",
+                    "ARS",
+                    "CLP",
+                    "SGD",
+                    "HKD",
+                    "TRY",
+                    "JPY",
+                    "THB",
+                    "PLN",
+                    "AED",
+                    "IDR",
+                    "MUR",
+                    "HRK",
+                    "AUD",
+                    "DKK",
+                    "CZK",
+                    "ISK",
+                    "NOK",
+                    "UAH",
+                    "PEN",
+                    "CHF",
+                    "SEK",
+                    "CAD",
+                    "CNY",
+                    "RUB",
+                    "BOB",
+                    "MYR",
+                    "PHP",
+                    "KRW",
+                    "CUC",
+                    "CUP",
+                    "INR",
+                    "VND",
+                    "NZD",
+                    "UYU",
+                    "NAD",
+                    "FJD",
+                    "BGN",
+                    "QAR",
+                    "MAD",
+                    "RON",
+                    "EGP",
+                    "HUF",
+                    "GEL",
+                    "TWD",
+                    "GTQ",
+                    "ILS",
+                    "DOP",
+                    "CRC",
+                    "AZN",
+                    "AMD",
+                    "XPF",
+                    "NIO",
+                    "HNL",
+                    "AOA"
+                  ]
+                }
+              },
+              "required": [
+                "activities",
+                "date",
+                "travelers"
+              ]
+            },
+            "annotations": {
+              "title": "Check Availability (Multiple)",
+              "readOnlyHint": true,
+              "openWorldHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/toolInvocation/invoking": "Checking availability…",
+              "openai/toolInvocation/invoked": "Availability checked",
+              "openai/outputTemplate": "ui://views/apps-sdk/availability-batch.html?v=e12b4238",
+              "ui/resourceUri": "ui://views/ext-apps/availability-batch.html?v=e12b4238",
+              "ui": {
+                "resourceUri": "ui://views/ext-apps/availability-batch.html?v=e12b4238"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "travelers": {
+                  "type": "number"
+                },
+                "pax": {
+                  "type": "object",
+                  "properties": {
+                    "adults": {
+                      "type": "number"
+                    },
+                    "children": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "adults",
+                    "children"
+                  ],
+                  "additionalProperties": false
+                },
+                "results": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "activityId": {
+                        "type": "string"
+                      },
+                      "activityTitle": {
+                        "type": "string"
+                      },
+                      "activityBookingUrl": {
+                        "type": "string"
+                      },
+                      "activityDurationText": {
+                        "type": "string"
+                      },
+                      "thumbnailUrl": {
+                        "type": "string"
+                      },
+                      "imageUrl": {
+                        "type": "string"
+                      },
+                      "rating": {
+                        "type": "number"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "date": {
+                        "type": "string"
+                      },
+                      "nextAvailableDate": {
+                        "type": "string"
+                      },
+                      "hasAvailability": {
+                        "type": "boolean"
+                      },
+                      "sessions": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "time": {
+                              "type": "string"
+                            },
+                            "activityId": {
+                              "type": "string"
+                            },
+                            "modalityId": {
+                              "type": "string"
+                            },
+                            "ticketTypeId": {
+                              "type": "string"
+                            },
+                            "priceAmount": {
+                              "type": "number"
+                            },
+                            "currency": {
+                              "type": "string"
+                            },
+                            "spots": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "modalityDetail": {
+                              "type": "string"
+                            },
+                            "ticketTypeDetail": {
+                              "type": "string"
+                            },
+                            "isSecondaryProvider": {
+                              "type": "boolean"
+                            },
+                            "ticketTypes": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "detail": {
+                                    "type": "string"
+                                  },
+                                  "priceAmount": {
+                                    "type": "number"
+                                  },
+                                  "currency": {
+                                    "type": "string"
+                                  },
+                                  "canBookAlone": {
+                                    "type": "boolean"
+                                  },
+                                  "maxPaxes": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "detail",
+                                  "priceAmount",
+                                  "currency",
+                                  "canBookAlone",
+                                  "maxPaxes"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "time",
+                            "activityId",
+                            "modalityId",
+                            "ticketTypeId",
+                            "priceAmount",
+                            "currency",
+                            "spots",
+                            "modalityDetail",
+                            "ticketTypeDetail",
+                            "isSecondaryProvider",
+                            "ticketTypes"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "activityId",
+                      "date",
+                      "hasAvailability",
+                      "sessions"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "lang": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "date",
+                "travelers",
+                "pax",
+                "results"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "suggest-itinerary",
+            "title": "Suggest Itinerary",
+            "description": "Display a multi-day activity itinerary plan. Use this whenever the user asks for an itinerary, a plan, or a multi-day schedule for a destination (NOT search-activities). Call it DIRECTLY with destination, startDate, days and travelers — the server automatically picks the destination's top activities and distributes them across the days. Only pass `plan` when the user asked for SPECIFIC activities (get their numeric activityIds from list-activities first; NEVER invent activityIds).",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "destination": {
+                  "type": "string",
+                  "description": "City or destination name"
+                },
+                "startDate": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "Trip start date in YYYY-MM-DD format"
+                },
+                "days": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Number of days"
+                },
+                "travelers": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Number of travelers"
+                },
+                "lang": {
+                  "description": "Civitatis locale (en_US, es_AR, es_ES, es_MX, fr_FR, it_IT, pt_BR, pt_PT); base codes are also accepted. Defaults to es",
+                  "type": "string",
+                  "enum": [
+                    "es",
+                    "en",
+                    "fr",
+                    "it",
+                    "pt",
+                    "en_US",
+                    "es_AR",
+                    "es_ES",
+                    "es_MX",
+                    "fr_FR",
+                    "it_IT",
+                    "pt_BR",
+                    "pt_PT"
+                  ]
+                },
+                "currency": {
+                  "description": "Currency code (EUR, USD, GBP). Defaults to EUR",
+                  "type": "string",
+                  "enum": [
+                    "EUR",
+                    "USD",
+                    "GBP",
+                    "BRL",
+                    "MXN",
+                    "COP",
+                    "ARS",
+                    "CLP",
+                    "SGD",
+                    "HKD",
+                    "TRY",
+                    "JPY",
+                    "THB",
+                    "PLN",
+                    "AED",
+                    "IDR",
+                    "MUR",
+                    "HRK",
+                    "AUD",
+                    "DKK",
+                    "CZK",
+                    "ISK",
+                    "NOK",
+                    "UAH",
+                    "PEN",
+                    "CHF",
+                    "SEK",
+                    "CAD",
+                    "CNY",
+                    "RUB",
+                    "BOB",
+                    "MYR",
+                    "PHP",
+                    "KRW",
+                    "CUC",
+                    "CUP",
+                    "INR",
+                    "VND",
+                    "NZD",
+                    "UYU",
+                    "NAD",
+                    "FJD",
+                    "BGN",
+                    "QAR",
+                    "MAD",
+                    "RON",
+                    "EGP",
+                    "HUF",
+                    "GEL",
+                    "TWD",
+                    "GTQ",
+                    "ILS",
+                    "DOP",
+                    "CRC",
+                    "AZN",
+                    "AMD",
+                    "XPF",
+                    "NIO",
+                    "HNL",
+                    "AOA"
+                  ]
+                },
+                "plan": {
+                  "description": "OPTIONAL day-by-day buckets of activity IDs. Omit it to let the server auto-build the plan with the destination's top activities. Pass ONLY the IDs — do not pass titles, prices or images.",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "date": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        "description": "Day date in YYYY-MM-DD format"
+                      },
+                      "activityIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Numeric activity IDs for this day, as strings (e.g. [\"12345\",\"67890\"]). Only IDs returned by list-activities — the widget fills in titles, prices and images automatically."
+                      }
+                    },
+                    "required": [
+                      "date",
+                      "activityIds"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "destination",
+                "startDate",
+                "days",
+                "travelers"
+              ]
+            },
+            "annotations": {
+              "title": "Suggest Itinerary",
+              "readOnlyHint": true,
+              "openWorldHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/toolInvocation/invoking": "Building your itinerary…",
+              "openai/toolInvocation/invoked": "Itinerary ready",
+              "openai/outputTemplate": "ui://views/apps-sdk/itinerary-plan.html?v=81dd4fb7",
+              "ui/resourceUri": "ui://views/ext-apps/itinerary-plan.html?v=81dd4fb7",
+              "ui": {
+                "resourceUri": "ui://views/ext-apps/itinerary-plan.html?v=81dd4fb7"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "destination": {
+                  "type": "string"
+                },
+                "startDate": {
+                  "type": "string"
+                },
+                "days": {
+                  "type": "number"
+                },
+                "travelers": {
+                  "type": "number"
+                },
+                "lang": {
+                  "type": "string"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "isCountryLevel": {
+                  "type": "boolean"
+                },
+                "autoSelectedFromCountry": {
+                  "type": "string"
+                },
+                "plan": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "date": {
+                        "type": "string"
+                      },
+                      "activities": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "activityId": {
+                              "type": "string"
+                            },
+                            "activityTitle": {
+                              "type": "string"
+                            },
+                            "thumbnailUrl": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "imageUrl": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "priceAmount": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "currency": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "durationText": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "rating": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "description": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "activityId",
+                            "activityTitle"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "date",
+                      "activities"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "destination",
+                "startDate",
+                "days",
+                "travelers",
+                "plan"
+              ],
+              "additionalProperties": false
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "search-activities",
+        "title": "Search Activities",
+        "description": "Browse activities for a destination — shows a visual carousel widget for open-ended discovery. Use ONLY when the user just wants to see what there is, and no activities are visible yet. DO NOT use this for itinerary or multi-day plan requests — for those call suggest-itinerary directly. To look up activityIds WITHOUT a widget, use list-activities.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string",
+              "description": "City or destination name"
+            },
+            "startDate": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Trip start date in YYYY-MM-DD format"
+            },
+            "days": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Number of days for the trip"
+            },
+            "travelers": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Number of travelers"
+            },
+            "lang": {
+              "description": "Civitatis locale (en_US, es_AR, es_ES, es_MX, fr_FR, it_IT, pt_BR, pt_PT); base codes are also accepted. Defaults to es",
+              "type": "string",
+              "enum": [
+                "es",
+                "en",
+                "fr",
+                "it",
+                "pt",
+                "en_US",
+                "es_AR",
+                "es_ES",
+                "es_MX",
+                "fr_FR",
+                "it_IT",
+                "pt_BR",
+                "pt_PT"
+              ]
+            },
+            "currency": {
+              "description": "Currency code (EUR, USD, GBP). Defaults to EUR",
+              "type": "string",
+              "enum": [
+                "EUR",
+                "USD",
+                "GBP",
+                "BRL",
+                "MXN",
+                "COP",
+                "ARS",
+                "CLP",
+                "SGD",
+                "HKD",
+                "TRY",
+                "JPY",
+                "THB",
+                "PLN",
+                "AED",
+                "IDR",
+                "MUR",
+                "HRK",
+                "AUD",
+                "DKK",
+                "CZK",
+                "ISK",
+                "NOK",
+                "UAH",
+                "PEN",
+                "CHF",
+                "SEK",
+                "CAD",
+                "CNY",
+                "RUB",
+                "BOB",
+                "MYR",
+                "PHP",
+                "KRW",
+                "CUC",
+                "CUP",
+                "INR",
+                "VND",
+                "NZD",
+                "UYU",
+                "NAD",
+                "FJD",
+                "BGN",
+                "QAR",
+                "MAD",
+                "RON",
+                "EGP",
+                "HUF",
+                "GEL",
+                "TWD",
+                "GTQ",
+                "ILS",
+                "DOP",
+                "CRC",
+                "AZN",
+                "AMD",
+                "XPF",
+                "NIO",
+                "HNL",
+                "AOA"
+              ]
+            },
+            "activityType": {
+              "description": "Optional activity type filter in the user's language (e.g. 'free tours', 'museos', 'gastronomía'). Pre-selects the matching category in the widget.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "destination",
+            "startDate",
+            "days",
+            "travelers"
+          ]
+        },
+        "annotations": {
+          "title": "Search Activities",
+          "readOnlyHint": true,
+          "openWorldHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/toolInvocation/invoking": "Searching Civitatis activities…",
+          "openai/toolInvocation/invoked": "Activities found",
+          "skybridge/devtoolsDefaults": {
+            "destination": "Madrid",
+            "startDate": "2026-10-12",
+            "days": 3,
+            "travelers": 2,
+            "lang": "es",
+            "currency": "EUR"
+          },
+          "openai/outputTemplate": "ui://views/apps-sdk/search-activities.html?v=370c89be",
+          "ui/resourceUri": "ui://views/ext-apps/search-activities.html?v=370c89be",
+          "ui": {
+            "resourceUri": "ui://views/ext-apps/search-activities.html?v=370c89be"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string"
+            },
+            "destinationId": {
+              "type": "string"
+            },
+            "destinationUrl": {
+              "type": "string"
+            },
+            "startDate": {
+              "type": "string"
+            },
+            "days": {
+              "type": "number"
+            },
+            "travelers": {
+              "type": "number"
+            },
+            "activities": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "longDescription": {
+                    "type": "string"
+                  },
+                  "priceAmount": {
+                    "type": "number"
+                  },
+                  "originalPrice": {
+                    "type": "number"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "showPriceFrom": {
+                    "type": "boolean"
+                  },
+                  "discount": {
+                    "type": "string"
+                  },
+                  "durationMinutes": {
+                    "type": "number"
+                  },
+                  "durationText": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string"
+                  },
+                  "categoryId": {
+                    "type": "string"
+                  },
+                  "rating": {
+                    "type": "number"
+                  },
+                  "reviewCount": {
+                    "type": "number"
+                  },
+                  "imageUrl": {
+                    "type": "string"
+                  },
+                  "detailImageUrl": {
+                    "type": "string"
+                  },
+                  "thumbnailUrl": {
+                    "type": "string"
+                  },
+                  "galleryImages": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "caption": {
+                          "type": "string"
+                        },
+                        "imageUrl": {
+                          "type": "string"
+                        },
+                        "thumbnailUrl": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "caption",
+                        "imageUrl",
+                        "thumbnailUrl"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "reviews": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "language": {
+                          "type": "string"
+                        },
+                        "score": {
+                          "type": "number"
+                        },
+                        "authorName": {
+                          "type": "string"
+                        },
+                        "comment": {
+                          "type": "string"
+                        },
+                        "travelerType": {
+                          "type": "string"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "providerAnswer": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "language",
+                        "score",
+                        "authorName",
+                        "comment",
+                        "travelerType",
+                        "createdAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "reviewsTotal": {
+                    "type": "number"
+                  },
+                  "bookingUrl": {
+                    "type": "string"
+                  },
+                  "cancelPolicy": {
+                    "type": "string"
+                  },
+                  "hasFreeCancellation": {
+                    "type": "boolean"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "destinationName": {
+                    "type": "string"
+                  },
+                  "isGoldenTour": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "description",
+                  "priceAmount",
+                  "currency",
+                  "showPriceFrom",
+                  "durationMinutes",
+                  "durationText",
+                  "category",
+                  "categoryId",
+                  "rating",
+                  "reviewCount",
+                  "imageUrl",
+                  "thumbnailUrl",
+                  "bookingUrl",
+                  "cancelPolicy",
+                  "hasFreeCancellation",
+                  "tags"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "categories": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "label"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "totalResults": {
+              "type": "number"
+            },
+            "initialCategoryId": {
+              "type": "string"
+            },
+            "isCountryLevel": {
+              "type": "boolean"
+            },
+            "autoSelectedFromCountry": {
+              "type": "string"
+            },
+            "lang": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "destination",
+            "destinationUrl",
+            "startDate",
+            "days",
+            "travelers",
+            "activities",
+            "categories",
+            "totalResults"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "list-activities",
+        "title": "List Activities",
+        "description": "Look up activities (with numeric IDs) for a destination as PLAIN TEXT, without showing any widget. Use this to obtain activityIds before suggest-itinerary, get-activity-detail or check-availability when you don't already have them. Returns a text list of 'title (activityId=NNN)'.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string",
+              "description": "City or destination name"
+            },
+            "lang": {
+              "description": "Civitatis locale (en_US, es_AR, es_ES, es_MX, fr_FR, it_IT, pt_BR, pt_PT); base codes are also accepted. Defaults to es",
+              "type": "string",
+              "enum": [
+                "es",
+                "en",
+                "fr",
+                "it",
+                "pt",
+                "en_US",
+                "es_AR",
+                "es_ES",
+                "es_MX",
+                "fr_FR",
+                "it_IT",
+                "pt_BR",
+                "pt_PT"
+              ]
+            },
+            "currency": {
+              "description": "Currency code (EUR, USD, GBP). Defaults to EUR",
+              "type": "string",
+              "enum": [
+                "EUR",
+                "USD",
+                "GBP",
+                "BRL",
+                "MXN",
+                "COP",
+                "ARS",
+                "CLP",
+                "SGD",
+                "HKD",
+                "TRY",
+                "JPY",
+                "THB",
+                "PLN",
+                "AED",
+                "IDR",
+                "MUR",
+                "HRK",
+                "AUD",
+                "DKK",
+                "CZK",
+                "ISK",
+                "NOK",
+                "UAH",
+                "PEN",
+                "CHF",
+                "SEK",
+                "CAD",
+                "CNY",
+                "RUB",
+                "BOB",
+                "MYR",
+                "PHP",
+                "KRW",
+                "CUC",
+                "CUP",
+                "INR",
+                "VND",
+                "NZD",
+                "UYU",
+                "NAD",
+                "FJD",
+                "BGN",
+                "QAR",
+                "MAD",
+                "RON",
+                "EGP",
+                "HUF",
+                "GEL",
+                "TWD",
+                "GTQ",
+                "ILS",
+                "DOP",
+                "CRC",
+                "AZN",
+                "AMD",
+                "XPF",
+                "NIO",
+                "HNL",
+                "AOA"
+              ]
+            },
+            "travelers": {
+              "description": "Number of travelers, used for pricing. Defaults to 1",
+              "type": "number"
+            }
+          },
+          "required": [
+            "destination"
+          ]
+        },
+        "annotations": {
+          "title": "List Activities",
+          "readOnlyHint": true,
+          "openWorldHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/toolInvocation/invoking": "Looking up activities…",
+          "openai/toolInvocation/invoked": "Activities retrieved"
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string"
+            },
+            "total": {
+              "type": "number"
+            },
+            "activities": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "priceAmount": {
+                    "type": "number"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "durationText": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "title",
+                  "priceAmount",
+                  "currency",
+                  "durationText"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "autoSelectedFromCountry": {
+              "type": "string"
+            },
+            "lang": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "destination",
+            "total",
+            "activities"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "get-activity-detail",
+        "title": "Activity Details",
+        "description": "Get full details of a specific activity: images, long description, highlights, cancellation policy, reviews, and price. Use it whenever the user asks for more info, details, description or highlights of a specific activity, including activities already mentioned earlier in the conversation — catalog data such as prices and policies changes over time, so fresh details come from this tool and are presented in its detail widget. Requires the NUMERIC activityId (e.g. 12345); look it up with list-activities if you only have a name.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "activityId": {
+              "type": "string",
+              "description": "Activity ID from search-activities results"
+            },
+            "lang": {
+              "description": "Civitatis locale (en_US, es_AR, es_ES, es_MX, fr_FR, it_IT, pt_BR, pt_PT); base codes are also accepted. Defaults to es",
+              "type": "string",
+              "enum": [
+                "es",
+                "en",
+                "fr",
+                "it",
+                "pt",
+                "en_US",
+                "es_AR",
+                "es_ES",
+                "es_MX",
+                "fr_FR",
+                "it_IT",
+                "pt_BR",
+                "pt_PT"
+              ]
+            },
+            "currency": {
+              "description": "Currency code (EUR, USD, GBP). Defaults to EUR",
+              "type": "string",
+              "enum": [
+                "EUR",
+                "USD",
+                "GBP",
+                "BRL",
+                "MXN",
+                "COP",
+                "ARS",
+                "CLP",
+                "SGD",
+                "HKD",
+                "TRY",
+                "JPY",
+                "THB",
+                "PLN",
+                "AED",
+                "IDR",
+                "MUR",
+                "HRK",
+                "AUD",
+                "DKK",
+                "CZK",
+                "ISK",
+                "NOK",
+                "UAH",
+                "PEN",
+                "CHF",
+                "SEK",
+                "CAD",
+                "CNY",
+                "RUB",
+                "BOB",
+                "MYR",
+                "PHP",
+                "KRW",
+                "CUC",
+                "CUP",
+                "INR",
+                "VND",
+                "NZD",
+                "UYU",
+                "NAD",
+                "FJD",
+                "BGN",
+                "QAR",
+                "MAD",
+                "RON",
+                "EGP",
+                "HUF",
+                "GEL",
+                "TWD",
+                "GTQ",
+                "ILS",
+                "DOP",
+                "CRC",
+                "AZN",
+                "AMD",
+                "XPF",
+                "NIO",
+                "HNL",
+                "AOA"
+              ]
+            }
+          },
+          "required": [
+            "activityId"
+          ]
+        },
+        "annotations": {
+          "title": "Activity Details",
+          "readOnlyHint": true,
+          "openWorldHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/toolInvocation/invoking": "Loading activity details…",
+          "openai/toolInvocation/invoked": "Activity details loaded",
+          "openai/outputTemplate": "ui://views/apps-sdk/activity-detail.html?v=75e34228",
+          "ui/resourceUri": "ui://views/ext-apps/activity-detail.html?v=75e34228",
+          "ui": {
+            "resourceUri": "ui://views/ext-apps/activity-detail.html?v=75e34228"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "longDescription": {
+              "type": "string"
+            },
+            "priceAmount": {
+              "type": "number"
+            },
+            "originalPrice": {
+              "type": "number"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "showPriceFrom": {
+              "type": "boolean"
+            },
+            "discount": {
+              "type": "string"
+            },
+            "durationMinutes": {
+              "type": "number"
+            },
+            "durationText": {
+              "type": "string"
+            },
+            "category": {
+              "type": "string"
+            },
+            "categoryId": {
+              "type": "string"
+            },
+            "rating": {
+              "type": "number"
+            },
+            "reviewCount": {
+              "type": "number"
+            },
+            "imageUrl": {
+              "type": "string"
+            },
+            "detailImageUrl": {
+              "type": "string"
+            },
+            "thumbnailUrl": {
+              "type": "string"
+            },
+            "galleryImages": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "caption": {
+                    "type": "string"
+                  },
+                  "imageUrl": {
+                    "type": "string"
+                  },
+                  "thumbnailUrl": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "caption",
+                  "imageUrl",
+                  "thumbnailUrl"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "reviews": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "language": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "number"
+                  },
+                  "authorName": {
+                    "type": "string"
+                  },
+                  "comment": {
+                    "type": "string"
+                  },
+                  "travelerType": {
+                    "type": "string"
+                  },
+                  "createdAt": {
+                    "type": "string"
+                  },
+                  "providerAnswer": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "language",
+                  "score",
+                  "authorName",
+                  "comment",
+                  "travelerType",
+                  "createdAt"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "reviewsTotal": {
+              "type": "number"
+            },
+            "bookingUrl": {
+              "type": "string"
+            },
+            "cancelPolicy": {
+              "type": "string"
+            },
+            "hasFreeCancellation": {
+              "type": "boolean"
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "destinationName": {
+              "type": "string"
+            },
+            "isGoldenTour": {
+              "type": "boolean"
+            },
+            "lang": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "title",
+            "description",
+            "priceAmount",
+            "currency",
+            "showPriceFrom",
+            "durationMinutes",
+            "durationText",
+            "category",
+            "categoryId",
+            "rating",
+            "reviewCount",
+            "imageUrl",
+            "thumbnailUrl",
+            "bookingUrl",
+            "cancelPolicy",
+            "hasFreeCancellation",
+            "tags"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "check-availability",
+        "title": "Check Availability",
+        "description": "Check available time slots for a specific activity on a given date. Call this INSTEAD OF search-activities when the user asks about availability, dates, or schedules for an activity already shown in the conversation. Requires activityId from prior search results.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "activityId": {
+              "type": "string",
+              "description": "Activity ID from search-activities or get-activity-detail"
+            },
+            "date": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Date to check in YYYY-MM-DD format"
+            },
+            "travelers": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Number of travelers"
+            },
+            "pax": {
+              "description": "Traveler breakdown. If provided, takes precedence over `travelers`.",
+              "type": "object",
+              "properties": {
+                "adults": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "children": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "adults"
+              ]
+            },
+            "activityTitle": {
+              "description": "Activity title, passed through to the widget for itinerary display",
+              "type": "string"
+            },
+            "activityBookingUrl": {
+              "description": "Activity booking URL, passed through to the widget",
+              "type": "string"
+            },
+            "activityDurationText": {
+              "description": "Human-readable activity duration (e.g. '2h'), passed through to the widget",
+              "type": "string"
+            },
+            "lang": {
+              "description": "Civitatis locale (en_US, es_AR, es_ES, es_MX, fr_FR, it_IT, pt_BR, pt_PT); base codes are also accepted. Defaults to es",
+              "type": "string",
+              "enum": [
+                "es",
+                "en",
+                "fr",
+                "it",
+                "pt",
+                "en_US",
+                "es_AR",
+                "es_ES",
+                "es_MX",
+                "fr_FR",
+                "it_IT",
+                "pt_BR",
+                "pt_PT"
+              ]
+            },
+            "currency": {
+              "description": "Currency code (EUR, USD, GBP). Defaults to EUR",
+              "type": "string",
+              "enum": [
+                "EUR",
+                "USD",
+                "GBP",
+                "BRL",
+                "MXN",
+                "COP",
+                "ARS",
+                "CLP",
+                "SGD",
+                "HKD",
+                "TRY",
+                "JPY",
+                "THB",
+                "PLN",
+                "AED",
+                "IDR",
+                "MUR",
+                "HRK",
+                "AUD",
+                "DKK",
+                "CZK",
+                "ISK",
+                "NOK",
+                "UAH",
+                "PEN",
+                "CHF",
+                "SEK",
+                "CAD",
+                "CNY",
+                "RUB",
+                "BOB",
+                "MYR",
+                "PHP",
+                "KRW",
+                "CUC",
+                "CUP",
+                "INR",
+                "VND",
+                "NZD",
+                "UYU",
+                "NAD",
+                "FJD",
+                "BGN",
+                "QAR",
+                "MAD",
+                "RON",
+                "EGP",
+                "HUF",
+                "GEL",
+                "TWD",
+                "GTQ",
+                "ILS",
+                "DOP",
+                "CRC",
+                "AZN",
+                "AMD",
+                "XPF",
+                "NIO",
+                "HNL",
+                "AOA"
+              ]
+            }
+          },
+          "required": [
+            "activityId",
+            "date",
+            "travelers"
+          ]
+        },
+        "annotations": {
+          "title": "Check Availability",
+          "readOnlyHint": true,
+          "openWorldHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/toolInvocation/invoking": "Checking availability…",
+          "openai/toolInvocation/invoked": "Availability checked",
+          "openai/outputTemplate": "ui://views/apps-sdk/availability-check.html?v=c1633748",
+          "ui/resourceUri": "ui://views/ext-apps/availability-check.html?v=c1633748",
+          "ui": {
+            "resourceUri": "ui://views/ext-apps/availability-check.html?v=c1633748"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "activityId": {
+              "type": "string"
+            },
+            "date": {
+              "type": "string"
+            },
+            "requestedDate": {
+              "type": "string"
+            },
+            "nextAvailableDate": {
+              "type": "string"
+            },
+            "travelers": {
+              "type": "number"
+            },
+            "pax": {
+              "type": "object",
+              "properties": {
+                "adults": {
+                  "type": "number"
+                },
+                "children": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "adults",
+                "children"
+              ],
+              "additionalProperties": false
+            },
+            "activityTitle": {
+              "type": "string"
+            },
+            "activityBookingUrl": {
+              "type": "string"
+            },
+            "activityDurationText": {
+              "type": "string"
+            },
+            "sessions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "time": {
+                    "type": "string"
+                  },
+                  "activityId": {
+                    "type": "string"
+                  },
+                  "modalityId": {
+                    "type": "string"
+                  },
+                  "ticketTypeId": {
+                    "type": "string"
+                  },
+                  "priceAmount": {
+                    "type": "number"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "spots": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "modalityDetail": {
+                    "type": "string"
+                  },
+                  "ticketTypeDetail": {
+                    "type": "string"
+                  },
+                  "isSecondaryProvider": {
+                    "type": "boolean"
+                  },
+                  "ticketTypes": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "detail": {
+                          "type": "string"
+                        },
+                        "priceAmount": {
+                          "type": "number"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "canBookAlone": {
+                          "type": "boolean"
+                        },
+                        "maxPaxes": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "detail",
+                        "priceAmount",
+                        "currency",
+                        "canBookAlone",
+                        "maxPaxes"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "time",
+                  "activityId",
+                  "modalityId",
+                  "ticketTypeId",
+                  "priceAmount",
+                  "currency",
+                  "spots",
+                  "modalityDetail",
+                  "ticketTypeDetail",
+                  "isSecondaryProvider",
+                  "ticketTypes"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "lang": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "activityId",
+            "date",
+            "travelers",
+            "pax",
+            "sessions"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "add-to-cart",
+        "title": "Add to Cart",
+        "description": "Add an activity session to the cart and get a checkout URL. Call this when the user wants to book or reserve an activity. Requires activityId, date and time; pass modalityId and ticketTypeId too when check-availability gave them to you, and the server resolves them from the calendar when it did not. To add another item to the SAME cart, pass both cartId AND cartToken exactly as returned by the previous add-to-cart call — cartId alone is rejected.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "activityId": {
+              "type": "string",
+              "description": "Activity ID (use activityId from the session in check-availability, not the original search ID)"
+            },
+            "date": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Date in YYYY-MM-DD format"
+            },
+            "time": {
+              "type": "string",
+              "description": "Session time in HH:MM format from check-availability"
+            },
+            "modalityId": {
+              "description": "Modality ID from the session in check-availability. Omit it if you do not have one — the server resolves it from the calendar.",
+              "type": "string"
+            },
+            "ticketTypeId": {
+              "description": "Ticket type ID from check-availability. Omit it if you do not have one — the server resolves it from the calendar. (For multi-pax bookings with several ticket types, use the ticketTypes array instead.)",
+              "type": "string"
+            },
+            "travelers": {
+              "description": "Number of travelers (legacy — use ticketTypes array instead)",
+              "type": "number"
+            },
+            "ticketTypes": {
+              "description": "Ticket types with quantities. Use this instead of ticketTypeId+travelers for multi-pax bookings.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Ticket type ID from check-availability"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991,
+                    "description": "Number of tickets"
+                  }
+                },
+                "required": [
+                  "id",
+                  "quantity"
+                ]
+              }
+            },
+            "cartId": {
+              "description": "Existing cart ID to add to (from a previous add-to-cart call). Requires cartToken from that same call — a cartId without its matching cartToken is rejected.",
+              "type": "string"
+            },
+            "cartToken": {
+              "description": "Cart token returned by the previous add-to-cart call for this cart. Required together with cartId to add to an existing cart.",
+              "type": "string"
+            },
+            "currency": {
+              "description": "Currency code (EUR, USD, GBP). Defaults to EUR",
+              "type": "string",
+              "enum": [
+                "EUR",
+                "USD",
+                "GBP",
+                "BRL",
+                "MXN",
+                "COP",
+                "ARS",
+                "CLP",
+                "SGD",
+                "HKD",
+                "TRY",
+                "JPY",
+                "THB",
+                "PLN",
+                "AED",
+                "IDR",
+                "MUR",
+                "HRK",
+                "AUD",
+                "DKK",
+                "CZK",
+                "ISK",
+                "NOK",
+                "UAH",
+                "PEN",
+                "CHF",
+                "SEK",
+                "CAD",
+                "CNY",
+                "RUB",
+                "BOB",
+                "MYR",
+                "PHP",
+                "KRW",
+                "CUC",
+                "CUP",
+                "INR",
+                "VND",
+                "NZD",
+                "UYU",
+                "NAD",
+                "FJD",
+                "BGN",
+                "QAR",
+                "MAD",
+                "RON",
+                "EGP",
+                "HUF",
+                "GEL",
+                "TWD",
+                "GTQ",
+                "ILS",
+                "DOP",
+                "CRC",
+                "AZN",
+                "AMD",
+                "XPF",
+                "NIO",
+                "HNL",
+                "AOA"
+              ]
+            },
+            "lang": {
+              "description": "Civitatis locale (en_US, es_AR, es_ES, es_MX, fr_FR, it_IT, pt_BR, pt_PT); base codes are also accepted. Defaults to es",
+              "type": "string",
+              "enum": [
+                "es",
+                "en",
+                "fr",
+                "it",
+                "pt",
+                "en_US",
+                "es_AR",
+                "es_ES",
+                "es_MX",
+                "fr_FR",
+                "it_IT",
+                "pt_BR",
+                "pt_PT"
+              ]
+            }
+          },
+          "required": [
+            "activityId",
+            "date",
+            "time"
+          ]
+        },
+        "annotations": {
+          "title": "Add to Cart",
+          "readOnlyHint": false,
+          "openWorldHint": true,
+          "destructiveHint": false,
+          "idempotentHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/toolInvocation/invoking": "Adding to your cart…",
+          "openai/toolInvocation/invoked": "Added to cart"
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "cartId": {
+              "type": "string"
+            },
+            "cartToken": {
+              "type": "string"
+            },
+            "pin": {
+              "type": "number"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "activityId": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "date": {
+                    "type": "string"
+                  },
+                  "time": {
+                    "type": "string"
+                  },
+                  "modalityDetail": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "activityId",
+                  "date",
+                  "time"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "currency": {
+              "type": "string"
+            },
+            "checkoutUrl": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "cartId",
+            "cartToken",
+            "pin",
+            "items",
+            "currency",
+            "checkoutUrl"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "check-availability-batch",
+        "title": "Check Availability (Multiple)",
+        "description": "Check availability for MULTIPLE activities on the same date in one call. Use this when the user asks which of several activities are available on a specific date. More efficient than calling check-availability multiple times.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "activities": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "activityId": {
+                    "type": "string",
+                    "description": "Activity ID"
+                  },
+                  "activityTitle": {
+                    "type": "string"
+                  },
+                  "activityBookingUrl": {
+                    "type": "string"
+                  },
+                  "activityDurationText": {
+                    "type": "string"
+                  },
+                  "thumbnailUrl": {
+                    "description": "Activity thumbnail URL from search results, passed through to the widget",
+                    "type": "string"
+                  },
+                  "imageUrl": {
+                    "description": "Activity image URL (grid size) from search results, passed through to the widget",
+                    "type": "string"
+                  },
+                  "rating": {
+                    "description": "Activity rating from search results, passed through to the widget",
+                    "type": "number"
+                  },
+                  "description": {
+                    "description": "Short activity description from search results, passed through to the widget",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "activityId"
+                ]
+              },
+              "description": "List of activities to check"
+            },
+            "date": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Date to check in YYYY-MM-DD format"
+            },
+            "travelers": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Number of travelers"
+            },
+            "pax": {
+              "description": "Traveler breakdown. If provided, takes precedence over `travelers`.",
+              "type": "object",
+              "properties": {
+                "adults": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "children": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "adults"
+              ]
+            },
+            "lang": {
+              "description": "Civitatis locale (en_US, es_AR, es_ES, es_MX, fr_FR, it_IT, pt_BR, pt_PT); base codes are also accepted. Defaults to es",
+              "type": "string",
+              "enum": [
+                "es",
+                "en",
+                "fr",
+                "it",
+                "pt",
+                "en_US",
+                "es_AR",
+                "es_ES",
+                "es_MX",
+                "fr_FR",
+                "it_IT",
+                "pt_BR",
+                "pt_PT"
+              ]
+            },
+            "currency": {
+              "description": "Currency code (EUR, USD, GBP). Defaults to EUR",
+              "type": "string",
+              "enum": [
+                "EUR",
+                "USD",
+                "GBP",
+                "BRL",
+                "MXN",
+                "COP",
+                "ARS",
+                "CLP",
+                "SGD",
+                "HKD",
+                "TRY",
+                "JPY",
+                "THB",
+                "PLN",
+                "AED",
+                "IDR",
+                "MUR",
+                "HRK",
+                "AUD",
+                "DKK",
+                "CZK",
+                "ISK",
+                "NOK",
+                "UAH",
+                "PEN",
+                "CHF",
+                "SEK",
+                "CAD",
+                "CNY",
+                "RUB",
+                "BOB",
+                "MYR",
+                "PHP",
+                "KRW",
+                "CUC",
+                "CUP",
+                "INR",
+                "VND",
+                "NZD",
+                "UYU",
+                "NAD",
+                "FJD",
+                "BGN",
+                "QAR",
+                "MAD",
+                "RON",
+                "EGP",
+                "HUF",
+                "GEL",
+                "TWD",
+                "GTQ",
+                "ILS",
+                "DOP",
+                "CRC",
+                "AZN",
+                "AMD",
+                "XPF",
+                "NIO",
+                "HNL",
+                "AOA"
+              ]
+            }
+          },
+          "required": [
+            "activities",
+            "date",
+            "travelers"
+          ]
+        },
+        "annotations": {
+          "title": "Check Availability (Multiple)",
+          "readOnlyHint": true,
+          "openWorldHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/toolInvocation/invoking": "Checking availability…",
+          "openai/toolInvocation/invoked": "Availability checked",
+          "openai/outputTemplate": "ui://views/apps-sdk/availability-batch.html?v=e12b4238",
+          "ui/resourceUri": "ui://views/ext-apps/availability-batch.html?v=e12b4238",
+          "ui": {
+            "resourceUri": "ui://views/ext-apps/availability-batch.html?v=e12b4238"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "date": {
+              "type": "string"
+            },
+            "travelers": {
+              "type": "number"
+            },
+            "pax": {
+              "type": "object",
+              "properties": {
+                "adults": {
+                  "type": "number"
+                },
+                "children": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "adults",
+                "children"
+              ],
+              "additionalProperties": false
+            },
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "activityId": {
+                    "type": "string"
+                  },
+                  "activityTitle": {
+                    "type": "string"
+                  },
+                  "activityBookingUrl": {
+                    "type": "string"
+                  },
+                  "activityDurationText": {
+                    "type": "string"
+                  },
+                  "thumbnailUrl": {
+                    "type": "string"
+                  },
+                  "imageUrl": {
+                    "type": "string"
+                  },
+                  "rating": {
+                    "type": "number"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "date": {
+                    "type": "string"
+                  },
+                  "nextAvailableDate": {
+                    "type": "string"
+                  },
+                  "hasAvailability": {
+                    "type": "boolean"
+                  },
+                  "sessions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "time": {
+                          "type": "string"
+                        },
+                        "activityId": {
+                          "type": "string"
+                        },
+                        "modalityId": {
+                          "type": "string"
+                        },
+                        "ticketTypeId": {
+                          "type": "string"
+                        },
+                        "priceAmount": {
+                          "type": "number"
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "spots": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "modalityDetail": {
+                          "type": "string"
+                        },
+                        "ticketTypeDetail": {
+                          "type": "string"
+                        },
+                        "isSecondaryProvider": {
+                          "type": "boolean"
+                        },
+                        "ticketTypes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "detail": {
+                                "type": "string"
+                              },
+                              "priceAmount": {
+                                "type": "number"
+                              },
+                              "currency": {
+                                "type": "string"
+                              },
+                              "canBookAlone": {
+                                "type": "boolean"
+                              },
+                              "maxPaxes": {
+                                "anyOf": [
+                                  {
+                                    "type": "number"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "detail",
+                              "priceAmount",
+                              "currency",
+                              "canBookAlone",
+                              "maxPaxes"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "time",
+                        "activityId",
+                        "modalityId",
+                        "ticketTypeId",
+                        "priceAmount",
+                        "currency",
+                        "spots",
+                        "modalityDetail",
+                        "ticketTypeDetail",
+                        "isSecondaryProvider",
+                        "ticketTypes"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "activityId",
+                  "date",
+                  "hasAvailability",
+                  "sessions"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "lang": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "date",
+            "travelers",
+            "pax",
+            "results"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "suggest-itinerary",
+        "title": "Suggest Itinerary",
+        "description": "Display a multi-day activity itinerary plan. Use this whenever the user asks for an itinerary, a plan, or a multi-day schedule for a destination (NOT search-activities). Call it DIRECTLY with destination, startDate, days and travelers — the server automatically picks the destination's top activities and distributes them across the days. Only pass `plan` when the user asked for SPECIFIC activities (get their numeric activityIds from list-activities first; NEVER invent activityIds).",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string",
+              "description": "City or destination name"
+            },
+            "startDate": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "Trip start date in YYYY-MM-DD format"
+            },
+            "days": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Number of days"
+            },
+            "travelers": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Number of travelers"
+            },
+            "lang": {
+              "description": "Civitatis locale (en_US, es_AR, es_ES, es_MX, fr_FR, it_IT, pt_BR, pt_PT); base codes are also accepted. Defaults to es",
+              "type": "string",
+              "enum": [
+                "es",
+                "en",
+                "fr",
+                "it",
+                "pt",
+                "en_US",
+                "es_AR",
+                "es_ES",
+                "es_MX",
+                "fr_FR",
+                "it_IT",
+                "pt_BR",
+                "pt_PT"
+              ]
+            },
+            "currency": {
+              "description": "Currency code (EUR, USD, GBP). Defaults to EUR",
+              "type": "string",
+              "enum": [
+                "EUR",
+                "USD",
+                "GBP",
+                "BRL",
+                "MXN",
+                "COP",
+                "ARS",
+                "CLP",
+                "SGD",
+                "HKD",
+                "TRY",
+                "JPY",
+                "THB",
+                "PLN",
+                "AED",
+                "IDR",
+                "MUR",
+                "HRK",
+                "AUD",
+                "DKK",
+                "CZK",
+                "ISK",
+                "NOK",
+                "UAH",
+                "PEN",
+                "CHF",
+                "SEK",
+                "CAD",
+                "CNY",
+                "RUB",
+                "BOB",
+                "MYR",
+                "PHP",
+                "KRW",
+                "CUC",
+                "CUP",
+                "INR",
+                "VND",
+                "NZD",
+                "UYU",
+                "NAD",
+                "FJD",
+                "BGN",
+                "QAR",
+                "MAD",
+                "RON",
+                "EGP",
+                "HUF",
+                "GEL",
+                "TWD",
+                "GTQ",
+                "ILS",
+                "DOP",
+                "CRC",
+                "AZN",
+                "AMD",
+                "XPF",
+                "NIO",
+                "HNL",
+                "AOA"
+              ]
+            },
+            "plan": {
+              "description": "OPTIONAL day-by-day buckets of activity IDs. Omit it to let the server auto-build the plan with the destination's top activities. Pass ONLY the IDs — do not pass titles, prices or images.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "description": "Day date in YYYY-MM-DD format"
+                  },
+                  "activityIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Numeric activity IDs for this day, as strings (e.g. [\"12345\",\"67890\"]). Only IDs returned by list-activities — the widget fills in titles, prices and images automatically."
+                  }
+                },
+                "required": [
+                  "date",
+                  "activityIds"
+                ]
+              }
+            }
+          },
+          "required": [
+            "destination",
+            "startDate",
+            "days",
+            "travelers"
+          ]
+        },
+        "annotations": {
+          "title": "Suggest Itinerary",
+          "readOnlyHint": true,
+          "openWorldHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/toolInvocation/invoking": "Building your itinerary…",
+          "openai/toolInvocation/invoked": "Itinerary ready",
+          "openai/outputTemplate": "ui://views/apps-sdk/itinerary-plan.html?v=81dd4fb7",
+          "ui/resourceUri": "ui://views/ext-apps/itinerary-plan.html?v=81dd4fb7",
+          "ui": {
+            "resourceUri": "ui://views/ext-apps/itinerary-plan.html?v=81dd4fb7"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "destination": {
+              "type": "string"
+            },
+            "startDate": {
+              "type": "string"
+            },
+            "days": {
+              "type": "number"
+            },
+            "travelers": {
+              "type": "number"
+            },
+            "lang": {
+              "type": "string"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "isCountryLevel": {
+              "type": "boolean"
+            },
+            "autoSelectedFromCountry": {
+              "type": "string"
+            },
+            "plan": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string"
+                  },
+                  "activities": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "activityId": {
+                          "type": "string"
+                        },
+                        "activityTitle": {
+                          "type": "string"
+                        },
+                        "thumbnailUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "imageUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "priceAmount": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "currency": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "durationText": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "rating": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "description": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "activityId",
+                        "activityTitle"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "date",
+                  "activities"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "destination",
+            "startDate",
+            "days",
+            "travelers",
+            "plan"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:23:23.430Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:23:24.481Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:23:25.531Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:23:26.582Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 7,
+    "tools_hash": "sha256:69013c1c2c8900a7091954f6eb3a7b952479e6fd70e76fc57881f23e5d3cd007",
+    "static_tool_tokens": 7507,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [],
+    "severity_counts": {
+      "high": 0,
+      "medium": 0,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [],
+      "flags": []
+    },
+    "read_only_allowlist": [
+      "search-activities",
+      "list-activities",
+      "get-activity-detail",
+      "check-availability",
+      "check-availability-batch",
+      "suggest-itinerary"
+    ]
+  }
+}
