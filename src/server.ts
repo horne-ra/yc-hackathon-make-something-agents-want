@@ -1,8 +1,7 @@
 import { MCPServer } from "mcp-use";
 import { SandboxInstance } from "@blaxel/core";
 import { z } from "zod";
-import { namedToken, protectedTools, accessMessage, consumeVerifyQuota } from "./access.js";
-import { VerifyPatchInputSchema } from "./core/contracts.js";
+import { namedToken, protectedTools, accessMessage, checkToolAccess } from "./access.js";
 import { auditServer, auditServerTool } from "./tools/audit.js";
 import { proposePatch, proposePatchTool } from "./tools/propose.js";
 import { createConfirmPatchTool } from "./tools/confirm.js";
@@ -38,21 +37,10 @@ server.app.use("*", async (context, next) => {
   return next();
 });
 server.use("mcp:tools/call", async (context, next) => {
-  if (!protectedTools.has(context.params.name)) return next();
-  const token = namedToken(context.request?.header("Authorization"));
-  if (!token) return {isError:true,content:[{type:"text",text:JSON.stringify({error:{code:"unauthorized",message:accessMessage}})}]};
-  if (context.params.name === "verify_patch") {
-    // Invalid schemas do not use allowance. Accepted launch attempts count even
-    // if infrastructure fails, preventing cost-producing retries past the cap.
-    if (!VerifyPatchInputSchema.safeParse(context.params.arguments).success) return next();
-    try {
-      const quota = await consumeVerifyQuota(token);
-      if (quota && !quota.allowed) return {isError:true,content:[{type:"text",text:JSON.stringify({error:{code:"quota_exceeded",message:`Daily verify_patch limit of ${quota.limit} reached for ${token.name}; resets at 00:00 UTC. Public audits and result polling remain available.`}})}]};
-    } catch {
-      return {isError:true,content:[{type:"text",text:JSON.stringify({error:{code:"quota_unavailable",message:"Daily quota storage is unavailable. No verification was started; ask the maintainer to check AXLINT_QUOTA_SANDBOX."}})}]};
-    }
-  }
-  return next();
+  // The protocol guard also covers in-process transports and validates quota
+  // only after a well-formed verify input. HTTP failures above return 401.
+  const failure = await checkToolAccess(context.params.name, context.params.arguments, context.request?.header("Authorization"));
+  return failure ?? next();
 });
 server.get("/icon.svg", context => context.body('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#101827"/><path d="M13 34l12 12 26-28" fill="none" stroke="#57e3ad" stroke-width="7"/></svg>',200,{"Content-Type":"image/svg+xml"}));
 

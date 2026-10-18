@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { acceptsBearer } from '../viewer/auth.js';
+import { VerifyPatchInputSchema } from './core/contracts.js';
 
 const TokenSchema = z.strictObject({ token: z.string().min(32).regex(/^[A-Za-z0-9_-]+$/), daily_verify_limit: z.number().int().positive().optional() });
 const TokensSchema = z.record(z.string().regex(/^[a-z][a-z0-9_-]*$/), TokenSchema);
@@ -37,4 +38,18 @@ export async function consumeVerifyQuota(token: NamedToken): Promise<QuotaResult
   const result = started.status === 'running' ? await sandbox.process.wait(started.pid, { maxWait: 15000, interval: 25 }) : started;
   if (result.exitCode !== 0) throw new Error('quota_unavailable: Could not reserve a daily verification allowance. No verification was started.');
   return JSON.parse(result.stdout!.trim().split('\n').at(-1)!) as QuotaResult;
+}
+
+export async function checkToolAccess(name: string, args: unknown, header: string | undefined, consume = consumeVerifyQuota) {
+  const failure = (code: string, message: string) => ({isError:true as const,content:[{type:'text' as const,text:JSON.stringify({error:{code,message}})}]});
+  if (!protectedTools.has(name)) return;
+  const token = namedToken(header);
+  if (!token) return failure('unauthorized', accessMessage);
+  if (name !== 'verify_patch' || !VerifyPatchInputSchema.safeParse(args).success) return;
+  try {
+    const quota = await consume(token);
+    if (quota && !quota.allowed) return failure('quota_exceeded', `Daily verify_patch limit of ${quota.limit} reached for ${token.name}; resets at 00:00 UTC. Public audits and authenticated result polling remain available.`);
+  } catch {
+    return failure('quota_unavailable', 'Daily quota storage is unavailable. No verification was started; ask the maintainer to check AXLINT_QUOTA_SANDBOX.');
+  }
 }
