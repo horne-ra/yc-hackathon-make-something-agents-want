@@ -50,12 +50,12 @@ and later confirmed a supported one. Evidence: [S8 milestone](s8-milestone.md),
 The server supplies clear tool names, titles, typed input/output schemas, all
 four behavior annotations, two workflow prompts, GitHub website, icon and
 instructions. Anonymous discovery and metadata audit enable scoring without a
-credential; protected calls give explicit access and quota errors. Deterministic
-self-audit went from 25 findings to zero locally; the hosted check and official
-readiness score must be recorded separately. Evidence: [self-audit](self-audit.md),
+credential; protected calls give explicit access and quota errors. Hosted
+self-audit went from 25 findings to zero, and the judges smoke returned Improved
+9/12 → 12/12 with all 24 trials retained. The official readiness score remains a
+separate human request. Evidence: [self-audit](self-audit.md),
 [method and contracts](SPEC.md), [full results](results-summary.md). Request the
-official score at [Manufact's catalog](https://manufact.com/mcp-catalog) after
-hosted acceptance; A+ is a goal, not a claimed award or score.
+official score now at [Manufact's catalog](https://manufact.com/mcp-catalog); A+ is a goal, not a claimed award or score.
 
 ## UX and scale
 
@@ -81,8 +81,10 @@ and [specification](SPEC.md). No Armature SDK integration is claimed.
 - Record the three-minute demo, publish its URL and verify viewing permissions.
 - Retest the named credentials in Claude Code, Codex, Cursor and the Claude app;
   complete multi-client.md's evidence column with what each client really shows.
-- Verify live deployment, anonymous audit/ping, judges verify completion, access
-  errors, quota error, final build/tests and the full-history secret scan.
+- Live deployment, anonymous audit/ping, judges verification, access/quotas,
+  build/tests and secret scan have passed; see [final status](wrapup-status.md).
+  Recheck baseline after any filmed apply, and keep the existing smoke separate
+  from a newly recorded demo run.
 - Request and link the official Manufact readiness report; do not claim A+
   before the report says so.
 - Confirm Trackr is back at the frozen baseline hash after any filmed apply.

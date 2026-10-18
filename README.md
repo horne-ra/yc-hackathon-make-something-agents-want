@@ -48,6 +48,7 @@ context are separate; the one-turn model does not consume tool results.
 | Official Memory · Haiku 5.5 | Inconclusive | 9/9 → 9/9 | 764,652 → 764,652 | 1,961 → 2,121 | [Cross-model](docs/cross-model-results.md) |
 | PopHIVE · Manufact 88/A | Inconclusive | 9/12 → 9/12 | 52,443 → 52,443 (including images) | See frozen report | [PopHIVE](docs/pophive-results.md) |
 | Yahoo Finance · SAIL motivating server | Inconclusive | 8/12 → 9/12 | Q1-2025 calls fetched about 115K tokens of daily data | See frozen report | [Yahoo Finance](docs/yfinance-results.md) |
+| Hosted judges smoke · Sonnet 5.5 | Improved | 9/12 → 12/12 | 115,194 → 13,917 | 651 → 955 | [New smoke, separate candidate](docs/judges-smoke.md) |
 | Manufact Cloud | reviewed privately; results shared with the Manufact team first. | — | — | — | Private evidence stays local |
 
 Commander.js real-repo size check: **1,037,509 → 19,443** full-response tokens,

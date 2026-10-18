@@ -1,52 +1,61 @@
-# Wrap-up status — October 17, 2026, 7:37 PM PT
+# Wrap-up status — final acceptance October 17, 2026, 9:00 PM PT
 
-Local implementation and documentation are prepared and committed on main.
-**No wrap-up commit has been pushed, no credential has been rotated, and no
-new judges verification has been run.** These operations remain behind the two
-explicit approval requests in this chat. Automatic approval review rejected
-main pushes and remote credential/model operations because it requires direct
-confirmation beyond the pasted checklist, even after Manufact ownership and
-the exact destination were verified. The exposed legacy credential has therefore
-not yet been revoked. The live server remains the prior 0.3.0 deployment.
+Engineering, documents, token rotation and live acceptance are complete. Main is
+pushed; Manufact is running the tested source. The official readiness score,
+native-client recording and video/form submission remain human steps below.
+The user directly approved the release operations; the earlier approval blocks
+are resolved. The exposed single-token key is removed locally and in Manufact.
 
 ## Each part
 
 | Part | Status and real output |
 | --- | --- |
-| 1 · judging criteria | Local code complete: public discovery/audit/ping; five protected tools; named credentials and persistent UTC quota claims; 7 titles/output schemas/all four annotations; website/icon/instructions; two prompts; setup docs. Local HTTP auth acceptance PASS. Deterministic self-audit: 25 findings before → 0 in local production metadata. New tokens, hosted cutover/self-audit and official score remain pending. Initial local commit b337163, with quota-gate/utility follow-ups. |
-| 2 · research merge | Merged origin/lane/leaderboard into local main (b9ac56f). Only conflict: blank line before private/ in .gitignore. Resolved retaining the ignore. git ls-files private/ is empty. Integrated typecheck and suite pass. Remote push pending. |
-| 3 · every verdict | Complete locally (1e326aa). One table includes compact/stability/S8/proposer Trackr runs, filesystem, both models, Memory, PopHIVE, Yahoo and the requested private-review wording. Provisional labels, both findings sections and static census are included. |
-| 4 · method | Complete locally (4c66a55). New runs record scoring_version; v1 remains default, v2 matches first-turn parallel calls and forbids unsafe/unknown or explicitly forbidden calls before dispatch. Frozen results unchanged. High-priority missing size-control kind fires on committed include_comments and excludePatterns. Runner payload rebuilt. |
-| 5 · upstream drafts | Yahoo draft complete (f334ca0). Filesystem draft already had Commander.js 1,037,509 → 19,443 tokens, so that edit was skipped. No issue or PR opened. |
-| 6 · judges/agent README | README and llms.txt complete (7a01434): why MCP/App, all verdicts, first call, five core tools/two prompts, setup, architecture, evidence and roadmap. |
-| 7 · demo assets | Complete locally (ce6e1a9): three-minute script, exact Claude Code prompt, redeploy narration and unfavorable-verdict fallback. Actual dry run found baseline source and no revert needed. Live baseline and recorded S8 preview confirmed. 9 free VM slots and 4 free shared process slots. |
-| 8 · submission | Prepared locally (feb4aff). Team Ax Lint; organization UUID confirmed through owner-authenticated API. Sponsor short link resolves to the actual Manufact Google Form; required fields verified read-only. Video placeholder remains. No separate YC general form was linked or verified. |
+| 1 · judging criteria | Pushed/deployed. Anonymous discovery, prompts/resources, widget assets, audit and ping pass. All five protected tools return 401 without a token. All four named tokens passed authenticated preview calls. Judges limit is 5 verify attempts per UTC day; durable counter probe accepted then refused a second claim at limit 1. quota_exceeded and fail-closed behavior pass unit tests. Hosted self-audit: 25 → 0 findings, 7 output schemas/titles/all four annotations, website/icon/instructions and both prompts. Official A+ remains unconfirmed; request the score now. |
+| 2 · research merge | origin/lane/leaderboard merged into main (b9ac56f) and pushed. Only conflict was whitespace before private/ in .gitignore. private/ is ignored and git ls-files private/ is empty. Integrated typecheck and all tests pass. |
+| 3 · every verdict | Pushed. One table includes compact/stability/S8/proposer Trackr runs, filesystem, both models, Memory, PopHIVE, Yahoo and private-review wording. Every original verdict stands. Provisional labels, both findings sections and static census included. The new judges smoke is separately labeled. |
+| 4 · method | Pushed/deployed. New runs record scoring_version; v1 is default. v2 accepts matching first-turn parallel calls and blocks unknown/unsafe or explicitly forbidden proposals before dispatch. Frozen artifacts are unchanged. High-priority missing size-control findings fire on committed include_comments and excludePatterns. Runner payload rebuilt. |
+| 5 · upstream drafts | Yahoo draft pushed. Filesystem draft already contained Commander.js 1,037,509 → 19,443 token measurements, so that edit was skipped. Both drafts remain unposted. |
+| 6 · judges/agent README | README and llms.txt pushed: why MCP/App, every verdict, first call, five core tools/two prompts, setup, architecture, evidence and roadmap. |
+| 7 · demo assets | Script and exact Claude Code prompt pushed, including redeploy narration and unfavorable-verdict fallback. Guarded reset dry run found baseline source and no revert needed. Final live baseline and S8 preview pass. Blaxel has 9 free VM slots and 4 free shared process slots. |
+| 8 · submission | Checklist pushed. Team Ax Lint; organization UUID confirmed through owner-authenticated API. Sponsor short link resolves to the verified Manufact Google Form. Video placeholder remains. No separate YC general form was linked or verified. |
+
+## Running deployment
+
+Final runtime source: `d609a2453f236041532079c87ab4b45ae74eaddb` on main.
+Manufact deployment: `a37fee9a-9b47-4242-8095-8be28a2239dc`, **running and active**.
+Endpoint: <https://fast-pulse-rlqvb.run.mcp-use.com/mcp>, server version **0.4.0**.
+[Deployment proof](evidence/wrapup/ping-deployment.json).
+The initial release at a7495a6 also reached running before the judges run;
+[its record](evidence/wrapup/deployment.json) is retained. The follow-up makes
+ping a 447-byte connectivity summary, with complete historical trial files
+preserved. Subsequent documentation-only commits do not change this runtime.
 
 ## Final local checks: actual output
 
-At 7:36:46 PM PT, `node scripts/wrapup-checks.mjs` completed:
+The final runtime change passed:
 
 ```text
 typecheck: exit 0
 Test Files  18 passed (18)
 Tests  170 passed (170)
 [mcp-use] built src/server.ts + views (ping, preview-run, verification-result)
-  → .mcp-use/build/index.js (2403ms)
+  → .mcp-use/build/index.js (2099ms)
 Frozen evidence unchanged since research integration.
 private/ tracked files: 0
-Full reachable Git history + tracked worktree scan:
-  6,887 objects / 6,322 blobs; 5 configured secret values + 4 pattern families
+Post-rotation full reachable history + tracked worktree scan:
+  8 configured secret values + 4 credential pattern families
   findings: []
 ```
 
 [Machine-readable checks](evidence/wrapup/local-checks.json),
-[typecheck log](evidence/wrapup/typecheck.log), [test log](evidence/wrapup/test.log),
-[build log](evidence/wrapup/build.log), [secret scan](evidence/wrapup/secret-scan.json).
-The scanner covers known configured credentials and common credential patterns;
-it is not a claim to recognize every possible secret format. The pre-rotation
-scan includes the exposed legacy token. Repeat after token generation/push.
+[typecheck](evidence/wrapup/typecheck.log), [tests](evidence/wrapup/test.log),
+[build](evidence/wrapup/build.log), [post-rotation scan](evidence/wrapup/secret-scan-after-rotation.json),
+[final staged/history scan](evidence/wrapup/secret-scan-final.json).
+The scanner covers configured credentials and common patterns; other formats
+can exist. The pre-rotation scan also checked the retired token and found no
+matches. All newly staged evidence is scanned again before its final commit.
 
-Actual HTTP integration output:
+Actual local HTTP integration output:
 
 ```text
 PASS real HTTP auth: anonymous initialize/tools/resources/prompts/widget JS+CSS;
@@ -56,67 +65,82 @@ named bearer preview succeeds; public icon; no OAuth challenge
 
 The atomic quota test runs 12 independent concurrent processes: exactly five
 claims succeed, subsequent same-day claims fail, and a new day is available.
-Separate gate tests check quota_exceeded, invalid-input nonconsumption, polling
-availability and fail-closed storage errors. No production judges allowance has
-been spent by these local tests.
+Gate tests check quota_exceeded, invalid-input nonconsumption, polling and
+fail-closed storage errors. Hosted acceptance separately checked all five 401s
+and the real persistent counter's allowed=true then allowed=false responses.
 
-## Live demo readiness: actual observed state
+## Live judges run and final readback
 
-Read-only checks at 7:31:38 PM PT found:
+**Provisional: 3 trials per condition.** Exactly one judges verification ran:
 
-- Trackr version: `trackr-demo-001@ad88596baf761ec9b44abd019d3e8a90f84ceb96`.
-- Trackr tools hash: `sha256:df53e86195ee4202079dc899964072aa655d72e1b3b0c81fdd3db03c6e7737d5` — **baseline**.
-- Blaxel: 1 occupied VM, 9 free VM slots; shared runner 0 active / 4 available process slots.
+```text
+verdict: Improved
+model: claude-sonnet-5-5; provider-default sampling, no temperature
+scoring_version: v1
+passes: 9/12 → 12/12
+returned-result tokens: 115,194 → 13,917
+static tool tokens: 651 → 955
+trials retained: 24, including every baseline failure
+```
+
+The candidate is the committed corrected-runner input, distinct from the frozen
+compact patch (837 static tokens) and recorded S8 milestone (903). No proposal
+was generated and no source edit was applied. The later deployment read the same
+completed result back unchanged; no second verification was started.
+[Judges report](judges-smoke.md), [all trials](evidence/wrapup/judges-complete.json),
+[polls](evidence/wrapup/judges-polls.json), [full smoke](evidence/wrapup/smoke-summary.json),
+[final read-only acceptance](evidence/wrapup/final-hosted-checks.json).
+
+Hosted public checks passed: tools/list, both prompts, resources/read, widget
+JS/CSS HTTP 200, audit_server on Trackr, self-audit with zero findings, ping and
+all five protected missing-token 401s. All named credentials authenticated.
+Self-audit static cost is 4,612 → 5,080 tokens; improved coverage adds metadata.
+[Before/after](self-audit.md).
+
+Judges quota on UTC day October 18: **1 used, 4 remaining of 5**. Reset is Sunday,
+October 18, **5 PM PT** (00:00 UTC October 19). Polling/preview do not use quota.
+Use the claude credential for rehearsals to preserve judges' remaining allowance.
+
+## Trackr and demo readiness
+
+Final live state at 9:00 PM PT:
+
+- Version: `trackr-demo-001@ad88596baf761ec9b44abd019d3e8a90f84ceb96`.
+- Tools hash: `sha256:df53e86195ee4202079dc899964072aa655d72e1b3b0c81fdd3db03c6e7737d5` — **baseline**.
+- Blaxel: 1 occupied VM, 9 free VM slots; shared runner 0 active / 4 free process slots.
 - preview_run: recorded milestone `axlint-run-f2f5be10-367e-4cd5-8614-cb0658fa3e2d`, fixture=true, four confirmation gates passed.
 
-[Live readiness record](evidence/wrapup/demo-readiness.json).
-The reset dry run independently reported local HEAD ad88596b, baseline source,
-“Already at frozen baseline source; no revert or push needed,” and no mutation,
-fetch, push, Railway access or MCP calls. The live hash above comes from the
-separate actual initialize/tools/list check, not that dry-run message.
-
-## Remaining authorized workflow after direct approval
-
-1. Run `node --env-file=.env scripts/configure-access.mjs`. It checks the exact
-   owned server destination, generates four unique tokens directly into local
-   `.env`, stores the same JSON write-only in Manufact env, sets the existing
-   shared runner as quota storage and deletes the old single-token key. It
-   never prints credential values. This step has **not** run yet.
-2. Push local main. Confirm Manufact's running production deployment has the
-   pushed source SHA; do not infer deployment success from a Git push or health
-   gateway alone. The existing source branch is already main.
-3. Run `node --env-file=.env --import tsx scripts/wrapup-self-audit.ts`, then
-   `node --env-file=.env --import tsx scripts/wrapup-smoke.ts`. The smoke performs
-   anonymous discovery, audit and ping; all five protected 401 checks; a durable
-   quota-counter probe under an isolated test name; and exactly one judges
-   verify_patch using the committed compact patch, polled to completion.
-   Save the actual verdict even if unfavorable. No Trackr edit or apply occurs.
-4. Repeat the full-history scan with the new credentials and commit/push the
-   actual hosted evidence and final status. Confirm Trackr's final live baseline
-   identity and tools hash again.
+[Current readiness record](evidence/wrapup/demo-readiness.json).
+The actual reset dry run reported local HEAD ad88596b, baseline source, “Already
+at frozen baseline source; no revert or push needed,” and no mutation/fetch/push
+or Railway/MCP calls. The live hash above comes from separate real metadata
+checks. No Trackr reset was needed after this smoke because no patch was applied.
 
 ## Human handoff
 
-- Approve the two pending operations in chat: main pushes/research merge, and
-  exact existing-server credential rotation/redeployment/model-backed checks.
-- After rotation, open `/Users/ransomhorne/Documents/ChatGPT/AX Lint/.env` locally.
-  Copy individual values from `AXLINT_API_TOKENS`: codex.token, cursor.token,
-  claude.token and judges.token. The script handles Manufact env automatically;
-  do not print the JSON or paste it into chat. Until rotation runs those named
-  values do not yet exist. See [exact setup](multi-client.md).
-- Replace the old bearer in the Claude app connector (No sign-in + Authorization
-  header) with claude.token. Relaunch Claude Code with AXLINT_CLAUDE_TOKEN from
-  the same entry; its saved config uses the variable reference. Codex uses
-  codex.token through bearer_token_env_var, Cursor uses cursor.token through
-  its header environment reference. Run and record actual client tests.
-- Request the official readiness report at [Manufact catalog](https://manufact.com/mcp-catalog)
-  after hosted acceptance and client tests pass; A+ has not been awarded.
-- Record the demo, paste an accessible video URL, complete the multi-client
-  evidence column, and verify the separate YC/Armature submission route from
-  participant instructions. Team and Manufact organization ID are already filled.
-- Submit only Manufact Best MCP and Armature before Sunday, October 18,
-  10:00 AM PT. Keep upstream drafts unposted until you choose to post them.
+1. **Copy each token locally:** open
+   `/Users/ransomhorne/Documents/ChatGPT/AX Lint/.env`, find AXLINT_API_TOKENS,
+   and copy codex.token, cursor.token, claude.token or judges.token as needed.
+   The local file is mode 0600. Manufact env is already updated: named JSON and
+   AXLINT_QUOTA_SANDBOX are write-only; the old AXLINT_API_TOKEN key is gone.
+   Do not print tokens or paste them into chat, source, recordings or public URLs.
+2. **Update clients:** Claude app connector → No sign-in + Authorization header
+   `Bearer ` followed by claude.token; reconnect. Claude Code → the literal
+   AXLINT_CLAUDE_TOKEN header reference and launch with that selected token.
+   Codex → bearer_token_env_var=AXLINT_CODEX_TOKEN from codex.token. Cursor →
+   Authorization header using AXLINT_CURSOR_TOKEN from cursor.token. The
+   token launcher and exact config examples are in [multi-client.md](multi-client.md).
+   Complete actual native-client recordings; the new HTTP credential checks do
+   not establish a new client video. Prior human widget confirmations stand.
+3. **Request the official score now:** paste the public endpoint into
+   [Manufact's MCP catalog](https://manufact.com/mcp-catalog). Link the resulting
+   official report; A+ is not yet a confirmed grade.
+4. **Record and submit:** use [demo.md](demo.md), put an accessible video URL in
+   [submission.md](submission.md), fill the multi-client evidence column, and
+   verify any separate YC/Armature form from participant instructions. Team and
+   organization ID are already filled. Choose only Manufact Best MCP and
+   Armature. Upstream drafts remain for you to post.
 
-The 10 PM preparation target has not yet been missed. Approval, recording and
-human client tests are the remaining dependencies; no completion time is claimed
-for those external steps.
+Engineering and document preparation finished before the Saturday 10 PM target. Submission is due
+**Sunday, October 18, 10:00 AM PT**. The video, official score and manual client
+checks are the remaining dependencies for submission.

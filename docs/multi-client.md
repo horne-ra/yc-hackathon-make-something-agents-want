@@ -8,7 +8,7 @@ returns 401 with instructions. No URL tokens or OAuth sign-in fallback.
 
 ## Tokens and operator setup
 
-The maintainer's local, gitignored `.env` contains `AXLINT_API_TOKENS`, a JSON
+The maintainer's local, gitignored `.env` now contains `AXLINT_API_TOKENS`, a JSON
 object with `codex`, `cursor`, `claude`, and `judges` entries. Each entry has
 `token`; `judges.daily_verify_limit` is 5. Copy the individual token value using
 a local editor, never terminal output or chat. Copy the entire JSON value into
@@ -25,7 +25,29 @@ Client credentials remain in `.env` or the client's process environment. Example
 below use environment references; never commit actual bearer headers. Load only
 the required token into a client environment, not model or platform credentials.
 
+## Load one client token without printing it
+
+From the AX Lint checkout, use the launcher below after adding the matching
+configuration. It reads local .env and passes only the selected client token
+from that file to the child. It does not print tokens or copy the server's
+Anthropic/Blaxel/Manufact credentials into the child environment.
+
+```sh
+node scripts/with-client-token.mjs claude
+node scripts/with-client-token.mjs codex
+node scripts/with-client-token.mjs cursor /Users/ransomhorne/Documents/trackr
+```
+
+Run only the client you need. For the demo, start in the Trackr directory and
+invoke this script by its absolute path in your AX Lint checkout so the coding
+agent works in Trackr. Quit existing GUI processes before relaunching; a Dock
+launch or already-running GUI may not inherit a newly supplied environment.
+These are client launches, not automatic verification runs.
+
 ## Claude Code
+
+Run the registration commands in the repository where you will use Claude Code
+(for the demo, Trackr); the default local scope is tied to that repository.
 
 Public first call:
 
@@ -101,6 +123,10 @@ public discovery. Add `Authorization: Bearer <token>` in the Inspector's header
 field using the locally copied `claude.token` (or judges token for judging).
 Call preview_run, then open its MCP App view. Do not save credentials in a share
 URL. The server build ships widget JS/CSS as public assets.
+
+All four named credentials passed real HTTP preview calls on October 17. This
+verifies the credentials, not the native client UI or a new multi-client video.
+[Hosted checks](evidence/wrapup/smoke-summary.json) retain that evidence.
 
 ## Reproduce the first call
 
