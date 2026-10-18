@@ -510,3 +510,43 @@ If Friday prep isn't allowed, the deterministic core moves into block 1 and bloc
 ## Deferred: enum patching
 
 Enums carry routing better than prose, so this is the first post-MVP addition. It needs a way to add `enum` to the exposed schema without changing runtime validation (for example, a framework hook that sets JSON Schema metadata on a `z.string()`), plus a probe that calls the tool with a valid fixture argument set and each enum value substituted, and a negative probe with an invalid value to show the server enforces the restriction.
+
+## Amendment: future scoring v2 and size-control prioritization (October 17, 2026)
+
+This amendment applies to **new runs only**. Every frozen task, call, score,
+verdict and report remains unchanged. Historical configs without scoring_version
+mean v1; parsing them never inserts a new field into the saved result.
+
+verify_patch accepts optional scoring_version, v1 by default, or an explicit v2.
+Every newly created result and context records the version. v1 preserves the
+production runner's original first-proposed-call dispatch/scoring; the separate
+frozen external benchmark harnesses retain their own exactly-one-call gate. This
+amendment does not change or rerun those harnesses or reinterpret their results.
+
+In v2 a trial passes when at least one tool call **in the first model turn**
+matches the expected tool and every argument predicate, and no forbidden tool is
+proposed. A correct call plus a permitted parallel lookup can therefore pass.
+Later turns cannot rescue a failure. Tasks may specify forbidden_tools. The runner
+also forbids unknown tools, tools lacking explicit readOnlyHint=true, and tools
+with destructiveHint=true. A forbidden proposal fails the whole trial and prevents
+all dispatch for that turn. Nonforbidden first-turn calls are executed; execution
+errors remain visible infrastructure failures, not passes. All proposals are
+retained in proposed_calls; chosen_tool identifies the matching call when one is
+present. Returned-token accounting includes the executed first-turn results;
+comparisons across scoring versions are not interchangeable.
+
+Use model=default (or the exact AXLINT_MODEL). Sampling is provider default and no
+temperature is sent. New model choices require changing AXLINT_MODEL deliberately.
+The verdict thresholds and provisional three-trials label remain unchanged.
+
+New audits emit high-severity size_control_undocumented findings before other
+kinds whenever an undescribed parameter name suggests response-size control:
+limit, page_size/pageSize, max_*, include_*, fields, exclude*, depth, verbose,
+detail or format. Arrays and strings count, including excludePatterns. Names are
+heuristics; only source can establish allowed values, defaults and actual cost.
+Descriptions already present do not trigger this finding. The old
+payload_control_undocumented kind remains readable in frozen artifacts but is no
+longer emitted. F1/F2 retain their overlap/unconstrained meanings and the first
+size-control finding retains F3; ordering now follows size priority rather than
+numeric IDs. Do not select findings by array position or assume IDs are a ranking.
+Tests exercise committed Trackr include_comments and filesystem excludePatterns.

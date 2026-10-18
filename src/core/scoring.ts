@@ -1,4 +1,4 @@
-import type { Check, Failure, Finding, Json, Matcher, Task } from './contracts.js';
+import type { Check, Failure, Finding, Json, Matcher, Task, ScoringVersion } from './contracts.js';
 export type ToolCall = { name: string; arguments: Record<string, Json> };
 export function matchArgument(matcher: Matcher, value: Json | undefined, present: boolean): boolean {
   if ('absent' in matcher) return !present;
@@ -19,6 +19,14 @@ export function scoreTrial(task: Pick<Task, 'expect'>, call: ToolCall | null, in
   }
   const passed = checks.every(c => c.passed);
   return { passed, failure: passed ? null : 'bad_args', checks };
+}
+/** Opt-in first-turn scoring. Legacy v1 deliberately retains first-call behavior. */
+export function scoreTurn(task: Pick<Task, 'expect' | 'forbidden_tools'>, calls: readonly ToolCall[], version: ScoringVersion = 'v1', infraError?: string): ReturnType<typeof scoreTrial> {
+  if (version === 'v1' || infraError !== undefined) return scoreTrial(task, calls[0] ?? null, infraError);
+  const forbidden = calls.filter(call => task.forbidden_tools?.includes(call.name));
+  if (forbidden.length) return { passed: false, failure: 'forbidden_tool', checks: [{what:'forbidden_tools',expected:[],actual:forbidden.map(call=>call.name),passed:false}] };
+  const matching = calls.find(call => scoreTrial(task, call).passed);
+  return scoreTrial(task, matching ?? calls.find(call => call.name === task.expect.tool) ?? calls[0] ?? null);
 }
 function expectedText(task: Pick<Task, 'expect'>): string {
   const args = Object.entries(task.expect.args).map(([key, m]) => {

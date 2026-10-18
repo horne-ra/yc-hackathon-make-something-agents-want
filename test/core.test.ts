@@ -206,15 +206,17 @@ describe('verdict and trial aggregation', () => {
 
 describe('deterministic audit', () => {
   it('returns F1-F3 and excludes required-id lookups from overlap', () => {
-    expect(findings.slice(0, 3).map(f => [f.id, f.kind, f.param])).toEqual([['F1', 'sibling_overlap', undefined], ['F2', 'unconstrained_string', 'status'], ['F3', 'payload_control_undocumented', 'include_comments']]);
+    expect(findings[0]).toMatchObject({id:'F3',kind:'size_control_undocumented',severity:'high',param:'include_comments'});
+    expect(findings.find(f=>f.id==='F1')?.kind).toBe('sibling_overlap');
+    expect(findings.find(f=>f.id==='F2')?.param).toBe('status');
     expect(findings.filter(f => f.kind === 'sibling_overlap')).toHaveLength(1);
-    expect(findings[0]!.tools).toEqual(['list_issues', 'search_issues']);
+    expect(findings.find(f=>f.kind==='sibling_overlap')!.tools).toEqual(['list_issues', 'search_issues']);
     expect(core.auditTools(candidate).filter(f => f.kind === 'sibling_overlap')).toEqual([]);
     expect(core.auditTools(candidate).some(f => f.id === 'F1')).toBe(false);
   });
   it('covers every finding kind including long descriptions and missing output schema', () => {
     const all = core.auditTools([...tools, { name: 'opaque', inputSchema: { type: 'object', properties: {} } }, { name: 'long', description: 'x'.repeat(1001), inputSchema: { type: 'object', properties: {} } }]);
-    expect(new Set(all.map(f => f.kind))).toEqual(new Set(core.FindingKindSchema.options));
+    expect(new Set(all.map(f => f.kind))).toEqual(new Set(core.FindingKindSchema.options.filter(k=>k!=='payload_control_undocumented')));
     expect(all.find(f => f.kind === 'description_too_long')!.severity).toBe('warning');
   });
   it('uses the exact four overlap conditions and fixed read verbs', () => {

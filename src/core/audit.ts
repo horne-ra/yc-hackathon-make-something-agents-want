@@ -1,7 +1,7 @@
 import type { Finding, Json, Tool } from './contracts.js';
 const readVerbs = new Set(['list', 'search', 'find', 'get', 'query', 'fetch', 'lookup', 'retrieve']);
 export const severityByKind: Record<Finding['kind'], Finding['severity']> = {
-  unclear_purpose: 'high', missing_usage_guidelines: 'medium', opaque_parameter: 'medium', unconstrained_string: 'high', sibling_overlap: 'high', payload_control_undocumented: 'medium', description_too_long: 'warning', missing_output_schema: 'medium',
+  unclear_purpose: 'high', missing_usage_guidelines: 'medium', opaque_parameter: 'medium', unconstrained_string: 'high', sibling_overlap: 'high', payload_control_undocumented: 'medium', size_control_undocumented: 'high', description_too_long: 'warning', missing_output_schema: 'medium',
 };
 export function parameterSummaries(tool: Tool) {
   const required = Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
@@ -35,17 +35,19 @@ export function auditTools(tools: readonly Tool[]): Finding[] {
     for (const p of parameterSummaries(tool)) {
       if (!p.has_description) add('opaque_parameter', tool.name, 'Parameter has no description.', p.name);
       if (p.type === 'string' && !p.has_description && !p.has_enum) add('unconstrained_string', tool.name, 'Free-form string with no description or allowed values.', p.name);
-      if ((p.type === 'boolean' || p.type === 'number') && !p.has_description && (/^include_/.test(p.name) || ['limit', 'verbose', 'fields', 'page_size'].includes(p.name))) add('payload_control_undocumented', tool.name, 'Undocumented boolean or number whose name suggests it controls response size.', p.name);
+      const normalized = p.name.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase();
+      if (!p.has_description && /^(?:limit|page_size|fields|depth|verbose|detail|format)$|^(?:max_|include_|exclude)/.test(normalized)) add('size_control_undocumented', tool.name, 'Size-controlling parameter has no description; explain response cost, accepted values and the actual default from source.', p.name);
     }
   }
-  // The spec's first three demo findings identify the three independent issue kinds.
+  // New audits prioritize missing size controls. Frozen audit artifacts and their IDs remain unchanged.
   const ordered: Unnumbered[] = [];
-  for (const kind of ['sibling_overlap', 'unconstrained_string', 'payload_control_undocumented']) {
-    const first = findings.find(f => f.kind === kind);
-    if (first) ordered.push(first);
+  for (const kind of ['size_control_undocumented', 'sibling_overlap', 'unconstrained_string']) {
+    const matching = findings.filter(f => f.kind === kind);
+    if (kind === 'size_control_undocumented') ordered.push(...matching);
+    else if (matching[0]) ordered.push(matching[0]);
   }
   ordered.push(...findings.filter(f => !ordered.includes(f)));
-  const reserved: Partial<Record<Finding['kind'], number>> = { sibling_overlap: 1, unconstrained_string: 2, payload_control_undocumented: 3 };
+  const reserved: Partial<Record<Finding['kind'], number>> = { sibling_overlap: 1, unconstrained_string: 2, payload_control_undocumented: 3, size_control_undocumented: 3 };
   const assigned = new Set<Finding['kind']>();
   let next = 4;
   return ordered.map(f => {

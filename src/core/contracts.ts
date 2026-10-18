@@ -13,7 +13,7 @@ export const MatcherSchema = z.union([
 ]);
 export type Matcher = z.infer<typeof MatcherSchema>;
 export const ExpectSchema = z.strictObject({ tool: z.string().min(1), args: z.record(z.string(), MatcherSchema) });
-export const TaskSchema = z.strictObject({ id: z.string().min(1), prompt: z.string(), control: z.boolean(), expect: ExpectSchema });
+export const TaskSchema = z.strictObject({ id: z.string().min(1), prompt: z.string(), control: z.boolean(), expect: ExpectSchema, forbidden_tools: z.array(z.string().min(1)).optional() });
 export type Task = z.infer<typeof TaskSchema>;
 export const TasksSchema = z.strictObject({ tasks: z.array(TaskSchema).min(1) }).refine(v => new Set(v.tasks.map(t => t.id)).size === v.tasks.length, 'Task IDs must be unique');
 const opBase = { tool: z.string().min(1), value: z.string(), finding_ids: z.array(z.string()) };
@@ -23,7 +23,7 @@ export const WireOpSchema = z.discriminatedUnion('op', [
 ]);
 export type WireOp = z.infer<typeof WireOpSchema>;
 export const WireOpsSchema = z.array(WireOpSchema);
-export const FindingKindSchema = z.enum(['unclear_purpose', 'missing_usage_guidelines', 'opaque_parameter', 'unconstrained_string', 'sibling_overlap', 'payload_control_undocumented', 'description_too_long', 'missing_output_schema']);
+export const FindingKindSchema = z.enum(['unclear_purpose', 'missing_usage_guidelines', 'opaque_parameter', 'unconstrained_string', 'sibling_overlap', 'payload_control_undocumented', 'size_control_undocumented', 'description_too_long', 'missing_output_schema']);
 export const FindingSchema = z.strictObject({ id: z.string(), kind: FindingKindSchema, severity: z.enum(['high', 'medium', 'warning']), tool: z.string().optional(), tools: z.array(z.string()).optional(), param: z.string().optional(), message: z.string(), evidence: JsonObjectSchema.optional() });
 export type Finding = z.infer<typeof FindingSchema>;
 export const ParamSummarySchema = z.strictObject({ name: z.string(), type: z.string(), required: z.boolean(), has_description: z.boolean(), has_enum: z.boolean() });
@@ -39,15 +39,17 @@ export type PatchSpec = z.infer<typeof PatchSpecSchema>;
 export const AuditInputSchema = z.strictObject({ server_url: z.url() });
 export const ProposePatchInputSchema = z.strictObject({ audit: AuditSchema, source_files: z.array(SourceFileSchema).min(1), finding_ids: z.array(z.string()), style: z.enum(['compact', 'full']).default('compact') });
 export const TrialsSchema = z.number().int().min(1).max(9).refine(n => n % 2 === 1, 'Trials must be odd');
-export const VerifyPatchInputSchema = z.strictObject({ server_url: z.url(), patch: PatchSpecSchema, tasks: TasksSchema, trials: TrialsSchema, model: z.string().min(1).default('default') });
+export const ScoringVersionSchema = z.enum(['v1', 'v2']);
+export type ScoringVersion = z.infer<typeof ScoringVersionSchema>;
+export const VerifyPatchInputSchema = z.strictObject({ server_url: z.url(), patch: PatchSpecSchema, tasks: TasksSchema, trials: TrialsSchema, model: z.string().min(1).default('default'), scoring_version: ScoringVersionSchema.default('v1').describe('v1 preserves legacy first-call scoring (default); v2 accepts a matching first-turn parallel call if none are forbidden.') });
 export const VerifyPatchOutputSchema = z.strictObject({ run_id: z.string(), status: z.literal('queued'), total_trials: z.number().int().positive() });
 export const GetVerificationResultInputSchema = z.strictObject({ run_id: z.string() });
 export const RunStatusSchema = z.enum(['queued', 'running', 'complete', 'failed', 'stalled', 'run_unavailable', 'run_expired']);
-export const FailureSchema = z.enum(['wrong_tool', 'bad_args', 'no_tool_call', 'infra']).nullable();
+export const FailureSchema = z.enum(['wrong_tool', 'bad_args', 'no_tool_call', 'forbidden_tool', 'infra']).nullable();
 export type Failure = z.infer<typeof FailureSchema>;
 export const CheckSchema = z.strictObject({ what: z.string(), expected: JsonSchema, actual: JsonSchema.optional(), passed: z.boolean() });
 export type Check = z.infer<typeof CheckSchema>;
-export const TrialSchema = z.strictObject({ condition: z.enum(['baseline', 'candidate']), index: z.number().int().positive(), passed: z.boolean(), failure: FailureSchema, chosen_tool: z.string().nullable(), args: JsonObjectSchema, checks: z.array(CheckSchema), explanation: z.string(), model_text: z.string().nullable(), input_tokens: z.number().int().nonnegative(), output_tokens: z.number().int().nonnegative(), result_tokens: z.number().int().nonnegative(), latency_ms: z.number().nonnegative(), result_tokens_approximate: z.boolean().optional() }).refine(v => v.passed === (v.failure === null), 'Passed trials must have null failure');
+export const TrialSchema = z.strictObject({ condition: z.enum(['baseline', 'candidate']), index: z.number().int().positive(), passed: z.boolean(), failure: FailureSchema, chosen_tool: z.string().nullable(), args: JsonObjectSchema, checks: z.array(CheckSchema), explanation: z.string(), model_text: z.string().nullable(), proposed_calls: z.array(z.strictObject({ name: z.string(), arguments: JsonObjectSchema })).optional(), input_tokens: z.number().int().nonnegative(), output_tokens: z.number().int().nonnegative(), result_tokens: z.number().int().nonnegative(), latency_ms: z.number().nonnegative(), result_tokens_approximate: z.boolean().optional() }).refine(v => v.passed === (v.failure === null), 'Passed trials must have null failure');
 export type Trial = z.infer<typeof TrialSchema>;
 export const ConditionSummarySchema = z.strictObject({ passed: z.number().int().nonnegative(), of: z.number().int().nonnegative(), infra_errors: z.number().int().nonnegative(), insufficient_data: z.boolean().optional() }).refine(v => v.passed <= v.of, 'Pass count exceeds trials');
 export type ConditionSummary = z.infer<typeof ConditionSummarySchema>;
@@ -55,7 +57,7 @@ export const TaskResultSchema = z.strictObject({ id: z.string(), control: z.bool
 export type TaskResult = z.infer<typeof TaskResultSchema>;
 export const VerdictSchema = z.enum(['regressed', 'inconclusive', 'improved']);
 export const TotalSchema = z.strictObject({ passed: z.number().int().nonnegative(), of: z.number().int().nonnegative(), result_tokens: z.number().int().nonnegative() });
-export const VerificationResultSchema = z.strictObject({ run_id: z.string(), provisional: z.literal(true), label: z.string(), config: z.strictObject({ model: z.string(), temperature: z.literal(0).optional(), trials: TrialsSchema, server_version: z.string(), tasks_hash: HashSchema, baseline_tools_hash: HashSchema, candidate_tools_hash: HashSchema }), candidate_tools: ToolsSchema, static_tool_tokens: z.strictObject({ baseline: z.number().int().nonnegative(), candidate: z.number().int().nonnegative() }), tasks: z.array(TaskResultSchema), totals: z.strictObject({ baseline: TotalSchema, candidate: TotalSchema }), verdict: VerdictSchema, verdict_reasons: z.array(z.string()) });
+export const VerificationResultSchema = z.strictObject({ run_id: z.string(), provisional: z.literal(true), label: z.string(), config: z.strictObject({ model: z.string(), scoring_version: ScoringVersionSchema.optional(), temperature: z.literal(0).optional(), trials: TrialsSchema, server_version: z.string(), tasks_hash: HashSchema, baseline_tools_hash: HashSchema, candidate_tools_hash: HashSchema }), candidate_tools: ToolsSchema, static_tool_tokens: z.strictObject({ baseline: z.number().int().nonnegative(), candidate: z.number().int().nonnegative() }), tasks: z.array(TaskResultSchema), totals: z.strictObject({ baseline: TotalSchema, candidate: TotalSchema }), verdict: VerdictSchema, verdict_reasons: z.array(z.string()) });
 export const ProgressSchema = z.strictObject({ done: z.number().int().nonnegative(), total: z.number().int().nonnegative() }).refine(v => v.done <= v.total, 'Progress exceeds total');
 export const RunErrorSchema = z.strictObject({ code: z.string(), message: z.string() });
 export const GetVerificationResultOutputSchema = z.union([
