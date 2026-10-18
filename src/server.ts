@@ -87,11 +87,21 @@ export const ping = server.tool({
   } catch (error) { https.status = safeError(error); }
 
   const runId = process.env.AXLINT_QUOTA_SANDBOX || process.env.AXLINT_SPIKE_RUN_ID || null;
-  let sandbox: z.infer<typeof outputSchema>["sandbox"] = {ok:false, status:"AXLINT_SPIKE_RUN_ID is not configured", runId, progress:null};
+  let sandbox: z.infer<typeof outputSchema>["sandbox"] = {ok:false, status:"AXLINT_QUOTA_SANDBOX or AXLINT_SPIKE_RUN_ID is not configured", runId, progress:null};
   if (runId && secrets.blaxel && secrets.workspace) {
     try {
       const instance = await SandboxInstance.get(runId);
-      const progress = JSON.parse(await instance.fs.read(process.env.AXLINT_QUOTA_SANDBOX ? "/app/axlint-run/progress.json" : "/app/axlint-spike/progress.json"));
+      const stored = JSON.parse(await instance.fs.read(process.env.AXLINT_QUOTA_SANDBOX ? "/app/axlint-run/progress.json" : "/app/axlint-spike/progress.json"));
+      // Connectivity proof is a summary. Complete historical trials remain in
+      // retained run files and are available through get_verification_result.
+      const progress = {
+        readable: true,
+        source: "retained connectivity proof; not current verification status",
+        ...(typeof stored?.updated_at === "string" ? { updated_at: stored.updated_at } : {}),
+        ...(typeof stored?.progress?.done === "number" ? { done: stored.progress.done } : {}),
+        ...(typeof stored?.progress?.total === "number" ? { total: stored.progress.total } : {}),
+        ...(typeof stored?.ticks === "number" ? { ticks: stored.ticks } : {}),
+      };
       sandbox = { ok:true, status:instance.status ?? "reachable", runId, progress };
     } catch (error) { sandbox.status = safeError(error); }
   }

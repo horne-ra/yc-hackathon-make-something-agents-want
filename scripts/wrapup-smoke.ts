@@ -21,6 +21,14 @@ try{
  checks.server=publicClient.getServerVersion();assert.equal(publicClient.getServerVersion()?.version,'0.4.0');
  const tools=await publicClient.listTools();assert.equal(tools.tools.length,7);await save('public-tools',tools);checks.public_tools=tools.tools.map(t=>t.name);
  assert.equal((await publicClient.listPrompts()).prompts.length,2);assert((await publicClient.listResources()).resources.length>=3);checks.public_discovery='PASS initialize, tools, prompts and resources';
+ const resource=await publicClient.readResource({uri:'ui://views/preview-run.html'});
+ const html=resource.contents.map(item=>'text' in item?item.text:'').join('\n');
+ const assets=[...html.matchAll(/(?:src|href)=["']([^"']+\.(?:js|css)(?:\?[^"']*)?)["']/g)].map(match=>new URL(match[1],endpoint).href);
+ assert(assets.length>=2,'Widget JS and CSS are declared');
+ const tokensForAssetCheck=JSON.parse(process.env.AXLINT_API_TOKENS??'{}');
+ const secretValues=[...Object.values(tokensForAssetCheck).map((entry:any)=>entry.token),...['ANTHROPIC_API_KEY','BL_API_KEY','MCP_USE_API_KEY'].map(key=>process.env[key])].filter(Boolean);
+ for(const url of assets){const asset=await fetch(url);assert.equal(asset.status,200);const text=await asset.text();for(const secret of secretValues)assert(!text.includes(secret),'Configured credential found in widget asset');}
+ checks.public_widget_assets={count:assets.length,status:'PASS anonymous resources/read and JS/CSS HTTP 200; no configured credential values'};
  const audit=await publicClient.callTool({name:'audit_server',arguments:{server_url:target}});assert(!audit.isError,JSON.stringify(audit));
  const data=AuditSchema.parse(audit.structuredContent);assert.equal(data.tools_hash,baseline);assert.equal(data.findings[0]?.kind,'size_control_undocumented');await save('public-trackr-audit',data);checks.public_audit={findings:data.findings.length,static_tokens:data.static_tool_tokens,top_kind:data.findings[0]?.kind};
  const self=await publicClient.callTool({name:'audit_server',arguments:{server_url:endpoint}});assert(!self.isError,JSON.stringify(self));const selfAudit=AuditSchema.parse(self.structuredContent);assert.equal(selfAudit.findings.length,0);await save('self-audit-after',selfAudit);checks.self_audit_findings=0;
@@ -32,12 +40,19 @@ try{
  const tokens=JSON.parse(process.env.AXLINT_API_TOKENS??'{}');assert(tokens.judges?.token,'Named judges token missing from local .env');
  await judges.connect(new StreamableHTTPClientTransport(new URL(endpoint),{requestInit:{headers:{Authorization:`Bearer ${tokens.judges.token}`}}}));
  const preview=await judges.callTool({name:'preview_run',arguments:{}});assert(!preview.isError,JSON.stringify(preview));checks.preview='PASS recorded S8 viewer';
+ const credentialChecks:Record<string,string>={judges:'PASS authenticated preview'};
+ for(const name of ['codex','cursor','claude']){
+  const client=new Client({name:`axlint-${name}-credential-smoke`,version:'1'});
+  try{await client.connect(new StreamableHTTPClientTransport(new URL(endpoint),{requestInit:{headers:{Authorization:`Bearer ${tokens[name].token}`}}}));const response=await client.callTool({name:'preview_run',arguments:{}});assert(!response.isError,`${name} credential rejected`);credentialChecks[name]='PASS authenticated preview';}
+  finally{await client.close();}
+ }
+ checks.named_credential_checks=credentialChecks;
  // Exercise the real durable counter under an isolated non-credential test name.
  // It does not spend judges' allowance or start any model/sandbox allocation.
  const probe={name:`wrapup-quota-${Date.now()}`,token:'synthetic-test-value-not-a-real-credential',daily_verify_limit:1};
  const first=await consumeVerifyQuota(probe),second=await consumeVerifyQuota(probe);assert.equal(first?.allowed,true);assert.equal(second?.allowed,false);checks.durable_quota={first,second};
  const input=JSON.parse(await readFile('runner/evidence/corrected-input.json','utf8'));input.model='default';input.scoring_version='v1';input.trials=3;
- // Existing frozen compact candidate; no new model proposal or target edit.
+ // Existing committed corrected-runner candidate; no new model proposal or target edit.
  const launch=await judges.callTool({name:'verify_patch',arguments:input});await save('judges-launch',launch);assert(!launch.isError,JSON.stringify(launch));
  const queued=VerifyPatchOutputSchema.parse(launch.structuredContent);checks.run_id=queued.run_id;await save('smoke-summary',checks);console.log(JSON.stringify(queued));
  const polls:unknown[]=[];const deadline=Date.now()+15*60_000;
