@@ -2,6 +2,8 @@
 
 AX Lint audits MCP tool interfaces, proposes description changes, and verifies whether they improve an agent's first call before a patch is applied.
 
+https://docs.google.com/presentation/d/1GZbLq-aJ_Q-Gl6Y32XNc8Vhg-IBEqluUkMN1yQ05vWw/edit?usp=sharing
+
 ## Why MCP, and why an MCP App?
 
 The coding agent calls AX Lint mid-workflow in the repository it is already
