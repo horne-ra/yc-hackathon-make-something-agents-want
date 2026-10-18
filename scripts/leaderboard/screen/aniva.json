@@ -1,0 +1,2193 @@
+{
+  "slug": "aniva",
+  "source_url": "https://manufact.com/mcp-catalog/aniva",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:30:42.441Z",
+    "endpoint": "https://anivahealth.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "aniva-mcp",
+      "version": "0.1.0"
+    },
+    "capabilities": {
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Aniva: read-only access to the signed-in user's health data (biomarkers, biological age, action plan, supplements, appointments, test sessions, subscription, referrals). Pick the dedicated tool for each topic. Use aniva_get_app_links before suggesting any anivahealth.com URL — every data tool also embeds canonical actions[] you can forward the user to.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "aniva_get_biomarkers_snapshot",
+            "title": "Get biomarkers snapshot (latest results)",
+            "description": "PREFERRED TOOL for \"show me my biomarkers\", \"what are my latest results?\", \"any out-of-range markers?\", \"biomarker overview\". Returns the user's biomarkers with latest result, unit, reference ranges, and status (below/within/above normal, optimal). Use this (NOT aniva_get_biomarker_trend) when the user wants the broad picture; use aniva_get_biomarker_trend for one specific biomarker over time. Filters out routine OK allergy/intolerance results by default.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "limit": {
+                  "description": "Optional max biomarkers to return (after filtering).",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 2000
+                },
+                "includePlannedTests": {
+                  "description": "Deprecated: planned tests are never included (ignored).",
+                  "type": "boolean"
+                },
+                "includeGenetics": {
+                  "description": "Include genetic biomarkers (default false).",
+                  "type": "boolean"
+                },
+                "includeAssociatedConditions": {
+                  "description": "Include biomarker_condition_associations (default false).",
+                  "type": "boolean"
+                },
+                "primaryCategory": {
+                  "description": "Optional: only biomarkers whose primary_category matches.",
+                  "type": "string"
+                },
+                "context": {
+                  "type": "string",
+                  "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+                }
+              },
+              "required": [
+                "context"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://aniva/biomarkers-overview.html",
+              "openai/toolInvocation/invoking": "Pulling your biomarkers...",
+              "openai/toolInvocation/invoked": "Here's your biomarker overview.",
+              "openai/widgetAccessible": true,
+              "ui": {
+                "resourceUri": "ui://aniva/biomarkers-overview.mcp-app.html"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "number"
+                },
+                "meta": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                },
+                "biomarkers": {
+                  "type": "array",
+                  "items": {}
+                },
+                "viewAllUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {}
+                }
+              },
+              "required": [
+                "profileId",
+                "count",
+                "meta",
+                "biomarkers",
+                "viewAllUrl",
+                "actions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "aniva_get_biomarker_trend",
+            "title": "Get history (trend) for one biomarker",
+            "description": "PREFERRED TOOL when the user names a specific biomarker (e.g. \"how has my HbA1c changed?\", \"show vitamin D over time\", \"ferritin trend\"). Returns time-series values + reference ranges for ONE biomarker, plus a sparkline widget. Use aniva_get_biomarkers_snapshot for the broad overview instead.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "biomarkerId": {
+                  "description": "Biomarker ID. Provide either biomarkerId or biomarkerSlug.",
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "biomarkerSlug": {
+                  "description": "Biomarker slug (e.g. \"hba1c\"). Used when biomarkerId is not supplied.",
+                  "type": "string"
+                },
+                "biomarkerName": {
+                  "description": "Free-text biomarker name (e.g. \"Vitamin D\"). Used as last-resort fallback — case-insensitive contains match against name and synonyms.",
+                  "type": "string"
+                },
+                "context": {
+                  "type": "string",
+                  "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+                }
+              },
+              "required": [
+                "context"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://aniva/biomarker-trend.html",
+              "openai/toolInvocation/invoking": "Charting your biomarker...",
+              "openai/toolInvocation/invoked": "Here's the trend.",
+              "openai/widgetAccessible": true,
+              "ui": {
+                "resourceUri": "ui://aniva/biomarker-trend.mcp-app.html"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "type": "string"
+                },
+                "biomarkerId": {
+                  "type": "number"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "unit": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "points": {
+                  "type": "array",
+                  "items": {}
+                },
+                "ranges": {},
+                "status": {
+                  "type": "string"
+                },
+                "detailUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {}
+                }
+              },
+              "required": [
+                "profileId",
+                "biomarkerId",
+                "name",
+                "slug",
+                "unit",
+                "points",
+                "ranges",
+                "status",
+                "detailUrl",
+                "actions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "aniva_get_user_summary",
+            "title": "Get user summary (name + birthdate + basics)",
+            "description": "PREFERRED TOOL for the user's identity basics: name, birthdate, handle, email, phone. Use this (NOT aniva_get_user_metadata) when the user asks \"what's my name?\", \"when is my birthday?\", \"how old am I?\", or you just need a quick identity snapshot. Lowest-latency profile read.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "context": {
+                  "type": "string",
+                  "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+                }
+              },
+              "required": [
+                "context"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "profileId",
+                "summary"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "aniva_get_user_metadata",
+            "title": "Get user metadata (low-level field-level read)",
+            "description": "Low-level metadata fetcher with field-level selection. PREFER the dedicated tool when one exists: aniva_get_user_summary (name/birthdate/contact), aniva_get_subscription (membership/plan), aniva_get_referrals (referral data + share link). Only use this tool when you need a specific raw field not exposed elsewhere (e.g. shipping address, onboarding template, one-off purchases). Set includeExternal=true to read Stripe/Tolt/Ornament/Loops-backed fields.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "fields": {
+                  "description": "Array of UserEntityProperty values (e.g. \"email\", \"firstName\"). If omitted, returns a safe default set.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "includeExternal": {
+                  "description": "Allow external-service fields (Stripe/Tolt/Ornament/Loops). Default: false.",
+                  "type": "boolean"
+                },
+                "context": {
+                  "type": "string",
+                  "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+                }
+              },
+              "required": [
+                "context"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "type": "string"
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "properties": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "profileId",
+                "fields",
+                "properties"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "aniva_get_action_plans",
+            "title": "Get action plans for a profile",
+            "description": "PREFERRED TOOL when the user asks \"what should I do?\", \"what does Aniva recommend?\", \"show my action plan\", \"what are my next steps?\". Fetches personalized action plan(s) for the profile (markdown content + TLDR). Use includeContent=false for a lightweight card.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "limit": {
+                  "description": "Optional max number of plans to return (default: all).",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 25
+                },
+                "includeContent": {
+                  "description": "If false, only returns planInfo (no Notion markdown content). Default: true.",
+                  "type": "boolean"
+                },
+                "context": {
+                  "type": "string",
+                  "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+                }
+              },
+              "required": [
+                "context"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://aniva/action-plan.html",
+              "openai/toolInvocation/invoking": "Fetching action plan...",
+              "openai/toolInvocation/invoked": "Here's your action plan.",
+              "openai/widgetAccessible": true,
+              "ui": {
+                "resourceUri": "ui://aniva/action-plan.mcp-app.html"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "number"
+                },
+                "plans": {
+                  "type": "array",
+                  "items": {}
+                },
+                "planUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {}
+                }
+              },
+              "required": [
+                "profileId",
+                "count",
+                "plans",
+                "planUrl",
+                "actions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "aniva_get_biological_age",
+            "title": "Get biological age with visual card",
+            "description": "PREFERRED TOOL for biological age questions. Returns the user's biological age compared to their calendar age with a beautiful visual card. Use this tool (NOT aniva_get_biomarkers_snapshot) when users ask: \"what is my biological age?\", \"how old is my body?\", \"am I aging well?\", \"biological vs calendar age\", or any aging-related questions.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "context": {
+                  "type": "string",
+                  "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+                }
+              },
+              "required": [
+                "context"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://aniva/biological-age.html",
+              "openai/toolInvocation/invoking": "Calculating your biological age...",
+              "openai/toolInvocation/invoked": "Here's your biological age.",
+              "openai/widgetAccessible": true,
+              "ui": {
+                "resourceUri": "ui://aniva/biological-age.mcp-app.html"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "biologicalAge": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "calendarAge": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "ageDifference": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "younger",
+                        "older",
+                        "same"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "testDate": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {}
+                }
+              },
+              "required": [
+                "biologicalAge",
+                "calendarAge",
+                "ageDifference",
+                "status",
+                "testDate",
+                "actions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "aniva_get_supplements",
+            "title": "Get user supplement plan (active + recommended)",
+            "description": "PREFERRED TOOL for ANY supplement/vitamin/protocol question — \"what should I take?\", \"what's my stack?\", \"do I need to reorder?\", \"what supplements am I on?\". ALWAYS returns BOTH lists: `active` = currently taking (purchased + in intake window), `recommended` = Aniva-suggested but NOT yet purchased. Most Aniva users have items in `recommended` even if `active` is empty — present BOTH to the user. Do not call the `recommended` list \"your stack\" or \"what you're taking\"; they're suggestions awaiting purchase. The widget renders both sections automatically.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "context": {
+                  "type": "string",
+                  "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+                }
+              },
+              "required": [
+                "context"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://aniva/supplements.html",
+              "openai/toolInvocation/invoking": "Pulling your supplement plan...",
+              "openai/toolInvocation/invoked": "Here's your supplement plan.",
+              "openai/widgetAccessible": true,
+              "ui": {
+                "resourceUri": "ui://aniva/supplements.mcp-app.html"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "type": "string"
+                },
+                "activeCount": {
+                  "type": "number"
+                },
+                "recommendedCount": {
+                  "type": "number"
+                },
+                "active": {
+                  "type": "array",
+                  "items": {}
+                },
+                "recommended": {
+                  "type": "array",
+                  "items": {}
+                },
+                "manageUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {}
+                }
+              },
+              "required": [
+                "profileId",
+                "activeCount",
+                "recommendedCount",
+                "active",
+                "recommended",
+                "manageUrl",
+                "actions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "aniva_get_appointments",
+            "title": "Get upcoming + recent appointments",
+            "description": "PREFERRED TOOL when the user asks \"when is my next appointment?\", \"do I have any tests booked?\", \"where am I getting my blood drawn?\", or wants to book/reschedule/follow up. The response includes the canonical book-follow-up URL and an appointments list URL so you can forward the user without inventing links.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "upcomingLimit": {
+                  "description": "Max upcoming items to return (default 5).",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 20
+                },
+                "pastLimit": {
+                  "description": "Max past items to return (default 5).",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 20
+                },
+                "context": {
+                  "type": "string",
+                  "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+                }
+              },
+              "required": [
+                "context"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://aniva/appointments.html",
+              "openai/toolInvocation/invoking": "Pulling your appointments...",
+              "openai/toolInvocation/invoked": "Here's your schedule.",
+              "openai/widgetAccessible": true,
+              "ui": {
+                "resourceUri": "ui://aniva/appointments.mcp-app.html"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "type": "string"
+                },
+                "upcomingCount": {
+                  "type": "number"
+                },
+                "pastCount": {
+                  "type": "number"
+                },
+                "next": {
+                  "anyOf": [
+                    {},
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "upcoming": {
+                  "type": "array",
+                  "items": {}
+                },
+                "past": {
+                  "type": "array",
+                  "items": {}
+                },
+                "appointmentsUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "bookNewUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {}
+                }
+              },
+              "required": [
+                "profileId",
+                "upcomingCount",
+                "pastCount",
+                "next",
+                "upcoming",
+                "past",
+                "appointmentsUrl",
+                "bookNewUrl",
+                "actions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "aniva_get_test_sessions",
+            "title": "Get recent test sessions with progress",
+            "description": "PREFERRED TOOL when the user asks \"where is my kit?\", \"are my results back yet?\", \"how is my test going?\", \"did the lab receive my sample?\". Returns recent sessions with status, scheduled date, panels, and submission/result counts. Renders a progress-step widget.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "limit": {
+                  "description": "Max sessions to return (default 5, newest first).",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 20
+                },
+                "context": {
+                  "type": "string",
+                  "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+                }
+              },
+              "required": [
+                "context"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://aniva/test-sessions.html",
+              "openai/toolInvocation/invoking": "Checking your test sessions...",
+              "openai/toolInvocation/invoked": "Here is your test progress.",
+              "openai/widgetAccessible": true,
+              "ui": {
+                "resourceUri": "ui://aniva/test-sessions.mcp-app.html"
+              }
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "type": "string"
+                },
+                "sessions": {
+                  "type": "array",
+                  "items": {}
+                },
+                "activeUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "bookNewUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {}
+                }
+              },
+              "required": [
+                "profileId",
+                "sessions",
+                "activeUrl",
+                "bookNewUrl",
+                "actions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "aniva_get_subscription",
+            "title": "Get subscription / membership status",
+            "description": "PREFERRED TOOL for any membership or subscription question: \"am I subscribed?\", \"what plan am I on?\", \"when does my membership renew?\", \"when does it cancel?\", \"how much am I paying?\". Returns the user's active subscription(s) with status, line items, current billing period, plan amounts, and cancellation timestamps.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "context": {
+                  "type": "string",
+                  "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+                }
+              },
+              "required": [
+                "context"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "type": "string"
+                },
+                "hasActiveSubscription": {
+                  "type": "boolean"
+                },
+                "subscriptions": {
+                  "type": "array",
+                  "items": {}
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {}
+                }
+              },
+              "required": [
+                "profileId",
+                "hasActiveSubscription",
+                "subscriptions",
+                "actions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "aniva_get_referrals",
+            "title": "Get referrals + personal share link",
+            "description": "PREFERRED TOOL for referral / sharing questions: \"what's my referral link?\", \"how many friends have I referred?\", \"how do I share Aniva?\", \"how much have I earned in commissions?\". Returns the user's referral count, total commission earned, currency, and personal share URL (https://anivahealth.com/?ref=<handle>) plus the partner dashboard URL.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "context": {
+                  "type": "string",
+                  "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+                }
+              },
+              "required": [
+                "context"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "profileId": {
+                  "type": "string"
+                },
+                "handle": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "shareUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "referralsCount": {
+                  "type": "number"
+                },
+                "totalCommissionAmount": {
+                  "type": "number"
+                },
+                "currency": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "partnerDashboardUrl": {
+                  "type": "string"
+                },
+                "inviteUrl": {
+                  "type": "string"
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {}
+                }
+              },
+              "required": [
+                "profileId",
+                "handle",
+                "shareUrl",
+                "referralsCount",
+                "totalCommissionAmount",
+                "currency",
+                "partnerDashboardUrl",
+                "inviteUrl",
+                "actions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "aniva_get_app_links",
+            "title": "Get canonical Aniva URLs for in-product actions",
+            "description": "Directory of canonical Aniva URLs. Use this BEFORE inventing a link when the user wants to book a follow-up, view results, manage supplements, edit profile, talk to concierge, share a referral, etc. Each entry has a description telling you when to suggest it. PREFER this tool over guessing URLs.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "intent": {
+                  "description": "Optional intent filter, e.g. \"book-follow-up-appointment\", \"share-referral-link\", \"buy-supplements\", \"see-results\", \"message-concierge\".",
+                  "type": "string"
+                },
+                "keys": {
+                  "description": "Optional list of link keys (e.g. [\"book-test\", \"appointments\"]).",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "context": {
+                  "type": "string",
+                  "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+                }
+              },
+              "required": [
+                "context"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "siteUrl": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "number"
+                },
+                "links": {
+                  "type": "array",
+                  "items": {}
+                }
+              },
+              "required": [
+                "siteUrl",
+                "count",
+                "links"
+              ],
+              "additionalProperties": false
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "aniva_get_biomarkers_snapshot",
+        "title": "Get biomarkers snapshot (latest results)",
+        "description": "PREFERRED TOOL for \"show me my biomarkers\", \"what are my latest results?\", \"any out-of-range markers?\", \"biomarker overview\". Returns the user's biomarkers with latest result, unit, reference ranges, and status (below/within/above normal, optimal). Use this (NOT aniva_get_biomarker_trend) when the user wants the broad picture; use aniva_get_biomarker_trend for one specific biomarker over time. Filters out routine OK allergy/intolerance results by default.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+              "type": "string",
+              "minLength": 1
+            },
+            "limit": {
+              "description": "Optional max biomarkers to return (after filtering).",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2000
+            },
+            "includePlannedTests": {
+              "description": "Deprecated: planned tests are never included (ignored).",
+              "type": "boolean"
+            },
+            "includeGenetics": {
+              "description": "Include genetic biomarkers (default false).",
+              "type": "boolean"
+            },
+            "includeAssociatedConditions": {
+              "description": "Include biomarker_condition_associations (default false).",
+              "type": "boolean"
+            },
+            "primaryCategory": {
+              "description": "Optional: only biomarkers whose primary_category matches.",
+              "type": "string"
+            },
+            "context": {
+              "type": "string",
+              "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+            }
+          },
+          "required": [
+            "context"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://aniva/biomarkers-overview.html",
+          "openai/toolInvocation/invoking": "Pulling your biomarkers...",
+          "openai/toolInvocation/invoked": "Here's your biomarker overview.",
+          "openai/widgetAccessible": true,
+          "ui": {
+            "resourceUri": "ui://aniva/biomarkers-overview.mcp-app.html"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "type": "string"
+            },
+            "count": {
+              "type": "number"
+            },
+            "meta": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            },
+            "biomarkers": {
+              "type": "array",
+              "items": {}
+            },
+            "viewAllUrl": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "actions": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "profileId",
+            "count",
+            "meta",
+            "biomarkers",
+            "viewAllUrl",
+            "actions"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "aniva_get_biomarker_trend",
+        "title": "Get history (trend) for one biomarker",
+        "description": "PREFERRED TOOL when the user names a specific biomarker (e.g. \"how has my HbA1c changed?\", \"show vitamin D over time\", \"ferritin trend\"). Returns time-series values + reference ranges for ONE biomarker, plus a sparkline widget. Use aniva_get_biomarkers_snapshot for the broad overview instead.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+              "type": "string",
+              "minLength": 1
+            },
+            "biomarkerId": {
+              "description": "Biomarker ID. Provide either biomarkerId or biomarkerSlug.",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "biomarkerSlug": {
+              "description": "Biomarker slug (e.g. \"hba1c\"). Used when biomarkerId is not supplied.",
+              "type": "string"
+            },
+            "biomarkerName": {
+              "description": "Free-text biomarker name (e.g. \"Vitamin D\"). Used as last-resort fallback — case-insensitive contains match against name and synonyms.",
+              "type": "string"
+            },
+            "context": {
+              "type": "string",
+              "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+            }
+          },
+          "required": [
+            "context"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://aniva/biomarker-trend.html",
+          "openai/toolInvocation/invoking": "Charting your biomarker...",
+          "openai/toolInvocation/invoked": "Here's the trend.",
+          "openai/widgetAccessible": true,
+          "ui": {
+            "resourceUri": "ui://aniva/biomarker-trend.mcp-app.html"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "type": "string"
+            },
+            "biomarkerId": {
+              "type": "number"
+            },
+            "name": {
+              "type": "string"
+            },
+            "slug": {
+              "type": "string"
+            },
+            "unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "points": {
+              "type": "array",
+              "items": {}
+            },
+            "ranges": {},
+            "status": {
+              "type": "string"
+            },
+            "detailUrl": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "actions": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "profileId",
+            "biomarkerId",
+            "name",
+            "slug",
+            "unit",
+            "points",
+            "ranges",
+            "status",
+            "detailUrl",
+            "actions"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "aniva_get_user_summary",
+        "title": "Get user summary (name + birthdate + basics)",
+        "description": "PREFERRED TOOL for the user's identity basics: name, birthdate, handle, email, phone. Use this (NOT aniva_get_user_metadata) when the user asks \"what's my name?\", \"when is my birthday?\", \"how old am I?\", or you just need a quick identity snapshot. Lowest-latency profile read.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+              "type": "string",
+              "minLength": 1
+            },
+            "context": {
+              "type": "string",
+              "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+            }
+          },
+          "required": [
+            "context"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "type": "string"
+            },
+            "summary": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            }
+          },
+          "required": [
+            "profileId",
+            "summary"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "aniva_get_user_metadata",
+        "title": "Get user metadata (low-level field-level read)",
+        "description": "Low-level metadata fetcher with field-level selection. PREFER the dedicated tool when one exists: aniva_get_user_summary (name/birthdate/contact), aniva_get_subscription (membership/plan), aniva_get_referrals (referral data + share link). Only use this tool when you need a specific raw field not exposed elsewhere (e.g. shipping address, onboarding template, one-off purchases). Set includeExternal=true to read Stripe/Tolt/Ornament/Loops-backed fields.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+              "type": "string",
+              "minLength": 1
+            },
+            "fields": {
+              "description": "Array of UserEntityProperty values (e.g. \"email\", \"firstName\"). If omitted, returns a safe default set.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "includeExternal": {
+              "description": "Allow external-service fields (Stripe/Tolt/Ornament/Loops). Default: false.",
+              "type": "boolean"
+            },
+            "context": {
+              "type": "string",
+              "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+            }
+          },
+          "required": [
+            "context"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "type": "string"
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "properties": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            }
+          },
+          "required": [
+            "profileId",
+            "fields",
+            "properties"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "aniva_get_action_plans",
+        "title": "Get action plans for a profile",
+        "description": "PREFERRED TOOL when the user asks \"what should I do?\", \"what does Aniva recommend?\", \"show my action plan\", \"what are my next steps?\". Fetches personalized action plan(s) for the profile (markdown content + TLDR). Use includeContent=false for a lightweight card.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+              "type": "string",
+              "minLength": 1
+            },
+            "limit": {
+              "description": "Optional max number of plans to return (default: all).",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 25
+            },
+            "includeContent": {
+              "description": "If false, only returns planInfo (no Notion markdown content). Default: true.",
+              "type": "boolean"
+            },
+            "context": {
+              "type": "string",
+              "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+            }
+          },
+          "required": [
+            "context"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://aniva/action-plan.html",
+          "openai/toolInvocation/invoking": "Fetching action plan...",
+          "openai/toolInvocation/invoked": "Here's your action plan.",
+          "openai/widgetAccessible": true,
+          "ui": {
+            "resourceUri": "ui://aniva/action-plan.mcp-app.html"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "type": "string"
+            },
+            "count": {
+              "type": "number"
+            },
+            "plans": {
+              "type": "array",
+              "items": {}
+            },
+            "planUrl": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "actions": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "profileId",
+            "count",
+            "plans",
+            "planUrl",
+            "actions"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "aniva_get_biological_age",
+        "title": "Get biological age with visual card",
+        "description": "PREFERRED TOOL for biological age questions. Returns the user's biological age compared to their calendar age with a beautiful visual card. Use this tool (NOT aniva_get_biomarkers_snapshot) when users ask: \"what is my biological age?\", \"how old is my body?\", \"am I aging well?\", \"biological vs calendar age\", or any aging-related questions.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+              "type": "string",
+              "minLength": 1
+            },
+            "context": {
+              "type": "string",
+              "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+            }
+          },
+          "required": [
+            "context"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://aniva/biological-age.html",
+          "openai/toolInvocation/invoking": "Calculating your biological age...",
+          "openai/toolInvocation/invoked": "Here's your biological age.",
+          "openai/widgetAccessible": true,
+          "ui": {
+            "resourceUri": "ui://aniva/biological-age.mcp-app.html"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "biologicalAge": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "calendarAge": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "ageDifference": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "younger",
+                    "older",
+                    "same"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "testDate": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "actions": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "biologicalAge",
+            "calendarAge",
+            "ageDifference",
+            "status",
+            "testDate",
+            "actions"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "aniva_get_supplements",
+        "title": "Get user supplement plan (active + recommended)",
+        "description": "PREFERRED TOOL for ANY supplement/vitamin/protocol question — \"what should I take?\", \"what's my stack?\", \"do I need to reorder?\", \"what supplements am I on?\". ALWAYS returns BOTH lists: `active` = currently taking (purchased + in intake window), `recommended` = Aniva-suggested but NOT yet purchased. Most Aniva users have items in `recommended` even if `active` is empty — present BOTH to the user. Do not call the `recommended` list \"your stack\" or \"what you're taking\"; they're suggestions awaiting purchase. The widget renders both sections automatically.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+              "type": "string",
+              "minLength": 1
+            },
+            "context": {
+              "type": "string",
+              "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+            }
+          },
+          "required": [
+            "context"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://aniva/supplements.html",
+          "openai/toolInvocation/invoking": "Pulling your supplement plan...",
+          "openai/toolInvocation/invoked": "Here's your supplement plan.",
+          "openai/widgetAccessible": true,
+          "ui": {
+            "resourceUri": "ui://aniva/supplements.mcp-app.html"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "type": "string"
+            },
+            "activeCount": {
+              "type": "number"
+            },
+            "recommendedCount": {
+              "type": "number"
+            },
+            "active": {
+              "type": "array",
+              "items": {}
+            },
+            "recommended": {
+              "type": "array",
+              "items": {}
+            },
+            "manageUrl": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "actions": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "profileId",
+            "activeCount",
+            "recommendedCount",
+            "active",
+            "recommended",
+            "manageUrl",
+            "actions"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "aniva_get_appointments",
+        "title": "Get upcoming + recent appointments",
+        "description": "PREFERRED TOOL when the user asks \"when is my next appointment?\", \"do I have any tests booked?\", \"where am I getting my blood drawn?\", or wants to book/reschedule/follow up. The response includes the canonical book-follow-up URL and an appointments list URL so you can forward the user without inventing links.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+              "type": "string",
+              "minLength": 1
+            },
+            "upcomingLimit": {
+              "description": "Max upcoming items to return (default 5).",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 20
+            },
+            "pastLimit": {
+              "description": "Max past items to return (default 5).",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 20
+            },
+            "context": {
+              "type": "string",
+              "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+            }
+          },
+          "required": [
+            "context"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://aniva/appointments.html",
+          "openai/toolInvocation/invoking": "Pulling your appointments...",
+          "openai/toolInvocation/invoked": "Here's your schedule.",
+          "openai/widgetAccessible": true,
+          "ui": {
+            "resourceUri": "ui://aniva/appointments.mcp-app.html"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "type": "string"
+            },
+            "upcomingCount": {
+              "type": "number"
+            },
+            "pastCount": {
+              "type": "number"
+            },
+            "next": {
+              "anyOf": [
+                {},
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "upcoming": {
+              "type": "array",
+              "items": {}
+            },
+            "past": {
+              "type": "array",
+              "items": {}
+            },
+            "appointmentsUrl": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "bookNewUrl": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "actions": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "profileId",
+            "upcomingCount",
+            "pastCount",
+            "next",
+            "upcoming",
+            "past",
+            "appointmentsUrl",
+            "bookNewUrl",
+            "actions"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "aniva_get_test_sessions",
+        "title": "Get recent test sessions with progress",
+        "description": "PREFERRED TOOL when the user asks \"where is my kit?\", \"are my results back yet?\", \"how is my test going?\", \"did the lab receive my sample?\". Returns recent sessions with status, scheduled date, panels, and submission/result counts. Renders a progress-step widget.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+              "type": "string",
+              "minLength": 1
+            },
+            "limit": {
+              "description": "Max sessions to return (default 5, newest first).",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 20
+            },
+            "context": {
+              "type": "string",
+              "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+            }
+          },
+          "required": [
+            "context"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://aniva/test-sessions.html",
+          "openai/toolInvocation/invoking": "Checking your test sessions...",
+          "openai/toolInvocation/invoked": "Here is your test progress.",
+          "openai/widgetAccessible": true,
+          "ui": {
+            "resourceUri": "ui://aniva/test-sessions.mcp-app.html"
+          }
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "type": "string"
+            },
+            "sessions": {
+              "type": "array",
+              "items": {}
+            },
+            "activeUrl": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "bookNewUrl": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "actions": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "profileId",
+            "sessions",
+            "activeUrl",
+            "bookNewUrl",
+            "actions"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "aniva_get_subscription",
+        "title": "Get subscription / membership status",
+        "description": "PREFERRED TOOL for any membership or subscription question: \"am I subscribed?\", \"what plan am I on?\", \"when does my membership renew?\", \"when does it cancel?\", \"how much am I paying?\". Returns the user's active subscription(s) with status, line items, current billing period, plan amounts, and cancellation timestamps.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+              "type": "string",
+              "minLength": 1
+            },
+            "context": {
+              "type": "string",
+              "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+            }
+          },
+          "required": [
+            "context"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "type": "string"
+            },
+            "hasActiveSubscription": {
+              "type": "boolean"
+            },
+            "subscriptions": {
+              "type": "array",
+              "items": {}
+            },
+            "actions": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "profileId",
+            "hasActiveSubscription",
+            "subscriptions",
+            "actions"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "aniva_get_referrals",
+        "title": "Get referrals + personal share link",
+        "description": "PREFERRED TOOL for referral / sharing questions: \"what's my referral link?\", \"how many friends have I referred?\", \"how do I share Aniva?\", \"how much have I earned in commissions?\". Returns the user's referral count, total commission earned, currency, and personal share URL (https://anivahealth.com/?ref=<handle>) plus the partner dashboard URL.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "description": "Profile UUID. Optional for OAuth-authenticated requests (injected from access token).",
+              "type": "string",
+              "minLength": 1
+            },
+            "context": {
+              "type": "string",
+              "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+            }
+          },
+          "required": [
+            "context"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "profileId": {
+              "type": "string"
+            },
+            "handle": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "shareUrl": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "referralsCount": {
+              "type": "number"
+            },
+            "totalCommissionAmount": {
+              "type": "number"
+            },
+            "currency": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "partnerDashboardUrl": {
+              "type": "string"
+            },
+            "inviteUrl": {
+              "type": "string"
+            },
+            "actions": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "profileId",
+            "handle",
+            "shareUrl",
+            "referralsCount",
+            "totalCommissionAmount",
+            "currency",
+            "partnerDashboardUrl",
+            "inviteUrl",
+            "actions"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "aniva_get_app_links",
+        "title": "Get canonical Aniva URLs for in-product actions",
+        "description": "Directory of canonical Aniva URLs. Use this BEFORE inventing a link when the user wants to book a follow-up, view results, manage supplements, edit profile, talk to concierge, share a referral, etc. Each entry has a description telling you when to suggest it. PREFER this tool over guessing URLs.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "intent": {
+              "description": "Optional intent filter, e.g. \"book-follow-up-appointment\", \"share-referral-link\", \"buy-supplements\", \"see-results\", \"message-concierge\".",
+              "type": "string"
+            },
+            "keys": {
+              "description": "Optional list of link keys (e.g. [\"book-test\", \"appointments\"]).",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "context": {
+              "type": "string",
+              "description": "Explain why you are calling this tool and how it fits into the user's overall goal. This parameter is used for analytics and user intent tracking. YOU MUST provide 15-25 words (count carefully). NEVER use first person ('I', 'we', 'you') - maintain third-person perspective. NEVER include sensitive information such as credentials, passwords, or personal data. Example (20 words): \"Searching across the organization's repositories to find all open issues related to performance complaints and latency issues for team prioritization.\""
+            }
+          },
+          "required": [
+            "context"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "siteUrl": {
+              "type": "string"
+            },
+            "count": {
+              "type": "number"
+            },
+            "links": {
+              "type": "array",
+              "items": {}
+            }
+          },
+          "required": [
+            "siteUrl",
+            "count",
+            "links"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:30:39.894Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:30:40.945Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:30:41.996Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 12,
+    "tools_hash": "sha256:55d5c714d96127629408768e569b71e24462771873a8c4f07ef4c300ac572152",
+    "static_tool_tokens": 6611,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "aniva_get_supplements",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "aniva_get_referrals",
+        "message": "Description does not say when to use this tool."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 2,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "aniva_get_biomarkers_snapshot",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Optional max biomarkers to return (after filtering).",
+          "mentions_size_or_cost": true,
+          "maximum": 2000
+        },
+        {
+          "tool": "aniva_get_biomarkers_snapshot",
+          "path": "inputSchema.properties.includePlannedTests",
+          "name": "includePlannedTests",
+          "description": "Deprecated: planned tests are never included (ignored).",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "aniva_get_biomarkers_snapshot",
+          "path": "inputSchema.properties.includeGenetics",
+          "name": "includeGenetics",
+          "description": "Include genetic biomarkers (default false).",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "aniva_get_biomarkers_snapshot",
+          "path": "inputSchema.properties.includeAssociatedConditions",
+          "name": "includeAssociatedConditions",
+          "description": "Include biomarker_condition_associations (default false).",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "aniva_get_user_metadata",
+          "path": "inputSchema.properties.fields",
+          "name": "fields",
+          "description": "Array of UserEntityProperty values (e.g. \"email\", \"firstName\"). If omitted, returns a safe default set.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "aniva_get_user_metadata",
+          "path": "inputSchema.properties.includeExternal",
+          "name": "includeExternal",
+          "description": "Allow external-service fields (Stripe/Tolt/Ornament/Loops). Default: false.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "aniva_get_action_plans",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Optional max number of plans to return (default: all).",
+          "mentions_size_or_cost": true,
+          "maximum": 25
+        },
+        {
+          "tool": "aniva_get_action_plans",
+          "path": "inputSchema.properties.includeContent",
+          "name": "includeContent",
+          "description": "If false, only returns planInfo (no Notion markdown content). Default: true.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "aniva_get_appointments",
+          "path": "inputSchema.properties.upcomingLimit",
+          "name": "upcomingLimit",
+          "description": "Max upcoming items to return (default 5).",
+          "mentions_size_or_cost": true,
+          "described_default": 5,
+          "maximum": 20
+        },
+        {
+          "tool": "aniva_get_appointments",
+          "path": "inputSchema.properties.pastLimit",
+          "name": "pastLimit",
+          "description": "Max past items to return (default 5).",
+          "mentions_size_or_cost": true,
+          "described_default": 5,
+          "maximum": 20
+        },
+        {
+          "tool": "aniva_get_test_sessions",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max sessions to return (default 5, newest first).",
+          "mentions_size_or_cost": true,
+          "described_default": 5,
+          "maximum": 20
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "aniva_get_biomarkers_snapshot"
+          ],
+          "path": "inputSchema.properties.includePlannedTests",
+          "description": "Deprecated: planned tests are never included (ignored).",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "aniva_get_biomarkers_snapshot",
+      "aniva_get_biomarker_trend",
+      "aniva_get_user_summary",
+      "aniva_get_user_metadata",
+      "aniva_get_action_plans",
+      "aniva_get_biological_age",
+      "aniva_get_supplements",
+      "aniva_get_appointments",
+      "aniva_get_test_sessions",
+      "aniva_get_subscription",
+      "aniva_get_referrals",
+      "aniva_get_app_links"
+    ]
+  }
+}

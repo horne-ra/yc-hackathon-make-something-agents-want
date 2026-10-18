@@ -1,0 +1,1261 @@
+{
+  "slug": "commercetools-knowledge",
+  "source_url": "https://manufact.com/mcp-catalog/commercetools-knowledge",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:25:37.383Z",
+    "endpoint": "https://docs.commercetools.com/apis/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "commercetools knowledge",
+      "version": "1.0.0"
+    },
+    "capabilities": {
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {},
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "# commercetools Knowledge MCP — usage instructions\n\nThis server provides tools for working with commercetools APIs (REST and GraphQL) and documentation.\n\nA typical flow when generating API interactions: documentation search to gain precise understanding of the domain and business logic, then schema fetch for the chosen API style to then generate code. Validate the generated code to ensure accuracy. Only documentation search and fetching relevant linked resources when handling non API related commercetools tasks. Only validate GraphQL generated code.\n\n## Best practice patterns\n\na concise list of key commercetools API specific conventions (key vs id, money/centAmount, localized strings, query predicates, in-store APIs, code generation, date formats) is available in the `commercetools-developer-tips` MCP prompt. It's recommended to read this to be able to construct valid API queries regarding topics not covered in the GraphQL and REST schemata\n",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "commercetools-documentation-search",
+            "description": "Retrieves documentation content chunks that are semantically similar to the input. Use this tool to find domain concepts, business behavior explanations, and reference material from the commercetools documentation.\nInline links in the content use markdown format [text](url). The URL usually points to the commercetools documentation portal but can also point to API reference docs or external resources. Relative links resolve against \"https://docs.commercetools.com\". Appending \".md\" to a documentation URL fetches the markdown source of that page.\n\nExample: a relative link \"./api/predicates/query\" resolves to \"https://docs.commercetools.com/api/predicates/query.md\"\n\nIf you are requesting only one specific content type, pass the same value for crowding and limit.\nThe mean size of a documentation chunk returned is in the range of 500-600 tokens.\n",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "The text to find semantically similar content to. Full sentences describing the context of the situation or problem yield better results than just keywords."
+                },
+                "limit": {
+                  "default": 10,
+                  "description": "The maximum number of results to return across all content types.",
+                  "type": "number"
+                },
+                "crowding": {
+                  "default": 5,
+                  "description": "The maximum number of results to return per document type. Avoids over-representation of certain content types.",
+                  "type": "number"
+                },
+                "contentTypes": {
+                  "default": [
+                    "referenceDocs",
+                    "guidedDocs",
+                    "userDocs"
+                  ],
+                  "description": "return only the given content types to focus or expand the defaults. \"apiType\" and \"apiEndpoint\" return natural language descriptions of the REST API surface. \"guidedDocs\" includes best practice guides, tutorials, and learning content. \"referenceDocs\" covers reference material. \"userDocs\" is end-user-facing documentation. \"otherDocsPage\" covers content that does not fit the other categories. \"Skill\" includes reference content linked from agent skills.",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "apiType",
+                      "apiEndpoint",
+                      "referenceDocs",
+                      "guidedDocs",
+                      "userDocs",
+                      "otherDocsPage",
+                      "Skill"
+                    ]
+                  }
+                },
+                "excludeContentTypes": {
+                  "default": [],
+                  "description": "exclude the given content types from the results.",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "apiType",
+                      "apiEndpoint",
+                      "referenceDocs",
+                      "guidedDocs",
+                      "userDocs",
+                      "otherDocsPage",
+                      "Skill"
+                    ]
+                  }
+                },
+                "products": {
+                  "default": [
+                    "Composable Commerce",
+                    "Checkout",
+                    "Connect"
+                  ],
+                  "description": "return only content about the given products. For example, if your application uses commercetools Frontend, add \"Frontend\" to the defaults, or, if you are not using the OOTB Checkout UI, remove \"Checkout\"",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "Composable Commerce",
+                      "Frontend",
+                      "Checkout",
+                      "Connect",
+                      "InStore",
+                      "AI Hub"
+                    ]
+                  }
+                },
+                "excludeProducts": {
+                  "default": [],
+                  "description": "exclude the given products from the results.",
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "Composable Commerce",
+                      "Frontend",
+                      "Checkout",
+                      "Connect",
+                      "InStore",
+                      "AI Hub"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "query"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "title": "commercetools documentation Search"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "commercetools-graphql-schemata",
+            "description": "Fetches a partial commercetools GraphQL schema for a given resource. Use this tool to retrieve the GraphQL type definitions needed to construct queries or mutations against commercetools.\nEach resource name is prefixed with the GraphQL SDL it belongs to (e.g. `gql-sphere-Product` for sphere API, `gql-il-Cart` for integration layer API), reflected in the \"resourceName\" enum.\nFor each stubbed type in the schema, the full schema for that type can be fetched by invoking the tool again with the resource name specified in the comment related to the stubbed type. The comment looks like this:\nStub of the `{nameOfStubbedResource}` resource. fetch the full subschema via the MCP resource name `{nameOfTheResource}`.\nThe returned schema contains descriptions but no \"implements\" Interface information and no deprecated query types.\nConventions and predicate examples for commercetools GraphQL are available in the `commercetools-developer-tips` MCP prompt.\n",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "resourceName": {
+                  "type": "string",
+                  "enum": [
+                    "gql-sphere-APIClientWithoutSecret",
+                    "gql-sphere-ApprovalFlow",
+                    "gql-sphere-ApprovalRule",
+                    "gql-sphere-AssociateRole",
+                    "gql-sphere-AttributeGroup",
+                    "gql-sphere-BulkUpdateVariantsResponse",
+                    "gql-sphere-BusinessUnit",
+                    "gql-sphere-BusinessUnitAssociateProjection",
+                    "gql-sphere-Cart",
+                    "gql-sphere-CartDiscount",
+                    "gql-sphere-Category",
+                    "gql-sphere-Channel",
+                    "gql-sphere-CommercetoolsSubscription",
+                    "gql-sphere-CustomObject",
+                    "gql-sphere-Customer",
+                    "gql-sphere-CustomerEmailToken",
+                    "gql-sphere-CustomerGroup",
+                    "gql-sphere-CustomerPasswordToken",
+                    "gql-sphere-CustomerSignInResult",
+                    "gql-sphere-DiscountCode",
+                    "gql-sphere-DiscountGroup",
+                    "gql-sphere-Extension",
+                    "gql-sphere-InventoryEntry",
+                    "gql-sphere-McpServer",
+                    "gql-sphere-McpServerLimits",
+                    "gql-sphere-McpServerTypeCatalogEntry",
+                    "gql-sphere-Message",
+                    "gql-sphere-Order",
+                    "gql-sphere-OrderEdit",
+                    "gql-sphere-Payment",
+                    "gql-sphere-PaymentMethod",
+                    "gql-sphere-Product",
+                    "gql-sphere-ProductAssignment",
+                    "gql-sphere-ProductDiscount",
+                    "gql-sphere-ProductPagedSearchResponse",
+                    "gql-sphere-ProductProjection",
+                    "gql-sphere-ProductProjectionVariantAttributes",
+                    "gql-sphere-ProductSelection",
+                    "gql-sphere-ProductTailoring",
+                    "gql-sphere-ProductTypeDefinition",
+                    "gql-sphere-ProjectCustomLimitsProjection",
+                    "gql-sphere-ProjectProjection",
+                    "gql-sphere-Quote",
+                    "gql-sphere-QuoteRequest",
+                    "gql-sphere-RecurrencePolicy",
+                    "gql-sphere-RecurringOrder",
+                    "gql-sphere-Review",
+                    "gql-sphere-ShippingMethod",
+                    "gql-sphere-ShoppingList",
+                    "gql-sphere-StagedQuote",
+                    "gql-sphere-StandalonePrice",
+                    "gql-sphere-State",
+                    "gql-sphere-Store",
+                    "gql-sphere-SuggestResult",
+                    "gql-sphere-TaxCategory",
+                    "gql-sphere-TypeDefinition",
+                    "gql-sphere-Variant",
+                    "gql-sphere-VariantDeletionResult",
+                    "gql-sphere-VariantProjection",
+                    "gql-sphere-Zone",
+                    "gql-sphere-LineItem",
+                    "gql-sphere-CustomLineItem",
+                    "gql-sphere-Address",
+                    "gql-sphere-ShippingInfo",
+                    "gql-il-ApprovalFlow",
+                    "gql-il-ApprovalFlowConnection",
+                    "gql-il-ApprovalFlowResult",
+                    "gql-il-ApprovalRule",
+                    "gql-il-ApprovalRuleConnection",
+                    "gql-il-ApprovalRuleResult",
+                    "gql-il-AssociateResult",
+                    "gql-il-BeginPaymentResult",
+                    "gql-il-BusinessUnit",
+                    "gql-il-BusinessUnitResult",
+                    "gql-il-Cart",
+                    "gql-il-CartMutationResult",
+                    "gql-il-Category",
+                    "gql-il-CheckoutResult",
+                    "gql-il-Customer",
+                    "gql-il-CustomerResult",
+                    "gql-il-DeleteShoppingListResult",
+                    "gql-il-GuestCheckoutResult",
+                    "gql-il-Node",
+                    "gql-il-Order",
+                    "gql-il-OrderConnection",
+                    "gql-il-OrderResult",
+                    "gql-il-PaymentMethodOption",
+                    "gql-il-PlaceOrderResult",
+                    "gql-il-Product",
+                    "gql-il-ProductConnection",
+                    "gql-il-ProductSearchConnection",
+                    "gql-il-Quote",
+                    "gql-il-QuoteConnection",
+                    "gql-il-QuoteRequest",
+                    "gql-il-QuoteRequestConnection",
+                    "gql-il-QuoteRequestResult",
+                    "gql-il-QuoteResult",
+                    "gql-il-ReorderResult",
+                    "gql-il-ReturnResult",
+                    "gql-il-SavedAddressResult",
+                    "gql-il-ShippingMethod",
+                    "gql-il-ShoppingList",
+                    "gql-il-ShoppingListResult",
+                    "gql-il-Viewer"
+                  ],
+                  "description": "Name of a commercetools API resource, prefixed with its GraphQL SDL (e.g. gql-sphere-Product, gql-il-Cart). The full set of available resources is provided by the parameter enum."
+                }
+              },
+              "required": [
+                "resourceName"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "title": "commercetools GraphQL Schemata"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "commercetools-graphql-validate",
+            "description": "Validates a GraphQL query or mutation against the official commercetools\npublic schema, returning syntax and schema errors with line/column locations.\nDoesn't validate project-specific schema.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The GraphQL query or mutation document to validate."
+                }
+              },
+              "required": [
+                "query"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "title": "commercetools GraphQL Validator"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "commercetools-oas-schemata",
+            "description": "Fetches a partial commercetools OpenAPI spec for a given commercetools resource. Use this tool when you need the detailed REST schema of a resource to construct requests or generate a REST client.\nThe returned spec is self-contained and valid for everything regarding that resource. It contains descriptions but they are not comprehensive.\nEach resource may be available as a read variant, write variant, or unified spec, reflected in the \"resourceName\" enum.\nConventions and predicate examples for commercetools REST APIs are available in the `commercetools-developer-tips` MCP prompt.\n",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "resourceName": {
+                  "type": "string",
+                  "enum": [
+                    "api-AgentResponsesSuccess",
+                    "api-ApiClient",
+                    "api-ApprovalFlow",
+                    "api-ApprovalRule",
+                    "api-AssignedProductSelection",
+                    "api-AssociateRole",
+                    "api-AttributeGroup",
+                    "api-BusinessUnit",
+                    "api-BusinessUnitAssociate",
+                    "api-Cart-read",
+                    "api-Cart-write",
+                    "api-CartDiscount",
+                    "api-Category",
+                    "api-Channel",
+                    "api-CustomObject",
+                    "api-Customer-read",
+                    "api-Customer-write",
+                    "api-CustomerGroup",
+                    "api-CustomerToken",
+                    "api-DiscountCode",
+                    "api-DiscountGroup",
+                    "api-Extension",
+                    "api-Inventory",
+                    "api-InventoryEntry",
+                    "api-McpServer",
+                    "api-McpServerType",
+                    "api-Message-read",
+                    "api-Message-write",
+                    "api-MyPayment",
+                    "api-Order-read",
+                    "api-Order-write",
+                    "api-OrderEdit-read",
+                    "api-OrderEdit-write",
+                    "api-Payment",
+                    "api-PaymentMethod",
+                    "api-Product",
+                    "api-ProductDiscount",
+                    "api-ProductProjection",
+                    "api-ProductSelection",
+                    "api-ProductSelectionProduct",
+                    "api-ProductTailoring",
+                    "api-ProductType",
+                    "api-ProductsInStore",
+                    "api-Project",
+                    "api-Quote",
+                    "api-QuoteRequest",
+                    "api-RecurrencePolicy",
+                    "api-RecurringOrder",
+                    "api-Review",
+                    "api-ShippingMethod",
+                    "api-ShoppingList",
+                    "api-StagedQuote",
+                    "api-StandalonePrice",
+                    "api-State",
+                    "api-Store",
+                    "api-Subscription",
+                    "api-SuggestionResult",
+                    "api-TaxCategory",
+                    "api-Type",
+                    "api-Variant",
+                    "api-VariantAttributes",
+                    "api-VariantBulkUpdate",
+                    "api-VariantProjection",
+                    "api-Zone",
+                    "api-array",
+                    "checkout-Application",
+                    "checkout-PaginatedApplication",
+                    "checkout-PaginatedPaymentIntegration",
+                    "checkout-PaginatedRecurringPayment",
+                    "checkout-PaginatedRecurringPaymentJob",
+                    "checkout-PaymentIntegration",
+                    "checkout-PaymentIntent",
+                    "checkout-RecurringPayment",
+                    "checkout-RecurringPaymentJob",
+                    "checkout-Transaction",
+                    "cil-Session",
+                    "connect-Connector",
+                    "connect-ConnectorStaged",
+                    "connect-Deployment",
+                    "connect-DeploymentLog",
+                    "history-Record-read",
+                    "history-Record-write",
+                    "import-Import-read",
+                    "import-Import-write",
+                    "import-ImportContainer",
+                    "import-ImportOperation",
+                    "import-ImportSummary",
+                    "insights-ProjectConfiguration"
+                  ],
+                  "description": "Name of the commercetools resource you would like to get a OAS schema for."
+                }
+              },
+              "required": [
+                "resourceName"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "title": "commercetools OpenAPI Schemata"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "commercetools-documentation-by-id",
+            "description": "Fetches a single documentation content entry from the commercetools documentation content API by its ID. Use this tool when you already have a content ID (for example, one returned by `commercetools-documentation-search`) and want to retrieve the raw content as a string.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The ID of the documentation entry to fetch. Typically the identifier returned by the documentation search tool."
+                }
+              },
+              "required": [
+                "id"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "title": "commercetools Documentation by ID"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "commercetools-rest-validate",
+            "description": "Validates REST API requests (method + path + body) against commercetools OpenAPI specifications offline. Returns detailed errors with suggestions for invalid requests.\n\nThis tool checks:\n- Path exists in the API\n- HTTP method is allowed for that path\n- Request body matches the expected schema (types, required fields, enums, etc.)\n- Discriminator fields (like 'action' in update requests) are valid\n\nUse this before making actual API calls to catch errors early.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "enum": [
+                    "GET",
+                    "POST",
+                    "DELETE",
+                    "PATCH",
+                    "PUT",
+                    "HEAD"
+                  ],
+                  "description": "HTTP method for the request."
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Request path (e.g., /my-project/products). Include the project key as the first segment."
+                },
+                "body": {
+                  "description": "Request body as a JSON string (optional, required for POST/PATCH/PUT requests that expect a body).",
+                  "type": "string"
+                },
+                "apiKey": {
+                  "type": "string",
+                  "enum": [
+                    "api-AgentResponsesSuccess",
+                    "api-ApiClient",
+                    "api-ApprovalFlow",
+                    "api-ApprovalRule",
+                    "api-AssignedProductSelection",
+                    "api-AssociateRole",
+                    "api-AttributeGroup",
+                    "api-BusinessUnit",
+                    "api-BusinessUnitAssociate",
+                    "api-Cart-read",
+                    "api-Cart-write",
+                    "api-CartDiscount",
+                    "api-Category",
+                    "api-Channel",
+                    "api-CustomObject",
+                    "api-Customer-read",
+                    "api-Customer-write",
+                    "api-CustomerGroup",
+                    "api-CustomerToken",
+                    "api-DiscountCode",
+                    "api-DiscountGroup",
+                    "api-Extension",
+                    "api-Inventory",
+                    "api-InventoryEntry",
+                    "api-McpServer",
+                    "api-McpServerType",
+                    "api-Message-read",
+                    "api-Message-write",
+                    "api-MyPayment",
+                    "api-Order-read",
+                    "api-Order-write",
+                    "api-OrderEdit-read",
+                    "api-OrderEdit-write",
+                    "api-Payment",
+                    "api-PaymentMethod",
+                    "api-Product",
+                    "api-ProductDiscount",
+                    "api-ProductProjection",
+                    "api-ProductSelection",
+                    "api-ProductSelectionProduct",
+                    "api-ProductTailoring",
+                    "api-ProductType",
+                    "api-ProductsInStore",
+                    "api-Project",
+                    "api-Quote",
+                    "api-QuoteRequest",
+                    "api-RecurrencePolicy",
+                    "api-RecurringOrder",
+                    "api-Review",
+                    "api-ShippingMethod",
+                    "api-ShoppingList",
+                    "api-StagedQuote",
+                    "api-StandalonePrice",
+                    "api-State",
+                    "api-Store",
+                    "api-Subscription",
+                    "api-SuggestionResult",
+                    "api-TaxCategory",
+                    "api-Type",
+                    "api-Variant",
+                    "api-VariantAttributes",
+                    "api-VariantBulkUpdate",
+                    "api-VariantProjection",
+                    "api-Zone",
+                    "api-array",
+                    "checkout-Application",
+                    "checkout-PaginatedApplication",
+                    "checkout-PaginatedPaymentIntegration",
+                    "checkout-PaginatedRecurringPayment",
+                    "checkout-PaginatedRecurringPaymentJob",
+                    "checkout-PaymentIntegration",
+                    "checkout-PaymentIntent",
+                    "checkout-RecurringPayment",
+                    "checkout-RecurringPaymentJob",
+                    "checkout-Transaction",
+                    "cil-Session",
+                    "connect-Connector",
+                    "connect-ConnectorStaged",
+                    "connect-Deployment",
+                    "connect-DeploymentLog",
+                    "history-Record-read",
+                    "history-Record-write",
+                    "import-Import-read",
+                    "import-Import-write",
+                    "import-ImportContainer",
+                    "import-ImportOperation",
+                    "import-ImportSummary",
+                    "insights-ProjectConfiguration"
+                  ],
+                  "description": "API identifier. Use API names (api, import, checkout, etc.) or resource keys (api-Product-read). The base API key will be extracted automatically."
+                }
+              },
+              "required": [
+                "method",
+                "path",
+                "apiKey"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "title": "commercetools REST Validator"
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "commercetools-documentation-search",
+        "description": "Retrieves documentation content chunks that are semantically similar to the input. Use this tool to find domain concepts, business behavior explanations, and reference material from the commercetools documentation.\nInline links in the content use markdown format [text](url). The URL usually points to the commercetools documentation portal but can also point to API reference docs or external resources. Relative links resolve against \"https://docs.commercetools.com\". Appending \".md\" to a documentation URL fetches the markdown source of that page.\n\nExample: a relative link \"./api/predicates/query\" resolves to \"https://docs.commercetools.com/api/predicates/query.md\"\n\nIf you are requesting only one specific content type, pass the same value for crowding and limit.\nThe mean size of a documentation chunk returned is in the range of 500-600 tokens.\n",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The text to find semantically similar content to. Full sentences describing the context of the situation or problem yield better results than just keywords."
+            },
+            "limit": {
+              "default": 10,
+              "description": "The maximum number of results to return across all content types.",
+              "type": "number"
+            },
+            "crowding": {
+              "default": 5,
+              "description": "The maximum number of results to return per document type. Avoids over-representation of certain content types.",
+              "type": "number"
+            },
+            "contentTypes": {
+              "default": [
+                "referenceDocs",
+                "guidedDocs",
+                "userDocs"
+              ],
+              "description": "return only the given content types to focus or expand the defaults. \"apiType\" and \"apiEndpoint\" return natural language descriptions of the REST API surface. \"guidedDocs\" includes best practice guides, tutorials, and learning content. \"referenceDocs\" covers reference material. \"userDocs\" is end-user-facing documentation. \"otherDocsPage\" covers content that does not fit the other categories. \"Skill\" includes reference content linked from agent skills.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "apiType",
+                  "apiEndpoint",
+                  "referenceDocs",
+                  "guidedDocs",
+                  "userDocs",
+                  "otherDocsPage",
+                  "Skill"
+                ]
+              }
+            },
+            "excludeContentTypes": {
+              "default": [],
+              "description": "exclude the given content types from the results.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "apiType",
+                  "apiEndpoint",
+                  "referenceDocs",
+                  "guidedDocs",
+                  "userDocs",
+                  "otherDocsPage",
+                  "Skill"
+                ]
+              }
+            },
+            "products": {
+              "default": [
+                "Composable Commerce",
+                "Checkout",
+                "Connect"
+              ],
+              "description": "return only content about the given products. For example, if your application uses commercetools Frontend, add \"Frontend\" to the defaults, or, if you are not using the OOTB Checkout UI, remove \"Checkout\"",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Composable Commerce",
+                  "Frontend",
+                  "Checkout",
+                  "Connect",
+                  "InStore",
+                  "AI Hub"
+                ]
+              }
+            },
+            "excludeProducts": {
+              "default": [],
+              "description": "exclude the given products from the results.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Composable Commerce",
+                  "Frontend",
+                  "Checkout",
+                  "Connect",
+                  "InStore",
+                  "AI Hub"
+                ]
+              }
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "title": "commercetools documentation Search"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "commercetools-graphql-schemata",
+        "description": "Fetches a partial commercetools GraphQL schema for a given resource. Use this tool to retrieve the GraphQL type definitions needed to construct queries or mutations against commercetools.\nEach resource name is prefixed with the GraphQL SDL it belongs to (e.g. `gql-sphere-Product` for sphere API, `gql-il-Cart` for integration layer API), reflected in the \"resourceName\" enum.\nFor each stubbed type in the schema, the full schema for that type can be fetched by invoking the tool again with the resource name specified in the comment related to the stubbed type. The comment looks like this:\nStub of the `{nameOfStubbedResource}` resource. fetch the full subschema via the MCP resource name `{nameOfTheResource}`.\nThe returned schema contains descriptions but no \"implements\" Interface information and no deprecated query types.\nConventions and predicate examples for commercetools GraphQL are available in the `commercetools-developer-tips` MCP prompt.\n",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "resourceName": {
+              "type": "string",
+              "enum": [
+                "gql-sphere-APIClientWithoutSecret",
+                "gql-sphere-ApprovalFlow",
+                "gql-sphere-ApprovalRule",
+                "gql-sphere-AssociateRole",
+                "gql-sphere-AttributeGroup",
+                "gql-sphere-BulkUpdateVariantsResponse",
+                "gql-sphere-BusinessUnit",
+                "gql-sphere-BusinessUnitAssociateProjection",
+                "gql-sphere-Cart",
+                "gql-sphere-CartDiscount",
+                "gql-sphere-Category",
+                "gql-sphere-Channel",
+                "gql-sphere-CommercetoolsSubscription",
+                "gql-sphere-CustomObject",
+                "gql-sphere-Customer",
+                "gql-sphere-CustomerEmailToken",
+                "gql-sphere-CustomerGroup",
+                "gql-sphere-CustomerPasswordToken",
+                "gql-sphere-CustomerSignInResult",
+                "gql-sphere-DiscountCode",
+                "gql-sphere-DiscountGroup",
+                "gql-sphere-Extension",
+                "gql-sphere-InventoryEntry",
+                "gql-sphere-McpServer",
+                "gql-sphere-McpServerLimits",
+                "gql-sphere-McpServerTypeCatalogEntry",
+                "gql-sphere-Message",
+                "gql-sphere-Order",
+                "gql-sphere-OrderEdit",
+                "gql-sphere-Payment",
+                "gql-sphere-PaymentMethod",
+                "gql-sphere-Product",
+                "gql-sphere-ProductAssignment",
+                "gql-sphere-ProductDiscount",
+                "gql-sphere-ProductPagedSearchResponse",
+                "gql-sphere-ProductProjection",
+                "gql-sphere-ProductProjectionVariantAttributes",
+                "gql-sphere-ProductSelection",
+                "gql-sphere-ProductTailoring",
+                "gql-sphere-ProductTypeDefinition",
+                "gql-sphere-ProjectCustomLimitsProjection",
+                "gql-sphere-ProjectProjection",
+                "gql-sphere-Quote",
+                "gql-sphere-QuoteRequest",
+                "gql-sphere-RecurrencePolicy",
+                "gql-sphere-RecurringOrder",
+                "gql-sphere-Review",
+                "gql-sphere-ShippingMethod",
+                "gql-sphere-ShoppingList",
+                "gql-sphere-StagedQuote",
+                "gql-sphere-StandalonePrice",
+                "gql-sphere-State",
+                "gql-sphere-Store",
+                "gql-sphere-SuggestResult",
+                "gql-sphere-TaxCategory",
+                "gql-sphere-TypeDefinition",
+                "gql-sphere-Variant",
+                "gql-sphere-VariantDeletionResult",
+                "gql-sphere-VariantProjection",
+                "gql-sphere-Zone",
+                "gql-sphere-LineItem",
+                "gql-sphere-CustomLineItem",
+                "gql-sphere-Address",
+                "gql-sphere-ShippingInfo",
+                "gql-il-ApprovalFlow",
+                "gql-il-ApprovalFlowConnection",
+                "gql-il-ApprovalFlowResult",
+                "gql-il-ApprovalRule",
+                "gql-il-ApprovalRuleConnection",
+                "gql-il-ApprovalRuleResult",
+                "gql-il-AssociateResult",
+                "gql-il-BeginPaymentResult",
+                "gql-il-BusinessUnit",
+                "gql-il-BusinessUnitResult",
+                "gql-il-Cart",
+                "gql-il-CartMutationResult",
+                "gql-il-Category",
+                "gql-il-CheckoutResult",
+                "gql-il-Customer",
+                "gql-il-CustomerResult",
+                "gql-il-DeleteShoppingListResult",
+                "gql-il-GuestCheckoutResult",
+                "gql-il-Node",
+                "gql-il-Order",
+                "gql-il-OrderConnection",
+                "gql-il-OrderResult",
+                "gql-il-PaymentMethodOption",
+                "gql-il-PlaceOrderResult",
+                "gql-il-Product",
+                "gql-il-ProductConnection",
+                "gql-il-ProductSearchConnection",
+                "gql-il-Quote",
+                "gql-il-QuoteConnection",
+                "gql-il-QuoteRequest",
+                "gql-il-QuoteRequestConnection",
+                "gql-il-QuoteRequestResult",
+                "gql-il-QuoteResult",
+                "gql-il-ReorderResult",
+                "gql-il-ReturnResult",
+                "gql-il-SavedAddressResult",
+                "gql-il-ShippingMethod",
+                "gql-il-ShoppingList",
+                "gql-il-ShoppingListResult",
+                "gql-il-Viewer"
+              ],
+              "description": "Name of a commercetools API resource, prefixed with its GraphQL SDL (e.g. gql-sphere-Product, gql-il-Cart). The full set of available resources is provided by the parameter enum."
+            }
+          },
+          "required": [
+            "resourceName"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "title": "commercetools GraphQL Schemata"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "commercetools-graphql-validate",
+        "description": "Validates a GraphQL query or mutation against the official commercetools\npublic schema, returning syntax and schema errors with line/column locations.\nDoesn't validate project-specific schema.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The GraphQL query or mutation document to validate."
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "title": "commercetools GraphQL Validator"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "commercetools-oas-schemata",
+        "description": "Fetches a partial commercetools OpenAPI spec for a given commercetools resource. Use this tool when you need the detailed REST schema of a resource to construct requests or generate a REST client.\nThe returned spec is self-contained and valid for everything regarding that resource. It contains descriptions but they are not comprehensive.\nEach resource may be available as a read variant, write variant, or unified spec, reflected in the \"resourceName\" enum.\nConventions and predicate examples for commercetools REST APIs are available in the `commercetools-developer-tips` MCP prompt.\n",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "resourceName": {
+              "type": "string",
+              "enum": [
+                "api-AgentResponsesSuccess",
+                "api-ApiClient",
+                "api-ApprovalFlow",
+                "api-ApprovalRule",
+                "api-AssignedProductSelection",
+                "api-AssociateRole",
+                "api-AttributeGroup",
+                "api-BusinessUnit",
+                "api-BusinessUnitAssociate",
+                "api-Cart-read",
+                "api-Cart-write",
+                "api-CartDiscount",
+                "api-Category",
+                "api-Channel",
+                "api-CustomObject",
+                "api-Customer-read",
+                "api-Customer-write",
+                "api-CustomerGroup",
+                "api-CustomerToken",
+                "api-DiscountCode",
+                "api-DiscountGroup",
+                "api-Extension",
+                "api-Inventory",
+                "api-InventoryEntry",
+                "api-McpServer",
+                "api-McpServerType",
+                "api-Message-read",
+                "api-Message-write",
+                "api-MyPayment",
+                "api-Order-read",
+                "api-Order-write",
+                "api-OrderEdit-read",
+                "api-OrderEdit-write",
+                "api-Payment",
+                "api-PaymentMethod",
+                "api-Product",
+                "api-ProductDiscount",
+                "api-ProductProjection",
+                "api-ProductSelection",
+                "api-ProductSelectionProduct",
+                "api-ProductTailoring",
+                "api-ProductType",
+                "api-ProductsInStore",
+                "api-Project",
+                "api-Quote",
+                "api-QuoteRequest",
+                "api-RecurrencePolicy",
+                "api-RecurringOrder",
+                "api-Review",
+                "api-ShippingMethod",
+                "api-ShoppingList",
+                "api-StagedQuote",
+                "api-StandalonePrice",
+                "api-State",
+                "api-Store",
+                "api-Subscription",
+                "api-SuggestionResult",
+                "api-TaxCategory",
+                "api-Type",
+                "api-Variant",
+                "api-VariantAttributes",
+                "api-VariantBulkUpdate",
+                "api-VariantProjection",
+                "api-Zone",
+                "api-array",
+                "checkout-Application",
+                "checkout-PaginatedApplication",
+                "checkout-PaginatedPaymentIntegration",
+                "checkout-PaginatedRecurringPayment",
+                "checkout-PaginatedRecurringPaymentJob",
+                "checkout-PaymentIntegration",
+                "checkout-PaymentIntent",
+                "checkout-RecurringPayment",
+                "checkout-RecurringPaymentJob",
+                "checkout-Transaction",
+                "cil-Session",
+                "connect-Connector",
+                "connect-ConnectorStaged",
+                "connect-Deployment",
+                "connect-DeploymentLog",
+                "history-Record-read",
+                "history-Record-write",
+                "import-Import-read",
+                "import-Import-write",
+                "import-ImportContainer",
+                "import-ImportOperation",
+                "import-ImportSummary",
+                "insights-ProjectConfiguration"
+              ],
+              "description": "Name of the commercetools resource you would like to get a OAS schema for."
+            }
+          },
+          "required": [
+            "resourceName"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "title": "commercetools OpenAPI Schemata"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "commercetools-documentation-by-id",
+        "description": "Fetches a single documentation content entry from the commercetools documentation content API by its ID. Use this tool when you already have a content ID (for example, one returned by `commercetools-documentation-search`) and want to retrieve the raw content as a string.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The ID of the documentation entry to fetch. Typically the identifier returned by the documentation search tool."
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "title": "commercetools Documentation by ID"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "commercetools-rest-validate",
+        "description": "Validates REST API requests (method + path + body) against commercetools OpenAPI specifications offline. Returns detailed errors with suggestions for invalid requests.\n\nThis tool checks:\n- Path exists in the API\n- HTTP method is allowed for that path\n- Request body matches the expected schema (types, required fields, enums, etc.)\n- Discriminator fields (like 'action' in update requests) are valid\n\nUse this before making actual API calls to catch errors early.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": [
+                "GET",
+                "POST",
+                "DELETE",
+                "PATCH",
+                "PUT",
+                "HEAD"
+              ],
+              "description": "HTTP method for the request."
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Request path (e.g., /my-project/products). Include the project key as the first segment."
+            },
+            "body": {
+              "description": "Request body as a JSON string (optional, required for POST/PATCH/PUT requests that expect a body).",
+              "type": "string"
+            },
+            "apiKey": {
+              "type": "string",
+              "enum": [
+                "api-AgentResponsesSuccess",
+                "api-ApiClient",
+                "api-ApprovalFlow",
+                "api-ApprovalRule",
+                "api-AssignedProductSelection",
+                "api-AssociateRole",
+                "api-AttributeGroup",
+                "api-BusinessUnit",
+                "api-BusinessUnitAssociate",
+                "api-Cart-read",
+                "api-Cart-write",
+                "api-CartDiscount",
+                "api-Category",
+                "api-Channel",
+                "api-CustomObject",
+                "api-Customer-read",
+                "api-Customer-write",
+                "api-CustomerGroup",
+                "api-CustomerToken",
+                "api-DiscountCode",
+                "api-DiscountGroup",
+                "api-Extension",
+                "api-Inventory",
+                "api-InventoryEntry",
+                "api-McpServer",
+                "api-McpServerType",
+                "api-Message-read",
+                "api-Message-write",
+                "api-MyPayment",
+                "api-Order-read",
+                "api-Order-write",
+                "api-OrderEdit-read",
+                "api-OrderEdit-write",
+                "api-Payment",
+                "api-PaymentMethod",
+                "api-Product",
+                "api-ProductDiscount",
+                "api-ProductProjection",
+                "api-ProductSelection",
+                "api-ProductSelectionProduct",
+                "api-ProductTailoring",
+                "api-ProductType",
+                "api-ProductsInStore",
+                "api-Project",
+                "api-Quote",
+                "api-QuoteRequest",
+                "api-RecurrencePolicy",
+                "api-RecurringOrder",
+                "api-Review",
+                "api-ShippingMethod",
+                "api-ShoppingList",
+                "api-StagedQuote",
+                "api-StandalonePrice",
+                "api-State",
+                "api-Store",
+                "api-Subscription",
+                "api-SuggestionResult",
+                "api-TaxCategory",
+                "api-Type",
+                "api-Variant",
+                "api-VariantAttributes",
+                "api-VariantBulkUpdate",
+                "api-VariantProjection",
+                "api-Zone",
+                "api-array",
+                "checkout-Application",
+                "checkout-PaginatedApplication",
+                "checkout-PaginatedPaymentIntegration",
+                "checkout-PaginatedRecurringPayment",
+                "checkout-PaginatedRecurringPaymentJob",
+                "checkout-PaymentIntegration",
+                "checkout-PaymentIntent",
+                "checkout-RecurringPayment",
+                "checkout-RecurringPaymentJob",
+                "checkout-Transaction",
+                "cil-Session",
+                "connect-Connector",
+                "connect-ConnectorStaged",
+                "connect-Deployment",
+                "connect-DeploymentLog",
+                "history-Record-read",
+                "history-Record-write",
+                "import-Import-read",
+                "import-Import-write",
+                "import-ImportContainer",
+                "import-ImportOperation",
+                "import-ImportSummary",
+                "insights-ProjectConfiguration"
+              ],
+              "description": "API identifier. Use API names (api, import, checkout, etc.) or resource keys (api-Product-read). The base API key will be extracted automatically."
+            }
+          },
+          "required": [
+            "method",
+            "path",
+            "apiKey"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "title": "commercetools REST Validator"
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:25:33.973Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:25:35.024Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:25:36.076Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:25:37.128Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 6,
+    "tools_hash": "sha256:9f76a25d21ab525b27aa87f61ef6f2cb2a6c1ae6c38f3cd916f3445ed1ddbb78",
+    "static_tool_tokens": 6490,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "commercetools-documentation-search",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "commercetools-graphql-schemata",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "commercetools-graphql-validate",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "commercetools-graphql-validate",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "commercetools-oas-schemata",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "commercetools-documentation-by-id",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "commercetools-rest-validate",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 7,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "commercetools-documentation-search",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "The maximum number of results to return across all content types.",
+          "mentions_size_or_cost": true,
+          "default": 10
+        },
+        {
+          "tool": "commercetools-documentation-search",
+          "path": "inputSchema.properties.excludeContentTypes",
+          "name": "excludeContentTypes",
+          "description": "exclude the given content types from the results.",
+          "mentions_size_or_cost": true,
+          "default": []
+        },
+        {
+          "tool": "commercetools-documentation-search",
+          "path": "inputSchema.properties.excludeProducts",
+          "name": "excludeProducts",
+          "description": "exclude the given products from the results.",
+          "mentions_size_or_cost": true,
+          "default": []
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "commercetools-oas-schemata"
+          ],
+          "description": "Fetches a partial commercetools OpenAPI spec for a given commercetools resource. Use this tool when you need the detailed REST schema of a resource to construct requests or generate a REST client.\nThe returned spec is self-contained and valid for everything regarding that resource. It contains descriptions but they are not comprehensive.\nEach resource may be available as a read variant, write variant, or unified spec, reflected in the \"resourceName\" enum.\nConventions and predicate examples for commercetools REST APIs are available in the `commercetools-developer-tips` MCP prompt.\n",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "commercetools-documentation-search",
+      "commercetools-graphql-schemata",
+      "commercetools-graphql-validate",
+      "commercetools-oas-schemata",
+      "commercetools-documentation-by-id",
+      "commercetools-rest-validate"
+    ]
+  }
+}

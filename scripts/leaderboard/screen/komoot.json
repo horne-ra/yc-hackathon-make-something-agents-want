@@ -1,0 +1,1728 @@
+{
+  "slug": "komoot",
+  "source_url": "https://manufact.com/mcp-catalog/komoot",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:54:53.530Z",
+    "endpoint": "https://claude.main.komoot.net/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "komoot",
+      "version": "08eafb42407dfa96deb2bf455a5bf7de72ed5e8f"
+    },
+    "capabilities": {
+      "experimental": {},
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "subscribe": false,
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      },
+      "tasks": {
+        "list": {},
+        "cancel": {},
+        "requests": {
+          "tools": {
+            "call": {}
+          },
+          "prompts": {
+            "get": {}
+          },
+          "resources": {
+            "read": {}
+          }
+        }
+      }
+    },
+    "instructions": "komoot is a leading outdoor adventure platform that helps people discover and experience activities beyond the everyday route. It supports a wide range of sports — from all types of cycling to jogging, hiking, and more — and offers access to around 7 million routes worldwide. Along these routes, users can discover nearly 5 million highlights: community-curated points of interest that make each adventure more meaningful. Both routes and highlights include images, ratings, and comments shared by a community of 50 million people.\n\nThis MCP server is a route and highlight discovery tool — it lets users explore and find existing outdoor routes and points of interest from komoot's community-verified library using natural language. Think of it as a conversational version of komoot's Discover feature.\n\nIMPORTANT: This tool does NOT support point-to-point route planning. It cannot plan or create a route from location A to location B. If a user asks for route planning between two specific locations (e.g., 'plan a route from Munich to Garmisch', 'create a cycling route from my hotel to the beach'), clearly explain that komoot discovers existing community routes near a given location, and suggest rephrasing the query as a discovery search instead.\n\nExample prompts that showcase what komoot does well:\n• 'Show me hikes in Mallorca shorter than 10 km with low elevation'\n• 'Find family-friendly cycling routes near Lake Garda'\n• 'I want to explore the Dolomites on foot — preferably under 15 km with gentle terrain'\n• 'Show me challenging road cycling routes in the Alps that I can complete in under 3 hours'\n• 'Find mountain bike trails near Innsbruck with waterfalls'\n\nThe vast majority of routes in the library are circular (loop) routes. Users can filter by sport type, difficulty, distance, duration, elevation, surface, route type, and more.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "find_routes_by_location",
+            "title": "Find Routes by Location",
+            "description": "Discover outdoor routes near a named location from komoot's library of community-verified routes.\n\nFinds existing routes near a single starting location. It does not plan point-to-point routes between two locations and does not provide turn-by-turn directions.\n\nUse when the user wants routes near a specific point of interest, landmark, or named place, or from a specific starting place type (train station, bus stop, car park, public transport). For 'near me', pass 'current_location': it works only when the host supplies the user's location (e.g. ChatGPT); otherwise ask for a named place.\n\nFilters: sport (hike, jogging, touringbicycle, racebike, mtb, mtb_easy), difficulty (easy, moderate, difficult), duration (seconds), length (meters), elevation gain (meters), surface preference (paved/unpaved), route type (loop, out-and-back), starting place category, and route attributes (waterfalls, lakes, summits, forests, coastline, cafes, restaurants, mountain huts).\n\nNumeric filters: radius, length, and elevation in meters; duration in seconds.\n\nReturns up to `limit` routes with name, sport, difficulty, distance, duration, elevation gain, and a komoot link, both as text and as structured content. When the host renders the widget it already shows these results, so do not list them again; summarize in at most 3 sentences and offer to refine the search.",
+            "inputSchema": {
+              "properties": {
+                "location_name": {
+                  "description": "Name of the location to search for routes near. If the user only specifies something like 'near me' or 'around me', pass 'current_location'; this works only when the host supplies the user's location (e.g. ChatGPT), otherwise ask the user for a named place.",
+                  "type": "string"
+                },
+                "radius": {
+                  "type": "integer",
+                  "default": null,
+                  "description": "Maximum radius from the starting point in meters. Only set this if the user explicitly specifies a radius. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. If not specified, the search will use the API's recommended search_radius."
+                },
+                "sport": {
+                  "description": "Type of sport/activity. Preferred values: \"hike\", \"jogging\", \"touringbicycle\", \"racebike\", \"mtb\", \"mtb_easy\" (for gravel biking). If unspecified or null, defaults to \"hike\". Natural-language values such as \"cycling\", \"running\", \"road cycling\", \"mountain biking\", or \"gravel\" are accepted and normalized.",
+                  "enum": [
+                    "hike",
+                    "jogging",
+                    "touringbicycle",
+                    "racebike",
+                    "mtb",
+                    "mtb_easy"
+                  ],
+                  "type": "string",
+                  "default": "hike"
+                },
+                "limit": {
+                  "default": 10,
+                  "description": "Number of items per page, must be between 1 and 30. By default it's 10, keep the default value unless the user explicitly asks for a different number of results.",
+                  "maximum": 30,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "page": {
+                  "default": 0,
+                  "description": "Page number starting at 0. Use this in case the user wants to see more results.",
+                  "type": "integer"
+                },
+                "start_place_category": {
+                  "description": "Category of starting place. Options: \"bus_stop\", \"car_park\", \"public_transport\", \"train_station\"",
+                  "enum": [
+                    "bus_stop",
+                    "car_park",
+                    "public_transport",
+                    "train_station"
+                  ],
+                  "type": "string",
+                  "default": null
+                },
+                "difficulties": {
+                  "items": {
+                    "description": "Enum for difficulty grades.",
+                    "enum": [
+                      "easy",
+                      "moderate",
+                      "difficult"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "default": null,
+                  "description": "List of difficulty grades. The available difficulty grades are: \"easy\", \"moderate\", \"difficult\""
+                },
+                "min_duration": {
+                  "type": "integer",
+                  "default": null,
+                  "description": "Minimum duration in seconds. If the user specifies in minutes, multiply by 60. If in hours, multiply by 3600. Only use this when the user explicitly asks for a minimum (e.g., 'at least 2 hours', 'longer than 30 minutes'). When the user specifies a single duration without qualifiers (e.g., '2 hour hikes'), leave this as None."
+                },
+                "max_duration": {
+                  "type": "integer",
+                  "default": null,
+                  "description": "Maximum duration in seconds. If the user specifies in minutes, multiply by 60. If in hours, multiply by 3600. When the user asks for hikes 'of X hours/minutes' without specifying min/max, set this to the specified duration to find tours up to that length of time."
+                },
+                "min_length": {
+                  "type": "integer",
+                  "default": null,
+                  "description": "Minimum length in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. Only use this when the user explicitly asks for a minimum (e.g., 'at least 10km', 'longer than 5 miles'). When the user specifies a single length without qualifiers (e.g., '12km hikes'), leave this as None."
+                },
+                "max_length": {
+                  "type": "integer",
+                  "default": null,
+                  "description": "Maximum length in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. When the user asks for hikes 'of X km/miles' without specifying min/max, set this to the specified length to find tours up to that distance."
+                },
+                "min_uphill": {
+                  "type": "integer",
+                  "default": null,
+                  "description": "Minimum uphill in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. Only use this when the user explicitly asks for a minimum (e.g., 'at least 500m elevation', 'more than 1000ft climb'). When the user specifies a single elevation without qualifiers, leave this as None."
+                },
+                "max_uphill": {
+                  "type": "integer",
+                  "default": null,
+                  "description": "Maximum uphill in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. When the user asks for hikes 'with X meters/feet elevation' without specifying min/max, set this to the specified elevation to find tours up to that elevation gain."
+                },
+                "surface": {
+                  "description": "Route surface preference. Options: \"prefer_paved\", \"prefer_unpaved\"",
+                  "enum": [
+                    "prefer_paved",
+                    "prefer_unpaved"
+                  ],
+                  "type": "string",
+                  "default": null
+                },
+                "route_type": {
+                  "description": "Route type preference. Options: \"loop\", \"out_and_back\"",
+                  "enum": [
+                    "loop",
+                    "out_and_back"
+                  ],
+                  "type": "string",
+                  "default": null
+                },
+                "route_attributes": {
+                  "items": {
+                    "enum": [
+                      "waterfalls",
+                      "lakes_rivers",
+                      "mountain_summits",
+                      "forests",
+                      "coastline",
+                      "parks",
+                      "volcanoes",
+                      "caves",
+                      "canyons_gorges",
+                      "cafe",
+                      "pub",
+                      "restaurant",
+                      "mountain_hut",
+                      "facilities",
+                      "cultural_historical",
+                      "climbs",
+                      "ridges",
+                      "mountain_passes",
+                      "bike_parks",
+                      "avoid_main_roads"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "default": null,
+                  "description": "List of route attributes to filter tours. Available options: \"waterfalls\", \"lakes_rivers\", \"mountain_summits\", \"forests\", \"coastline\", \"parks\", \"volcanoes\", \"caves\", \"canyons_gorges\", \"cafe\", \"pub\", \"restaurant\", \"mountain_hut\", \"facilities\", \"cultural_historical\", \"climbs\", \"ridges\", \"mountain_passes\", \"bike_parks\", \"avoid_main_roads\""
+                },
+                "sort": {
+                  "description": "Sort order. Options: \"default\", \"score_by_difficulty\". If unspecified or null, defaults to \"default\".",
+                  "enum": [
+                    "default",
+                    "score_by_difficulty"
+                  ],
+                  "type": "string",
+                  "default": "default"
+                },
+                "widget": {
+                  "description": "Widget to use for the result. Set to 'carousel' when the user asks for a carousel, cards, or a list-style visual result. Set to 'map' when the user asks for a map or does not specify a visual format. If unspecified or null, defaults to 'map'.",
+                  "enum": [
+                    "carousel",
+                    "map"
+                  ],
+                  "type": "string",
+                  "default": "map"
+                }
+              },
+              "required": [
+                "location_name"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Find Routes by Location",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://widget/tours-widget.html",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              },
+              "_fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "find_routes_near_coordinates",
+            "title": "Find Routes Near Coordinates",
+            "description": "Discover outdoor routes near an explicit latitude/longitude pair from komoot's library of community-verified routes.\n\nFinds existing routes near a single coordinate. It does not plan point-to-point routes between two locations and does not provide turn-by-turn directions.\n\nUse only when the caller supplies explicit latitude and longitude; coordinates are never inferred from a place name. For a named place, or for 'near me', use find_routes_by_location.\n\nFilters: sport (hike, jogging, touringbicycle, racebike, mtb, mtb_easy), difficulty (easy, moderate, difficult), duration (seconds), length (meters), elevation gain (meters), surface preference (paved/unpaved), route type (loop, out-and-back), starting place category, and route attributes (waterfalls, lakes, summits, forests, coastline, cafes, restaurants, mountain huts).\n\nNumeric filters: radius, length, and elevation in meters; duration in seconds. Latitude must be within [-90, 90], longitude within [-180, 180], and a radius smaller than 5000 meters is raised to 5000 meters.\n\nReturns up to `limit` routes with name, sport, difficulty, distance, duration, elevation gain, and a komoot link, both as text and as structured content. When the host renders the widget it already shows these results, so do not list them again; summarize in at most 3 sentences and offer to refine the search.",
+            "inputSchema": {
+              "properties": {
+                "latitude": {
+                  "description": "Latitude of the search center in decimal degrees. Must be between -90 and 90. Only pass a value the user or host has explicitly provided; never infer it from a place name or read the device location implicitly.",
+                  "maximum": 90,
+                  "minimum": -90,
+                  "type": "number"
+                },
+                "longitude": {
+                  "description": "Longitude of the search center in decimal degrees. Must be between -180 and 180. Only pass a value the user or host has explicitly provided; never infer it from a place name or read the device location implicitly.",
+                  "maximum": 180,
+                  "minimum": -180,
+                  "type": "number"
+                },
+                "radius": {
+                  "type": "integer",
+                  "default": null,
+                  "description": "Maximum radius from the coordinate in meters. Only set this if the user explicitly specifies a radius. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. If a radius smaller than 5000 is given, the search uses 5000 meters. If not specified, the search defaults to 20000 meters."
+                },
+                "sport": {
+                  "description": "Type of sport/activity. Preferred values: \"hike\", \"jogging\", \"touringbicycle\", \"racebike\", \"mtb\", \"mtb_easy\" (for gravel biking). If unspecified or null, defaults to \"hike\". Natural-language values such as \"cycling\", \"running\", \"road cycling\", \"mountain biking\", or \"gravel\" are accepted and normalized.",
+                  "enum": [
+                    "hike",
+                    "jogging",
+                    "touringbicycle",
+                    "racebike",
+                    "mtb",
+                    "mtb_easy"
+                  ],
+                  "type": "string",
+                  "default": "hike"
+                },
+                "limit": {
+                  "default": 10,
+                  "description": "Number of items per page, must be between 1 and 30. By default it's 10, keep the default value unless the user explicitly asks for a different number of results.",
+                  "maximum": 30,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "page": {
+                  "default": 0,
+                  "description": "Page number starting at 0. Use this in case the user wants to see more results.",
+                  "type": "integer"
+                },
+                "start_place_category": {
+                  "description": "Category of starting place. Options: \"bus_stop\", \"car_park\", \"public_transport\", \"train_station\"",
+                  "enum": [
+                    "bus_stop",
+                    "car_park",
+                    "public_transport",
+                    "train_station"
+                  ],
+                  "type": "string",
+                  "default": null
+                },
+                "difficulties": {
+                  "items": {
+                    "description": "Enum for difficulty grades.",
+                    "enum": [
+                      "easy",
+                      "moderate",
+                      "difficult"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "default": null,
+                  "description": "List of difficulty grades. The available difficulty grades are: \"easy\", \"moderate\", \"difficult\""
+                },
+                "min_duration": {
+                  "type": "integer",
+                  "default": null,
+                  "description": "Minimum duration in seconds. If the user specifies in minutes, multiply by 60. If in hours, multiply by 3600. Only use this when the user explicitly asks for a minimum (e.g., 'at least 2 hours', 'longer than 30 minutes'). When the user specifies a single duration without qualifiers (e.g., '2 hour hikes'), leave this as None."
+                },
+                "max_duration": {
+                  "type": "integer",
+                  "default": null,
+                  "description": "Maximum duration in seconds. If the user specifies in minutes, multiply by 60. If in hours, multiply by 3600. When the user asks for hikes 'of X hours/minutes' without specifying min/max, set this to the specified duration to find tours up to that length of time."
+                },
+                "min_length": {
+                  "type": "integer",
+                  "default": null,
+                  "description": "Minimum length in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. Only use this when the user explicitly asks for a minimum (e.g., 'at least 10km', 'longer than 5 miles'). When the user specifies a single length without qualifiers (e.g., '12km hikes'), leave this as None."
+                },
+                "max_length": {
+                  "type": "integer",
+                  "default": null,
+                  "description": "Maximum length in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. When the user asks for hikes 'of X km/miles' without specifying min/max, set this to the specified length to find tours up to that distance."
+                },
+                "min_uphill": {
+                  "type": "integer",
+                  "default": null,
+                  "description": "Minimum uphill in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. Only use this when the user explicitly asks for a minimum (e.g., 'at least 500m elevation', 'more than 1000ft climb'). When the user specifies a single elevation without qualifiers, leave this as None."
+                },
+                "max_uphill": {
+                  "type": "integer",
+                  "default": null,
+                  "description": "Maximum uphill in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. When the user asks for hikes 'with X meters/feet elevation' without specifying min/max, set this to the specified elevation to find tours up to that elevation gain."
+                },
+                "surface": {
+                  "description": "Route surface preference. Options: \"prefer_paved\", \"prefer_unpaved\"",
+                  "enum": [
+                    "prefer_paved",
+                    "prefer_unpaved"
+                  ],
+                  "type": "string",
+                  "default": null
+                },
+                "route_type": {
+                  "description": "Route type preference. Options: \"loop\", \"out_and_back\"",
+                  "enum": [
+                    "loop",
+                    "out_and_back"
+                  ],
+                  "type": "string",
+                  "default": null
+                },
+                "route_attributes": {
+                  "items": {
+                    "enum": [
+                      "waterfalls",
+                      "lakes_rivers",
+                      "mountain_summits",
+                      "forests",
+                      "coastline",
+                      "parks",
+                      "volcanoes",
+                      "caves",
+                      "canyons_gorges",
+                      "cafe",
+                      "pub",
+                      "restaurant",
+                      "mountain_hut",
+                      "facilities",
+                      "cultural_historical",
+                      "climbs",
+                      "ridges",
+                      "mountain_passes",
+                      "bike_parks",
+                      "avoid_main_roads"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "default": null,
+                  "description": "List of route attributes to filter tours. Available options: \"waterfalls\", \"lakes_rivers\", \"mountain_summits\", \"forests\", \"coastline\", \"parks\", \"volcanoes\", \"caves\", \"canyons_gorges\", \"cafe\", \"pub\", \"restaurant\", \"mountain_hut\", \"facilities\", \"cultural_historical\", \"climbs\", \"ridges\", \"mountain_passes\", \"bike_parks\", \"avoid_main_roads\""
+                },
+                "sort": {
+                  "description": "Sort order. Options: \"default\", \"score_by_difficulty\". If unspecified or null, defaults to \"default\".",
+                  "enum": [
+                    "default",
+                    "score_by_difficulty"
+                  ],
+                  "type": "string",
+                  "default": "default"
+                },
+                "widget": {
+                  "description": "Widget to use for the result. Set to 'carousel' when the user asks for a carousel, cards, or a list-style visual result. Set to 'map' when the user asks for a map or does not specify a visual format. If unspecified or null, defaults to 'map'.",
+                  "enum": [
+                    "carousel",
+                    "map"
+                  ],
+                  "type": "string",
+                  "default": "map"
+                }
+              },
+              "required": [
+                "latitude",
+                "longitude"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Find Routes Near Coordinates",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://widget/tours-widget.html",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              },
+              "_fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "find_highlights_by_location",
+            "title": "Find Highlights by Location",
+            "description": "Discover outdoor highlights and points of interest near a named location from komoot's library of community-curated places.\n\nFinds existing highlights near a single location. It does not plan point-to-point routes between two locations and does not provide turn-by-turn directions.\n\nUse when the user wants highlights, viewpoints, or points of interest near a specific place or landmark, or natural features (summits, waterfalls, lakes, trails) or amenities (cafes, restaurants, huts) in an area. For 'near me', pass 'current_location': it works only when the host supplies the user's location (e.g. ChatGPT); otherwise ask for a named place.\n\nFilters: sport (hike, jogging, touringbicycle, racebike, mtb, mtb_easy) and categories (viewpoint, trail, summit, waterfall, lake, river, beach, forest, cave, gorge, canyon, mountain_pass, volcano, castle, historical_site, cafe, pub, restaurant, hut, and more).\n\nRadius filter is in meters.\n\nReturns up to `limit` highlights with name, category, distance, elevation gain, and a komoot link, both as text and as structured content. When the host renders the widget it already shows these results, so do not list them again; summarize in at most 3 sentences and offer to refine the search.",
+            "inputSchema": {
+              "properties": {
+                "location_name": {
+                  "description": "Name of the location to search for highlights near. If the user only specifies something like 'near me' or 'around me', pass 'current_location'; this works only when the host supplies the user's location (e.g. ChatGPT), otherwise ask the user for a named place.",
+                  "type": "string"
+                },
+                "radius": {
+                  "type": "integer",
+                  "default": null,
+                  "description": "Maximum radius from the starting point in meters. Only set this if the user explicitly specifies a radius. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. If not specified, the search will use the API's recommended search_radius."
+                },
+                "sport": {
+                  "description": "Type of sport/activity. Preferred values: \"hike\", \"jogging\", \"touringbicycle\", \"racebike\", \"mtb\", \"mtb_easy\" (for gravel biking). If unspecified or null, defaults to \"hike\". Natural-language values such as \"cycling\", \"running\", \"road cycling\", \"mountain biking\", or \"gravel\" are accepted and normalized.",
+                  "enum": [
+                    "hike",
+                    "jogging",
+                    "touringbicycle",
+                    "racebike",
+                    "mtb",
+                    "mtb_easy"
+                  ],
+                  "type": "string",
+                  "default": "hike"
+                },
+                "limit": {
+                  "default": 10,
+                  "description": "Number of items per page, must be between 1 and 30. By default it's 10, keep the default value unless the user explicitly asks for a different number of results.",
+                  "maximum": 30,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "page": {
+                  "default": 0,
+                  "description": "Page number starting at 0. Use this in case the user wants to see more results.",
+                  "type": "integer"
+                },
+                "categories": {
+                  "items": {
+                    "enum": [
+                      "viewpoint",
+                      "trail",
+                      "summit",
+                      "waterfall",
+                      "lake",
+                      "river",
+                      "beach",
+                      "forest",
+                      "cave",
+                      "gorge",
+                      "canyon",
+                      "mountain_pass",
+                      "volcano",
+                      "other_natural",
+                      "natural_monument",
+                      "castle",
+                      "historical_site",
+                      "religious_building",
+                      "man_made_monument",
+                      "cafe",
+                      "pub",
+                      "restaurant",
+                      "hut",
+                      "facilities",
+                      "parking",
+                      "bridge",
+                      "settlement",
+                      "other_man_made",
+                      "cycle_way",
+                      "mtb_park",
+                      "climb"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "default": null,
+                  "description": "List of highlight categories to filter highlights. Available options: \"viewpoint\", \"trail\", \"summit\", \"waterfall\", \"lake\", \"river\", \"beach\", \"forest\", \"cave\", \"gorge\", \"canyon\", \"mountain_pass\", \"volcano\", \"other_natural\", \"natural_monument\", \"castle\", \"historical_site\", \"religious_building\", \"man_made_monument\", \"cafe\", \"pub\", \"restaurant\", \"hut\", \"facilities\", \"parking\", \"bridge\", \"settlement\", \"other_man_made\", \"cycle_way\", \"mtb_park\", \"climb\""
+                }
+              },
+              "required": [
+                "location_name"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Find Highlights by Location",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://widget/highlights-map.html",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              },
+              "_fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "find_highlights_along_route",
+            "title": "Find Highlights Along Route",
+            "description": "Discover community highlights that sit along a specific komoot route, ordered from the start of the route to the end.\n\nAnchors highlights to one route, so the caller can answer 'what will I see on this route' with confidence. Use it when the user supplies a komoot route id, or a route returned by find_routes_by_location. For highlights around a place, use find_highlights_by_location instead. It does not plan point-to-point routes and does not provide directions.\n\nFilters: corridor_meters (maximum distance from the route for a highlight to count as along it, 100-2000, default 500), sport (hike, jogging, touringbicycle, racebike, mtb, mtb_easy) and categories (viewpoint, trail, summit, waterfall, lake, river, beach, forest, cave, gorge, canyon, mountain_pass, volcano, castle, historical_site, cafe, pub, restaurant, hut, and more).\n\nReturns up to `limit` highlights with name, category, distance along the route, offset from the route, elevation gain, and a komoot link, both as text and as structured content. When the host renders the widget it already shows these results, so do not list them again; summarize in at most 3 sentences and offer to refine the search.",
+            "inputSchema": {
+              "properties": {
+                "tour_id": {
+                  "description": "komoot route/tour id to find highlights along; the same id accepted by get_route_details.",
+                  "type": "string"
+                },
+                "corridor_meters": {
+                  "default": 500,
+                  "description": "Maximum lateral distance from the route, in meters, for a highlight to count as along the route. Defaults to 500.",
+                  "maximum": 2000,
+                  "minimum": 100,
+                  "type": "integer"
+                },
+                "sport": {
+                  "description": "Type of sport/activity. Preferred values: \"hike\", \"jogging\", \"touringbicycle\", \"racebike\", \"mtb\", \"mtb_easy\" (for gravel biking). If unspecified or null, defaults to the route's sport when known, otherwise \"hike\". Natural-language values such as \"cycling\", \"running\", or \"gravel\" are accepted and normalized.",
+                  "enum": [
+                    "hike",
+                    "jogging",
+                    "touringbicycle",
+                    "racebike",
+                    "mtb",
+                    "mtb_easy"
+                  ],
+                  "type": "string",
+                  "default": null
+                },
+                "categories": {
+                  "items": {
+                    "enum": [
+                      "viewpoint",
+                      "trail",
+                      "summit",
+                      "waterfall",
+                      "lake",
+                      "river",
+                      "beach",
+                      "forest",
+                      "cave",
+                      "gorge",
+                      "canyon",
+                      "mountain_pass",
+                      "volcano",
+                      "other_natural",
+                      "natural_monument",
+                      "castle",
+                      "historical_site",
+                      "religious_building",
+                      "man_made_monument",
+                      "cafe",
+                      "pub",
+                      "restaurant",
+                      "hut",
+                      "facilities",
+                      "parking",
+                      "bridge",
+                      "settlement",
+                      "other_man_made",
+                      "cycle_way",
+                      "mtb_park",
+                      "climb"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "default": null,
+                  "description": "List of highlight categories to filter highlights. Available options: \"viewpoint\", \"trail\", \"summit\", \"waterfall\", \"lake\", \"river\", \"beach\", \"forest\", \"cave\", \"gorge\", \"canyon\", \"mountain_pass\", \"volcano\", \"other_natural\", \"natural_monument\", \"castle\", \"historical_site\", \"religious_building\", \"man_made_monument\", \"cafe\", \"pub\", \"restaurant\", \"hut\", \"facilities\", \"parking\", \"bridge\", \"settlement\", \"other_man_made\", \"cycle_way\", \"mtb_park\", \"climb\""
+                },
+                "limit": {
+                  "default": 10,
+                  "description": "Number of highlights to return, between 1 and 30. By default it's 10, keep the default value unless the user explicitly asks for a different number of results.",
+                  "maximum": 30,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "language": {
+                  "type": "string",
+                  "default": null,
+                  "description": "Optional language for highlight names and descriptions as a BCP 47 or ISO 639-1 code (e.g. \"de-DE\", \"it\"). Defaults to the caller locale when available, otherwise English."
+                }
+              },
+              "required": [
+                "tour_id"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Find Highlights Along Route",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://widget/highlights-map.html",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              },
+              "_fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "export_gpx",
+            "title": "Export Route as GPX",
+            "description": "Export a komoot route as a GPX file. Pass the route id from find_routes_by_location; returns a download link to the route's GPX track (geometry with elevation; timestamps for recorded activities), both as text and as structured content. Read-only. When the host renders the export card it already shows the file name and links, so do not repeat them; briefly confirm the file is ready to download or share.",
+            "inputSchema": {
+              "properties": {
+                "route_id": {
+                  "description": "Route id returned by find_routes_by_location.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "route_id"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Export Route as GPX",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://widget/export-gpx.html",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              },
+              "_fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "get_route_details",
+            "title": "Get Route Details",
+            "description": "Get detailed metadata for a single komoot route by id: sport, difficulty, distance, duration, elevation gain/loss, surface and way-type breakdown, rating, visitor count, cover image, plus a GPX download link. Pass a route id returned by find_routes_by_location. Read-only.",
+            "inputSchema": {
+              "properties": {
+                "route_id": {
+                  "description": "Route id returned by find_routes_by_location.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "route_id"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Get Route Details",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "_fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "get_highlight_details",
+            "title": "Get Highlight Details",
+            "description": "Get detailed metadata for a single komoot highlight (point of interest) by id: category, description, distance, elevation gain/loss, score, access warnings, cover image and a gallery, plus coordinates and a komoot link. Pass a highlight id returned by find_highlights_by_location. Read-only.",
+            "inputSchema": {
+              "properties": {
+                "highlight_id": {
+                  "description": "Highlight id returned by find_highlights_by_location.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "highlight_id"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Get Highlight Details",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "_fastmcp": {
+                "tags": []
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "find_routes_by_location",
+        "title": "Find Routes by Location",
+        "description": "Discover outdoor routes near a named location from komoot's library of community-verified routes.\n\nFinds existing routes near a single starting location. It does not plan point-to-point routes between two locations and does not provide turn-by-turn directions.\n\nUse when the user wants routes near a specific point of interest, landmark, or named place, or from a specific starting place type (train station, bus stop, car park, public transport). For 'near me', pass 'current_location': it works only when the host supplies the user's location (e.g. ChatGPT); otherwise ask for a named place.\n\nFilters: sport (hike, jogging, touringbicycle, racebike, mtb, mtb_easy), difficulty (easy, moderate, difficult), duration (seconds), length (meters), elevation gain (meters), surface preference (paved/unpaved), route type (loop, out-and-back), starting place category, and route attributes (waterfalls, lakes, summits, forests, coastline, cafes, restaurants, mountain huts).\n\nNumeric filters: radius, length, and elevation in meters; duration in seconds.\n\nReturns up to `limit` routes with name, sport, difficulty, distance, duration, elevation gain, and a komoot link, both as text and as structured content. When the host renders the widget it already shows these results, so do not list them again; summarize in at most 3 sentences and offer to refine the search.",
+        "inputSchema": {
+          "properties": {
+            "location_name": {
+              "description": "Name of the location to search for routes near. If the user only specifies something like 'near me' or 'around me', pass 'current_location'; this works only when the host supplies the user's location (e.g. ChatGPT), otherwise ask the user for a named place.",
+              "type": "string"
+            },
+            "radius": {
+              "type": "integer",
+              "default": null,
+              "description": "Maximum radius from the starting point in meters. Only set this if the user explicitly specifies a radius. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. If not specified, the search will use the API's recommended search_radius."
+            },
+            "sport": {
+              "description": "Type of sport/activity. Preferred values: \"hike\", \"jogging\", \"touringbicycle\", \"racebike\", \"mtb\", \"mtb_easy\" (for gravel biking). If unspecified or null, defaults to \"hike\". Natural-language values such as \"cycling\", \"running\", \"road cycling\", \"mountain biking\", or \"gravel\" are accepted and normalized.",
+              "enum": [
+                "hike",
+                "jogging",
+                "touringbicycle",
+                "racebike",
+                "mtb",
+                "mtb_easy"
+              ],
+              "type": "string",
+              "default": "hike"
+            },
+            "limit": {
+              "default": 10,
+              "description": "Number of items per page, must be between 1 and 30. By default it's 10, keep the default value unless the user explicitly asks for a different number of results.",
+              "maximum": 30,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "page": {
+              "default": 0,
+              "description": "Page number starting at 0. Use this in case the user wants to see more results.",
+              "type": "integer"
+            },
+            "start_place_category": {
+              "description": "Category of starting place. Options: \"bus_stop\", \"car_park\", \"public_transport\", \"train_station\"",
+              "enum": [
+                "bus_stop",
+                "car_park",
+                "public_transport",
+                "train_station"
+              ],
+              "type": "string",
+              "default": null
+            },
+            "difficulties": {
+              "items": {
+                "description": "Enum for difficulty grades.",
+                "enum": [
+                  "easy",
+                  "moderate",
+                  "difficult"
+                ],
+                "type": "string"
+              },
+              "type": "array",
+              "default": null,
+              "description": "List of difficulty grades. The available difficulty grades are: \"easy\", \"moderate\", \"difficult\""
+            },
+            "min_duration": {
+              "type": "integer",
+              "default": null,
+              "description": "Minimum duration in seconds. If the user specifies in minutes, multiply by 60. If in hours, multiply by 3600. Only use this when the user explicitly asks for a minimum (e.g., 'at least 2 hours', 'longer than 30 minutes'). When the user specifies a single duration without qualifiers (e.g., '2 hour hikes'), leave this as None."
+            },
+            "max_duration": {
+              "type": "integer",
+              "default": null,
+              "description": "Maximum duration in seconds. If the user specifies in minutes, multiply by 60. If in hours, multiply by 3600. When the user asks for hikes 'of X hours/minutes' without specifying min/max, set this to the specified duration to find tours up to that length of time."
+            },
+            "min_length": {
+              "type": "integer",
+              "default": null,
+              "description": "Minimum length in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. Only use this when the user explicitly asks for a minimum (e.g., 'at least 10km', 'longer than 5 miles'). When the user specifies a single length without qualifiers (e.g., '12km hikes'), leave this as None."
+            },
+            "max_length": {
+              "type": "integer",
+              "default": null,
+              "description": "Maximum length in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. When the user asks for hikes 'of X km/miles' without specifying min/max, set this to the specified length to find tours up to that distance."
+            },
+            "min_uphill": {
+              "type": "integer",
+              "default": null,
+              "description": "Minimum uphill in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. Only use this when the user explicitly asks for a minimum (e.g., 'at least 500m elevation', 'more than 1000ft climb'). When the user specifies a single elevation without qualifiers, leave this as None."
+            },
+            "max_uphill": {
+              "type": "integer",
+              "default": null,
+              "description": "Maximum uphill in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. When the user asks for hikes 'with X meters/feet elevation' without specifying min/max, set this to the specified elevation to find tours up to that elevation gain."
+            },
+            "surface": {
+              "description": "Route surface preference. Options: \"prefer_paved\", \"prefer_unpaved\"",
+              "enum": [
+                "prefer_paved",
+                "prefer_unpaved"
+              ],
+              "type": "string",
+              "default": null
+            },
+            "route_type": {
+              "description": "Route type preference. Options: \"loop\", \"out_and_back\"",
+              "enum": [
+                "loop",
+                "out_and_back"
+              ],
+              "type": "string",
+              "default": null
+            },
+            "route_attributes": {
+              "items": {
+                "enum": [
+                  "waterfalls",
+                  "lakes_rivers",
+                  "mountain_summits",
+                  "forests",
+                  "coastline",
+                  "parks",
+                  "volcanoes",
+                  "caves",
+                  "canyons_gorges",
+                  "cafe",
+                  "pub",
+                  "restaurant",
+                  "mountain_hut",
+                  "facilities",
+                  "cultural_historical",
+                  "climbs",
+                  "ridges",
+                  "mountain_passes",
+                  "bike_parks",
+                  "avoid_main_roads"
+                ],
+                "type": "string"
+              },
+              "type": "array",
+              "default": null,
+              "description": "List of route attributes to filter tours. Available options: \"waterfalls\", \"lakes_rivers\", \"mountain_summits\", \"forests\", \"coastline\", \"parks\", \"volcanoes\", \"caves\", \"canyons_gorges\", \"cafe\", \"pub\", \"restaurant\", \"mountain_hut\", \"facilities\", \"cultural_historical\", \"climbs\", \"ridges\", \"mountain_passes\", \"bike_parks\", \"avoid_main_roads\""
+            },
+            "sort": {
+              "description": "Sort order. Options: \"default\", \"score_by_difficulty\". If unspecified or null, defaults to \"default\".",
+              "enum": [
+                "default",
+                "score_by_difficulty"
+              ],
+              "type": "string",
+              "default": "default"
+            },
+            "widget": {
+              "description": "Widget to use for the result. Set to 'carousel' when the user asks for a carousel, cards, or a list-style visual result. Set to 'map' when the user asks for a map or does not specify a visual format. If unspecified or null, defaults to 'map'.",
+              "enum": [
+                "carousel",
+                "map"
+              ],
+              "type": "string",
+              "default": "map"
+            }
+          },
+          "required": [
+            "location_name"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Find Routes by Location",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://widget/tours-widget.html",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          },
+          "_fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "find_routes_near_coordinates",
+        "title": "Find Routes Near Coordinates",
+        "description": "Discover outdoor routes near an explicit latitude/longitude pair from komoot's library of community-verified routes.\n\nFinds existing routes near a single coordinate. It does not plan point-to-point routes between two locations and does not provide turn-by-turn directions.\n\nUse only when the caller supplies explicit latitude and longitude; coordinates are never inferred from a place name. For a named place, or for 'near me', use find_routes_by_location.\n\nFilters: sport (hike, jogging, touringbicycle, racebike, mtb, mtb_easy), difficulty (easy, moderate, difficult), duration (seconds), length (meters), elevation gain (meters), surface preference (paved/unpaved), route type (loop, out-and-back), starting place category, and route attributes (waterfalls, lakes, summits, forests, coastline, cafes, restaurants, mountain huts).\n\nNumeric filters: radius, length, and elevation in meters; duration in seconds. Latitude must be within [-90, 90], longitude within [-180, 180], and a radius smaller than 5000 meters is raised to 5000 meters.\n\nReturns up to `limit` routes with name, sport, difficulty, distance, duration, elevation gain, and a komoot link, both as text and as structured content. When the host renders the widget it already shows these results, so do not list them again; summarize in at most 3 sentences and offer to refine the search.",
+        "inputSchema": {
+          "properties": {
+            "latitude": {
+              "description": "Latitude of the search center in decimal degrees. Must be between -90 and 90. Only pass a value the user or host has explicitly provided; never infer it from a place name or read the device location implicitly.",
+              "maximum": 90,
+              "minimum": -90,
+              "type": "number"
+            },
+            "longitude": {
+              "description": "Longitude of the search center in decimal degrees. Must be between -180 and 180. Only pass a value the user or host has explicitly provided; never infer it from a place name or read the device location implicitly.",
+              "maximum": 180,
+              "minimum": -180,
+              "type": "number"
+            },
+            "radius": {
+              "type": "integer",
+              "default": null,
+              "description": "Maximum radius from the coordinate in meters. Only set this if the user explicitly specifies a radius. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. If a radius smaller than 5000 is given, the search uses 5000 meters. If not specified, the search defaults to 20000 meters."
+            },
+            "sport": {
+              "description": "Type of sport/activity. Preferred values: \"hike\", \"jogging\", \"touringbicycle\", \"racebike\", \"mtb\", \"mtb_easy\" (for gravel biking). If unspecified or null, defaults to \"hike\". Natural-language values such as \"cycling\", \"running\", \"road cycling\", \"mountain biking\", or \"gravel\" are accepted and normalized.",
+              "enum": [
+                "hike",
+                "jogging",
+                "touringbicycle",
+                "racebike",
+                "mtb",
+                "mtb_easy"
+              ],
+              "type": "string",
+              "default": "hike"
+            },
+            "limit": {
+              "default": 10,
+              "description": "Number of items per page, must be between 1 and 30. By default it's 10, keep the default value unless the user explicitly asks for a different number of results.",
+              "maximum": 30,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "page": {
+              "default": 0,
+              "description": "Page number starting at 0. Use this in case the user wants to see more results.",
+              "type": "integer"
+            },
+            "start_place_category": {
+              "description": "Category of starting place. Options: \"bus_stop\", \"car_park\", \"public_transport\", \"train_station\"",
+              "enum": [
+                "bus_stop",
+                "car_park",
+                "public_transport",
+                "train_station"
+              ],
+              "type": "string",
+              "default": null
+            },
+            "difficulties": {
+              "items": {
+                "description": "Enum for difficulty grades.",
+                "enum": [
+                  "easy",
+                  "moderate",
+                  "difficult"
+                ],
+                "type": "string"
+              },
+              "type": "array",
+              "default": null,
+              "description": "List of difficulty grades. The available difficulty grades are: \"easy\", \"moderate\", \"difficult\""
+            },
+            "min_duration": {
+              "type": "integer",
+              "default": null,
+              "description": "Minimum duration in seconds. If the user specifies in minutes, multiply by 60. If in hours, multiply by 3600. Only use this when the user explicitly asks for a minimum (e.g., 'at least 2 hours', 'longer than 30 minutes'). When the user specifies a single duration without qualifiers (e.g., '2 hour hikes'), leave this as None."
+            },
+            "max_duration": {
+              "type": "integer",
+              "default": null,
+              "description": "Maximum duration in seconds. If the user specifies in minutes, multiply by 60. If in hours, multiply by 3600. When the user asks for hikes 'of X hours/minutes' without specifying min/max, set this to the specified duration to find tours up to that length of time."
+            },
+            "min_length": {
+              "type": "integer",
+              "default": null,
+              "description": "Minimum length in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. Only use this when the user explicitly asks for a minimum (e.g., 'at least 10km', 'longer than 5 miles'). When the user specifies a single length without qualifiers (e.g., '12km hikes'), leave this as None."
+            },
+            "max_length": {
+              "type": "integer",
+              "default": null,
+              "description": "Maximum length in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. When the user asks for hikes 'of X km/miles' without specifying min/max, set this to the specified length to find tours up to that distance."
+            },
+            "min_uphill": {
+              "type": "integer",
+              "default": null,
+              "description": "Minimum uphill in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. Only use this when the user explicitly asks for a minimum (e.g., 'at least 500m elevation', 'more than 1000ft climb'). When the user specifies a single elevation without qualifiers, leave this as None."
+            },
+            "max_uphill": {
+              "type": "integer",
+              "default": null,
+              "description": "Maximum uphill in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. When the user asks for hikes 'with X meters/feet elevation' without specifying min/max, set this to the specified elevation to find tours up to that elevation gain."
+            },
+            "surface": {
+              "description": "Route surface preference. Options: \"prefer_paved\", \"prefer_unpaved\"",
+              "enum": [
+                "prefer_paved",
+                "prefer_unpaved"
+              ],
+              "type": "string",
+              "default": null
+            },
+            "route_type": {
+              "description": "Route type preference. Options: \"loop\", \"out_and_back\"",
+              "enum": [
+                "loop",
+                "out_and_back"
+              ],
+              "type": "string",
+              "default": null
+            },
+            "route_attributes": {
+              "items": {
+                "enum": [
+                  "waterfalls",
+                  "lakes_rivers",
+                  "mountain_summits",
+                  "forests",
+                  "coastline",
+                  "parks",
+                  "volcanoes",
+                  "caves",
+                  "canyons_gorges",
+                  "cafe",
+                  "pub",
+                  "restaurant",
+                  "mountain_hut",
+                  "facilities",
+                  "cultural_historical",
+                  "climbs",
+                  "ridges",
+                  "mountain_passes",
+                  "bike_parks",
+                  "avoid_main_roads"
+                ],
+                "type": "string"
+              },
+              "type": "array",
+              "default": null,
+              "description": "List of route attributes to filter tours. Available options: \"waterfalls\", \"lakes_rivers\", \"mountain_summits\", \"forests\", \"coastline\", \"parks\", \"volcanoes\", \"caves\", \"canyons_gorges\", \"cafe\", \"pub\", \"restaurant\", \"mountain_hut\", \"facilities\", \"cultural_historical\", \"climbs\", \"ridges\", \"mountain_passes\", \"bike_parks\", \"avoid_main_roads\""
+            },
+            "sort": {
+              "description": "Sort order. Options: \"default\", \"score_by_difficulty\". If unspecified or null, defaults to \"default\".",
+              "enum": [
+                "default",
+                "score_by_difficulty"
+              ],
+              "type": "string",
+              "default": "default"
+            },
+            "widget": {
+              "description": "Widget to use for the result. Set to 'carousel' when the user asks for a carousel, cards, or a list-style visual result. Set to 'map' when the user asks for a map or does not specify a visual format. If unspecified or null, defaults to 'map'.",
+              "enum": [
+                "carousel",
+                "map"
+              ],
+              "type": "string",
+              "default": "map"
+            }
+          },
+          "required": [
+            "latitude",
+            "longitude"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Find Routes Near Coordinates",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://widget/tours-widget.html",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          },
+          "_fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "find_highlights_by_location",
+        "title": "Find Highlights by Location",
+        "description": "Discover outdoor highlights and points of interest near a named location from komoot's library of community-curated places.\n\nFinds existing highlights near a single location. It does not plan point-to-point routes between two locations and does not provide turn-by-turn directions.\n\nUse when the user wants highlights, viewpoints, or points of interest near a specific place or landmark, or natural features (summits, waterfalls, lakes, trails) or amenities (cafes, restaurants, huts) in an area. For 'near me', pass 'current_location': it works only when the host supplies the user's location (e.g. ChatGPT); otherwise ask for a named place.\n\nFilters: sport (hike, jogging, touringbicycle, racebike, mtb, mtb_easy) and categories (viewpoint, trail, summit, waterfall, lake, river, beach, forest, cave, gorge, canyon, mountain_pass, volcano, castle, historical_site, cafe, pub, restaurant, hut, and more).\n\nRadius filter is in meters.\n\nReturns up to `limit` highlights with name, category, distance, elevation gain, and a komoot link, both as text and as structured content. When the host renders the widget it already shows these results, so do not list them again; summarize in at most 3 sentences and offer to refine the search.",
+        "inputSchema": {
+          "properties": {
+            "location_name": {
+              "description": "Name of the location to search for highlights near. If the user only specifies something like 'near me' or 'around me', pass 'current_location'; this works only when the host supplies the user's location (e.g. ChatGPT), otherwise ask the user for a named place.",
+              "type": "string"
+            },
+            "radius": {
+              "type": "integer",
+              "default": null,
+              "description": "Maximum radius from the starting point in meters. Only set this if the user explicitly specifies a radius. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. If not specified, the search will use the API's recommended search_radius."
+            },
+            "sport": {
+              "description": "Type of sport/activity. Preferred values: \"hike\", \"jogging\", \"touringbicycle\", \"racebike\", \"mtb\", \"mtb_easy\" (for gravel biking). If unspecified or null, defaults to \"hike\". Natural-language values such as \"cycling\", \"running\", \"road cycling\", \"mountain biking\", or \"gravel\" are accepted and normalized.",
+              "enum": [
+                "hike",
+                "jogging",
+                "touringbicycle",
+                "racebike",
+                "mtb",
+                "mtb_easy"
+              ],
+              "type": "string",
+              "default": "hike"
+            },
+            "limit": {
+              "default": 10,
+              "description": "Number of items per page, must be between 1 and 30. By default it's 10, keep the default value unless the user explicitly asks for a different number of results.",
+              "maximum": 30,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "page": {
+              "default": 0,
+              "description": "Page number starting at 0. Use this in case the user wants to see more results.",
+              "type": "integer"
+            },
+            "categories": {
+              "items": {
+                "enum": [
+                  "viewpoint",
+                  "trail",
+                  "summit",
+                  "waterfall",
+                  "lake",
+                  "river",
+                  "beach",
+                  "forest",
+                  "cave",
+                  "gorge",
+                  "canyon",
+                  "mountain_pass",
+                  "volcano",
+                  "other_natural",
+                  "natural_monument",
+                  "castle",
+                  "historical_site",
+                  "religious_building",
+                  "man_made_monument",
+                  "cafe",
+                  "pub",
+                  "restaurant",
+                  "hut",
+                  "facilities",
+                  "parking",
+                  "bridge",
+                  "settlement",
+                  "other_man_made",
+                  "cycle_way",
+                  "mtb_park",
+                  "climb"
+                ],
+                "type": "string"
+              },
+              "type": "array",
+              "default": null,
+              "description": "List of highlight categories to filter highlights. Available options: \"viewpoint\", \"trail\", \"summit\", \"waterfall\", \"lake\", \"river\", \"beach\", \"forest\", \"cave\", \"gorge\", \"canyon\", \"mountain_pass\", \"volcano\", \"other_natural\", \"natural_monument\", \"castle\", \"historical_site\", \"religious_building\", \"man_made_monument\", \"cafe\", \"pub\", \"restaurant\", \"hut\", \"facilities\", \"parking\", \"bridge\", \"settlement\", \"other_man_made\", \"cycle_way\", \"mtb_park\", \"climb\""
+            }
+          },
+          "required": [
+            "location_name"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Find Highlights by Location",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://widget/highlights-map.html",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          },
+          "_fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "find_highlights_along_route",
+        "title": "Find Highlights Along Route",
+        "description": "Discover community highlights that sit along a specific komoot route, ordered from the start of the route to the end.\n\nAnchors highlights to one route, so the caller can answer 'what will I see on this route' with confidence. Use it when the user supplies a komoot route id, or a route returned by find_routes_by_location. For highlights around a place, use find_highlights_by_location instead. It does not plan point-to-point routes and does not provide directions.\n\nFilters: corridor_meters (maximum distance from the route for a highlight to count as along it, 100-2000, default 500), sport (hike, jogging, touringbicycle, racebike, mtb, mtb_easy) and categories (viewpoint, trail, summit, waterfall, lake, river, beach, forest, cave, gorge, canyon, mountain_pass, volcano, castle, historical_site, cafe, pub, restaurant, hut, and more).\n\nReturns up to `limit` highlights with name, category, distance along the route, offset from the route, elevation gain, and a komoot link, both as text and as structured content. When the host renders the widget it already shows these results, so do not list them again; summarize in at most 3 sentences and offer to refine the search.",
+        "inputSchema": {
+          "properties": {
+            "tour_id": {
+              "description": "komoot route/tour id to find highlights along; the same id accepted by get_route_details.",
+              "type": "string"
+            },
+            "corridor_meters": {
+              "default": 500,
+              "description": "Maximum lateral distance from the route, in meters, for a highlight to count as along the route. Defaults to 500.",
+              "maximum": 2000,
+              "minimum": 100,
+              "type": "integer"
+            },
+            "sport": {
+              "description": "Type of sport/activity. Preferred values: \"hike\", \"jogging\", \"touringbicycle\", \"racebike\", \"mtb\", \"mtb_easy\" (for gravel biking). If unspecified or null, defaults to the route's sport when known, otherwise \"hike\". Natural-language values such as \"cycling\", \"running\", or \"gravel\" are accepted and normalized.",
+              "enum": [
+                "hike",
+                "jogging",
+                "touringbicycle",
+                "racebike",
+                "mtb",
+                "mtb_easy"
+              ],
+              "type": "string",
+              "default": null
+            },
+            "categories": {
+              "items": {
+                "enum": [
+                  "viewpoint",
+                  "trail",
+                  "summit",
+                  "waterfall",
+                  "lake",
+                  "river",
+                  "beach",
+                  "forest",
+                  "cave",
+                  "gorge",
+                  "canyon",
+                  "mountain_pass",
+                  "volcano",
+                  "other_natural",
+                  "natural_monument",
+                  "castle",
+                  "historical_site",
+                  "religious_building",
+                  "man_made_monument",
+                  "cafe",
+                  "pub",
+                  "restaurant",
+                  "hut",
+                  "facilities",
+                  "parking",
+                  "bridge",
+                  "settlement",
+                  "other_man_made",
+                  "cycle_way",
+                  "mtb_park",
+                  "climb"
+                ],
+                "type": "string"
+              },
+              "type": "array",
+              "default": null,
+              "description": "List of highlight categories to filter highlights. Available options: \"viewpoint\", \"trail\", \"summit\", \"waterfall\", \"lake\", \"river\", \"beach\", \"forest\", \"cave\", \"gorge\", \"canyon\", \"mountain_pass\", \"volcano\", \"other_natural\", \"natural_monument\", \"castle\", \"historical_site\", \"religious_building\", \"man_made_monument\", \"cafe\", \"pub\", \"restaurant\", \"hut\", \"facilities\", \"parking\", \"bridge\", \"settlement\", \"other_man_made\", \"cycle_way\", \"mtb_park\", \"climb\""
+            },
+            "limit": {
+              "default": 10,
+              "description": "Number of highlights to return, between 1 and 30. By default it's 10, keep the default value unless the user explicitly asks for a different number of results.",
+              "maximum": 30,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "language": {
+              "type": "string",
+              "default": null,
+              "description": "Optional language for highlight names and descriptions as a BCP 47 or ISO 639-1 code (e.g. \"de-DE\", \"it\"). Defaults to the caller locale when available, otherwise English."
+            }
+          },
+          "required": [
+            "tour_id"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Find Highlights Along Route",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://widget/highlights-map.html",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          },
+          "_fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "export_gpx",
+        "title": "Export Route as GPX",
+        "description": "Export a komoot route as a GPX file. Pass the route id from find_routes_by_location; returns a download link to the route's GPX track (geometry with elevation; timestamps for recorded activities), both as text and as structured content. Read-only. When the host renders the export card it already shows the file name and links, so do not repeat them; briefly confirm the file is ready to download or share.",
+        "inputSchema": {
+          "properties": {
+            "route_id": {
+              "description": "Route id returned by find_routes_by_location.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "route_id"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Export Route as GPX",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://widget/export-gpx.html",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          },
+          "_fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "get_route_details",
+        "title": "Get Route Details",
+        "description": "Get detailed metadata for a single komoot route by id: sport, difficulty, distance, duration, elevation gain/loss, surface and way-type breakdown, rating, visitor count, cover image, plus a GPX download link. Pass a route id returned by find_routes_by_location. Read-only.",
+        "inputSchema": {
+          "properties": {
+            "route_id": {
+              "description": "Route id returned by find_routes_by_location.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "route_id"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get Route Details",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "_fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "get_highlight_details",
+        "title": "Get Highlight Details",
+        "description": "Get detailed metadata for a single komoot highlight (point of interest) by id: category, description, distance, elevation gain/loss, score, access warnings, cover image and a gallery, plus coordinates and a komoot link. Pass a highlight id returned by find_highlights_by_location. Read-only.",
+        "inputSchema": {
+          "properties": {
+            "highlight_id": {
+              "description": "Highlight id returned by find_highlights_by_location.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "highlight_id"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get Highlight Details",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "_fastmcp": {
+            "tags": []
+          }
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:54:49.744Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:54:50.794Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:54:51.845Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:54:52.896Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 7,
+    "tools_hash": "sha256:bd8e1c714dcf70cf90fcb902c6198ac156e5129dc6d9d59e0cc06edd56917dba",
+    "static_tool_tokens": 9437,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "find_routes_by_location",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "find_routes_by_location",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "find_routes_near_coordinates",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "find_routes_near_coordinates",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F8",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "find_highlights_by_location",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "find_highlights_by_location",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F10",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "find_highlights_along_route",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "find_highlights_along_route",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "export_gpx",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_route_details",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_route_details",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_highlight_details",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_highlight_details",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 9,
+      "warning": 4
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "find_routes_by_location",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Number of items per page, must be between 1 and 30. By default it's 10, keep the default value unless the user explicitly asks for a different number of results.",
+          "mentions_size_or_cost": true,
+          "default": 10,
+          "maximum": 30
+        },
+        {
+          "tool": "find_routes_by_location",
+          "path": "inputSchema.properties.max_duration",
+          "name": "max_duration",
+          "description": "Maximum duration in seconds. If the user specifies in minutes, multiply by 60. If in hours, multiply by 3600. When the user asks for hikes 'of X hours/minutes' without specifying min/max, set this to the specified duration to find tours up to that length of time.",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "find_routes_by_location",
+          "path": "inputSchema.properties.max_length",
+          "name": "max_length",
+          "description": "Maximum length in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. When the user asks for hikes 'of X km/miles' without specifying min/max, set this to the specified length to find tours up to that distance.",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "find_routes_by_location",
+          "path": "inputSchema.properties.max_uphill",
+          "name": "max_uphill",
+          "description": "Maximum uphill in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. When the user asks for hikes 'with X meters/feet elevation' without specifying min/max, set this to the specified elevation to find tours up to that elevation gain.",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "find_routes_near_coordinates",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Number of items per page, must be between 1 and 30. By default it's 10, keep the default value unless the user explicitly asks for a different number of results.",
+          "mentions_size_or_cost": true,
+          "default": 10,
+          "maximum": 30
+        },
+        {
+          "tool": "find_routes_near_coordinates",
+          "path": "inputSchema.properties.max_duration",
+          "name": "max_duration",
+          "description": "Maximum duration in seconds. If the user specifies in minutes, multiply by 60. If in hours, multiply by 3600. When the user asks for hikes 'of X hours/minutes' without specifying min/max, set this to the specified duration to find tours up to that length of time.",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "find_routes_near_coordinates",
+          "path": "inputSchema.properties.max_length",
+          "name": "max_length",
+          "description": "Maximum length in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. When the user asks for hikes 'of X km/miles' without specifying min/max, set this to the specified length to find tours up to that distance.",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "find_routes_near_coordinates",
+          "path": "inputSchema.properties.max_uphill",
+          "name": "max_uphill",
+          "description": "Maximum uphill in meters. If the user specifies in kilometers, multiply by 1000. If in miles, multiply by 1609. When the user asks for hikes 'with X meters/feet elevation' without specifying min/max, set this to the specified elevation to find tours up to that elevation gain.",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "find_highlights_by_location",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Number of items per page, must be between 1 and 30. By default it's 10, keep the default value unless the user explicitly asks for a different number of results.",
+          "mentions_size_or_cost": true,
+          "default": 10,
+          "maximum": 30
+        },
+        {
+          "tool": "find_highlights_along_route",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Number of highlights to return, between 1 and 30. By default it's 10, keep the default value unless the user explicitly asks for a different number of results.",
+          "mentions_size_or_cost": true,
+          "default": 10,
+          "maximum": 30
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "export_gpx"
+          ],
+          "description": "Export a komoot route as a GPX file. Pass the route id from find_routes_by_location; returns a download link to the route's GPX track (geometry with elevation; timestamps for recorded activities), both as text and as structured content. Read-only. When the host renders the export card it already shows the file name and links, so do not repeat them; briefly confirm the file is ready to download or share.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "find_routes_by_location",
+            "find_highlights_by_location"
+          ],
+          "hypothesis": "Read tools share resource terms (location), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "find_routes_near_coordinates",
+            "find_highlights_along_route"
+          ],
+          "hypothesis": "Read tools share resource terms (route), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "find_routes_near_coordinates",
+            "get_route_details"
+          ],
+          "hypothesis": "Read tools share resource terms (route), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "find_highlights_along_route",
+            "get_route_details"
+          ],
+          "hypothesis": "Read tools share resource terms (route), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "find_highlights_along_route",
+            "get_highlight_details"
+          ],
+          "hypothesis": "Read tools share resource terms (highlight), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_route_details",
+            "get_highlight_details"
+          ],
+          "hypothesis": "Read tools share resource terms (detail), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "find_routes_by_location",
+      "find_routes_near_coordinates",
+      "find_highlights_by_location",
+      "find_highlights_along_route",
+      "export_gpx",
+      "get_route_details",
+      "get_highlight_details"
+    ]
+  }
+}

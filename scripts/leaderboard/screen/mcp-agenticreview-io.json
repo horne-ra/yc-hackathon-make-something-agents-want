@@ -1,0 +1,2560 @@
+{
+  "slug": "mcp-agenticreview-io",
+  "source_url": "https://manufact.com/mcp-catalog/mcp-agenticreview-io",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:26:11.258Z",
+    "endpoint": "https://mcp.agenticreview.io/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "agentic-review",
+      "version": "4.1.0"
+    },
+    "capabilities": {
+      "logging": {},
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "subscribe": false,
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Agentic Review finds restaurants and returns review summaries written for the\nperson asking, and lets a verified human write and manage their own reviews.\n\nEvery tool takes an `agent_token`. Call `register_agent` once with a stable\n`client_agent_key` to get one; it is idempotent, so reuse the same key rather\nthan registering again. Reads work immediately. Writing a review additionally\nrequires the human owner to sign in with Google: send them the URL from\n`get_human_verification_url`, then check `get_agent_status` until `can_write`\nis true.\n\nChoosing a discovery tool:\n- \"where should I eat in X?\" -> `search_entities_by_location`\n- \"what is <named place> like?\" -> `search_entity_by_name`\n- facts only (address, rating, cuisines) -> `get_entity_details`\n\n`search_entities_by_location` takes TWO calls. The first returns\n`status: \"awaiting_opinion\"` with a `pending_id` and a question about the\nuser's tastes; it does NOT return recommendations. Ask the user that question,\nend your turn, and when they reply call the tool again with only\n`agent_token`, `pending_id` and `opinion` (their words; \"no opinion\" is fine).\nThe recommendations come back on that second call. The `pending_id` works once,\nfor about 15 minutes. `search_entity_by_name` answers in a single call.\n\nFor a neighbourhood or \"near me\", pass `lat`/`lng` (+ optional `radius_m`);\n`city` is matched exactly against the stored municipality, so a borough or\ndistrict passed as `city` will not match.\n\nBoth discovery tools already return personalized summaries — there is no\nseparate step to fetch reviews, and raw review text is never returned.\n\nSide effects to be aware of. The discovery tools are not purely read-only:\nwhat the user says about their tastes, and any `known_places` they name, are\nstored as private profile data that shapes their later searches. Re-calling\n`register_agent` for an existing `client_agent_key` overwrites that agent's\nstored description and persona. `update_review` replaces the review text in\nplace and the previous wording is not recoverable, so confirm with the user\nbefore editing. `delete_review` removes their review.\n\nErrors are typed. `AMBIGUOUS_ENTITY` means several branches matched: show the\nuser the `candidates` list and ask which one, then retry with that\n`entity_id` — never guess. `ENTITY_NOT_FOUND` means no such place or no\ncoverage; say so rather than inventing one. `HUMAN_NOT_VERIFIED` (403) means\nthe write needs Google verification first. `INVALID_TOKEN` (401) means\nre-register.\n",
+    "pages": [
+      {
+        "tools": [
+          {
+            "_meta": {
+              "openai/outputTemplate": "ui://agentic-review/restaurant-map.html",
+              "openai/toolInvocation/invoking": "Finding places and reading reviews…",
+              "openai/toolInvocation/invoked": "Recommendations ready",
+              "ui": {
+                "resourceUri": "ui://agentic-review/restaurant-map.html"
+              },
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "readOnlyHint": false
+            },
+            "description": "Recommend places near a location, personalized to the requesting agent.\n\nSearches for reviewable entities and returns, for every place it could\nassess, an AI-generated summary of its reviews written for your persona,\nplus a `rank`, a one-line `why`, and an overall `verdict` telling the\nuser which to pick. This is the complete recommendation - there is no\nseparate \"get the reviews\" step to call afterwards, and raw review text\nis never returned. Hosts that support it show the result on a map.",
+            "inputSchema": {
+              "properties": {
+                "agent_token": {
+                  "type": "string"
+                },
+                "city": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "country": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "lat": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "lng": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "radius_m": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "postal_code_or_address": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "type": {
+                  "default": "restaurant",
+                  "type": "string"
+                },
+                "cuisines": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "query": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "limit": {
+                  "default": 10,
+                  "type": "integer"
+                },
+                "review_focus": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "known_places": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "description": "A place the user already knows, passed as `known_places`.",
+                        "properties": {
+                          "name": {
+                            "description": "The place's name, as the user said it.",
+                            "type": "string"
+                          },
+                          "city": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Its city, if known."
+                          },
+                          "verdict": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "'good' or 'bad'."
+                          },
+                          "rating": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Optional 1-5."
+                          },
+                          "opinion": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "A sentence in the user's words."
+                          },
+                          "cuisine": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "The cuisine this place is an example of, e.g. 'italian'. Omit if unsure - it then defaults to the cuisine of the current search."
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "pending_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "opinion": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "agent_token"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "search_entities_by_location",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Search Entities By Location"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "readOnlyHint": false
+            },
+            "description": "Personalized feedback on ONE specific named place.\n\nGive the restaurant's `name` and its `city` (+ `country` — \"UK\", \"USA\",\n\"Germany\", \"Canada\" — when you know it). Returns an AI-generated\nwrite-up of that one restaurant's reviews, written for your persona —\nnever raw review text, and never a generic review.",
+            "inputSchema": {
+              "properties": {
+                "agent_token": {
+                  "type": "string"
+                },
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "city": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "country": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "lat": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "lng": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "entity_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "query": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "review_focus": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "known_places": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "description": "A place the user already knows, passed as `known_places`.",
+                        "properties": {
+                          "name": {
+                            "description": "The place's name, as the user said it.",
+                            "type": "string"
+                          },
+                          "city": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Its city, if known."
+                          },
+                          "verdict": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "'good' or 'bad'."
+                          },
+                          "rating": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Optional 1-5."
+                          },
+                          "opinion": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "A sentence in the user's words."
+                          },
+                          "cuisine": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "The cuisine this place is an example of, e.g. 'italian'. Omit if unsure - it then defaults to the cuisine of the current search."
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "agent_token"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "search_entity_by_name",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Search Entity By Name"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Return full factual details for one entity, including its meta_data.\n\nFacts only (name, rating, cuisines, location) — for anything about what\npeople actually say, use `search_entity_by_name`.",
+            "inputSchema": {
+              "properties": {
+                "agent_token": {
+                  "type": "string"
+                },
+                "entity_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "agent_token",
+                "entity_id"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_entity_details",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Entity Details"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "readOnlyHint": false
+            },
+            "description": "Create a new review. Requires the agent's human owner to be VERIFIED.\nOne active review per entity per human (across all of that human's\nagents), enforced both here and by a DB unique index.",
+            "inputSchema": {
+              "properties": {
+                "agent_token": {
+                  "type": "string"
+                },
+                "entity_id": {
+                  "type": "string"
+                },
+                "rating": {
+                  "type": "integer"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": "string"
+                },
+                "review_tags": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "agent_token",
+                "entity_id",
+                "rating",
+                "title",
+                "content"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "write_review",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Write Review"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": false
+            },
+            "description": "Update your own review. Requires VERIFIED human owner.\n\nIdentify the entity by `entity_id` (if you still have it from this\nsession) OR by `entity_name` (+ optional `city` to disambiguate,\ne.g. two branches of the same chain) — you never need to remember a\nreview_id. If `entity_name` matches more than one entity you'll get\nan AMBIGUOUS_ENTITY error asking you to add `city` or use\nsearch_entity_by_name first.\n\n\"Your own\" means your human owner's: any agent belonging to the same\nverified human can update that human's review, not just the agent that\noriginally wrote it.",
+            "inputSchema": {
+              "properties": {
+                "agent_token": {
+                  "type": "string"
+                },
+                "entity_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "entity_name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "city": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "rating": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "title": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "content": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "review_tags": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "change_reason": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "agent_token"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "update_review",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Update Review"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": false
+            },
+            "description": "Soft-delete your own review. Requires VERIFIED human owner.\n\nIdentify the entity by `entity_id` OR by `entity_name` (+ optional\n`city` to disambiguate) — same lookup rules as update_review.\n\n\"Your own\" means your human owner's: any agent belonging to the same\nverified human can delete that human's review, not just the agent that\noriginally wrote it.",
+            "inputSchema": {
+              "properties": {
+                "agent_token": {
+                  "type": "string"
+                },
+                "entity_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "entity_name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "city": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "agent_token"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "delete_review",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Delete Review"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": false
+            },
+            "description": "Register (or re-register) an AI agent. Idempotent on `client_agent_key`:\na stable identifier YOU generate once and persist for this specific agent\ninstance (e.g. a UUID stored alongside your local config). Calling this\nagain with the same `client_agent_key` returns the SAME agent — it never\ncreates a duplicate — and refreshes agent_type/description on the\nexisting row.\n\n`agent_type`: LLM_ASSISTANT (a chat assistant such as Claude or\nChatGPT), ML_AGENT, WORKFLOW_AGENT or CUSTOM. Optional, and free text\nis mapped onto those values rather than rejected: a new agent\ndefaults to LLM_ASSISTANT, re-registering without it keeps the stored\ntype, and the stored value is echoed back as `agent_type`.\n\n`agent_name` is optional and free-text (a short neutral label, not a\ndescription) — if omitted on first registration, a random neutral id\nis generated for you (e.g. `agent-a1b2c3d4e5`). If omitted on a\nre-registration, your previously stored name is left unchanged.\n\nNo human owner is created at registration. Reads work immediately with\nthe returned `agent_token`; call `get_human_verification_url` next to\nlink a real, Google-verified human before writing.\n\n`persona` is shared at this handshake and used to personalize review\nsummaries, e.g. {\"base_model\": \"gpt-4o\", \"tone\": \"concise\", \"style\": [\"direct\"]}.\nIf omitted (or if the previously stored persona is older than the\nconfigured retention window, default 1 day), the client will be asked\nto provide one via MCP elicitation before a token is issued.\nReturns `agent_id` and a long-lived `agent_token` (bearer credential —\nstore it securely; re-running `register_agent` with the same\n`client_agent_key` is the supported way to recover it).",
+            "inputSchema": {
+              "properties": {
+                "client_agent_key": {
+                  "type": "string"
+                },
+                "agent_type": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "One of LLM_ASSISTANT (chat assistants such as Claude or ChatGPT — the default), ML_AGENT, WORKFLOW_AGENT, CUSTOM. Free text is accepted and mapped (e.g. 'Claude assistant' -> LLM_ASSISTANT)."
+                },
+                "agent_name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "persona": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                },
+                "description": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "client_agent_key"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "register_agent",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Register Agent"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "readOnlyHint": true
+            },
+            "description": "Return a Google OAuth consent URL to verify this agent's human owner.",
+            "inputSchema": {
+              "properties": {
+                "agent_token": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "agent_token"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_human_verification_url",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Human Verification Url"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Return the agent's current status and its human owner's verification\nstatus, re-resolved fresh from the database.",
+            "inputSchema": {
+              "properties": {
+                "agent_token": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "agent_token"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_agent_status",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Agent Status"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Return this agent's stats, persona, verification status, and the\nknown-place opinions it has shared.\n\n`known_place_opinions` are the places you told us you already know (via\nthe optional prompt during a recommendation search). They are profile\ndata used to personalize results, NOT reviews — they are never published\nand never affect any restaurant's rating.",
+            "inputSchema": {
+              "properties": {
+                "agent_token": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "agent_token"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_agent_profile",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Agent Profile"
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "_meta": {
+          "openai/outputTemplate": "ui://agentic-review/restaurant-map.html",
+          "openai/toolInvocation/invoking": "Finding places and reading reviews…",
+          "openai/toolInvocation/invoked": "Recommendations ready",
+          "ui": {
+            "resourceUri": "ui://agentic-review/restaurant-map.html"
+          },
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "readOnlyHint": false
+        },
+        "description": "Recommend places near a location, personalized to the requesting agent.\n\nSearches for reviewable entities and returns, for every place it could\nassess, an AI-generated summary of its reviews written for your persona,\nplus a `rank`, a one-line `why`, and an overall `verdict` telling the\nuser which to pick. This is the complete recommendation - there is no\nseparate \"get the reviews\" step to call afterwards, and raw review text\nis never returned. Hosts that support it show the result on a map.",
+        "inputSchema": {
+          "properties": {
+            "agent_token": {
+              "type": "string"
+            },
+            "city": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "country": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "lat": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "lng": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "radius_m": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "postal_code_or_address": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "type": {
+              "default": "restaurant",
+              "type": "string"
+            },
+            "cuisines": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "query": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "limit": {
+              "default": 10,
+              "type": "integer"
+            },
+            "review_focus": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "known_places": {
+              "anyOf": [
+                {
+                  "items": {
+                    "description": "A place the user already knows, passed as `known_places`.",
+                    "properties": {
+                      "name": {
+                        "description": "The place's name, as the user said it.",
+                        "type": "string"
+                      },
+                      "city": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Its city, if known."
+                      },
+                      "verdict": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "'good' or 'bad'."
+                      },
+                      "rating": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Optional 1-5."
+                      },
+                      "opinion": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "A sentence in the user's words."
+                      },
+                      "cuisine": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "The cuisine this place is an example of, e.g. 'italian'. Omit if unsure - it then defaults to the cuisine of the current search."
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "pending_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "opinion": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "agent_token"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "search_entities_by_location",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Search Entities By Location"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "readOnlyHint": false
+        },
+        "description": "Personalized feedback on ONE specific named place.\n\nGive the restaurant's `name` and its `city` (+ `country` — \"UK\", \"USA\",\n\"Germany\", \"Canada\" — when you know it). Returns an AI-generated\nwrite-up of that one restaurant's reviews, written for your persona —\nnever raw review text, and never a generic review.",
+        "inputSchema": {
+          "properties": {
+            "agent_token": {
+              "type": "string"
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "city": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "country": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "lat": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "lng": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "entity_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "query": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "review_focus": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "known_places": {
+              "anyOf": [
+                {
+                  "items": {
+                    "description": "A place the user already knows, passed as `known_places`.",
+                    "properties": {
+                      "name": {
+                        "description": "The place's name, as the user said it.",
+                        "type": "string"
+                      },
+                      "city": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Its city, if known."
+                      },
+                      "verdict": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "'good' or 'bad'."
+                      },
+                      "rating": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Optional 1-5."
+                      },
+                      "opinion": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "A sentence in the user's words."
+                      },
+                      "cuisine": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "The cuisine this place is an example of, e.g. 'italian'. Omit if unsure - it then defaults to the cuisine of the current search."
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "agent_token"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "search_entity_by_name",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Search Entity By Name"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Return full factual details for one entity, including its meta_data.\n\nFacts only (name, rating, cuisines, location) — for anything about what\npeople actually say, use `search_entity_by_name`.",
+        "inputSchema": {
+          "properties": {
+            "agent_token": {
+              "type": "string"
+            },
+            "entity_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "agent_token",
+            "entity_id"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_entity_details",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Entity Details"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false
+        },
+        "description": "Create a new review. Requires the agent's human owner to be VERIFIED.\nOne active review per entity per human (across all of that human's\nagents), enforced both here and by a DB unique index.",
+        "inputSchema": {
+          "properties": {
+            "agent_token": {
+              "type": "string"
+            },
+            "entity_id": {
+              "type": "string"
+            },
+            "rating": {
+              "type": "integer"
+            },
+            "title": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            },
+            "review_tags": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "agent_token",
+            "entity_id",
+            "rating",
+            "title",
+            "content"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "write_review",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Write Review"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": false
+        },
+        "description": "Update your own review. Requires VERIFIED human owner.\n\nIdentify the entity by `entity_id` (if you still have it from this\nsession) OR by `entity_name` (+ optional `city` to disambiguate,\ne.g. two branches of the same chain) — you never need to remember a\nreview_id. If `entity_name` matches more than one entity you'll get\nan AMBIGUOUS_ENTITY error asking you to add `city` or use\nsearch_entity_by_name first.\n\n\"Your own\" means your human owner's: any agent belonging to the same\nverified human can update that human's review, not just the agent that\noriginally wrote it.",
+        "inputSchema": {
+          "properties": {
+            "agent_token": {
+              "type": "string"
+            },
+            "entity_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "entity_name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "city": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "rating": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "title": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "content": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "review_tags": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "change_reason": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "agent_token"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "update_review",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Update Review"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": false
+        },
+        "description": "Soft-delete your own review. Requires VERIFIED human owner.\n\nIdentify the entity by `entity_id` OR by `entity_name` (+ optional\n`city` to disambiguate) — same lookup rules as update_review.\n\n\"Your own\" means your human owner's: any agent belonging to the same\nverified human can delete that human's review, not just the agent that\noriginally wrote it.",
+        "inputSchema": {
+          "properties": {
+            "agent_token": {
+              "type": "string"
+            },
+            "entity_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "entity_name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "city": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "agent_token"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "delete_review",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Delete Review"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": false
+        },
+        "description": "Register (or re-register) an AI agent. Idempotent on `client_agent_key`:\na stable identifier YOU generate once and persist for this specific agent\ninstance (e.g. a UUID stored alongside your local config). Calling this\nagain with the same `client_agent_key` returns the SAME agent — it never\ncreates a duplicate — and refreshes agent_type/description on the\nexisting row.\n\n`agent_type`: LLM_ASSISTANT (a chat assistant such as Claude or\nChatGPT), ML_AGENT, WORKFLOW_AGENT or CUSTOM. Optional, and free text\nis mapped onto those values rather than rejected: a new agent\ndefaults to LLM_ASSISTANT, re-registering without it keeps the stored\ntype, and the stored value is echoed back as `agent_type`.\n\n`agent_name` is optional and free-text (a short neutral label, not a\ndescription) — if omitted on first registration, a random neutral id\nis generated for you (e.g. `agent-a1b2c3d4e5`). If omitted on a\nre-registration, your previously stored name is left unchanged.\n\nNo human owner is created at registration. Reads work immediately with\nthe returned `agent_token`; call `get_human_verification_url` next to\nlink a real, Google-verified human before writing.\n\n`persona` is shared at this handshake and used to personalize review\nsummaries, e.g. {\"base_model\": \"gpt-4o\", \"tone\": \"concise\", \"style\": [\"direct\"]}.\nIf omitted (or if the previously stored persona is older than the\nconfigured retention window, default 1 day), the client will be asked\nto provide one via MCP elicitation before a token is issued.\nReturns `agent_id` and a long-lived `agent_token` (bearer credential —\nstore it securely; re-running `register_agent` with the same\n`client_agent_key` is the supported way to recover it).",
+        "inputSchema": {
+          "properties": {
+            "client_agent_key": {
+              "type": "string"
+            },
+            "agent_type": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "One of LLM_ASSISTANT (chat assistants such as Claude or ChatGPT — the default), ML_AGENT, WORKFLOW_AGENT, CUSTOM. Free text is accepted and mapped (e.g. 'Claude assistant' -> LLM_ASSISTANT)."
+            },
+            "agent_name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "persona": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "description": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            }
+          },
+          "required": [
+            "client_agent_key"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "register_agent",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Register Agent"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "readOnlyHint": true
+        },
+        "description": "Return a Google OAuth consent URL to verify this agent's human owner.",
+        "inputSchema": {
+          "properties": {
+            "agent_token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "agent_token"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_human_verification_url",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Human Verification Url"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Return the agent's current status and its human owner's verification\nstatus, re-resolved fresh from the database.",
+        "inputSchema": {
+          "properties": {
+            "agent_token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "agent_token"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_agent_status",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Agent Status"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Return this agent's stats, persona, verification status, and the\nknown-place opinions it has shared.\n\n`known_place_opinions` are the places you told us you already know (via\nthe optional prompt during a recommendation search). They are profile\ndata used to personalize results, NOT reviews — they are never published\nand never affect any restaurant's rating.",
+        "inputSchema": {
+          "properties": {
+            "agent_token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "agent_token"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_agent_profile",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Agent Profile"
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:26:07.638Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:26:08.689Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:26:09.739Z"
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:26:10.791Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 10,
+    "tools_hash": "sha256:a41c4c3bb1ade254eb348240698d38ffa29f2dd39e42b50a475610dc9f21bf63",
+    "static_tool_tokens": 5106,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F2",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "search_entities_by_location",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "search_entities_by_location",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entities_by_location",
+        "message": "Parameter has no description.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entities_by_location",
+        "message": "Parameter has no description.",
+        "param": "city"
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entities_by_location",
+        "message": "Parameter has no description.",
+        "param": "country"
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entities_by_location",
+        "message": "Parameter has no description.",
+        "param": "lat"
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entities_by_location",
+        "message": "Parameter has no description.",
+        "param": "lng"
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entities_by_location",
+        "message": "Parameter has no description.",
+        "param": "radius_m"
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entities_by_location",
+        "message": "Parameter has no description.",
+        "param": "postal_code_or_address"
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entities_by_location",
+        "message": "Parameter has no description.",
+        "param": "type"
+      },
+      {
+        "id": "F13",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "search_entities_by_location",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "type"
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entities_by_location",
+        "message": "Parameter has no description.",
+        "param": "cuisines"
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entities_by_location",
+        "message": "Parameter has no description.",
+        "param": "query"
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entities_by_location",
+        "message": "Parameter has no description.",
+        "param": "limit"
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entities_by_location",
+        "message": "Parameter has no description.",
+        "param": "review_focus"
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entities_by_location",
+        "message": "Parameter has no description.",
+        "param": "known_places"
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entities_by_location",
+        "message": "Parameter has no description.",
+        "param": "pending_id"
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entities_by_location",
+        "message": "Parameter has no description.",
+        "param": "opinion"
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entity_by_name",
+        "message": "Parameter has no description.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F22",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "search_entity_by_name",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F23",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entity_by_name",
+        "message": "Parameter has no description.",
+        "param": "name"
+      },
+      {
+        "id": "F24",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entity_by_name",
+        "message": "Parameter has no description.",
+        "param": "city"
+      },
+      {
+        "id": "F25",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entity_by_name",
+        "message": "Parameter has no description.",
+        "param": "country"
+      },
+      {
+        "id": "F26",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entity_by_name",
+        "message": "Parameter has no description.",
+        "param": "lat"
+      },
+      {
+        "id": "F27",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entity_by_name",
+        "message": "Parameter has no description.",
+        "param": "lng"
+      },
+      {
+        "id": "F28",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entity_by_name",
+        "message": "Parameter has no description.",
+        "param": "entity_id"
+      },
+      {
+        "id": "F29",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entity_by_name",
+        "message": "Parameter has no description.",
+        "param": "query"
+      },
+      {
+        "id": "F30",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entity_by_name",
+        "message": "Parameter has no description.",
+        "param": "review_focus"
+      },
+      {
+        "id": "F31",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_entity_by_name",
+        "message": "Parameter has no description.",
+        "param": "known_places"
+      },
+      {
+        "id": "F32",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_entity_details",
+        "message": "Parameter has no description.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F33",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_entity_details",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F34",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_entity_details",
+        "message": "Parameter has no description.",
+        "param": "entity_id"
+      },
+      {
+        "id": "F35",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_entity_details",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "entity_id"
+      },
+      {
+        "id": "F36",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "write_review",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F37",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "write_review",
+        "message": "Parameter has no description.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F38",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "write_review",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F39",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "write_review",
+        "message": "Parameter has no description.",
+        "param": "entity_id"
+      },
+      {
+        "id": "F40",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "write_review",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "entity_id"
+      },
+      {
+        "id": "F41",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "write_review",
+        "message": "Parameter has no description.",
+        "param": "rating"
+      },
+      {
+        "id": "F42",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "write_review",
+        "message": "Parameter has no description.",
+        "param": "title"
+      },
+      {
+        "id": "F43",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "write_review",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "title"
+      },
+      {
+        "id": "F44",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "write_review",
+        "message": "Parameter has no description.",
+        "param": "content"
+      },
+      {
+        "id": "F45",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "write_review",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "content"
+      },
+      {
+        "id": "F46",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "write_review",
+        "message": "Parameter has no description.",
+        "param": "review_tags"
+      },
+      {
+        "id": "F47",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "update_review",
+        "message": "Parameter has no description.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F48",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "update_review",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F49",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "update_review",
+        "message": "Parameter has no description.",
+        "param": "entity_id"
+      },
+      {
+        "id": "F50",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "update_review",
+        "message": "Parameter has no description.",
+        "param": "entity_name"
+      },
+      {
+        "id": "F51",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "update_review",
+        "message": "Parameter has no description.",
+        "param": "city"
+      },
+      {
+        "id": "F52",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "update_review",
+        "message": "Parameter has no description.",
+        "param": "rating"
+      },
+      {
+        "id": "F53",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "update_review",
+        "message": "Parameter has no description.",
+        "param": "title"
+      },
+      {
+        "id": "F54",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "update_review",
+        "message": "Parameter has no description.",
+        "param": "content"
+      },
+      {
+        "id": "F55",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "update_review",
+        "message": "Parameter has no description.",
+        "param": "review_tags"
+      },
+      {
+        "id": "F56",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "update_review",
+        "message": "Parameter has no description.",
+        "param": "change_reason"
+      },
+      {
+        "id": "F57",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "delete_review",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F58",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "delete_review",
+        "message": "Parameter has no description.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F59",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "delete_review",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F60",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "delete_review",
+        "message": "Parameter has no description.",
+        "param": "entity_id"
+      },
+      {
+        "id": "F61",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "delete_review",
+        "message": "Parameter has no description.",
+        "param": "entity_name"
+      },
+      {
+        "id": "F62",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "delete_review",
+        "message": "Parameter has no description.",
+        "param": "city"
+      },
+      {
+        "id": "F63",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "register_agent",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F64",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "register_agent",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F65",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "register_agent",
+        "message": "Parameter has no description.",
+        "param": "client_agent_key"
+      },
+      {
+        "id": "F66",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "register_agent",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "client_agent_key"
+      },
+      {
+        "id": "F67",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "register_agent",
+        "message": "Parameter has no description.",
+        "param": "agent_name"
+      },
+      {
+        "id": "F68",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "register_agent",
+        "message": "Parameter has no description.",
+        "param": "persona"
+      },
+      {
+        "id": "F69",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "register_agent",
+        "message": "Parameter has no description.",
+        "param": "description"
+      },
+      {
+        "id": "F70",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_human_verification_url",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F71",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_human_verification_url",
+        "message": "Parameter has no description.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F72",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_human_verification_url",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F73",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_agent_status",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F74",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_agent_status",
+        "message": "Parameter has no description.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F75",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_agent_status",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F76",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_agent_profile",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F77",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_agent_profile",
+        "message": "Parameter has no description.",
+        "param": "agent_token"
+      },
+      {
+        "id": "F78",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_agent_profile",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "agent_token"
+      }
+    ],
+    "severity_counts": {
+      "high": 15,
+      "medium": 60,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_entities_by_location",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": 10
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "search_entities_by_location"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "search_entities_by_location"
+          ],
+          "description": "Recommend places near a location, personalized to the requesting agent.\n\nSearches for reviewable entities and returns, for every place it could\nassess, an AI-generated summary of its reviews written for your persona,\nplus a `rank`, a one-line `why`, and an overall `verdict` telling the\nuser which to pick. This is the complete recommendation - there is no\nseparate \"get the reviews\" step to call afterwards, and raw review text\nis never returned. Hosts that support it show the result on a map.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "write_review"
+          ],
+          "description": "Create a new review. Requires the agent's human owner to be VERIFIED.\nOne active review per entity per human (across all of that human's\nagents), enforced both here and by a DB unique index.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_agent_status",
+            "get_agent_profile"
+          ],
+          "hypothesis": "Read tools share resource terms (agent), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "get_entity_details",
+      "get_human_verification_url",
+      "get_agent_status",
+      "get_agent_profile"
+    ]
+  }
+}

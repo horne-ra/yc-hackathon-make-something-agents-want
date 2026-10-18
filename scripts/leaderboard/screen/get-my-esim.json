@@ -1,0 +1,1284 @@
+{
+  "slug": "get-my-esim",
+  "source_url": "https://manufact.com/mcp-catalog/get-my-esim",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:42:04.652Z",
+    "endpoint": "https://mcp.getmyesim.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "getmyesim-mcp",
+      "version": "1.0.1"
+    },
+    "capabilities": {
+      "resources": {},
+      "tools": {},
+      "extensions": {
+        "io.modelcontextprotocol/ui": {}
+      }
+    },
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "get_esim_plans",
+            "description": "Search eSIM plans for travel destinations. Returns top quality-ranked plans by default. WORKFLOW (2 steps): 1) Read resource 'getmyesim://zones/all' to find zone slugs for destinations (e.g., 'Japan' → 'japan', 'France' → 'france'). 2) Call this tool with the zone slugs found. For multi-destination trips (Paris, Rome, Berlin), use all country slugs: ['france', 'italy', 'germany']. REQUIRED: zoneSlugs (from zones resource - don't guess, look them up first). OPTIONAL FILTERS: validityMin is the minimum trip length in days (e.g., 7 means plans valid for at least 7 days), dataSizeMin is the minimum data allowance in MB (e.g., 10000 for at least 10GB), priceMax is the maximum budget in the selected currency, currencyCode defaults to USD, and sortBy defaults to 'most_relevant'. DATA USAGE MAPPING: When the user gives a usage level, convert it to dataSizeMin based on trip length: light=500MB/day, moderate=1500MB/day, heavy=3000MB/day, very heavy/streaming/hotspot/remote work/navigation all day=5000MB/day. Use dataSizeMin = daily MB times trip days, rounded up. If trip length is unknown, ask for it or use default recommendations first. Do not infer exact/max duration or max data requirements from user phrasing; prefer lower-bound filters for trip length and data needs. With the default 'most_relevant' sort, recommendations are curated by Get My eSIM scoring across data-size tiers: without a data requirement, results usually include top plans from multiple data tiers; with dataSizeMin, only plans with at least that much data are considered, and results may include both the matching tier and higher-data tiers. If the user only gives a destination, call this tool with default filters and provide recommendations, then ask one brief follow-up question to personalize results. Prefer asking for trip length and expected data usage (light, moderate, heavy, or very heavy); optionally ask about budget, hotspot/5G, calls, or SMS needs. MUST UPDATE RESULTS ON FOLLOW-UP REFINEMENTS: If plans were already shown and the user adds or changes trip length/validity, data needs, budget, currency, 5G, hotspot/tethering, calls/SMS, top-up, KYC, provider, sort order, or any other filter, always call this tool again with the same zoneSlugs and updated filters to get more targeted results before recommending plans. Do not merely repeat, summarize, or choose from the plans already visible on screen when the user's constraints changed. Returns plans with pricing, data, validity, provider ratings, features, and purchase links.",
+            "inputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "zoneSlugs": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "REQUIRED. Array of destination zone slugs in kebab-case (e.g., [\"japan\", \"france\", \"italy\"]). Look these up from getmyesim://zones/all resource - each destination name maps to a slug (e.g., \"Japan\" → \"japan\", \"France\" → \"france\"). For multi-destination trips, include all countries individually (e.g., Paris + Rome + Berlin → [\"france\", \"italy\", \"germany\"])."
+                },
+                "currencyCode": {
+                  "default": "USD",
+                  "description": "Currency code for pricing in ISO 4217 format (3 uppercase letters). Examples: 'USD', 'EUR', 'GBP', 'JPY'. Defaults to USD. Supported codes are available from the currencies reference data.",
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 3,
+                  "pattern": "^[A-Z]+$"
+                },
+                "validityMin": {
+                  "default": null,
+                  "description": "RECOMMENDED. Minimum validity period in days. Use this to match the user's trip duration (e.g., 7 for a week, 14 for two weeks, 30 for a month). Combine with dataSizeMin for best results. Plans with at least this many days of validity will be shown. Use -1 to filter for unlimited validity only. Leave null for no minimum. Common values: 7 (1 week), 14 (2 weeks), 30 (1 month), 90 (3 months).",
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -1,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "dataSizeMin": {
+                  "default": null,
+                  "description": "RECOMMENDED. Minimum data size in megabytes (MB, decimal: 1GB = 1000MB). Use this to match the user's minimum data requirement. Plans with at least this amount of data will be shown. Using dataSizeMin with validityMin provides the most targeted results. Examples: 1000 (1GB), 3000 (3GB), 5000 (5GB), 10000 (10GB), 20000 (20GB). Use -1 to filter for unlimited data only. Leave null for no minimum.",
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -1,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "isCheapestCurrency": {
+                  "default": null,
+                  "description": "Leave null (recommended for typical use). Advanced: Toggle to use the cheapest currency for each plan. When enabled, shows the best converted price across all currencies the provider offers. Example: If a plan costs 10 USD (8.50 EUR), 8 EUR, or 1,200 JPY (6.90 EUR), enabling this shows 6.90 EUR (the cheapest option) instead of 8 EUR (your local currency price). Only use if explicitly requested by the user for multi-currency price optimization.",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "priceMax": {
+                  "default": null,
+                  "description": "Maximum price in the specified currency. Leave null for no maximum.",
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "ratingMin": {
+                  "default": null,
+                  "description": "Minimum provider rating (1.0 to 5.0). When set, show plans from providers with this rating or higher, plus mobile carriers. Leave null for no rating-based filtering.",
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 1,
+                      "maximum": 5
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "mobileCarriersOnly": {
+                  "default": null,
+                  "description": "Set to true to only show mobile carriers. When true, this takes precedence over ratingMin. Leave null or false to show all providers.",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "providerSlugs": {
+                  "default": null,
+                  "description": "Filter by provider slugs (e.g.: [\"airalo\", \"holafly\"]). Array of provider slugs in kebab-case. Leave null to show all providers.",
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "hasTethering": {
+                  "default": null,
+                  "description": "Filter for tethering/hotspot support. Set to true to only show plans that support tethering. Leave null to show all plans.",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "has5G": {
+                  "default": null,
+                  "description": "Filter for 5G network support. Set to true to only show 5G-capable plans. Leave null to show all plans.",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "hasCalls": {
+                  "default": null,
+                  "description": "Filter for voice calling support. Set to true to only show plans that include voice calls. Leave null to show all plans.",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "hasSms": {
+                  "default": null,
+                  "description": "Filter for SMS/text messaging support. Set to true to only show plans that include SMS. Leave null to show all plans.",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "canTopUp": {
+                  "default": null,
+                  "description": "Filter for top-up capability. Set to true to only show plans that can be topped up with additional data. Leave null to show all plans.",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "hasKyc": {
+                  "default": null,
+                  "description": "Filter for KYC (Know Your Customer) requirement. Set to false to exclude plans requiring identity verification (usually preferred to avoid KYC hassle). Leave null to show all plans.",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "hasDailyDataCap": {
+                  "default": null,
+                  "description": "Filter for daily data cap. Set to false for plans without daily caps. Leave null to show all plans.",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "hasRecurringBilling": {
+                  "default": null,
+                  "description": "Filter for plans with recurring billing (auto-renewing subscriptions). Set to false for one-time purchase plans. Leave null to show all plans.",
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "sortBy": {
+                  "default": null,
+                  "description": "Sort order for results. IMPORTANT: Keep 'most_relevant' (default) unless user explicitly requests a different sort. Use filters (dataSizeMin, validityMin) for requirements.\n\nOptions:\n- null or 'most_relevant' (DEFAULT): Recommended overall based on price, data, validity, and quality. Use this whenever the user asks for the 'best', 'best value', or recommended plans. KEEP THIS unless user explicitly asks for a different sort.\n- 'cheapest': Lowest price first. ONLY when explicitly asked for 'cheapest' or 'lowest price'.\n- 'lowest_price_per_gb': Lowest calculated price per GB. ONLY when explicitly asked to compare price per GB. This is not the overall 'best' or recommended sort.\n- 'most_data': Largest data first. ONLY when explicitly asked for 'most data' or 'largest data'.\n- 'longest_validity': Longest duration first. ONLY when explicitly asked for longest validity.\n- 'shortest_validity': Shortest duration first. ONLY when explicitly asked for shortest validity.\n\nUSAGE GUIDANCE:\n- Heavy/light user? → Use dataSizeMin filter (e.g., 10000 for 10GB), keep sortBy='most_relevant'\n- Long/short trip? → Use validityMin filter, keep sortBy='most_relevant'\n- Best plans? → Use sortBy='most_relevant' (default)\n- Change sortBy ONLY when user explicitly requests a specific sort order.",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "most_relevant",
+                        "cheapest",
+                        "lowest_price_per_gb",
+                        "most_data",
+                        "shortest_validity",
+                        "longest_validity"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "zoneSlugs",
+                "currencyCode"
+              ],
+              "additionalProperties": false
+            },
+            "outputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "plans": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "provider": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "slug"
+                        ],
+                        "additionalProperties": {}
+                      },
+                      "priceInfo": {
+                        "type": "object",
+                        "properties": {
+                          "requestedCurrency": {
+                            "type": "object",
+                            "properties": {
+                              "price": {
+                                "type": "number"
+                              },
+                              "currencyCode": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "price",
+                              "currencyCode"
+                            ],
+                            "additionalProperties": {}
+                          }
+                        },
+                        "required": [
+                          "requestedCurrency"
+                        ],
+                        "additionalProperties": {}
+                      },
+                      "dataSizeHighSpeed": {
+                        "type": "number",
+                        "description": "High-speed data allowance in MB. -1 means unlimited."
+                      },
+                      "dataCap": {
+                        "description": "Recurring high-speed data cap in MB, or null when uncapped.",
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "dataCapPer": {
+                        "description": "Period for dataCap, such as day or month, or null.",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "validityValue": {
+                        "type": "number"
+                      },
+                      "validityUnit": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "coverages": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "country": {
+                              "type": "object",
+                              "properties": {
+                                "slug": {
+                                  "type": "string"
+                                },
+                                "code": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "emoji": {
+                                  "type": "string"
+                                },
+                                "popularityRank": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "slug",
+                                "code",
+                                "name",
+                                "emoji",
+                                "popularityRank"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "region": {
+                              "type": "object",
+                              "properties": {
+                                "slug": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "emoji": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "slug",
+                                "name",
+                                "emoji"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "has5G": {
+                              "type": [
+                                "boolean",
+                                "null"
+                              ]
+                            },
+                            "networkRankMax": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "networkRankMin": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "networks": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "slug": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "rank": {
+                                    "type": "number"
+                                  },
+                                  "has5G": {
+                                    "type": [
+                                      "boolean",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "slug",
+                                  "name",
+                                  "rank",
+                                  "has5G"
+                                ],
+                                "additionalProperties": false
+                              }
+                            }
+                          },
+                          "required": [
+                            "country",
+                            "region",
+                            "has5G",
+                            "networkRankMax",
+                            "networkRankMin",
+                            "networks"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "redirectPath": {
+                        "type": "string"
+                      },
+                      "purchaseUrl": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "provider",
+                      "priceInfo",
+                      "dataSizeHighSpeed",
+                      "dataCap",
+                      "dataCapPer",
+                      "validityValue",
+                      "validityUnit",
+                      "coverages",
+                      "redirectPath",
+                      "purchaseUrl"
+                    ],
+                    "additionalProperties": {}
+                  },
+                  "description": "Top matching eSIM plans. Each item includes the full plan payload needed by the MCP Apps widget plus purchaseUrl."
+                },
+                "filters": {
+                  "type": "object",
+                  "properties": {
+                    "zones": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "sortBy": {
+                      "type": "string"
+                    },
+                    "validityMin": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "dataSizeMin": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "priceMax": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "isCheapestCurrency": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "ratingMin": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "mobileCarriersOnly": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "providerSlugs": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "hasTethering": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "has5G": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "hasCalls": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "hasSms": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "canTopUp": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "hasKyc": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "hasDailyDataCap": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "hasRecurringBilling": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "zones",
+                    "currency",
+                    "sortBy",
+                    "validityMin",
+                    "dataSizeMin",
+                    "priceMax",
+                    "isCheapestCurrency",
+                    "ratingMin",
+                    "mobileCarriersOnly",
+                    "providerSlugs",
+                    "hasTethering",
+                    "has5G",
+                    "hasCalls",
+                    "hasSms",
+                    "canTopUp",
+                    "hasKyc",
+                    "hasDailyDataCap",
+                    "hasRecurringBilling"
+                  ],
+                  "additionalProperties": false
+                },
+                "websiteUrl": {
+                  "type": "string"
+                },
+                "resultUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "source": {
+                  "type": "string",
+                  "const": "get_esim_plans"
+                }
+              },
+              "required": [
+                "plans",
+                "filters",
+                "websiteUrl",
+                "resultUrl",
+                "source"
+              ],
+              "additionalProperties": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://widget/plan-comparison.html",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              },
+              "openai/toolInvocation/invoking": "Finding eSIM plans…",
+              "openai/toolInvocation/invoked": "eSIM plans ready"
+            },
+            "annotations": {
+              "title": "Compare Travel eSIMs",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "idempotentHint": true
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_esim_plans",
+        "description": "Search eSIM plans for travel destinations. Returns top quality-ranked plans by default. WORKFLOW (2 steps): 1) Read resource 'getmyesim://zones/all' to find zone slugs for destinations (e.g., 'Japan' → 'japan', 'France' → 'france'). 2) Call this tool with the zone slugs found. For multi-destination trips (Paris, Rome, Berlin), use all country slugs: ['france', 'italy', 'germany']. REQUIRED: zoneSlugs (from zones resource - don't guess, look them up first). OPTIONAL FILTERS: validityMin is the minimum trip length in days (e.g., 7 means plans valid for at least 7 days), dataSizeMin is the minimum data allowance in MB (e.g., 10000 for at least 10GB), priceMax is the maximum budget in the selected currency, currencyCode defaults to USD, and sortBy defaults to 'most_relevant'. DATA USAGE MAPPING: When the user gives a usage level, convert it to dataSizeMin based on trip length: light=500MB/day, moderate=1500MB/day, heavy=3000MB/day, very heavy/streaming/hotspot/remote work/navigation all day=5000MB/day. Use dataSizeMin = daily MB times trip days, rounded up. If trip length is unknown, ask for it or use default recommendations first. Do not infer exact/max duration or max data requirements from user phrasing; prefer lower-bound filters for trip length and data needs. With the default 'most_relevant' sort, recommendations are curated by Get My eSIM scoring across data-size tiers: without a data requirement, results usually include top plans from multiple data tiers; with dataSizeMin, only plans with at least that much data are considered, and results may include both the matching tier and higher-data tiers. If the user only gives a destination, call this tool with default filters and provide recommendations, then ask one brief follow-up question to personalize results. Prefer asking for trip length and expected data usage (light, moderate, heavy, or very heavy); optionally ask about budget, hotspot/5G, calls, or SMS needs. MUST UPDATE RESULTS ON FOLLOW-UP REFINEMENTS: If plans were already shown and the user adds or changes trip length/validity, data needs, budget, currency, 5G, hotspot/tethering, calls/SMS, top-up, KYC, provider, sort order, or any other filter, always call this tool again with the same zoneSlugs and updated filters to get more targeted results before recommending plans. Do not merely repeat, summarize, or choose from the plans already visible on screen when the user's constraints changed. Returns plans with pricing, data, validity, provider ratings, features, and purchase links.",
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "zoneSlugs": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "REQUIRED. Array of destination zone slugs in kebab-case (e.g., [\"japan\", \"france\", \"italy\"]). Look these up from getmyesim://zones/all resource - each destination name maps to a slug (e.g., \"Japan\" → \"japan\", \"France\" → \"france\"). For multi-destination trips, include all countries individually (e.g., Paris + Rome + Berlin → [\"france\", \"italy\", \"germany\"])."
+            },
+            "currencyCode": {
+              "default": "USD",
+              "description": "Currency code for pricing in ISO 4217 format (3 uppercase letters). Examples: 'USD', 'EUR', 'GBP', 'JPY'. Defaults to USD. Supported codes are available from the currencies reference data.",
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 3,
+              "pattern": "^[A-Z]+$"
+            },
+            "validityMin": {
+              "default": null,
+              "description": "RECOMMENDED. Minimum validity period in days. Use this to match the user's trip duration (e.g., 7 for a week, 14 for two weeks, 30 for a month). Combine with dataSizeMin for best results. Plans with at least this many days of validity will be shown. Use -1 to filter for unlimited validity only. Leave null for no minimum. Common values: 7 (1 week), 14 (2 weeks), 30 (1 month), 90 (3 months).",
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": -1,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "dataSizeMin": {
+              "default": null,
+              "description": "RECOMMENDED. Minimum data size in megabytes (MB, decimal: 1GB = 1000MB). Use this to match the user's minimum data requirement. Plans with at least this amount of data will be shown. Using dataSizeMin with validityMin provides the most targeted results. Examples: 1000 (1GB), 3000 (3GB), 5000 (5GB), 10000 (10GB), 20000 (20GB). Use -1 to filter for unlimited data only. Leave null for no minimum.",
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": -1,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "isCheapestCurrency": {
+              "default": null,
+              "description": "Leave null (recommended for typical use). Advanced: Toggle to use the cheapest currency for each plan. When enabled, shows the best converted price across all currencies the provider offers. Example: If a plan costs 10 USD (8.50 EUR), 8 EUR, or 1,200 JPY (6.90 EUR), enabling this shows 6.90 EUR (the cheapest option) instead of 8 EUR (your local currency price). Only use if explicitly requested by the user for multi-currency price optimization.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "priceMax": {
+              "default": null,
+              "description": "Maximum price in the specified currency. Leave null for no maximum.",
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ratingMin": {
+              "default": null,
+              "description": "Minimum provider rating (1.0 to 5.0). When set, show plans from providers with this rating or higher, plus mobile carriers. Leave null for no rating-based filtering.",
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 5
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "mobileCarriersOnly": {
+              "default": null,
+              "description": "Set to true to only show mobile carriers. When true, this takes precedence over ratingMin. Leave null or false to show all providers.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "providerSlugs": {
+              "default": null,
+              "description": "Filter by provider slugs (e.g.: [\"airalo\", \"holafly\"]). Array of provider slugs in kebab-case. Leave null to show all providers.",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "hasTethering": {
+              "default": null,
+              "description": "Filter for tethering/hotspot support. Set to true to only show plans that support tethering. Leave null to show all plans.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "has5G": {
+              "default": null,
+              "description": "Filter for 5G network support. Set to true to only show 5G-capable plans. Leave null to show all plans.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "hasCalls": {
+              "default": null,
+              "description": "Filter for voice calling support. Set to true to only show plans that include voice calls. Leave null to show all plans.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "hasSms": {
+              "default": null,
+              "description": "Filter for SMS/text messaging support. Set to true to only show plans that include SMS. Leave null to show all plans.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "canTopUp": {
+              "default": null,
+              "description": "Filter for top-up capability. Set to true to only show plans that can be topped up with additional data. Leave null to show all plans.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "hasKyc": {
+              "default": null,
+              "description": "Filter for KYC (Know Your Customer) requirement. Set to false to exclude plans requiring identity verification (usually preferred to avoid KYC hassle). Leave null to show all plans.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "hasDailyDataCap": {
+              "default": null,
+              "description": "Filter for daily data cap. Set to false for plans without daily caps. Leave null to show all plans.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "hasRecurringBilling": {
+              "default": null,
+              "description": "Filter for plans with recurring billing (auto-renewing subscriptions). Set to false for one-time purchase plans. Leave null to show all plans.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "sortBy": {
+              "default": null,
+              "description": "Sort order for results. IMPORTANT: Keep 'most_relevant' (default) unless user explicitly requests a different sort. Use filters (dataSizeMin, validityMin) for requirements.\n\nOptions:\n- null or 'most_relevant' (DEFAULT): Recommended overall based on price, data, validity, and quality. Use this whenever the user asks for the 'best', 'best value', or recommended plans. KEEP THIS unless user explicitly asks for a different sort.\n- 'cheapest': Lowest price first. ONLY when explicitly asked for 'cheapest' or 'lowest price'.\n- 'lowest_price_per_gb': Lowest calculated price per GB. ONLY when explicitly asked to compare price per GB. This is not the overall 'best' or recommended sort.\n- 'most_data': Largest data first. ONLY when explicitly asked for 'most data' or 'largest data'.\n- 'longest_validity': Longest duration first. ONLY when explicitly asked for longest validity.\n- 'shortest_validity': Shortest duration first. ONLY when explicitly asked for shortest validity.\n\nUSAGE GUIDANCE:\n- Heavy/light user? → Use dataSizeMin filter (e.g., 10000 for 10GB), keep sortBy='most_relevant'\n- Long/short trip? → Use validityMin filter, keep sortBy='most_relevant'\n- Best plans? → Use sortBy='most_relevant' (default)\n- Change sortBy ONLY when user explicitly requests a specific sort order.",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "most_relevant",
+                    "cheapest",
+                    "lowest_price_per_gb",
+                    "most_data",
+                    "shortest_validity",
+                    "longest_validity"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "zoneSlugs",
+            "currencyCode"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "plans": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "provider": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "slug": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "slug"
+                    ],
+                    "additionalProperties": {}
+                  },
+                  "priceInfo": {
+                    "type": "object",
+                    "properties": {
+                      "requestedCurrency": {
+                        "type": "object",
+                        "properties": {
+                          "price": {
+                            "type": "number"
+                          },
+                          "currencyCode": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "price",
+                          "currencyCode"
+                        ],
+                        "additionalProperties": {}
+                      }
+                    },
+                    "required": [
+                      "requestedCurrency"
+                    ],
+                    "additionalProperties": {}
+                  },
+                  "dataSizeHighSpeed": {
+                    "type": "number",
+                    "description": "High-speed data allowance in MB. -1 means unlimited."
+                  },
+                  "dataCap": {
+                    "description": "Recurring high-speed data cap in MB, or null when uncapped.",
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "dataCapPer": {
+                    "description": "Period for dataCap, such as day or month, or null.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "validityValue": {
+                    "type": "number"
+                  },
+                  "validityUnit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "coverages": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "country": {
+                          "type": "object",
+                          "properties": {
+                            "slug": {
+                              "type": "string"
+                            },
+                            "code": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "emoji": {
+                              "type": "string"
+                            },
+                            "popularityRank": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "slug",
+                            "code",
+                            "name",
+                            "emoji",
+                            "popularityRank"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "region": {
+                          "type": "object",
+                          "properties": {
+                            "slug": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "emoji": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "slug",
+                            "name",
+                            "emoji"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "has5G": {
+                          "type": [
+                            "boolean",
+                            "null"
+                          ]
+                        },
+                        "networkRankMax": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "networkRankMin": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "networks": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "slug": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "rank": {
+                                "type": "number"
+                              },
+                              "has5G": {
+                                "type": [
+                                  "boolean",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "slug",
+                              "name",
+                              "rank",
+                              "has5G"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "country",
+                        "region",
+                        "has5G",
+                        "networkRankMax",
+                        "networkRankMin",
+                        "networks"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "redirectPath": {
+                    "type": "string"
+                  },
+                  "purchaseUrl": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "provider",
+                  "priceInfo",
+                  "dataSizeHighSpeed",
+                  "dataCap",
+                  "dataCapPer",
+                  "validityValue",
+                  "validityUnit",
+                  "coverages",
+                  "redirectPath",
+                  "purchaseUrl"
+                ],
+                "additionalProperties": {}
+              },
+              "description": "Top matching eSIM plans. Each item includes the full plan payload needed by the MCP Apps widget plus purchaseUrl."
+            },
+            "filters": {
+              "type": "object",
+              "properties": {
+                "zones": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "sortBy": {
+                  "type": "string"
+                },
+                "validityMin": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "dataSizeMin": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "priceMax": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "isCheapestCurrency": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "ratingMin": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "mobileCarriersOnly": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "providerSlugs": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "hasTethering": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "has5G": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "hasCalls": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "hasSms": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "canTopUp": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "hasKyc": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "hasDailyDataCap": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "hasRecurringBilling": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "zones",
+                "currency",
+                "sortBy",
+                "validityMin",
+                "dataSizeMin",
+                "priceMax",
+                "isCheapestCurrency",
+                "ratingMin",
+                "mobileCarriersOnly",
+                "providerSlugs",
+                "hasTethering",
+                "has5G",
+                "hasCalls",
+                "hasSms",
+                "canTopUp",
+                "hasKyc",
+                "hasDailyDataCap",
+                "hasRecurringBilling"
+              ],
+              "additionalProperties": false
+            },
+            "websiteUrl": {
+              "type": "string"
+            },
+            "resultUrl": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "source": {
+              "type": "string",
+              "const": "get_esim_plans"
+            }
+          },
+          "required": [
+            "plans",
+            "filters",
+            "websiteUrl",
+            "resultUrl",
+            "source"
+          ],
+          "additionalProperties": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://widget/plan-comparison.html",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          },
+          "openai/toolInvocation/invoking": "Finding eSIM plans…",
+          "openai/toolInvocation/invoked": "eSIM plans ready"
+        },
+        "annotations": {
+          "title": "Compare Travel eSIMs",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "idempotentHint": true
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:42:00.764Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:42:01.814Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:42:02.865Z"
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:42:03.916Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 1,
+    "tools_hash": "sha256:d7c3f618c9f2ca14e9f12b9d938ed0989396643c60e02480bfaefdefac56867d",
+    "static_tool_tokens": 3949,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_esim_plans",
+        "message": "Description exceeds 1,000 characters."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 0,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_esim_plans"
+          ],
+          "description": "Search eSIM plans for travel destinations. Returns top quality-ranked plans by default. WORKFLOW (2 steps): 1) Read resource 'getmyesim://zones/all' to find zone slugs for destinations (e.g., 'Japan' → 'japan', 'France' → 'france'). 2) Call this tool with the zone slugs found. For multi-destination trips (Paris, Rome, Berlin), use all country slugs: ['france', 'italy', 'germany']. REQUIRED: zoneSlugs (from zones resource - don't guess, look them up first). OPTIONAL FILTERS: validityMin is the minimum trip length in days (e.g., 7 means plans valid for at least 7 days), dataSizeMin is the minimum data allowance in MB (e.g., 10000 for at least 10GB), priceMax is the maximum budget in the selected currency, currencyCode defaults to USD, and sortBy defaults to 'most_relevant'. DATA USAGE MAPPING: When the user gives a usage level, convert it to dataSizeMin based on trip length: light=500MB/day, moderate=1500MB/day, heavy=3000MB/day, very heavy/streaming/hotspot/remote work/navigation all day=5000MB/day. Use dataSizeMin = daily MB times trip days, rounded up. If trip length is unknown, ask for it or use default recommendations first. Do not infer exact/max duration or max data requirements from user phrasing; prefer lower-bound filters for trip length and data needs. With the default 'most_relevant' sort, recommendations are curated by Get My eSIM scoring across data-size tiers: without a data requirement, results usually include top plans from multiple data tiers; with dataSizeMin, only plans with at least that much data are considered, and results may include both the matching tier and higher-data tiers. If the user only gives a destination, call this tool with default filters and provide recommendations, then ask one brief follow-up question to personalize results. Prefer asking for trip length and expected data usage (light, moderate, heavy, or very heavy); optionally ask about budget, hotspot/5G, calls, or SMS needs. MUST UPDATE RESULTS ON FOLLOW-UP REFINEMENTS: If plans were already shown and the user adds or changes trip length/validity, data needs, budget, currency, 5G, hotspot/tethering, calls/SMS, top-up, KYC, provider, sort order, or any other filter, always call this tool again with the same zoneSlugs and updated filters to get more targeted results before recommending plans. Do not merely repeat, summarize, or choose from the plans already visible on screen when the user's constraints changed. Returns plans with pricing, data, validity, provider ratings, features, and purchase links.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "get_esim_plans"
+    ]
+  }
+}

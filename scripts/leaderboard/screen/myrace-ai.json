@@ -1,0 +1,1093 @@
+{
+  "slug": "myrace-ai",
+  "source_url": "https://manufact.com/mcp-catalog/myrace-ai",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:25:45.798Z",
+    "endpoint": "https://mcp.myrace.ai/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "myrace",
+      "version": "1.0.0"
+    },
+    "capabilities": {
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "list_races",
+            "title": "List Available Races",
+            "description": "List every race in the MyRace database with race IDs, names, dates, distances, locations, and finisher counts. Call this first when the user asks about available races, or whenever you need to discover a valid race ID before using another tool.\n\nResults are ordered by race date, MOST RECENT FIRST. When the user names a race/distance WITHOUT a year (e.g. 'broken arrow 23k'), default to the most recent matching edition — the FIRST entry matching that race name and distance — and state which edition you used (e.g. 'Showing the 2026 edition, the most recent.'). Do NOT ask the user to pick a year, and do NOT assume an older year is the latest. Match on race name AND distance, since one event has many distances per year. Only use an older edition if the user explicitly asks for a specific year.\n\nIMPORTANT: This list is NOT exhaustive of every race in the world — it is only the set of races MyRace has currently imported. If a user asks about a race that isn't in the result, say so plainly and suggest related races from the list rather than guessing or fabricating data.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {}
+            },
+            "annotations": {
+              "title": "List Available Races",
+              "readOnlyHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "search_athletes",
+            "title": "Search Athletes",
+            "description": "Look up athletes by name to discover their raceId + pid pair. Use this as a NAME-TO-ID LOOKUP STEP — the response includes basic info (race name, date, finish time, overall + gender place) but is intentionally lightweight.\n\nIMPORTANT — for any 'how did X do at Y?' question, ALWAYS follow up with get_athlete_result using the pid and raceId from this response. get_athlete_result returns the comprehensive breakdown (splits, pacing analysis, ranking progression, qualifying status, etc.) AND triggers the interactive result card the user sees inline. Skipping get_athlete_result means the user sees only prose with no rich result card. Do NOT compose a full race-recap response from search_athletes data alone — call get_athlete_result first.\n\nFor every time field, the response includes both a formatted string (e.g. finishTime: '3:05:35') for display AND a raw-seconds number (finishTimeSeconds: 11135) for math. Always use the *Seconds field when comparing, sorting, averaging, or computing differentials — never parse the formatted string yourself.\n\nIMPORTANT — comparing times across races:\n1. MyRace's database is incomplete: it does NOT contain every race an athlete has ever run. It only contains the races MyRace has imported. Use list_races to see the full set of races covered.\n2. Each result includes raceDistance (e.g., 'Marathon', 'Half Marathon', '10K', '50K'). Finish times are ONLY comparable between races of the same distance.\n3. Because of (1) and (2), do NOT claim an athlete has a 'PR' or 'personal record' based on these results. The fastest time you see is the fastest time within the MyRace data — not necessarily the athlete's true PR. Phrase claims as 'her fastest marathon in MyRace' or 'her best CIM time' or 'among the races MyRace has data for, her fastest marathon was…' — never just 'PR' or 'personal record'.\n4. When grouping an athlete's results, always group by raceDistance first; never compare a marathon time to a half marathon, 10K, or trail-race time.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Athlete name to search for (partial match supported)"
+                },
+                "raceId": {
+                  "type": "string",
+                  "description": "Optional race ID to scope the search"
+                },
+                "limit": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 50,
+                  "default": 10,
+                  "description": "Maximum results to return (default 10, max 50)"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Search Athletes",
+              "readOnlyHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_athlete_result",
+            "title": "Get Athlete Result",
+            "description": "PRIMARY TOOL for any athlete race question (e.g., 'how did X do at Y?', 'show me X's race', 'what was X's pace?'). Always call this for athlete race questions — it returns the comprehensive breakdown AND triggers an interactive result card that the user sees inline (chart, splits, qualifying badges, AI insights). Skipping this tool means the user sees only prose with no rich card.\n\nReturns finish time, splits at each checkpoint, rankings (overall, gender, age group), pacing analysis, qualification status (Boston, NYC, Olympic Trials), age grading, and position interactions (who they passed and who passed them). Use search_athletes first if you don't already have a raceId and pid.\n\nEvery time and pace field comes in two parallel forms: a formatted string for display (finishTime '3:05:35', pacePerMile '7:05', segmentTimeFormatted '0:05:32') AND a raw-seconds number for math (finishTimeSeconds 11135, pacePerMileSeconds 425, segmentTimeSeconds 332). When comparing, sorting, averaging, or computing differentials — between checkpoints, races, or athletes — always use the *Seconds field. Do NOT parse the formatted string yourself.\n\nIMPORTANT — interpreting rankings: a LOWER rank number is a BETTER position. If an athlete moves from 5,011th to 4,480th, they GAINED 531 places (improved their position). Phrase rank changes as 'gained N places' / 'climbed N spots' when the rank number decreases, and 'lost N places' / 'dropped N spots' when it increases. The rankingProgression.netChange field is computed as (startRank − finishRank), so a positive value means the athlete improved.\n\nIMPORTANT — Boston/NYC qualifying commentary: mirror the MyRace web app's gating. The web app only displays BQ/NYC pace-tracking analysis when the athlete (a) qualified OR (b) missed by less than 5 minutes (300 seconds). For everyone else, the analysis is hidden by default behind a manual toggle, because the qualifying time wasn't what they were racing for. Apply the same rule to your prose: only mention qualification.boston or qualification.nyc when qualified === true OR marginSeconds > -300 (i.e., negative-but-greater-than -300 → missed by < 5 minutes). If they missed by more, do NOT call out the gap (avoid lines like 'missed BQ by 23 minutes') — it's irrelevant to the race they ran. Olympic Trials qualifying (qualification.olympicTrials) is a boolean with elite-only standards (~2:16 men / 2:37 women); only mention if true.\n\nIMPORTANT — share-friendly URLs: when you summarize this athlete's result in your response, include a markdown link to https://myrace.ai/athletes/{raceId}/{pid} (substituting the actual raceId and pid). Conversation shares and copies don't include the inline result card; the URL is the only artifact a recipient can click to see the full interactive page. Phrase it naturally — e.g., 'Full result: [myrace.ai/athletes/cim_2023/870](https://myrace.ai/athletes/cim_2023/870)'.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "raceId": {
+                  "type": "string",
+                  "description": "The race ID"
+                },
+                "pid": {
+                  "type": "number",
+                  "description": "The athlete's participant ID (PID)"
+                }
+              },
+              "required": [
+                "raceId",
+                "pid"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Get Athlete Result",
+              "readOnlyHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://athlete-result/app.html"
+              },
+              "ui/resourceUri": "ui://athlete-result/app.html"
+            }
+          },
+          {
+            "name": "get_race_results",
+            "title": "Get Race Results",
+            "description": "Get the leaderboard for a race with optional filters. Returns paginated finishers with finish times, placements, and qualification status. Supports filtering by gender, age division, and name search.\n\nWhen summarizing the results in your response, include a markdown link to https://myrace.ai/races/{raceId}/results (e.g., 'Full results: [myrace.ai/races/cim_2025/results](https://myrace.ai/races/cim_2025/results)'). Conversation shares don't include the inline leaderboard card; the URL is what recipients can click.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "raceId": {
+                  "type": "string",
+                  "description": "The race ID to get results for"
+                },
+                "gender": {
+                  "type": "string",
+                  "enum": [
+                    "M",
+                    "F"
+                  ],
+                  "description": "Filter by gender"
+                },
+                "ageDivision": {
+                  "type": "string",
+                  "description": "Filter by age division (e.g., '30-34')"
+                },
+                "search": {
+                  "type": "string",
+                  "description": "Search by athlete name"
+                },
+                "limit": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 100,
+                  "default": 20,
+                  "description": "Maximum results to return (default 20, max 100)"
+                },
+                "offset": {
+                  "type": "number",
+                  "minimum": 0,
+                  "default": 0,
+                  "description": "Offset for pagination"
+                }
+              },
+              "required": [
+                "raceId"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Get Race Results",
+              "readOnlyHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://leaderboard/app.html"
+              },
+              "ui/resourceUri": "ui://leaderboard/app.html"
+            }
+          },
+          {
+            "name": "get_race_info",
+            "title": "Get Race Info",
+            "description": "Get metadata for a race: name, date, location, distance, weather conditions, course elevation summary, finisher counts by gender, and qualifying-race flags (Boston, NYC, Olympic Trials). For the detailed point-by-point elevation profile, use get_elevation_profile (the hasDetailedElevationProfile flag in the response indicates whether one is available).\n\nWhen summarizing the race in your response, include a markdown link to https://myrace.ai/races/{raceId} so the user can share the page or view full details (e.g., '[myrace.ai/races/cim_2025](https://myrace.ai/races/cim_2025)').",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "raceId": {
+                  "type": "string",
+                  "description": "The race ID to get information for"
+                }
+              },
+              "required": [
+                "raceId"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Get Race Info",
+              "readOnlyHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "search_curated_races",
+            "title": "Search Curated Races",
+            "description": "Search MyRace's CURATED race calendar (upcoming curated races shown on myrace.ai/tools/race-calendar) by name, location, distance, or date range. Use this to check whether a race is ALREADY in MyRace before proposing it, and to read an existing curated race's current field values. Each result includes its `id` (use as existingCuratedRaceId when proposing an augmentation) and a `missingFields` list showing which key fields are empty on that row. This is separate from list_races/get_race_info, which cover races MyRace has already imported RESULTS for.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "Case-insensitive substring matched against race name and location. Omit to list by date/filters."
+                },
+                "state": {
+                  "type": "string",
+                  "description": "Filter by state/region (case-insensitive substring), e.g. 'CA'."
+                },
+                "distanceName": {
+                  "type": "string",
+                  "description": "Filter by distance name (case-insensitive substring), e.g. 'Half Marathon'."
+                },
+                "dateFrom": {
+                  "type": "string",
+                  "description": "Only races on/after this ISO date (YYYY-MM-DD)."
+                },
+                "dateTo": {
+                  "type": "string",
+                  "description": "Only races on/before this ISO date (YYYY-MM-DD)."
+                },
+                "includeInactive": {
+                  "type": "boolean",
+                  "description": "Include is_active=0 rows. Defaults to false (active only)."
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100,
+                  "description": "Max rows to return (default 25)."
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Search Curated Races",
+              "readOnlyHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "list_curated_race_issues",
+            "title": "List Curated Race Issues",
+            "description": "READ-ONLY curation-maintenance worklist from MyRace's curated race calendar. Returns two sections: `missingEvent` — active curated races with no event linked (each should have its event find-or-created and linked); and `duplicates` — groups of active curated races sharing the same natural key (name + date + distance) where more than one active row exists, each member annotated with publish_status, event_id, slug, completeness, and created_at so you can apply the keeper rule (published > draft > has event+slug > highest completeness > oldest) and deactivate the rest. Only exact-key duplicates are surfaced; use search_curated_races for fuzzier matches. Call this to drive the on-demand cleanup mode.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "dateFrom": {
+                  "type": "string",
+                  "description": "Only races on/after this ISO date (YYYY-MM-DD)."
+                },
+                "dateTo": {
+                  "type": "string",
+                  "description": "Only races on/before this ISO date (YYYY-MM-DD)."
+                },
+                "state": {
+                  "type": "string",
+                  "description": "Filter by state/region (case-insensitive substring), e.g. 'CA'."
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 200,
+                  "description": "Max rows to scan/return per section (default 100)."
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "List Curated Race Issues",
+              "readOnlyHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "list_race_distances",
+            "title": "List Race Distances",
+            "description": "List MyRace's canonical race distances (name + meters). Call this before proposing a curated race so you use a distanceName + distanceMeters that match a registered distance (this is how curated races map to the distance dropdown). If a race's distance isn't listed, propose it anyway — the write path adds it as a custom distance.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {}
+            },
+            "annotations": {
+              "title": "List Race Distances",
+              "readOnlyHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_elevation_profile",
+            "title": "Get Elevation Profile",
+            "description": "Get the detailed point-by-point elevation profile for a race course. Returns ~100 sampled GPS points with distance, elevation, and grade data. Use this when the user asks about course terrain or elevation. The get_race_info tool's hasDetailedElevationProfile flag indicates whether a profile is available.\n\nWhen describing the course in your response, include a markdown link to https://myrace.ai/races/{raceId}/course so the user can share the page or view the interactive course view (e.g., '[myrace.ai/races/cim_2025/course](https://myrace.ai/races/cim_2025/course)').",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "raceId": {
+                  "type": "string",
+                  "description": "The race ID to get the elevation profile for"
+                }
+              },
+              "required": [
+                "raceId"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Get Elevation Profile",
+              "readOnlyHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://elevation-profile/app.html"
+              },
+              "ui/resourceUri": "ui://elevation-profile/app.html"
+            }
+          },
+          {
+            "name": "get_athlete_insights",
+            "title": "Get Athlete Insights",
+            "description": "SUPPLEMENTARY tool. Returns 3-5 emoji-prefixed AI coaching bullets for one athlete-race in two flavors via the `type` arg:\n\n- `segment`: per-segment performance vs the field (rankings, percentile patterns, terrain-aware strengths/weaknesses).\n- `passing`: per-segment passed / passed-by analysis correlated with terrain (hill racing, late-race execution).\n\nIMPORTANT — this is NOT a substitute for get_athlete_result. The athlete-result MCP App ALREADY shows these insights inline in the rendered card, so explicitly calling this tool from the chat is rarely necessary. Only call it when (a) the user explicitly asks for additional coaching analysis beyond what the card shows, OR (b) you've already called get_athlete_result and need extra qualitative material to enrich your prose. Do NOT call this as a shortcut to skip get_athlete_result — that bypasses the interactive result card entirely.\n\nReturns plain text with bullets separated by blank lines, each starting with an emoji. The same MyRace-incomplete-dataset and distance-comparability caveats from search_athletes apply.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "raceId": {
+                  "type": "string",
+                  "description": "The race ID"
+                },
+                "pid": {
+                  "type": "number",
+                  "description": "The athlete's participant ID (PID)"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "segment",
+                    "passing"
+                  ],
+                  "description": "Which insight set to fetch: 'segment' for segment-by-segment performance analysis, 'passing' for passing-pattern analysis correlated with terrain."
+                }
+              },
+              "required": [
+                "raceId",
+                "pid",
+                "type"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Get Athlete Insights",
+              "readOnlyHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "list_races",
+        "title": "List Available Races",
+        "description": "List every race in the MyRace database with race IDs, names, dates, distances, locations, and finisher counts. Call this first when the user asks about available races, or whenever you need to discover a valid race ID before using another tool.\n\nResults are ordered by race date, MOST RECENT FIRST. When the user names a race/distance WITHOUT a year (e.g. 'broken arrow 23k'), default to the most recent matching edition — the FIRST entry matching that race name and distance — and state which edition you used (e.g. 'Showing the 2026 edition, the most recent.'). Do NOT ask the user to pick a year, and do NOT assume an older year is the latest. Match on race name AND distance, since one event has many distances per year. Only use an older edition if the user explicitly asks for a specific year.\n\nIMPORTANT: This list is NOT exhaustive of every race in the world — it is only the set of races MyRace has currently imported. If a user asks about a race that isn't in the result, say so plainly and suggest related races from the list rather than guessing or fabricating data.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "annotations": {
+          "title": "List Available Races",
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "search_athletes",
+        "title": "Search Athletes",
+        "description": "Look up athletes by name to discover their raceId + pid pair. Use this as a NAME-TO-ID LOOKUP STEP — the response includes basic info (race name, date, finish time, overall + gender place) but is intentionally lightweight.\n\nIMPORTANT — for any 'how did X do at Y?' question, ALWAYS follow up with get_athlete_result using the pid and raceId from this response. get_athlete_result returns the comprehensive breakdown (splits, pacing analysis, ranking progression, qualifying status, etc.) AND triggers the interactive result card the user sees inline. Skipping get_athlete_result means the user sees only prose with no rich result card. Do NOT compose a full race-recap response from search_athletes data alone — call get_athlete_result first.\n\nFor every time field, the response includes both a formatted string (e.g. finishTime: '3:05:35') for display AND a raw-seconds number (finishTimeSeconds: 11135) for math. Always use the *Seconds field when comparing, sorting, averaging, or computing differentials — never parse the formatted string yourself.\n\nIMPORTANT — comparing times across races:\n1. MyRace's database is incomplete: it does NOT contain every race an athlete has ever run. It only contains the races MyRace has imported. Use list_races to see the full set of races covered.\n2. Each result includes raceDistance (e.g., 'Marathon', 'Half Marathon', '10K', '50K'). Finish times are ONLY comparable between races of the same distance.\n3. Because of (1) and (2), do NOT claim an athlete has a 'PR' or 'personal record' based on these results. The fastest time you see is the fastest time within the MyRace data — not necessarily the athlete's true PR. Phrase claims as 'her fastest marathon in MyRace' or 'her best CIM time' or 'among the races MyRace has data for, her fastest marathon was…' — never just 'PR' or 'personal record'.\n4. When grouping an athlete's results, always group by raceDistance first; never compare a marathon time to a half marathon, 10K, or trail-race time.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Athlete name to search for (partial match supported)"
+            },
+            "raceId": {
+              "type": "string",
+              "description": "Optional race ID to scope the search"
+            },
+            "limit": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10,
+              "description": "Maximum results to return (default 10, max 50)"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Search Athletes",
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_athlete_result",
+        "title": "Get Athlete Result",
+        "description": "PRIMARY TOOL for any athlete race question (e.g., 'how did X do at Y?', 'show me X's race', 'what was X's pace?'). Always call this for athlete race questions — it returns the comprehensive breakdown AND triggers an interactive result card that the user sees inline (chart, splits, qualifying badges, AI insights). Skipping this tool means the user sees only prose with no rich card.\n\nReturns finish time, splits at each checkpoint, rankings (overall, gender, age group), pacing analysis, qualification status (Boston, NYC, Olympic Trials), age grading, and position interactions (who they passed and who passed them). Use search_athletes first if you don't already have a raceId and pid.\n\nEvery time and pace field comes in two parallel forms: a formatted string for display (finishTime '3:05:35', pacePerMile '7:05', segmentTimeFormatted '0:05:32') AND a raw-seconds number for math (finishTimeSeconds 11135, pacePerMileSeconds 425, segmentTimeSeconds 332). When comparing, sorting, averaging, or computing differentials — between checkpoints, races, or athletes — always use the *Seconds field. Do NOT parse the formatted string yourself.\n\nIMPORTANT — interpreting rankings: a LOWER rank number is a BETTER position. If an athlete moves from 5,011th to 4,480th, they GAINED 531 places (improved their position). Phrase rank changes as 'gained N places' / 'climbed N spots' when the rank number decreases, and 'lost N places' / 'dropped N spots' when it increases. The rankingProgression.netChange field is computed as (startRank − finishRank), so a positive value means the athlete improved.\n\nIMPORTANT — Boston/NYC qualifying commentary: mirror the MyRace web app's gating. The web app only displays BQ/NYC pace-tracking analysis when the athlete (a) qualified OR (b) missed by less than 5 minutes (300 seconds). For everyone else, the analysis is hidden by default behind a manual toggle, because the qualifying time wasn't what they were racing for. Apply the same rule to your prose: only mention qualification.boston or qualification.nyc when qualified === true OR marginSeconds > -300 (i.e., negative-but-greater-than -300 → missed by < 5 minutes). If they missed by more, do NOT call out the gap (avoid lines like 'missed BQ by 23 minutes') — it's irrelevant to the race they ran. Olympic Trials qualifying (qualification.olympicTrials) is a boolean with elite-only standards (~2:16 men / 2:37 women); only mention if true.\n\nIMPORTANT — share-friendly URLs: when you summarize this athlete's result in your response, include a markdown link to https://myrace.ai/athletes/{raceId}/{pid} (substituting the actual raceId and pid). Conversation shares and copies don't include the inline result card; the URL is the only artifact a recipient can click to see the full interactive page. Phrase it naturally — e.g., 'Full result: [myrace.ai/athletes/cim_2023/870](https://myrace.ai/athletes/cim_2023/870)'.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "raceId": {
+              "type": "string",
+              "description": "The race ID"
+            },
+            "pid": {
+              "type": "number",
+              "description": "The athlete's participant ID (PID)"
+            }
+          },
+          "required": [
+            "raceId",
+            "pid"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Get Athlete Result",
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://athlete-result/app.html"
+          },
+          "ui/resourceUri": "ui://athlete-result/app.html"
+        }
+      },
+      {
+        "name": "get_race_results",
+        "title": "Get Race Results",
+        "description": "Get the leaderboard for a race with optional filters. Returns paginated finishers with finish times, placements, and qualification status. Supports filtering by gender, age division, and name search.\n\nWhen summarizing the results in your response, include a markdown link to https://myrace.ai/races/{raceId}/results (e.g., 'Full results: [myrace.ai/races/cim_2025/results](https://myrace.ai/races/cim_2025/results)'). Conversation shares don't include the inline leaderboard card; the URL is what recipients can click.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "raceId": {
+              "type": "string",
+              "description": "The race ID to get results for"
+            },
+            "gender": {
+              "type": "string",
+              "enum": [
+                "M",
+                "F"
+              ],
+              "description": "Filter by gender"
+            },
+            "ageDivision": {
+              "type": "string",
+              "description": "Filter by age division (e.g., '30-34')"
+            },
+            "search": {
+              "type": "string",
+              "description": "Search by athlete name"
+            },
+            "limit": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Maximum results to return (default 20, max 100)"
+            },
+            "offset": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0,
+              "description": "Offset for pagination"
+            }
+          },
+          "required": [
+            "raceId"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Get Race Results",
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://leaderboard/app.html"
+          },
+          "ui/resourceUri": "ui://leaderboard/app.html"
+        }
+      },
+      {
+        "name": "get_race_info",
+        "title": "Get Race Info",
+        "description": "Get metadata for a race: name, date, location, distance, weather conditions, course elevation summary, finisher counts by gender, and qualifying-race flags (Boston, NYC, Olympic Trials). For the detailed point-by-point elevation profile, use get_elevation_profile (the hasDetailedElevationProfile flag in the response indicates whether one is available).\n\nWhen summarizing the race in your response, include a markdown link to https://myrace.ai/races/{raceId} so the user can share the page or view full details (e.g., '[myrace.ai/races/cim_2025](https://myrace.ai/races/cim_2025)').",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "raceId": {
+              "type": "string",
+              "description": "The race ID to get information for"
+            }
+          },
+          "required": [
+            "raceId"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Get Race Info",
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "search_curated_races",
+        "title": "Search Curated Races",
+        "description": "Search MyRace's CURATED race calendar (upcoming curated races shown on myrace.ai/tools/race-calendar) by name, location, distance, or date range. Use this to check whether a race is ALREADY in MyRace before proposing it, and to read an existing curated race's current field values. Each result includes its `id` (use as existingCuratedRaceId when proposing an augmentation) and a `missingFields` list showing which key fields are empty on that row. This is separate from list_races/get_race_info, which cover races MyRace has already imported RESULTS for.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Case-insensitive substring matched against race name and location. Omit to list by date/filters."
+            },
+            "state": {
+              "type": "string",
+              "description": "Filter by state/region (case-insensitive substring), e.g. 'CA'."
+            },
+            "distanceName": {
+              "type": "string",
+              "description": "Filter by distance name (case-insensitive substring), e.g. 'Half Marathon'."
+            },
+            "dateFrom": {
+              "type": "string",
+              "description": "Only races on/after this ISO date (YYYY-MM-DD)."
+            },
+            "dateTo": {
+              "type": "string",
+              "description": "Only races on/before this ISO date (YYYY-MM-DD)."
+            },
+            "includeInactive": {
+              "type": "boolean",
+              "description": "Include is_active=0 rows. Defaults to false (active only)."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "Max rows to return (default 25)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Search Curated Races",
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "list_curated_race_issues",
+        "title": "List Curated Race Issues",
+        "description": "READ-ONLY curation-maintenance worklist from MyRace's curated race calendar. Returns two sections: `missingEvent` — active curated races with no event linked (each should have its event find-or-created and linked); and `duplicates` — groups of active curated races sharing the same natural key (name + date + distance) where more than one active row exists, each member annotated with publish_status, event_id, slug, completeness, and created_at so you can apply the keeper rule (published > draft > has event+slug > highest completeness > oldest) and deactivate the rest. Only exact-key duplicates are surfaced; use search_curated_races for fuzzier matches. Call this to drive the on-demand cleanup mode.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "dateFrom": {
+              "type": "string",
+              "description": "Only races on/after this ISO date (YYYY-MM-DD)."
+            },
+            "dateTo": {
+              "type": "string",
+              "description": "Only races on/before this ISO date (YYYY-MM-DD)."
+            },
+            "state": {
+              "type": "string",
+              "description": "Filter by state/region (case-insensitive substring), e.g. 'CA'."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "description": "Max rows to scan/return per section (default 100)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "List Curated Race Issues",
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "list_race_distances",
+        "title": "List Race Distances",
+        "description": "List MyRace's canonical race distances (name + meters). Call this before proposing a curated race so you use a distanceName + distanceMeters that match a registered distance (this is how curated races map to the distance dropdown). If a race's distance isn't listed, propose it anyway — the write path adds it as a custom distance.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "annotations": {
+          "title": "List Race Distances",
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_elevation_profile",
+        "title": "Get Elevation Profile",
+        "description": "Get the detailed point-by-point elevation profile for a race course. Returns ~100 sampled GPS points with distance, elevation, and grade data. Use this when the user asks about course terrain or elevation. The get_race_info tool's hasDetailedElevationProfile flag indicates whether a profile is available.\n\nWhen describing the course in your response, include a markdown link to https://myrace.ai/races/{raceId}/course so the user can share the page or view the interactive course view (e.g., '[myrace.ai/races/cim_2025/course](https://myrace.ai/races/cim_2025/course)').",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "raceId": {
+              "type": "string",
+              "description": "The race ID to get the elevation profile for"
+            }
+          },
+          "required": [
+            "raceId"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Get Elevation Profile",
+          "readOnlyHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://elevation-profile/app.html"
+          },
+          "ui/resourceUri": "ui://elevation-profile/app.html"
+        }
+      },
+      {
+        "name": "get_athlete_insights",
+        "title": "Get Athlete Insights",
+        "description": "SUPPLEMENTARY tool. Returns 3-5 emoji-prefixed AI coaching bullets for one athlete-race in two flavors via the `type` arg:\n\n- `segment`: per-segment performance vs the field (rankings, percentile patterns, terrain-aware strengths/weaknesses).\n- `passing`: per-segment passed / passed-by analysis correlated with terrain (hill racing, late-race execution).\n\nIMPORTANT — this is NOT a substitute for get_athlete_result. The athlete-result MCP App ALREADY shows these insights inline in the rendered card, so explicitly calling this tool from the chat is rarely necessary. Only call it when (a) the user explicitly asks for additional coaching analysis beyond what the card shows, OR (b) you've already called get_athlete_result and need extra qualitative material to enrich your prose. Do NOT call this as a shortcut to skip get_athlete_result — that bypasses the interactive result card entirely.\n\nReturns plain text with bullets separated by blank lines, each starting with an emoji. The same MyRace-incomplete-dataset and distance-comparability caveats from search_athletes apply.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "raceId": {
+              "type": "string",
+              "description": "The race ID"
+            },
+            "pid": {
+              "type": "number",
+              "description": "The athlete's participant ID (PID)"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "segment",
+                "passing"
+              ],
+              "description": "Which insight set to fetch: 'segment' for segment-by-segment performance analysis, 'passing' for passing-pattern analysis correlated with terrain."
+            }
+          },
+          "required": [
+            "raceId",
+            "pid",
+            "type"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Get Athlete Insights",
+          "readOnlyHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:25:42.526Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:25:43.575Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:25:44.625Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:25:45.675Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 10,
+    "tools_hash": "sha256:1f2616a7591acaceac7832cead790c4142fd5d64686223a8bf624e6b1426f118",
+    "static_tool_tokens": 5863,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "list_races",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_races",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_athletes",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_athletes",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F8",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_athlete_result",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_athlete_result",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_race_results",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_race_info",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_curated_races",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_curated_race_issues",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_race_distances",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_elevation_profile",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F16",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_athlete_insights",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_athlete_insights",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 10,
+      "warning": 4
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_athletes",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Maximum results to return (default 10, max 50)",
+          "mentions_size_or_cost": true,
+          "default": 10,
+          "described_default": 10,
+          "maximum": 50
+        },
+        {
+          "tool": "get_race_results",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Maximum results to return (default 20, max 100)",
+          "mentions_size_or_cost": true,
+          "default": 20,
+          "described_default": 20,
+          "maximum": 100
+        },
+        {
+          "tool": "get_race_results",
+          "path": "inputSchema.properties.offset",
+          "name": "offset",
+          "description": "Offset for pagination",
+          "mentions_size_or_cost": false,
+          "default": 0
+        },
+        {
+          "tool": "search_curated_races",
+          "path": "inputSchema.properties.includeInactive",
+          "name": "includeInactive",
+          "description": "Include is_active=0 rows. Defaults to false (active only).",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "search_curated_races",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max rows to return (default 25).",
+          "mentions_size_or_cost": true,
+          "described_default": 25,
+          "maximum": 100
+        },
+        {
+          "tool": "list_curated_race_issues",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max rows to scan/return per section (default 100).",
+          "mentions_size_or_cost": true,
+          "described_default": 100,
+          "maximum": 200
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get_race_results"
+          ],
+          "path": "inputSchema.properties.offset",
+          "description": "Offset for pagination",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "list_curated_race_issues"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "Max rows to scan/return per section (default 100).",
+          "default": 100,
+          "default_source": "description",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_races",
+            "get_race_results"
+          ],
+          "hypothesis": "Read tools share resource terms (race), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_races",
+            "get_race_info"
+          ],
+          "hypothesis": "Read tools share resource terms (race), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_races",
+            "list_curated_race_issues"
+          ],
+          "hypothesis": "Read tools share resource terms (race), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_races",
+            "list_race_distances"
+          ],
+          "hypothesis": "Read tools share resource terms (race), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_athlete_result",
+            "get_race_results"
+          ],
+          "hypothesis": "Read tools share resource terms (result), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_race_results",
+            "get_race_info"
+          ],
+          "hypothesis": "Read tools share resource terms (race), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_race_results",
+            "search_curated_races"
+          ],
+          "hypothesis": "Read tools share resource terms (race), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_race_results",
+            "list_curated_race_issues"
+          ],
+          "hypothesis": "Read tools share resource terms (race), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_race_results",
+            "list_race_distances"
+          ],
+          "hypothesis": "Read tools share resource terms (race), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_race_info",
+            "list_curated_race_issues"
+          ],
+          "hypothesis": "Read tools share resource terms (race), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_race_info",
+            "list_race_distances"
+          ],
+          "hypothesis": "Read tools share resource terms (race), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "search_curated_races",
+            "list_race_distances"
+          ],
+          "hypothesis": "Read tools share resource terms (race), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_curated_race_issues",
+            "list_race_distances"
+          ],
+          "hypothesis": "Read tools share resource terms (race), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "list_races",
+      "search_athletes",
+      "get_athlete_result",
+      "get_race_results",
+      "get_race_info",
+      "search_curated_races",
+      "list_curated_race_issues",
+      "list_race_distances",
+      "get_elevation_profile",
+      "get_athlete_insights"
+    ]
+  }
+}

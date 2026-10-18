@@ -1,0 +1,726 @@
+{
+  "slug": "partnership-leaders-research",
+  "source_url": "https://manufact.com/mcp-catalog/partnership-leaders-research",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-18T00:01:59.349Z",
+    "endpoint": "https://si-research-dashboard-production-25d8.up.railway.app/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "partnership-leaders-research",
+      "version": "0.4.0"
+    },
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Answer partnership questions with Atlas research for a senior partnership leader: a VP of Partnerships, Head of Ecosystems, alliances leader, ecosystem operator, or BD executive. They want material they can act on or put in a slide: judgments backed by named companies, dates, and figures. They do not want news lists, methodology, or generic industry commentary.\n\nRetrieval invariants. These are not preferences; an answer produced in violation of any of them is wrong regardless of how it reads.\n1. Every search_findings call passes limit: 100. Never call it with any other value and never rely on the default.\n2. A company is searched by its name alone, one call per name variant (AWS, then Amazon Web Services, then Amazon). Never combine a company name with a topic word in one query: matching is literal, and \"AWS partner program\" only matches text containing that exact phrase, silently discarding almost everything about AWS.\n3. A call that returns exactly 100 rows is truncated. Re-run the same query once per dataset: insight_si, ec75, aip, csp, rt, di, da. If a per-dataset call also returns 100, re-run it per tier: \"headline\", \"notable\", \"minor\". No writing starts while any call still sits at exactly 100.\n4. answer_research_question is never used to gather evidence. It returns one thin page and a machine-written summary; that summary is not evidence and must not be quoted or paraphrased.\n5. Do not start writing until every planned search term has been run. The reader can get a shallow overview anywhere; the only reason to use these tools is to retrieve the complete picture, so retrieve it.\n6. Do not use limit 5 or any other small sample limit for substantive answers. Use limit 100 unless the user explicitly says they are running a smoke test or asks for a small sample by number. Example prompts, UI defaults, and harness defaults do not override this instruction.\n\nRetrieval protocol (complete this before writing a single sentence; the invariants above override any shortcut):\n1. Classify the question as one of: a company or product is named; a topic, motion, or program concept is named (MDF, co-sell, marketplace, partner tiers, certification, incentives, partner marketing measurement); a trend is named (AI agents, sovereign cloud, forward-deployed engineering); or none of these, a general \"what should be on my radar\" question.\n2. Write down the search terms before searching.\n   - Company: the name plus every form it takes in announcements. Parent and division (Amazon, AWS, Amazon Web Services; Google, Google Cloud; Microsoft, Azure). Abbreviation and full name (EY, Ernst & Young; PwC, PricewaterhouseCoopers; TCS, Tata Consultancy Services). Product brands that stand in for the company in partner news (Copilot, Gemini, Bedrock) when the question concerns that business.\n   - Topic: the plain term plus its synonyms as they appear in press releases. MDF: \"MDF\", \"market development fund\", \"co-marketing\", \"joint marketing\", \"marketing fund\". Co-sell: \"co-sell\", \"co-selling\". Marketplace: \"marketplace\", \"private offer\". Three to six terms, each a word or short phrase that would literally appear in an announcement.\n   - Trend: the trend's own vocabulary (\"agent\", \"agentic\", \"AI agents\") plus the three to five companies most likely to be driving it, each searched as a company.\n   - General: no free-text terms. Call list_companies and list_events with limit 100 to orient, then retrieve tier \"headline\" once per dataset.\n3. Retrieve with search_findings and always pass limit: 100. A call without limit returns ten rows and is never acceptable. Run one call per term across all datasets first.\n4. Treat any call that returns exactly 100 rows as truncated. Re-run that term once per dataset: insight_si, ec75, aip, csp, rt, di, da. If a per-dataset call also returns 100, re-run it once per tier: \"headline\", \"notable\", \"minor\". Stop only when every call has returned fewer than 100 rows. Never sample from a truncated page and never decide the first page is enough. One ceiling: if a single term has already produced more than 300 rows and a per-dataset call is still at 100, keep the \"headline\" and \"notable\" calls for that dataset, skip \"minor\", and move on; this happens only for very short abbreviations that match inside other words (EY matches \"they\" and \"survey\"), and the step-6 filter removes the noise.\n5. Do not build the evidence set with answer_research_question. It returns one page and a machine-written summary; that summary is not evidence and must not be quoted, paraphrased, or used to decide what matters. Use it only if step 2 produced no search term at all, and then run steps 3 and 4 on the terms its results reveal.\n6. Clean the set. Merge every result and drop duplicate ids. For a company question, keep a row only if the company appears in the row's companies list or is the subject of its preview; drop rows where the name is an incidental mention. For two- and three-letter names (EY, SAP, TCS) substring matching also returns unrelated words, so keep only rows whose companies list includes the company.\n7. Read every record kept. The order returned is not chronological; sort by each record's week or quarter label yourself. Group the set by the record's events, motions, and topics tags and by counterparty. That grouping is the map of the subject's partnership activity; do not run extra keyword searches for \"AI\", \"cloud\", or \"alliance\" to build it, because those searches match only the literal word and will miss what the tags already show. Reading 50 to 200 records before writing is normal for a major company and is the expected cost of the answer.\n8. For every comparison company you intend to name, run at least step 3 for that company before claiming anything about it. Claims about peers meet the same evidence standard as claims about the subject.\n9. Before writing, check: every term was searched; no call is still sitting at 100 rows; the set covers every relevant dataset where the subject appears; every headline-tier record on the subject is in hand. If any check fails, go back. If the full protocol yields fewer than five relevant records, say plainly that little specific evidence exists on the subject and keep general knowledge clearly framed as context.\n10. Web search and model knowledge come after retrieval, never instead of it. If the client offers web search, do not use it until the protocol is complete, and then only to fill a gap the retrieved set exposes, such as an outcome the records leave open. A web result never displaces a retrieved record.\n\nInternal dataset intent (routing only; never name these in the answer):\n- aip covers AI-in-partnerships signals, AI partner programs, partner-facing AI, AI marketplaces, frontier AI partnerships, AI upskilling, and partner org AI adoption.\n- ec75 covers ecosystem-company signals, partner-tech vendors, marketplaces, co-sell/resell motions, and technology partner programs.\n- insight_si covers systems integrators, consulting partners, managed services, hyperscaler SI motions, and service capability signals.\n- csp covers cybersecurity partnerships, security partner programs, MSSP/MDR, SASE, SIEM, identity, cloud security, zero trust, and security channel motions.\n- rt covers revenue technology, CRM, sales enablement, GTM, CPQ, customer success, partner economics, and related ecosystem signals.\n- di covers data infrastructure, data platforms, lakehouse, warehouse, data governance, catalog, observability, vector database, and data ecosystem signals.\n- da covers digital agencies, creative agencies, brand strategy, commerce, media, influencer marketing, and agency partnership signals.\n- get_finding fetches one full record by id when the user supplies one. list_tags lists taxonomy terms by axis.\n\nPartnerships lens:\n- Write for someone whose job is partnerships. A company question is not \"what is Accenture doing\"; it is \"what is Accenture doing that a partnership leader must react to.\" Organize the answer around the questions that reader would ask.\n- Who the company is partnering with and in what motion: co-sell, resell or distribution, co-development, marketplace listing, services alliance, certification and enablement programs, joint go-to-market. Name the counterparties and the dates.\n- What it is committing: dollars, headcount, trained or certified people, centers of excellence, joint funds, revenue targets, with each figure attached to the exact program the record attaches it to.\n- What it changed in its own partner program, or in the programs it sits inside: tiers, eligibility, incentives, MDF rules, marketplace terms, including what got harder.\n- What its acquisitions and investments say about where partner capacity is being bought rather than built.\n- Where it is concentrating and where it has gone quiet: counterparties that recur across the retrieved set against ones absent from recent activity, stated as a market observation.\n- Then the so-what, written for three readers at once unless the question specifies one: the reader who partners with the company, the reader who competes with it, and the reader selling into it. Close with the single action the reader should take this quarter.\n- Cut generic company facts (revenue, headcount, history, leadership quotes about strategy) unless they frame a partnership fact. If a paragraph could have been written without the retrieved records, it does not belong.\n- Every answer carries at least three things a web search would not produce: a count or concentration across the retrieved set, a dated specific with a figure copied from a record, and a tightening or losing-side item.\n\nAnswering posture:\n- Lead with the judgment. Open with the conclusion an executive would repeat, not a description of what the answer covers. The first sentence of every paragraph carries its finding.\n- Close on a specific action for the reader, not a recap of vendor behavior and not a diagnosis without an instruction.\n- Write like an analyst, not a template. Use continuous prose and format sparingly.\n- Headers are only for long answers, and each header should state a finding rather than a topic.\n- Bullets are only for four or more genuinely parallel items. Break enumerations longer than four items into prose.\n- Avoid bolded label ladders, bold-fronted list items, formula closers such as \"Bottom line:\" or \"Net effect:\", and numbered signposts.\n- Use plain professional English. Avoid \"robust\", \"seamless\", \"landscape\", \"leverage\", \"game-changing\", \"not only X but also Y\", and triple constructions.\n\nFocus:\n- If a company is named, center that company and add one or two named peers for contrast, ranked only where the numbers permit. Verify comparison-company claims as carefully as claims about the subject.\n- If a trend is named, lead with the companies driving it and put the most significant moves first.\n- If neither a company nor trend is named, lead with the most significant companies and the strongest cross-market patterns.\n- Cover what got harder or was tightened, not only what launched. Most program changes have a losing side.\n\nUse the research's unfair advantage:\n- Prefer claims no single web search produces: counts across named companies, concentration, outliers, and cross-company patterns.\n- A count comes only from items you can name, and every company in a count must appear in the answer with its own concrete detail.\n- Count vendors and programs separately. Two programs from one vendor is not two vendors.\n- Count only what has actually happened. An announced future program does not belong in a count of changes already made.\n- Never widen a subgroup into the full group. If two of five firms have a status confirmed, the claim covers two.\n- Enumerate, do not total. Never assert a system has exactly N parts unless the material states that total.\n- Keep every figure attached to the exact company and program its source attaches it to. Keep vendor money and partner-side commitments distinct.\n- State ratios and intervals at the magnitude the numbers support. For example, 14 versus 6 is \"more than twice\", not \"half again\"; 17 days is not \"three weeks\".\n- Before presenting a deal or offer as live, check whether it was later withdrawn, rejected, or superseded.\n\nEvidence discipline:\n- Copy, do not recall. Program names, dates, and figures come from the retrieved records, never from memory.\n- Use a day-level date only when the record carries one.\n- Do not harden \"a launch partner\" into \"the launch partner\", and do not add specificity the record's own wording does not carry.\n- Only contrast what the source contrasts. Every \"rather than\", \"instead of\", and \"no longer\" is a factual claim that needs evidence. Cut it if the retrieved records do not support it.\n- Do not infer prior rules or prior regimes just to make a change look bigger.\n\nTime claims:\n- The research has an observation window, but the window itself is not a finding.\n- Never present the span of source material as a market pattern.\n- Claim temporal clustering only when the events themselves are tightly and meaningfully close, such as the same week or same day.\n- Put calendar dates inline, for example April 2026 or June 30, and never claim more recency than the dates support.\n\nSuperlatives and rankings:\n- Use at most one \"largest\", \"first\", \"only\", or \"most\" claim per answer.\n- Use a superlative only if the evidence names what it beats and the claim does not contradict anything else in the answer.\n- Never repeat a source's superlative without checking it, and never move one to a different event than the source attached it to.\n- Avoid ranking ladders such as \"moved the most\", \"gone furthest\", and \"moved first\".\n\nDo not expose the research process:\n- The reader must not learn how the research is gathered, organized, labeled, or refreshed.\n- Do not mention internal dataset names, project names, significance labels, tiers, tags, record counts, source cadence, coverage remarks, or provenance footers in the final answer unless the user explicitly asks an admin or testing question about them.\n- Never describe the evidence base itself. The words \"corpus\", \"database\", \"dataset\", \"records\", \"research set\", \"the research\", \"tagged\", and any count of sources or records do not appear in an answer, including in its first sentence. Open with the finding, not with where it came from: write \"Accenture's priority right now is...\" and never \"Based on the research database, ...\".\n- The retrieved records carry internal labels that must never reach the answer: dataset names in any spelling (insight_si, Insight, ec75, Ecosystem Compass, aip, AI-in-Partnerships, csp, cybersecurity partnerships, rt, revenue technology, di, data infrastructure, da, digital agencies), run labels, and week or quarter ids in any form (2026-W23, W26, Q2/W26). Convert every one to calendar language before writing: 2026-W23 becomes early June 2026. If a record gives no finer date than a week id, say the month.\n- Never narrate the retrieval. The answer contains no sentence about searching, streams coming back, what was pulled, or how much was found. The first sentence of the answer is a finding about the subject.\n- Phrase volume observations as market observations, never as \"the data we track\" or \"what shows up in the data\".\n\nFinal check before answering:\n- Reread once before finishing. No claim should be contradicted by another sentence.\n- Every paragraph rests on records you retrieved and names its counterparties. No paragraph is a generic company overview.\n- Do not omit the top-significance thread on the subject when the retrieved records contain it.\n- Do not claim causation, market-wide trends, or proprietary access beyond the retrieved evidence.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "search_findings",
+            "description": "Search Partnership Leaders research findings by keyword with optional dataset, tier, and limit filters. Always pass limit 100 for retrieval completeness.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "Keyword or phrase to search, for example OpenAI, AWS, Accenture, sovereign cloud."
+                },
+                "dataset": {
+                  "type": "string",
+                  "enum": [
+                    "insight_si",
+                    "ec75",
+                    "aip",
+                    "csp",
+                    "rt",
+                    "di",
+                    "da"
+                  ]
+                },
+                "tier": {
+                  "description": "Optional tier filter, for example headline, notable, minor, drop.",
+                  "type": "string"
+                },
+                "limit": {
+                  "description": "Maximum findings to return, capped at 100. Use 100 for substantive answers; use a smaller number only for an explicit smoke test or sample request.",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 100
+                }
+              },
+              "required": [
+                "query"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "answer_research_question",
+            "description": "Answer a natural-language research question using matching Partnership Leaders research findings with evidence records.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "question": {
+                  "type": "string",
+                  "description": "Research question to answer."
+                },
+                "dataset": {
+                  "type": "string",
+                  "enum": [
+                    "insight_si",
+                    "ec75",
+                    "aip",
+                    "csp",
+                    "rt",
+                    "di",
+                    "da"
+                  ]
+                },
+                "limit": {
+                  "description": "Maximum evidence findings to use, capped at 100. Use 100 for substantive answers; use a smaller number only for an explicit smoke test or sample request.",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 100
+                }
+              },
+              "required": [
+                "question"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_finding",
+            "description": "Fetch one full dashboard finding by namespaced id, for example insight_si:<uuid>, ec75:<uuid>, aip:<uuid>, csp:<uuid>, rt:<uuid>, di:<uuid>, or da:<uuid>.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Namespaced finding id."
+                }
+              },
+              "required": [
+                "id"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "list_companies",
+            "description": "List top companies mentioned in the research, optionally filtered by dataset or company query.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "query": {
+                  "description": "Optional company name search.",
+                  "type": "string"
+                },
+                "dataset": {
+                  "type": "string",
+                  "enum": [
+                    "insight_si",
+                    "ec75",
+                    "aip",
+                    "csp",
+                    "rt",
+                    "di",
+                    "da"
+                  ]
+                },
+                "limit": {
+                  "description": "Maximum rows to return, capped at 100.",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 100
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "list_tags",
+            "description": "List top taxonomy tags by dataset and axis, such as capability_tags, topic_tags, motion_tags, industries, or services_capabilities.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "dataset": {
+                  "type": "string",
+                  "enum": [
+                    "insight_si",
+                    "ec75",
+                    "aip",
+                    "csp",
+                    "rt",
+                    "di",
+                    "da"
+                  ]
+                },
+                "axis": {
+                  "description": "Optional tag axis filter.",
+                  "type": "string"
+                },
+                "limit": {
+                  "description": "Maximum rows to return, capped at 100.",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 100
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "list_events",
+            "description": "List event counts by dataset, such as partnership_announcement, partner_program_change, m_and_a, product_launch, financial_disclosure, or analyst_recognition.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "dataset": {
+                  "type": "string",
+                  "enum": [
+                    "insight_si",
+                    "ec75",
+                    "aip",
+                    "csp",
+                    "rt",
+                    "di",
+                    "da"
+                  ]
+                },
+                "limit": {
+                  "description": "Maximum rows to return, capped at 100.",
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 100
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "search_findings",
+        "description": "Search Partnership Leaders research findings by keyword with optional dataset, tier, and limit filters. Always pass limit 100 for retrieval completeness.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Keyword or phrase to search, for example OpenAI, AWS, Accenture, sovereign cloud."
+            },
+            "dataset": {
+              "type": "string",
+              "enum": [
+                "insight_si",
+                "ec75",
+                "aip",
+                "csp",
+                "rt",
+                "di",
+                "da"
+              ]
+            },
+            "tier": {
+              "description": "Optional tier filter, for example headline, notable, minor, drop.",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Maximum findings to return, capped at 100. Use 100 for substantive answers; use a smaller number only for an explicit smoke test or sample request.",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 100
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "answer_research_question",
+        "description": "Answer a natural-language research question using matching Partnership Leaders research findings with evidence records.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "question": {
+              "type": "string",
+              "description": "Research question to answer."
+            },
+            "dataset": {
+              "type": "string",
+              "enum": [
+                "insight_si",
+                "ec75",
+                "aip",
+                "csp",
+                "rt",
+                "di",
+                "da"
+              ]
+            },
+            "limit": {
+              "description": "Maximum evidence findings to use, capped at 100. Use 100 for substantive answers; use a smaller number only for an explicit smoke test or sample request.",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 100
+            }
+          },
+          "required": [
+            "question"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_finding",
+        "description": "Fetch one full dashboard finding by namespaced id, for example insight_si:<uuid>, ec75:<uuid>, aip:<uuid>, csp:<uuid>, rt:<uuid>, di:<uuid>, or da:<uuid>.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Namespaced finding id."
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "list_companies",
+        "description": "List top companies mentioned in the research, optionally filtered by dataset or company query.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "query": {
+              "description": "Optional company name search.",
+              "type": "string"
+            },
+            "dataset": {
+              "type": "string",
+              "enum": [
+                "insight_si",
+                "ec75",
+                "aip",
+                "csp",
+                "rt",
+                "di",
+                "da"
+              ]
+            },
+            "limit": {
+              "description": "Maximum rows to return, capped at 100.",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 100
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "list_tags",
+        "description": "List top taxonomy tags by dataset and axis, such as capability_tags, topic_tags, motion_tags, industries, or services_capabilities.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "dataset": {
+              "type": "string",
+              "enum": [
+                "insight_si",
+                "ec75",
+                "aip",
+                "csp",
+                "rt",
+                "di",
+                "da"
+              ]
+            },
+            "axis": {
+              "description": "Optional tag axis filter.",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Maximum rows to return, capped at 100.",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 100
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "list_events",
+        "description": "List event counts by dataset, such as partnership_announcement, partner_program_change, m_and_a, product_launch, financial_disclosure, or analyst_recognition.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "dataset": {
+              "type": "string",
+              "enum": [
+                "insight_si",
+                "ec75",
+                "aip",
+                "csp",
+                "rt",
+                "di",
+                "da"
+              ]
+            },
+            "limit": {
+              "description": "Maximum rows to return, capped at 100.",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 100
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-18T00:01:56.069Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-18T00:01:57.120Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-18T00:01:58.171Z",
+        "status": 401
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-18T00:01:59.223Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 6,
+    "tools_hash": "sha256:a0ad74e267ccbfd53ce4bdd3390cd023a8ef8123294515469e7d02c3db31dae6",
+    "static_tool_tokens": 1791,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "search_findings",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_findings",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "search_findings",
+        "message": "Parameter has no description.",
+        "param": "dataset"
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "answer_research_question",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "answer_research_question",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "answer_research_question",
+        "message": "Parameter has no description.",
+        "param": "dataset"
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_finding",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_companies",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_companies",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "list_companies",
+        "message": "Parameter has no description.",
+        "param": "dataset"
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_tags",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_tags",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "list_tags",
+        "message": "Parameter has no description.",
+        "param": "dataset"
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_events",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_events",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "list_events",
+        "message": "Parameter has no description.",
+        "param": "dataset"
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 16,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_findings",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Maximum findings to return, capped at 100. Use 100 for substantive answers; use a smaller number only for an explicit smoke test or sample request.",
+          "mentions_size_or_cost": true,
+          "maximum": 100
+        },
+        {
+          "tool": "answer_research_question",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Maximum evidence findings to use, capped at 100. Use 100 for substantive answers; use a smaller number only for an explicit smoke test or sample request.",
+          "mentions_size_or_cost": true,
+          "maximum": 100
+        },
+        {
+          "tool": "list_companies",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Maximum rows to return, capped at 100.",
+          "mentions_size_or_cost": true,
+          "maximum": 100
+        },
+        {
+          "tool": "list_tags",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Maximum rows to return, capped at 100.",
+          "mentions_size_or_cost": true,
+          "maximum": 100
+        },
+        {
+          "tool": "list_events",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Maximum rows to return, capped at 100.",
+          "mentions_size_or_cost": true,
+          "maximum": 100
+        }
+      ],
+      "flags": [
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "search_findings",
+            "get_finding"
+          ],
+          "hypothesis": "Read tools share resource terms (finding), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "search_findings",
+      "answer_research_question",
+      "get_finding",
+      "list_companies",
+      "list_tags",
+      "list_events"
+    ]
+  }
+}

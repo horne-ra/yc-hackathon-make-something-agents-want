@@ -1,0 +1,2027 @@
+{
+  "slug": "sugra-api",
+  "source_url": "https://manufact.com/mcp-catalog/sugra-api",
+  "metadata_only": true,
+  "catalog_review_used_auth": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:30:24.618Z",
+    "endpoint": "https://app.sugra.ai/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "sugra-api",
+      "icons": [
+        {
+          "src": "https://app.sugra.ai/images/brand/sugra-app-icon-192.png",
+          "mimeType": "image/png",
+          "sizes": [
+            "192x192"
+          ]
+        },
+        {
+          "src": "https://app.sugra.ai/images/brand/sugra-app-icon-512.png",
+          "mimeType": "image/png",
+          "sizes": [
+            "512x512"
+          ]
+        }
+      ],
+      "version": "0.13.0",
+      "websiteUrl": "https://sugra.ai"
+    },
+    "capabilities": {
+      "experimental": {},
+      "prompts": {
+        "listChanged": false
+      },
+      "resources": {
+        "subscribe": false,
+        "listChanged": false
+      },
+      "tools": {
+        "listChanged": false
+      }
+    },
+    "instructions": "Sugra API - read-only data across markets, macro, entities, news, network and earth. Each listed tool's description says what it returns, and its input schema describes each input it takes. list_toolsets and list_sources show the areas of the catalog behind them.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "sugra_entity_screen",
+            "description": "Screen a person or organization name against the Sugra sanctions corpus.\n\nReturns a SCREENING SIGNAL, not a compliance determination. Sugra is a\ntechnology provider, not a sanctions authority or consumer reporting agency.\nPEP and adverse-media coverage is supplementary and non-comprehensive - a\n`clear` result is not proof of absence, and a `hit` is a candidate match to\nreview, not a finding.\n\nOutput is COMPACT to protect the agent context budget:\n`{status, matches:[{name, score, list, type}], disclaimer}`. The verdict\n`status` is one of `clear`, `review`, or `hit`. The heavy raw fields\n(match rationale, source ids, publish dates) are dropped; use the Sugra API\ndirectly when the full screening envelope is needed.\n\nArgs:\n    name: The person or organization name to screen (required).\n    country: Optional ISO 3166-1 alpha-2 country to narrow the match.\n    dob: Optional date of birth (YYYY-MM-DD) for a person.\n    nationality: Optional nationality to narrow the match.\n",
+            "inputSchema": {
+              "properties": {
+                "name": {
+                  "description": "Person or organization name to screen (required).",
+                  "title": "Name",
+                  "type": "string"
+                },
+                "country": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Optional ISO 3166-1 alpha-2 country to narrow the match.",
+                  "title": "Country"
+                },
+                "dob": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Optional date of birth for a person, YYYY-MM-DD.",
+                  "title": "Dob"
+                },
+                "nationality": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Optional nationality to narrow the match.",
+                  "title": "Nationality"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "title": "sugra_entity_screenArguments",
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "title": "sugra_entity_screenDictOutput",
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Sugra Entity screen",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "sugra:read",
+                    "offline_access"
+                  ]
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "sugra:read",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "sugra_entity_lookup",
+            "description": "Resolve an entity by identifier and return its composed KYB envelope.\n\n`anchor` is `lei` (Legal Entity Identifier, resolved via the GLEIF registry)\nor `vat` (EU VAT number, validated via the EU VIES service). The result\nweaves identity, a sanctions screening signal, and - on request - ownership\nand adverse-media slices.\n\nThe screening verdict is a SCREENING SIGNAL, not a compliance determination,\nand any PEP / adverse-media content is supplementary and non-comprehensive.\nThe `disclaimer` field carries this and is always present.\n\nOutput is COMPACT by default to protect the agent context budget:\n`{entity:{name, anchor, value, status, country}, screening:{status,\ntop_matches:[...3], hit_count}, ids:{...}, disclaimer}`. Pass `include` to\nopt INTO fuller per-slice detail, e.g.\n`include=[\"ownership\",\"adverse_media\"]` adds those slices in full form.\n\nOn a bad anchor or an API error this returns a clean `{error, detail}` dict\nrather than raising, so the agent can branch on `result.get(\"error\")`.\n\nArgs:\n    anchor: Identifier type, one of `lei` or `vat`.\n    value: The identifier value (the 20-char LEI code or the VAT number).\n    include: Optional list of fuller slices to add, e.g.\n        `[\"ownership\", \"adverse_media\"]`. Omit for the compact default.\n",
+            "inputSchema": {
+              "properties": {
+                "anchor": {
+                  "description": "Identifier type: lei (GLEIF) or vat (EU VIES).",
+                  "enum": [
+                    "lei",
+                    "vat"
+                  ],
+                  "title": "Anchor",
+                  "type": "string"
+                },
+                "value": {
+                  "description": "The identifier value: 20-character LEI or the VAT number.",
+                  "title": "Value",
+                  "type": "string"
+                },
+                "include": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Optional fuller slices to add, e.g. ownership, adverse_media. Omit for the compact default. profile and screening are already in the compact core and are not extra slices.",
+                  "title": "Include"
+                }
+              },
+              "required": [
+                "anchor",
+                "value"
+              ],
+              "title": "sugra_entity_lookupArguments",
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "title": "sugra_entity_lookupDictOutput",
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Sugra Entity lookup",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "sugra:read",
+                    "offline_access"
+                  ]
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "sugra:read",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "search_endpoints",
+            "description": "Search the bundled Sugra endpoint catalog by natural-language query.\n\nUse this to pick an operation_id. It does not fetch data. Typical loop:\n1. search_endpoints(query) -> ranked hits with required_parameters\n2. describe_endpoint(operation_id) -> params, request_body_schema, agent_hints\n3. call_endpoint(operation_id, params=..., body=...) or fetch_data(query, params=...)\n\nFilter with toolset or source only after list_toolsets / list_sources;\na misspelled filter is an error, not a silent empty result.\n\nExamples:\n- search_endpoints(\"US CPI inflation\")\n- search_endpoints(\"AAPL price\", toolset=\"markets\")\n- search_endpoints(\"container ship AIS\", toolset=\"network\")\n",
+            "inputSchema": {
+              "properties": {
+                "query": {
+                  "description": "Natural-language search over the bundled catalog. Name the instrument, series, place, or task (examples: 'US CPI', 'AAPL quote', 'North Sea AIS'). Returns ranked operation_id hits with required_parameters. Then call describe_endpoint on a hit before call_endpoint.",
+                  "title": "Query",
+                  "type": "string"
+                },
+                "toolset": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Optional catalog group filter (markets, macro, news, network, ...). Call list_toolsets for the live names. An unknown value returns error unknown_toolset with known_toolsets rather than an empty hit list.",
+                  "title": "Toolset"
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Optional source-family filter as listed by list_sources (macro, markets, ...). An unknown value returns error unknown_source with known_sources.",
+                  "title": "Source"
+                },
+                "limit": {
+                  "default": 10,
+                  "description": "Maximum ranked hits to return. Default 10. Does not call the Sugra API; this only bounds the catalog search list.",
+                  "title": "Limit",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "query"
+              ],
+              "title": "search_endpointsArguments",
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "title": "search_endpointsDictOutput",
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Search endpoints",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "sugra:read",
+                    "offline_access"
+                  ]
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "sugra:read",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "describe_endpoint",
+            "description": "Describe one Sugra API endpoint by operation_id.\n\nIncludes agent_hints (duration_class fast/slow/heavy, max_concurrency,\nbulk billing) so you can budget timeouts and parallelism before calling.\nPOST endpoints with a JSON body also carry request_body_schema (the\nresolved JSON schema) - construct the `body` argument from it instead\nof guessing key names. Call this after search_endpoints and before\ncall_endpoint when you need the exact parameter names and examples.\n",
+            "inputSchema": {
+              "properties": {
+                "operation_id": {
+                  "description": "Catalog operation_id from search_endpoints (or from list_toolsets drill-down). Unknown ids return error unknown_operation_id.",
+                  "title": "Operation Id",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "operation_id"
+              ],
+              "title": "describe_endpointArguments",
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "title": "describe_endpointDictOutput",
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Describe endpoint",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "sugra:read",
+                    "offline_access"
+                  ]
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "sugra:read",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "call_endpoint",
+            "description": "Call a Sugra API endpoint by operation_id from the bundled catalog.\n\nPlan calls with describe_endpoint's agent_hints: duration_class \"fast\"\nusually responds in under ~2s, \"slow\" usually 1-5s and occasionally 15s+\non a cold upstream, \"heavy\" can exceed the gateway timeout - keep parallel\ncalls within max_concurrency and prefer small batches. Bulk endpoints bill\n1 request credit per body item. Failures return structured errors {error,\nreason, status_code, elapsed_ms, retry_hint}; after \"upstream_timeout\" a\nsingle retry often succeeds because the aborted attempt warms upstream\ncaches.\n",
+            "inputSchema": {
+              "properties": {
+                "operation_id": {
+                  "description": "Catalog operation_id to call, from search_endpoints (or from list_toolsets drill-down). Call describe_endpoint on it first for the parameter names. Unknown ids return error unknown_operation_id before any request is made.",
+                  "title": "Operation Id",
+                  "type": "string"
+                },
+                "params": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Query and path parameters for this operation_id. Keys and types are operation-specific - call describe_endpoint(operation_id) first to get the exact parameter names, types, and examples. Omit if the operation takes none. A key the operation does not declare returns error unknown_parameters with the accepted names and did_you_mean, before any request is made.",
+                  "title": "Params"
+                },
+                "body": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "JSON request body for a POST operation, matching the request_body_schema returned by describe_endpoint(operation_id): a JSON object for most operations, or a JSON array when that schema's top-level type is array. Omit for GET operations.",
+                  "title": "Body"
+                },
+                "limit": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Bounds ONLY the records list: the data list, a bare top-level array, or the list inside an object data when exactly one of these keys holds a list: data, entries, events, history, items, observations, points, records, results, rows, series, timeseries (for example data.items). When data has no such single list but every one of its values is an object holding exactly one list named observations, limit bounds each data.<key>.observations list on its own (records_path data.*.observations); fields there still names keys of data. Otherwise, no such list, or several, means the limit does not apply. Keys beside the list such as total and count are not rewritten, and lists nested inside records are never truncated. limit keeps the newest N records when every record carries one date or period key in one format and the list runs one way by it, else the first N, and meta.shaped reports limit_applied, records_path and, for a bounded records list, order (asc, desc or unknown) and kept_end (newest or first), as maps by name for sibling sub-series.",
+                  "title": "Limit"
+                },
+                "fields": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Optional projection of keys to keep on each record of the records list: the data list, a bare top-level array, or the list inside an object data when exactly one of these keys holds a list: data, entries, events, history, items, observations, points, records, results, rows, series, timeseries (for example data.items). Keys beside that list such as total and count stay. If a field names a key of data itself, or of a payload without data, that object is projected instead; an object data without such a list is otherwise kept whole. Dotted paths (geo.city) walk nested objects. If no field matches, nothing is removed. meta.shaped reports fields_applied, fields_unmatched and records_path. Omit to keep every key.",
+                  "title": "Fields"
+                },
+                "include_raw": {
+                  "default": false,
+                  "description": "If true, attach the original unshaped payload under raw when it fits the size cap; otherwise meta.raw_omitted explains why. Default false.",
+                  "title": "Include Raw",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "operation_id"
+              ],
+              "title": "call_endpointArguments",
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "title": "call_endpointDictOutput",
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Call endpoint",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "sugra:read",
+                    "offline_access"
+                  ]
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "sugra:read",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "list_toolsets",
+            "description": "List catalog groups with endpoint counts and short descriptions.\n\nUse the group names as the toolset filter on search_endpoints. This\ndoes not call the Sugra API; it reads the bundled catalog.\n",
+            "inputSchema": {
+              "properties": {},
+              "title": "list_toolsetsArguments",
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "title": "list_toolsetsDictOutput",
+              "type": "object"
+            },
+            "annotations": {
+              "title": "List toolsets",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "sugra:read",
+                    "offline_access"
+                  ]
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "sugra:read",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "fetch_data",
+            "description": "One-step fetch: find the best Sugra endpoint for the query and call it.\n\nCombines search_endpoints + call_endpoint into a single round trip. Use\nthis when you want data without manually picking an operation_id. The\nfull search_endpoints + describe_endpoint + call_endpoint dance is still\navailable when you need explicit control, but for most natural-language\nqueries this tool is enough.\n\nBehavior:\n1. Search the bundled catalog for the query. Top match wins.\n2. If the matched endpoint has required parameters and they are all\n   provided in `params`, call it and return the response.\n3. If required parameters are missing, return the candidate endpoints\n   and the missing-params list so the LLM can retry with the correct\n   `params` dict on the next call.\n4. If the query names a country and the match takes a `country` or\n   `countries` param that `params` leaves unset, return needs_params\n   for it with query_countries (ISO2) instead of running the match\n   without that filter.\n\nExamples:\n- `fetch_data(\"US CPI inflation\", params={\"series_id\": \"CPIAUCSL\"})`\n  runs fred_series_series_id (/api/v1/fred/series/CPIAUCSL) and returns\n  observations.\n- `fetch_data(\"Bitcoin price\")`\n  runs onchain_bitcoin_price, which takes no params.\n- `fetch_data(\"Latest financial news\")`\n  runs news_latest, which has no required params.\nOnly the top match runs, and a param it does not declare returns error\nunknown_parameters. For one coin's price, name the operation:\n`call_endpoint(\"crypto_coin_id_price\", params={\"coin_id\": \"bitcoin\"})`.\n",
+            "inputSchema": {
+              "properties": {
+                "query": {
+                  "description": "Natural-language request for data (examples: 'US CPI', 'Bitcoin price', 'latest news'). The tool picks the top catalog match and calls it. If required params are missing it returns needs_params instead of guessing.",
+                  "title": "Query",
+                  "type": "string"
+                },
+                "params": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Parameters for the auto-selected endpoint. If omitted and the best-match endpoint has required parameters, the tool returns that endpoint's required_parameters and examples so you can retry with them filled in.",
+                  "title": "Params"
+                },
+                "body": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "JSON body for an auto-selected POST operation; the tool returns the request_body_schema to fill when the match needs one. Pass a JSON object or a JSON array as that schema's top-level type dictates.",
+                  "title": "Body"
+                },
+                "limit": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Bounds ONLY the records list: the data list, a bare top-level array, or the list inside an object data when exactly one of these keys holds a list: data, entries, events, history, items, observations, points, records, results, rows, series, timeseries (for example data.items). When data has no such single list but every one of its values is an object holding exactly one list named observations, limit bounds each data.<key>.observations list on its own (records_path data.*.observations); fields there still names keys of data. Otherwise, no such list, or several, means the limit does not apply. Keys beside the list such as total and count are not rewritten, and lists nested inside records are never truncated. limit keeps the newest N records when every record carries one date or period key in one format and the list runs one way by it, else the first N, and meta.shaped reports limit_applied, records_path and, for a bounded records list, order (asc, desc or unknown) and kept_end (newest or first), as maps by name for sibling sub-series.",
+                  "title": "Limit"
+                },
+                "fields": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Optional projection of keys to keep on each record of the records list: the data list, a bare top-level array, or the list inside an object data when exactly one of these keys holds a list: data, entries, events, history, items, observations, points, records, results, rows, series, timeseries (for example data.items). Keys beside that list such as total and count stay. If a field names a key of data itself, or of a payload without data, that object is projected instead; an object data without such a list is otherwise kept whole. Dotted paths (geo.city) walk nested objects. If no field matches, nothing is removed. meta.shaped reports fields_applied, fields_unmatched and records_path. Omit to keep every key.",
+                  "title": "Fields"
+                },
+                "include_raw": {
+                  "default": false,
+                  "description": "If true, attach the original unshaped payload under raw when it fits the size cap; otherwise meta.raw_omitted explains why. Default false.",
+                  "title": "Include Raw",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "query"
+              ],
+              "title": "fetch_dataArguments",
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "title": "fetch_dataDictOutput",
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Fetch data",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "sugra:read",
+                    "offline_access"
+                  ]
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "sugra:read",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "list_sources",
+            "description": "List source families in the bundled catalog with endpoint counts.\n\nUse the family names as the source filter on search_endpoints. This\ndoes not call the Sugra API.\n",
+            "inputSchema": {
+              "properties": {},
+              "title": "list_sourcesArguments",
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "title": "list_sourcesDictOutput",
+              "type": "object"
+            },
+            "annotations": {
+              "title": "List sources",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "sugra:read",
+                    "offline_access"
+                  ]
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "sugra:read",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "resolve_entity",
+            "description": "Resolve free text to a canonical market or macro entity.\n\nTurns a ticker, company name, macro indicator, coin, or currency pair into\nthe agent plane's ``{namespace, ids}`` entity for use with get_snapshot and\nget_timeseries. A cross-namespace collision (e.g. a ticker that is both an\nequity and a coin) returns status \"ambiguous\" with ranked candidates and\nNEVER silently picks one; pass type_hint (e.g. \"equity\", \"etf\", \"coin\") to\nnarrow the universe. Crypto aliases resolve too (e.g. \"bitcoin\" -> the\nBTC coin entity). Status \"low_confidence\" means the best match cleared\nresolution but scored weakly - verify the returned entity before\nbuilding on it, or re-query with a more specific name or type_hint. For compliance KYB lookups by LEI/VAT or sanctions\nscreening use sugra_entity_lookup / sugra_entity_screen instead - this tool\nis for market-data entities.\n\nArgs:\n    query: Free-form text - ticker, company, indicator, coin, or pair.\n    type_hint: Optional namespace hint narrowing resolution.\n",
+            "inputSchema": {
+              "properties": {
+                "query": {
+                  "title": "Query",
+                  "type": "string"
+                },
+                "type_hint": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Type Hint"
+                }
+              },
+              "required": [
+                "query"
+              ],
+              "title": "resolve_entityArguments",
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "title": "resolve_entityDictOutput",
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Resolve entity",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "sugra:read",
+                    "offline_access"
+                  ]
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "sugra:read",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "get_snapshot",
+            "description": "Composed current view of an entity via a named recipe.\n\nExecutes a fixed server-side recipe (company_snapshot, etf_snapshot,\nquote_snapshot, macro_indicator_snapshot, macro_calendar,\nearnings_snapshot, debt_snapshot) and returns one envelope with freshness,\nprovenance, per-component coverage, and billing. Composed calls charge the\nrecipe's fixed cost (1-2 units) from the daily quota. status \"partial\"\nmeans an optional component was unavailable - the present components are\nstill trustworthy; honor the freshness block (stale=true means the data\naged past its budget); for macro_calendar, entity is accepted but does\nnot filter the calendar.\n\nArgs:\n    recipe: Recipe name from the fixed manifest.\n    entity: Entity dict from resolve_entity ({\"namespace\": ..., \"ids\": ...}).\n",
+            "inputSchema": {
+              "properties": {
+                "recipe": {
+                  "title": "Recipe",
+                  "type": "string"
+                },
+                "entity": {
+                  "additionalProperties": true,
+                  "description": "Entity dict from resolve_entity ({namespace, ids}). Extra keys are ignored.",
+                  "properties": {
+                    "namespace": {
+                      "description": "Entity namespace from resolve_entity.",
+                      "type": "string"
+                    },
+                    "ids": {
+                      "additionalProperties": true,
+                      "description": "Identifier map from resolve_entity.",
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "namespace",
+                    "ids"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "recipe",
+                "entity"
+              ],
+              "title": "get_snapshotArguments",
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "title": "get_snapshotDictOutput",
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Get snapshot",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "sugra:read",
+                    "offline_access"
+                  ]
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "sugra:read",
+                  "offline_access"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "get_timeseries",
+            "description": "Bounded timeseries for an entity: price, macro_series, etf_flows or\netf_monthly_flows.\n\nReturns points oldest-first with an explicit downsampling flag when the\nraw series exceeded max_points. Times are UTC. Costs 1 unit per call.\n\nRead the step from ``served_granularity``, not ``granularity``. The\nlatter echoes the request; the former is the step the source built the\npoints at, and the two can differ (a long price range can come back as\nmonthly bars under a \"1d\" request). It reads ``mixed`` when the points do\nnot share one step, ``unknown`` when the source does not say, and null\nwhen no point came back. It describes how each point was built, not how\nfar apart the returned points are: a thinned daily series still reads\n``1d``, and ``downsampled`` is what says points were dropped.\n\nThe two ETF flow metrics answer different questions and are not\ninterchangeable. ``etf_flows`` is an ESTIMATE at filing cadence: one point\nper SEC filing refresh, so ``t`` is a filing date and even a wide window\nyields a handful of points. ``etf_monthly_flows`` is the fund's own\ncreations and redemptions from its NPORT-P filing, so ``t`` is a calendar\nmonth (``YYYY-MM``) and each point carries the three filed components -\nsales, reinvestment, redemption - beside the net.\n\nTwo things to read before quoting etf_monthly_flows. NPORT-P is filed per\nSERIES, so for a fund with more than one share class the figures cover\nevery class and the payload says so in ``multi_class_series``; where the\nclass count is unknown it says ``class_scope`` instead of staying silent.\nAnd a fund that files no NPORT-P at all, such as a commodity trust, is not\nan error: the call returns status ``partial`` with an empty point list and\na ``reason``.\n\nArgs:\n    metric: One of price / macro_series / etf_flows / etf_monthly_flows.\n    entity: Entity dict from resolve_entity ({\"namespace\": ..., \"ids\": ...}).\n    granularity: Requested point granularity (default \"1d\").\n    max_points: Hard cap on returned points (default 500).\n",
+            "inputSchema": {
+              "properties": {
+                "metric": {
+                  "enum": [
+                    "price",
+                    "macro_series",
+                    "etf_flows",
+                    "etf_monthly_flows"
+                  ],
+                  "title": "Metric",
+                  "type": "string"
+                },
+                "entity": {
+                  "additionalProperties": true,
+                  "description": "Entity dict from resolve_entity ({namespace, ids}). Extra keys are ignored.",
+                  "properties": {
+                    "namespace": {
+                      "description": "Entity namespace from resolve_entity.",
+                      "type": "string"
+                    },
+                    "ids": {
+                      "additionalProperties": true,
+                      "description": "Identifier map from resolve_entity.",
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "namespace",
+                    "ids"
+                  ],
+                  "type": "object"
+                },
+                "granularity": {
+                  "default": "1d",
+                  "title": "Granularity",
+                  "type": "string"
+                },
+                "max_points": {
+                  "default": 500,
+                  "title": "Max Points",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "metric",
+                "entity"
+              ],
+              "title": "get_timeseriesArguments",
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "title": "get_timeseriesDictOutput",
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Get timeseries",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "sugra:read",
+                    "offline_access"
+                  ]
+                }
+              ]
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "sugra:read",
+                  "offline_access"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "sugra_entity_screen",
+        "description": "Screen a person or organization name against the Sugra sanctions corpus.\n\nReturns a SCREENING SIGNAL, not a compliance determination. Sugra is a\ntechnology provider, not a sanctions authority or consumer reporting agency.\nPEP and adverse-media coverage is supplementary and non-comprehensive - a\n`clear` result is not proof of absence, and a `hit` is a candidate match to\nreview, not a finding.\n\nOutput is COMPACT to protect the agent context budget:\n`{status, matches:[{name, score, list, type}], disclaimer}`. The verdict\n`status` is one of `clear`, `review`, or `hit`. The heavy raw fields\n(match rationale, source ids, publish dates) are dropped; use the Sugra API\ndirectly when the full screening envelope is needed.\n\nArgs:\n    name: The person or organization name to screen (required).\n    country: Optional ISO 3166-1 alpha-2 country to narrow the match.\n    dob: Optional date of birth (YYYY-MM-DD) for a person.\n    nationality: Optional nationality to narrow the match.\n",
+        "inputSchema": {
+          "properties": {
+            "name": {
+              "description": "Person or organization name to screen (required).",
+              "title": "Name",
+              "type": "string"
+            },
+            "country": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional ISO 3166-1 alpha-2 country to narrow the match.",
+              "title": "Country"
+            },
+            "dob": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional date of birth for a person, YYYY-MM-DD.",
+              "title": "Dob"
+            },
+            "nationality": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional nationality to narrow the match.",
+              "title": "Nationality"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "title": "sugra_entity_screenArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "sugra_entity_screenDictOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Sugra Entity screen",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2",
+              "scopes": [
+                "sugra:read",
+                "offline_access"
+              ]
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "sugra:read",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "sugra_entity_lookup",
+        "description": "Resolve an entity by identifier and return its composed KYB envelope.\n\n`anchor` is `lei` (Legal Entity Identifier, resolved via the GLEIF registry)\nor `vat` (EU VAT number, validated via the EU VIES service). The result\nweaves identity, a sanctions screening signal, and - on request - ownership\nand adverse-media slices.\n\nThe screening verdict is a SCREENING SIGNAL, not a compliance determination,\nand any PEP / adverse-media content is supplementary and non-comprehensive.\nThe `disclaimer` field carries this and is always present.\n\nOutput is COMPACT by default to protect the agent context budget:\n`{entity:{name, anchor, value, status, country}, screening:{status,\ntop_matches:[...3], hit_count}, ids:{...}, disclaimer}`. Pass `include` to\nopt INTO fuller per-slice detail, e.g.\n`include=[\"ownership\",\"adverse_media\"]` adds those slices in full form.\n\nOn a bad anchor or an API error this returns a clean `{error, detail}` dict\nrather than raising, so the agent can branch on `result.get(\"error\")`.\n\nArgs:\n    anchor: Identifier type, one of `lei` or `vat`.\n    value: The identifier value (the 20-char LEI code or the VAT number).\n    include: Optional list of fuller slices to add, e.g.\n        `[\"ownership\", \"adverse_media\"]`. Omit for the compact default.\n",
+        "inputSchema": {
+          "properties": {
+            "anchor": {
+              "description": "Identifier type: lei (GLEIF) or vat (EU VIES).",
+              "enum": [
+                "lei",
+                "vat"
+              ],
+              "title": "Anchor",
+              "type": "string"
+            },
+            "value": {
+              "description": "The identifier value: 20-character LEI or the VAT number.",
+              "title": "Value",
+              "type": "string"
+            },
+            "include": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional fuller slices to add, e.g. ownership, adverse_media. Omit for the compact default. profile and screening are already in the compact core and are not extra slices.",
+              "title": "Include"
+            }
+          },
+          "required": [
+            "anchor",
+            "value"
+          ],
+          "title": "sugra_entity_lookupArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "sugra_entity_lookupDictOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Sugra Entity lookup",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2",
+              "scopes": [
+                "sugra:read",
+                "offline_access"
+              ]
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "sugra:read",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "search_endpoints",
+        "description": "Search the bundled Sugra endpoint catalog by natural-language query.\n\nUse this to pick an operation_id. It does not fetch data. Typical loop:\n1. search_endpoints(query) -> ranked hits with required_parameters\n2. describe_endpoint(operation_id) -> params, request_body_schema, agent_hints\n3. call_endpoint(operation_id, params=..., body=...) or fetch_data(query, params=...)\n\nFilter with toolset or source only after list_toolsets / list_sources;\na misspelled filter is an error, not a silent empty result.\n\nExamples:\n- search_endpoints(\"US CPI inflation\")\n- search_endpoints(\"AAPL price\", toolset=\"markets\")\n- search_endpoints(\"container ship AIS\", toolset=\"network\")\n",
+        "inputSchema": {
+          "properties": {
+            "query": {
+              "description": "Natural-language search over the bundled catalog. Name the instrument, series, place, or task (examples: 'US CPI', 'AAPL quote', 'North Sea AIS'). Returns ranked operation_id hits with required_parameters. Then call describe_endpoint on a hit before call_endpoint.",
+              "title": "Query",
+              "type": "string"
+            },
+            "toolset": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional catalog group filter (markets, macro, news, network, ...). Call list_toolsets for the live names. An unknown value returns error unknown_toolset with known_toolsets rather than an empty hit list.",
+              "title": "Toolset"
+            },
+            "source": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional source-family filter as listed by list_sources (macro, markets, ...). An unknown value returns error unknown_source with known_sources.",
+              "title": "Source"
+            },
+            "limit": {
+              "default": 10,
+              "description": "Maximum ranked hits to return. Default 10. Does not call the Sugra API; this only bounds the catalog search list.",
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "title": "search_endpointsArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "search_endpointsDictOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Search endpoints",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2",
+              "scopes": [
+                "sugra:read",
+                "offline_access"
+              ]
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "sugra:read",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "describe_endpoint",
+        "description": "Describe one Sugra API endpoint by operation_id.\n\nIncludes agent_hints (duration_class fast/slow/heavy, max_concurrency,\nbulk billing) so you can budget timeouts and parallelism before calling.\nPOST endpoints with a JSON body also carry request_body_schema (the\nresolved JSON schema) - construct the `body` argument from it instead\nof guessing key names. Call this after search_endpoints and before\ncall_endpoint when you need the exact parameter names and examples.\n",
+        "inputSchema": {
+          "properties": {
+            "operation_id": {
+              "description": "Catalog operation_id from search_endpoints (or from list_toolsets drill-down). Unknown ids return error unknown_operation_id.",
+              "title": "Operation Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "operation_id"
+          ],
+          "title": "describe_endpointArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "describe_endpointDictOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Describe endpoint",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2",
+              "scopes": [
+                "sugra:read",
+                "offline_access"
+              ]
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "sugra:read",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "call_endpoint",
+        "description": "Call a Sugra API endpoint by operation_id from the bundled catalog.\n\nPlan calls with describe_endpoint's agent_hints: duration_class \"fast\"\nusually responds in under ~2s, \"slow\" usually 1-5s and occasionally 15s+\non a cold upstream, \"heavy\" can exceed the gateway timeout - keep parallel\ncalls within max_concurrency and prefer small batches. Bulk endpoints bill\n1 request credit per body item. Failures return structured errors {error,\nreason, status_code, elapsed_ms, retry_hint}; after \"upstream_timeout\" a\nsingle retry often succeeds because the aborted attempt warms upstream\ncaches.\n",
+        "inputSchema": {
+          "properties": {
+            "operation_id": {
+              "description": "Catalog operation_id to call, from search_endpoints (or from list_toolsets drill-down). Call describe_endpoint on it first for the parameter names. Unknown ids return error unknown_operation_id before any request is made.",
+              "title": "Operation Id",
+              "type": "string"
+            },
+            "params": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Query and path parameters for this operation_id. Keys and types are operation-specific - call describe_endpoint(operation_id) first to get the exact parameter names, types, and examples. Omit if the operation takes none. A key the operation does not declare returns error unknown_parameters with the accepted names and did_you_mean, before any request is made.",
+              "title": "Params"
+            },
+            "body": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "JSON request body for a POST operation, matching the request_body_schema returned by describe_endpoint(operation_id): a JSON object for most operations, or a JSON array when that schema's top-level type is array. Omit for GET operations.",
+              "title": "Body"
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Bounds ONLY the records list: the data list, a bare top-level array, or the list inside an object data when exactly one of these keys holds a list: data, entries, events, history, items, observations, points, records, results, rows, series, timeseries (for example data.items). When data has no such single list but every one of its values is an object holding exactly one list named observations, limit bounds each data.<key>.observations list on its own (records_path data.*.observations); fields there still names keys of data. Otherwise, no such list, or several, means the limit does not apply. Keys beside the list such as total and count are not rewritten, and lists nested inside records are never truncated. limit keeps the newest N records when every record carries one date or period key in one format and the list runs one way by it, else the first N, and meta.shaped reports limit_applied, records_path and, for a bounded records list, order (asc, desc or unknown) and kept_end (newest or first), as maps by name for sibling sub-series.",
+              "title": "Limit"
+            },
+            "fields": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional projection of keys to keep on each record of the records list: the data list, a bare top-level array, or the list inside an object data when exactly one of these keys holds a list: data, entries, events, history, items, observations, points, records, results, rows, series, timeseries (for example data.items). Keys beside that list such as total and count stay. If a field names a key of data itself, or of a payload without data, that object is projected instead; an object data without such a list is otherwise kept whole. Dotted paths (geo.city) walk nested objects. If no field matches, nothing is removed. meta.shaped reports fields_applied, fields_unmatched and records_path. Omit to keep every key.",
+              "title": "Fields"
+            },
+            "include_raw": {
+              "default": false,
+              "description": "If true, attach the original unshaped payload under raw when it fits the size cap; otherwise meta.raw_omitted explains why. Default false.",
+              "title": "Include Raw",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "operation_id"
+          ],
+          "title": "call_endpointArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "call_endpointDictOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Call endpoint",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2",
+              "scopes": [
+                "sugra:read",
+                "offline_access"
+              ]
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "sugra:read",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "list_toolsets",
+        "description": "List catalog groups with endpoint counts and short descriptions.\n\nUse the group names as the toolset filter on search_endpoints. This\ndoes not call the Sugra API; it reads the bundled catalog.\n",
+        "inputSchema": {
+          "properties": {},
+          "title": "list_toolsetsArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "list_toolsetsDictOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "List toolsets",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2",
+              "scopes": [
+                "sugra:read",
+                "offline_access"
+              ]
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "sugra:read",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "fetch_data",
+        "description": "One-step fetch: find the best Sugra endpoint for the query and call it.\n\nCombines search_endpoints + call_endpoint into a single round trip. Use\nthis when you want data without manually picking an operation_id. The\nfull search_endpoints + describe_endpoint + call_endpoint dance is still\navailable when you need explicit control, but for most natural-language\nqueries this tool is enough.\n\nBehavior:\n1. Search the bundled catalog for the query. Top match wins.\n2. If the matched endpoint has required parameters and they are all\n   provided in `params`, call it and return the response.\n3. If required parameters are missing, return the candidate endpoints\n   and the missing-params list so the LLM can retry with the correct\n   `params` dict on the next call.\n4. If the query names a country and the match takes a `country` or\n   `countries` param that `params` leaves unset, return needs_params\n   for it with query_countries (ISO2) instead of running the match\n   without that filter.\n\nExamples:\n- `fetch_data(\"US CPI inflation\", params={\"series_id\": \"CPIAUCSL\"})`\n  runs fred_series_series_id (/api/v1/fred/series/CPIAUCSL) and returns\n  observations.\n- `fetch_data(\"Bitcoin price\")`\n  runs onchain_bitcoin_price, which takes no params.\n- `fetch_data(\"Latest financial news\")`\n  runs news_latest, which has no required params.\nOnly the top match runs, and a param it does not declare returns error\nunknown_parameters. For one coin's price, name the operation:\n`call_endpoint(\"crypto_coin_id_price\", params={\"coin_id\": \"bitcoin\"})`.\n",
+        "inputSchema": {
+          "properties": {
+            "query": {
+              "description": "Natural-language request for data (examples: 'US CPI', 'Bitcoin price', 'latest news'). The tool picks the top catalog match and calls it. If required params are missing it returns needs_params instead of guessing.",
+              "title": "Query",
+              "type": "string"
+            },
+            "params": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Parameters for the auto-selected endpoint. If omitted and the best-match endpoint has required parameters, the tool returns that endpoint's required_parameters and examples so you can retry with them filled in.",
+              "title": "Params"
+            },
+            "body": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "JSON body for an auto-selected POST operation; the tool returns the request_body_schema to fill when the match needs one. Pass a JSON object or a JSON array as that schema's top-level type dictates.",
+              "title": "Body"
+            },
+            "limit": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Bounds ONLY the records list: the data list, a bare top-level array, or the list inside an object data when exactly one of these keys holds a list: data, entries, events, history, items, observations, points, records, results, rows, series, timeseries (for example data.items). When data has no such single list but every one of its values is an object holding exactly one list named observations, limit bounds each data.<key>.observations list on its own (records_path data.*.observations); fields there still names keys of data. Otherwise, no such list, or several, means the limit does not apply. Keys beside the list such as total and count are not rewritten, and lists nested inside records are never truncated. limit keeps the newest N records when every record carries one date or period key in one format and the list runs one way by it, else the first N, and meta.shaped reports limit_applied, records_path and, for a bounded records list, order (asc, desc or unknown) and kept_end (newest or first), as maps by name for sibling sub-series.",
+              "title": "Limit"
+            },
+            "fields": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional projection of keys to keep on each record of the records list: the data list, a bare top-level array, or the list inside an object data when exactly one of these keys holds a list: data, entries, events, history, items, observations, points, records, results, rows, series, timeseries (for example data.items). Keys beside that list such as total and count stay. If a field names a key of data itself, or of a payload without data, that object is projected instead; an object data without such a list is otherwise kept whole. Dotted paths (geo.city) walk nested objects. If no field matches, nothing is removed. meta.shaped reports fields_applied, fields_unmatched and records_path. Omit to keep every key.",
+              "title": "Fields"
+            },
+            "include_raw": {
+              "default": false,
+              "description": "If true, attach the original unshaped payload under raw when it fits the size cap; otherwise meta.raw_omitted explains why. Default false.",
+              "title": "Include Raw",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "title": "fetch_dataArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "fetch_dataDictOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Fetch data",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2",
+              "scopes": [
+                "sugra:read",
+                "offline_access"
+              ]
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "sugra:read",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "list_sources",
+        "description": "List source families in the bundled catalog with endpoint counts.\n\nUse the family names as the source filter on search_endpoints. This\ndoes not call the Sugra API.\n",
+        "inputSchema": {
+          "properties": {},
+          "title": "list_sourcesArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "list_sourcesDictOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "List sources",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2",
+              "scopes": [
+                "sugra:read",
+                "offline_access"
+              ]
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "sugra:read",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "resolve_entity",
+        "description": "Resolve free text to a canonical market or macro entity.\n\nTurns a ticker, company name, macro indicator, coin, or currency pair into\nthe agent plane's ``{namespace, ids}`` entity for use with get_snapshot and\nget_timeseries. A cross-namespace collision (e.g. a ticker that is both an\nequity and a coin) returns status \"ambiguous\" with ranked candidates and\nNEVER silently picks one; pass type_hint (e.g. \"equity\", \"etf\", \"coin\") to\nnarrow the universe. Crypto aliases resolve too (e.g. \"bitcoin\" -> the\nBTC coin entity). Status \"low_confidence\" means the best match cleared\nresolution but scored weakly - verify the returned entity before\nbuilding on it, or re-query with a more specific name or type_hint. For compliance KYB lookups by LEI/VAT or sanctions\nscreening use sugra_entity_lookup / sugra_entity_screen instead - this tool\nis for market-data entities.\n\nArgs:\n    query: Free-form text - ticker, company, indicator, coin, or pair.\n    type_hint: Optional namespace hint narrowing resolution.\n",
+        "inputSchema": {
+          "properties": {
+            "query": {
+              "title": "Query",
+              "type": "string"
+            },
+            "type_hint": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Type Hint"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "title": "resolve_entityArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "resolve_entityDictOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Resolve entity",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2",
+              "scopes": [
+                "sugra:read",
+                "offline_access"
+              ]
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "sugra:read",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "get_snapshot",
+        "description": "Composed current view of an entity via a named recipe.\n\nExecutes a fixed server-side recipe (company_snapshot, etf_snapshot,\nquote_snapshot, macro_indicator_snapshot, macro_calendar,\nearnings_snapshot, debt_snapshot) and returns one envelope with freshness,\nprovenance, per-component coverage, and billing. Composed calls charge the\nrecipe's fixed cost (1-2 units) from the daily quota. status \"partial\"\nmeans an optional component was unavailable - the present components are\nstill trustworthy; honor the freshness block (stale=true means the data\naged past its budget); for macro_calendar, entity is accepted but does\nnot filter the calendar.\n\nArgs:\n    recipe: Recipe name from the fixed manifest.\n    entity: Entity dict from resolve_entity ({\"namespace\": ..., \"ids\": ...}).\n",
+        "inputSchema": {
+          "properties": {
+            "recipe": {
+              "title": "Recipe",
+              "type": "string"
+            },
+            "entity": {
+              "additionalProperties": true,
+              "description": "Entity dict from resolve_entity ({namespace, ids}). Extra keys are ignored.",
+              "properties": {
+                "namespace": {
+                  "description": "Entity namespace from resolve_entity.",
+                  "type": "string"
+                },
+                "ids": {
+                  "additionalProperties": true,
+                  "description": "Identifier map from resolve_entity.",
+                  "type": "object"
+                }
+              },
+              "required": [
+                "namespace",
+                "ids"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "recipe",
+            "entity"
+          ],
+          "title": "get_snapshotArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "get_snapshotDictOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get snapshot",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2",
+              "scopes": [
+                "sugra:read",
+                "offline_access"
+              ]
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "sugra:read",
+              "offline_access"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "get_timeseries",
+        "description": "Bounded timeseries for an entity: price, macro_series, etf_flows or\netf_monthly_flows.\n\nReturns points oldest-first with an explicit downsampling flag when the\nraw series exceeded max_points. Times are UTC. Costs 1 unit per call.\n\nRead the step from ``served_granularity``, not ``granularity``. The\nlatter echoes the request; the former is the step the source built the\npoints at, and the two can differ (a long price range can come back as\nmonthly bars under a \"1d\" request). It reads ``mixed`` when the points do\nnot share one step, ``unknown`` when the source does not say, and null\nwhen no point came back. It describes how each point was built, not how\nfar apart the returned points are: a thinned daily series still reads\n``1d``, and ``downsampled`` is what says points were dropped.\n\nThe two ETF flow metrics answer different questions and are not\ninterchangeable. ``etf_flows`` is an ESTIMATE at filing cadence: one point\nper SEC filing refresh, so ``t`` is a filing date and even a wide window\nyields a handful of points. ``etf_monthly_flows`` is the fund's own\ncreations and redemptions from its NPORT-P filing, so ``t`` is a calendar\nmonth (``YYYY-MM``) and each point carries the three filed components -\nsales, reinvestment, redemption - beside the net.\n\nTwo things to read before quoting etf_monthly_flows. NPORT-P is filed per\nSERIES, so for a fund with more than one share class the figures cover\nevery class and the payload says so in ``multi_class_series``; where the\nclass count is unknown it says ``class_scope`` instead of staying silent.\nAnd a fund that files no NPORT-P at all, such as a commodity trust, is not\nan error: the call returns status ``partial`` with an empty point list and\na ``reason``.\n\nArgs:\n    metric: One of price / macro_series / etf_flows / etf_monthly_flows.\n    entity: Entity dict from resolve_entity ({\"namespace\": ..., \"ids\": ...}).\n    granularity: Requested point granularity (default \"1d\").\n    max_points: Hard cap on returned points (default 500).\n",
+        "inputSchema": {
+          "properties": {
+            "metric": {
+              "enum": [
+                "price",
+                "macro_series",
+                "etf_flows",
+                "etf_monthly_flows"
+              ],
+              "title": "Metric",
+              "type": "string"
+            },
+            "entity": {
+              "additionalProperties": true,
+              "description": "Entity dict from resolve_entity ({namespace, ids}). Extra keys are ignored.",
+              "properties": {
+                "namespace": {
+                  "description": "Entity namespace from resolve_entity.",
+                  "type": "string"
+                },
+                "ids": {
+                  "additionalProperties": true,
+                  "description": "Identifier map from resolve_entity.",
+                  "type": "object"
+                }
+              },
+              "required": [
+                "namespace",
+                "ids"
+              ],
+              "type": "object"
+            },
+            "granularity": {
+              "default": "1d",
+              "title": "Granularity",
+              "type": "string"
+            },
+            "max_points": {
+              "default": 500,
+              "title": "Max Points",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "metric",
+            "entity"
+          ],
+          "title": "get_timeseriesArguments",
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "get_timeseriesDictOutput",
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get timeseries",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "oauth2",
+              "scopes": [
+                "sugra:read",
+                "offline_access"
+              ]
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "sugra:read",
+              "offline_access"
+            ]
+          }
+        ]
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:30:21.244Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:30:22.293Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:30:23.343Z",
+        "status": 401
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:30:24.393Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 11,
+    "tools_hash": "sha256:f090c7d19545754c2f3481572cdecda713b582cd066b56278c7401bc66c755cd",
+    "static_tool_tokens": 8625,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F2",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "resolve_entity",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "query"
+      },
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "sugra_entity_lookup",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "sugra_entity_lookup",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "call_endpoint",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F7",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "fetch_data",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F8",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "resolve_entity",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "resolve_entity",
+        "message": "Parameter has no description.",
+        "param": "query"
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "resolve_entity",
+        "message": "Parameter has no description.",
+        "param": "type_hint"
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_snapshot",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_snapshot",
+        "message": "Parameter has no description.",
+        "param": "recipe"
+      },
+      {
+        "id": "F13",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_snapshot",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "recipe"
+      },
+      {
+        "id": "F14",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_timeseries",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_timeseries",
+        "message": "Parameter has no description.",
+        "param": "metric"
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_timeseries",
+        "message": "Parameter has no description.",
+        "param": "granularity"
+      },
+      {
+        "id": "F17",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_timeseries",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "granularity"
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_timeseries",
+        "message": "Parameter has no description.",
+        "param": "max_points"
+      }
+    ],
+    "severity_counts": {
+      "high": 3,
+      "medium": 9,
+      "warning": 4
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "sugra_entity_lookup",
+          "path": "inputSchema.properties.include",
+          "name": "include",
+          "description": "Optional fuller slices to add, e.g. ownership, adverse_media. Omit for the compact default. profile and screening are already in the compact core and are not extra slices.",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "search_endpoints",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Maximum ranked hits to return. Default 10. Does not call the Sugra API; this only bounds the catalog search list.",
+          "mentions_size_or_cost": true,
+          "default": 10,
+          "described_default": 10
+        },
+        {
+          "tool": "call_endpoint",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Bounds ONLY the records list: the data list, a bare top-level array, or the list inside an object data when exactly one of these keys holds a list: data, entries, events, history, items, observations, points, records, results, rows, series, timeseries (for example data.items). When data has no such single list but every one of its values is an object holding exactly one list named observations, limit bounds each data.<key>.observations list on its own (records_path data.*.observations); fields there still names keys of data. Otherwise, no such list, or several, means the limit does not apply. Keys beside the list such as total and count are not rewritten, and lists nested inside records are never truncated. limit keeps the newest N records when every record carries one date or period key in one format and the list runs one way by it, else the first N, and meta.shaped reports limit_applied, records_path and, for a bounded records list, order (asc, desc or unknown) and kept_end (newest or first), as maps by name for sibling sub-series.",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "call_endpoint",
+          "path": "inputSchema.properties.fields",
+          "name": "fields",
+          "description": "Optional projection of keys to keep on each record of the records list: the data list, a bare top-level array, or the list inside an object data when exactly one of these keys holds a list: data, entries, events, history, items, observations, points, records, results, rows, series, timeseries (for example data.items). Keys beside that list such as total and count stay. If a field names a key of data itself, or of a payload without data, that object is projected instead; an object data without such a list is otherwise kept whole. Dotted paths (geo.city) walk nested objects. If no field matches, nothing is removed. meta.shaped reports fields_applied, fields_unmatched and records_path. Omit to keep every key.",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "call_endpoint",
+          "path": "inputSchema.properties.include_raw",
+          "name": "include_raw",
+          "description": "If true, attach the original unshaped payload under raw when it fits the size cap; otherwise meta.raw_omitted explains why. Default false.",
+          "mentions_size_or_cost": true,
+          "default": false
+        },
+        {
+          "tool": "fetch_data",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Bounds ONLY the records list: the data list, a bare top-level array, or the list inside an object data when exactly one of these keys holds a list: data, entries, events, history, items, observations, points, records, results, rows, series, timeseries (for example data.items). When data has no such single list but every one of its values is an object holding exactly one list named observations, limit bounds each data.<key>.observations list on its own (records_path data.*.observations); fields there still names keys of data. Otherwise, no such list, or several, means the limit does not apply. Keys beside the list such as total and count are not rewritten, and lists nested inside records are never truncated. limit keeps the newest N records when every record carries one date or period key in one format and the list runs one way by it, else the first N, and meta.shaped reports limit_applied, records_path and, for a bounded records list, order (asc, desc or unknown) and kept_end (newest or first), as maps by name for sibling sub-series.",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "fetch_data",
+          "path": "inputSchema.properties.fields",
+          "name": "fields",
+          "description": "Optional projection of keys to keep on each record of the records list: the data list, a bare top-level array, or the list inside an object data when exactly one of these keys holds a list: data, entries, events, history, items, observations, points, records, results, rows, series, timeseries (for example data.items). Keys beside that list such as total and count stay. If a field names a key of data itself, or of a payload without data, that object is projected instead; an object data without such a list is otherwise kept whole. Dotted paths (geo.city) walk nested objects. If no field matches, nothing is removed. meta.shaped reports fields_applied, fields_unmatched and records_path. Omit to keep every key.",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "fetch_data",
+          "path": "inputSchema.properties.include_raw",
+          "name": "include_raw",
+          "description": "If true, attach the original unshaped payload under raw when it fits the size cap; otherwise meta.raw_omitted explains why. Default false.",
+          "mentions_size_or_cost": true,
+          "default": false
+        },
+        {
+          "tool": "get_timeseries",
+          "path": "inputSchema.properties.max_points",
+          "name": "max_points",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": 500
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "call_endpoint"
+          ],
+          "description": "Call a Sugra API endpoint by operation_id from the bundled catalog.\n\nPlan calls with describe_endpoint's agent_hints: duration_class \"fast\"\nusually responds in under ~2s, \"slow\" usually 1-5s and occasionally 15s+\non a cold upstream, \"heavy\" can exceed the gateway timeout - keep parallel\ncalls within max_concurrency and prefer small batches. Bulk endpoints bill\n1 request credit per body item. Failures return structured errors {error,\nreason, status_code, elapsed_ms, retry_hint}; after \"upstream_timeout\" a\nsingle retry often succeeds because the aborted attempt warms upstream\ncaches.\n",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "fetch_data"
+          ],
+          "description": "One-step fetch: find the best Sugra endpoint for the query and call it.\n\nCombines search_endpoints + call_endpoint into a single round trip. Use\nthis when you want data without manually picking an operation_id. The\nfull search_endpoints + describe_endpoint + call_endpoint dance is still\navailable when you need explicit control, but for most natural-language\nqueries this tool is enough.\n\nBehavior:\n1. Search the bundled catalog for the query. Top match wins.\n2. If the matched endpoint has required parameters and they are all\n   provided in `params`, call it and return the response.\n3. If required parameters are missing, return the candidate endpoints\n   and the missing-params list so the LLM can retry with the correct\n   `params` dict on the next call.\n4. If the query names a country and the match takes a `country` or\n   `countries` param that `params` leaves unset, return needs_params\n   for it with query_countries (ISO2) instead of running the match\n   without that filter.\n\nExamples:\n- `fetch_data(\"US CPI inflation\", params={\"series_id\": \"CPIAUCSL\"})`\n  runs fred_series_series_id (/api/v1/fred/series/CPIAUCSL) and returns\n  observations.\n- `fetch_data(\"Bitcoin price\")`\n  runs onchain_bitcoin_price, which takes no params.\n- `fetch_data(\"Latest financial news\")`\n  runs news_latest, which has no required params.\nOnly the top match runs, and a param it does not declare returns error\nunknown_parameters. For one coin's price, name the operation:\n`call_endpoint(\"crypto_coin_id_price\", params={\"coin_id\": \"bitcoin\"})`.\n",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get_timeseries"
+          ],
+          "path": "inputSchema.properties.max_points",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "get_timeseries"
+          ],
+          "path": "inputSchema.properties.max_points",
+          "description": "",
+          "default": 500,
+          "default_source": "schema",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_timeseries"
+          ],
+          "description": "Bounded timeseries for an entity: price, macro_series, etf_flows or\netf_monthly_flows.\n\nReturns points oldest-first with an explicit downsampling flag when the\nraw series exceeded max_points. Times are UTC. Costs 1 unit per call.\n\nRead the step from ``served_granularity``, not ``granularity``. The\nlatter echoes the request; the former is the step the source built the\npoints at, and the two can differ (a long price range can come back as\nmonthly bars under a \"1d\" request). It reads ``mixed`` when the points do\nnot share one step, ``unknown`` when the source does not say, and null\nwhen no point came back. It describes how each point was built, not how\nfar apart the returned points are: a thinned daily series still reads\n``1d``, and ``downsampled`` is what says points were dropped.\n\nThe two ETF flow metrics answer different questions and are not\ninterchangeable. ``etf_flows`` is an ESTIMATE at filing cadence: one point\nper SEC filing refresh, so ``t`` is a filing date and even a wide window\nyields a handful of points. ``etf_monthly_flows`` is the fund's own\ncreations and redemptions from its NPORT-P filing, so ``t`` is a calendar\nmonth (``YYYY-MM``) and each point carries the three filed components -\nsales, reinvestment, redemption - beside the net.\n\nTwo things to read before quoting etf_monthly_flows. NPORT-P is filed per\nSERIES, so for a fund with more than one share class the figures cover\nevery class and the payload says so in ``multi_class_series``; where the\nclass count is unknown it says ``class_scope`` instead of staying silent.\nAnd a fund that files no NPORT-P at all, such as a commodity trust, is not\nan error: the call returns status ``partial`` with an empty point list and\na ``reason``.\n\nArgs:\n    metric: One of price / macro_series / etf_flows / etf_monthly_flows.\n    entity: Entity dict from resolve_entity ({\"namespace\": ..., \"ids\": ...}).\n    granularity: Requested point granularity (default \"1d\").\n    max_points: Hard cap on returned points (default 500).\n",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "sugra_entity_screen",
+      "sugra_entity_lookup",
+      "search_endpoints",
+      "describe_endpoint",
+      "call_endpoint",
+      "list_toolsets",
+      "fetch_data",
+      "list_sources",
+      "resolve_entity",
+      "get_snapshot",
+      "get_timeseries"
+    ]
+  }
+}

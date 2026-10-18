@@ -1,0 +1,1118 @@
+{
+  "slug": "automotion",
+  "source_url": "https://manufact.com/mcp-catalog/automotion",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:23:18.643Z",
+    "endpoint": "https://automotion-mcp-production-6f08e98a6e4b.herokuapp.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "automotion-mcp",
+      "version": "1.2.0"
+    },
+    "capabilities": {
+      "resources": {
+        "subscribe": false,
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "list_brands",
+            "title": "List Available Car Brands & Services",
+            "description": "Use this when: User asks \"what brands do you have?\", \"what car companies are available?\", or wants to see all options before searching for locations.\n\nWhat this does: Returns complete list of car manufacturers AND service providers in the network.\n\nIMPORTANT: \"Brands\" is overloaded - includes TWO categories:\n1. Car Manufacturers: Honda, Toyota, BMW, Ford, etc. (brand-specific locations)\n2. Service Providers: Glass Repair, Rent a Car, Auto Insurance, etc. (work with ANY vehicle)\n\nWhen to use:\n- \"What car brands do you support?\"\n- \"Do you have Honda locations?\"\n- \"What services are available?\"\n- \"Can I find glass repair shops?\"\n\nWhen NOT to use:\n- User just wants nearby locations without caring about brand → Skip this, go straight to find_locations\n- General car questions like \"What's the best car to buy?\" or \"Tell me about Honda reliability\" → Use web search instead\n- Questions about car prices or features → Use web search instead\n\nReturns: Categorized list of car manufacturers and service providers with IDs and logos. Use this info to answer questions about brand availability.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {}
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "summary": {
+                  "type": "string"
+                },
+                "car_manufacturers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "logo": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "category": {
+                        "type": "string",
+                        "enum": [
+                          "service",
+                          "manufacturer"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "logo",
+                      "category"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "service_providers": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/properties/car_manufacturers/items"
+                  }
+                }
+              },
+              "required": [
+                "summary",
+                "car_manufacturers",
+                "service_providers"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "find_locations",
+            "title": "Find Locations (Primary Search Tool)",
+            "description": "✅ PRIMARY TOOL for all location searches. Handles brand + location combinations automatically.\n\nWhat this returns: Service locations matching your criteria, sorted by distance when location provided.\n\nPARAMETERS:\n- brand_name (optional): Human-readable brand like \"Honda\", \"Glass Repair\", \"Tire and Wheel\"\n- latitude/longitude (optional): Search center coordinates\n- Both optional, but provide at least one\n\nSEARCH MODES (automatically determined):\n1. Brand + Location → Up to 20 nearest locations for that brand (most common)\n2. Location only → Up to 20 nearest locations of all brands\n3. Brand only → ALL locations for that brand nationwide (rarely needed)\n\nLOCATION HANDLING:\n- If user specifies a location (city, address, \"near X\"), geocode it to lat/lng\n- If user says \"near me\" or doesn't specify location, USE THE USER'S KNOWN COORDINATES\n- Always default to user's current/known location when available\n\nEXAMPLES:\n- \"Find Honda locations near me\" → brand_name=\"Honda\" + user's coordinates\n- \"Tire shop in Brooklyn\" → brand_name=\"Tire and Wheel\" + Brooklyn coordinates\n- \"Glass repair Charlottesville\" → brand_name=\"Glass Repair\" + Charlottesville coordinates\n- \"Locations near me\" → just coordinates (no brand)\n- \"All Toyota locations\" → brand_name=\"Toyota\" only (nationwide)\n\nSPECIALTY SERVICES (use brand_name):\n- Tires/wheels → brand_name=\"Tire and Wheel\"\n- Auto glass → brand_name=\"Glass Repair\"\n- Car rental → brand_name=\"Rent a Car\"\n\nUNIVERSAL SERVICES (no brand needed, just location):\n- Oil change, brake service, car maintenance → use location only\n\nEach result includes:\n- business_category: Type of business\n- services: Array of services offered\n- booking.schedule_service_url: URL to book a service appointment online (rendered as the \"Book Online\" link)\n\nReturns: Service locations as a formatted list with names, addresses, and booking links.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "brand_name": {
+                  "type": "string",
+                  "description": "Human-readable brand name like \"Honda\", \"Toyota\", \"Glass Repair\", \"Tire and Wheel\". Case-insensitive. If misspelled, you'll get suggestions."
+                },
+                "latitude": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90,
+                  "description": "Search center latitude (-90 to 90). Required for proximity search."
+                },
+                "longitude": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180,
+                  "description": "Search center longitude (-180 to 180). Required for proximity search."
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://widget/dealer-map.html",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              },
+              "openai/outputTemplate": "ui://widget/dealer-map.html",
+              "openai/toolInvocation/invoking": "Finding locations...",
+              "openai/toolInvocation/invoked": "Found locations",
+              "openai/widgetAccessible": true
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "locations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "address": {
+                        "type": "object",
+                        "properties": {
+                          "street": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "city": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "state": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "zip": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "full": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "full"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "coordinates": {
+                        "type": "object",
+                        "properties": {
+                          "latitude": {
+                            "type": "number"
+                          },
+                          "longitude": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "latitude",
+                          "longitude"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "contact": {
+                        "type": "object",
+                        "properties": {
+                          "email": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "booking": {
+                        "type": "object",
+                        "properties": {
+                          "schedule_service_url": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "account_id": {
+                        "type": "string"
+                      },
+                      "brands": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "logo": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "logo_url": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "business_category": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "services": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "address",
+                      "coordinates",
+                      "contact",
+                      "booking",
+                      "account_id",
+                      "services"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "searchedBrand": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "logo": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "logo"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "search_center": {
+                  "type": "object",
+                  "properties": {
+                    "latitude": {
+                      "type": "number"
+                    },
+                    "longitude": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "latitude",
+                    "longitude"
+                  ],
+                  "additionalProperties": false
+                },
+                "attribution": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "medium": {
+                      "type": "string"
+                    },
+                    "campaign": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "medium",
+                    "campaign"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "locations",
+                "searchedBrand",
+                "attribution"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "get_booking_details",
+            "title": "Get Specific Location Booking URL",
+            "description": "Use this when: User wants to book an appointment or get contact details for a specific location from search results.\n\n⚠️ CRITICAL LIMITATIONS:\nThis tool returns ONLY contact information and booking URL. It does NOT provide:\n- Appointment availability or scheduling details\n- Service center hours or wait times\n- Pricing, service quality, or reviews\n- Operational details about this specific location\n- Any information beyond basic contact details\n\nDO NOT make recommendations about:\n- Best time to book appointments\n- Service quality or reliability\n- Location practices or upselling patterns\n- Wait times or service speed\n\nWhat this ACTUALLY returns:\n- Booking URL (for user to schedule directly)\n- Email and address\n- List of brands/products the location carries\n\nWhen to use:\n- ✅ User needs booking URL or contact info for a specific location\n- ✅ User asks \"How do I contact this location?\"\n\nWhen NOT to use:\n- ❌ User asks about hours, availability, pricing, wait times → Tell them to use booking URL or contact via email\n- ❌ Searching for locations → Use find_locations instead\n\nAfter calling this tool: Provide ONLY the contact info returned. Direct user to booking URL for any scheduling/service questions.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "account_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "REQUIRED: Location account UUID from find_locations results. Must perform a search first to get valid account IDs. Example: \"241be2de-ef16-4708-b931-8a6de3061ece\"."
+                }
+              },
+              "required": [
+                "account_id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "booking_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "contact": {
+                  "type": "object",
+                  "properties": {
+                    "email": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "address": {
+                  "type": "object",
+                  "properties": {
+                    "street": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "city": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "state": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "zip": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "country": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "brands": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "products": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "brand_id": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "year": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "brands",
+                "products"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "list_brands",
+        "title": "List Available Car Brands & Services",
+        "description": "Use this when: User asks \"what brands do you have?\", \"what car companies are available?\", or wants to see all options before searching for locations.\n\nWhat this does: Returns complete list of car manufacturers AND service providers in the network.\n\nIMPORTANT: \"Brands\" is overloaded - includes TWO categories:\n1. Car Manufacturers: Honda, Toyota, BMW, Ford, etc. (brand-specific locations)\n2. Service Providers: Glass Repair, Rent a Car, Auto Insurance, etc. (work with ANY vehicle)\n\nWhen to use:\n- \"What car brands do you support?\"\n- \"Do you have Honda locations?\"\n- \"What services are available?\"\n- \"Can I find glass repair shops?\"\n\nWhen NOT to use:\n- User just wants nearby locations without caring about brand → Skip this, go straight to find_locations\n- General car questions like \"What's the best car to buy?\" or \"Tell me about Honda reliability\" → Use web search instead\n- Questions about car prices or features → Use web search instead\n\nReturns: Categorized list of car manufacturers and service providers with IDs and logos. Use this info to answer questions about brand availability.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string"
+            },
+            "car_manufacturers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "logo": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "service",
+                      "manufacturer"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "logo",
+                  "category"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "service_providers": {
+              "type": "array",
+              "items": {
+                "$ref": "#/properties/car_manufacturers/items"
+              }
+            }
+          },
+          "required": [
+            "summary",
+            "car_manufacturers",
+            "service_providers"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "find_locations",
+        "title": "Find Locations (Primary Search Tool)",
+        "description": "✅ PRIMARY TOOL for all location searches. Handles brand + location combinations automatically.\n\nWhat this returns: Service locations matching your criteria, sorted by distance when location provided.\n\nPARAMETERS:\n- brand_name (optional): Human-readable brand like \"Honda\", \"Glass Repair\", \"Tire and Wheel\"\n- latitude/longitude (optional): Search center coordinates\n- Both optional, but provide at least one\n\nSEARCH MODES (automatically determined):\n1. Brand + Location → Up to 20 nearest locations for that brand (most common)\n2. Location only → Up to 20 nearest locations of all brands\n3. Brand only → ALL locations for that brand nationwide (rarely needed)\n\nLOCATION HANDLING:\n- If user specifies a location (city, address, \"near X\"), geocode it to lat/lng\n- If user says \"near me\" or doesn't specify location, USE THE USER'S KNOWN COORDINATES\n- Always default to user's current/known location when available\n\nEXAMPLES:\n- \"Find Honda locations near me\" → brand_name=\"Honda\" + user's coordinates\n- \"Tire shop in Brooklyn\" → brand_name=\"Tire and Wheel\" + Brooklyn coordinates\n- \"Glass repair Charlottesville\" → brand_name=\"Glass Repair\" + Charlottesville coordinates\n- \"Locations near me\" → just coordinates (no brand)\n- \"All Toyota locations\" → brand_name=\"Toyota\" only (nationwide)\n\nSPECIALTY SERVICES (use brand_name):\n- Tires/wheels → brand_name=\"Tire and Wheel\"\n- Auto glass → brand_name=\"Glass Repair\"\n- Car rental → brand_name=\"Rent a Car\"\n\nUNIVERSAL SERVICES (no brand needed, just location):\n- Oil change, brake service, car maintenance → use location only\n\nEach result includes:\n- business_category: Type of business\n- services: Array of services offered\n- booking.schedule_service_url: URL to book a service appointment online (rendered as the \"Book Online\" link)\n\nReturns: Service locations as a formatted list with names, addresses, and booking links.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "brand_name": {
+              "type": "string",
+              "description": "Human-readable brand name like \"Honda\", \"Toyota\", \"Glass Repair\", \"Tire and Wheel\". Case-insensitive. If misspelled, you'll get suggestions."
+            },
+            "latitude": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90,
+              "description": "Search center latitude (-90 to 90). Required for proximity search."
+            },
+            "longitude": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180,
+              "description": "Search center longitude (-180 to 180). Required for proximity search."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://widget/dealer-map.html",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          },
+          "openai/outputTemplate": "ui://widget/dealer-map.html",
+          "openai/toolInvocation/invoking": "Finding locations...",
+          "openai/toolInvocation/invoked": "Found locations",
+          "openai/widgetAccessible": true
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "locations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "address": {
+                    "type": "object",
+                    "properties": {
+                      "street": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "city": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "state": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "zip": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "full": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "full"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "coordinates": {
+                    "type": "object",
+                    "properties": {
+                      "latitude": {
+                        "type": "number"
+                      },
+                      "longitude": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "latitude",
+                      "longitude"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "contact": {
+                    "type": "object",
+                    "properties": {
+                      "email": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "booking": {
+                    "type": "object",
+                    "properties": {
+                      "schedule_service_url": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "account_id": {
+                    "type": "string"
+                  },
+                  "brands": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "logo": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "logo_url": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "business_category": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "services": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "address",
+                  "coordinates",
+                  "contact",
+                  "booking",
+                  "account_id",
+                  "services"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "searchedBrand": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "logo": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "logo"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "search_center": {
+              "type": "object",
+              "properties": {
+                "latitude": {
+                  "type": "number"
+                },
+                "longitude": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "latitude",
+                "longitude"
+              ],
+              "additionalProperties": false
+            },
+            "attribution": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "string"
+                },
+                "medium": {
+                  "type": "string"
+                },
+                "campaign": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source",
+                "medium",
+                "campaign"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "locations",
+            "searchedBrand",
+            "attribution"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get_booking_details",
+        "title": "Get Specific Location Booking URL",
+        "description": "Use this when: User wants to book an appointment or get contact details for a specific location from search results.\n\n⚠️ CRITICAL LIMITATIONS:\nThis tool returns ONLY contact information and booking URL. It does NOT provide:\n- Appointment availability or scheduling details\n- Service center hours or wait times\n- Pricing, service quality, or reviews\n- Operational details about this specific location\n- Any information beyond basic contact details\n\nDO NOT make recommendations about:\n- Best time to book appointments\n- Service quality or reliability\n- Location practices or upselling patterns\n- Wait times or service speed\n\nWhat this ACTUALLY returns:\n- Booking URL (for user to schedule directly)\n- Email and address\n- List of brands/products the location carries\n\nWhen to use:\n- ✅ User needs booking URL or contact info for a specific location\n- ✅ User asks \"How do I contact this location?\"\n\nWhen NOT to use:\n- ❌ User asks about hours, availability, pricing, wait times → Tell them to use booking URL or contact via email\n- ❌ Searching for locations → Use find_locations instead\n\nAfter calling this tool: Provide ONLY the contact info returned. Direct user to booking URL for any scheduling/service questions.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "account_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "REQUIRED: Location account UUID from find_locations results. Must perform a search first to get valid account IDs. Example: \"241be2de-ef16-4708-b931-8a6de3061ece\"."
+            }
+          },
+          "required": [
+            "account_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "booking_url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "contact": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "address": {
+              "type": "object",
+              "properties": {
+                "street": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "city": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "state": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "zip": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "country": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "brands": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "products": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "brand_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "year": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "brands",
+            "products"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:23:15.282Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:23:16.333Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:23:17.384Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:23:18.435Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 3,
+    "tools_hash": "sha256:01accef838f6da4f72ebe0f70d1a8caf33204d1d5465d09671b55ec7dee7428d",
+    "static_tool_tokens": 2494,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "list_brands",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "find_locations",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F6",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_booking_details",
+        "message": "Description exceeds 1,000 characters."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 0,
+      "warning": 3
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "list_brands"
+          ],
+          "description": "Use this when: User asks \"what brands do you have?\", \"what car companies are available?\", or wants to see all options before searching for locations.\n\nWhat this does: Returns complete list of car manufacturers AND service providers in the network.\n\nIMPORTANT: \"Brands\" is overloaded - includes TWO categories:\n1. Car Manufacturers: Honda, Toyota, BMW, Ford, etc. (brand-specific locations)\n2. Service Providers: Glass Repair, Rent a Car, Auto Insurance, etc. (work with ANY vehicle)\n\nWhen to use:\n- \"What car brands do you support?\"\n- \"Do you have Honda locations?\"\n- \"What services are available?\"\n- \"Can I find glass repair shops?\"\n\nWhen NOT to use:\n- User just wants nearby locations without caring about brand → Skip this, go straight to find_locations\n- General car questions like \"What's the best car to buy?\" or \"Tell me about Honda reliability\" → Use web search instead\n- Questions about car prices or features → Use web search instead\n\nReturns: Categorized list of car manufacturers and service providers with IDs and logos. Use this info to answer questions about brand availability.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "find_locations"
+          ],
+          "description": "✅ PRIMARY TOOL for all location searches. Handles brand + location combinations automatically.\n\nWhat this returns: Service locations matching your criteria, sorted by distance when location provided.\n\nPARAMETERS:\n- brand_name (optional): Human-readable brand like \"Honda\", \"Glass Repair\", \"Tire and Wheel\"\n- latitude/longitude (optional): Search center coordinates\n- Both optional, but provide at least one\n\nSEARCH MODES (automatically determined):\n1. Brand + Location → Up to 20 nearest locations for that brand (most common)\n2. Location only → Up to 20 nearest locations of all brands\n3. Brand only → ALL locations for that brand nationwide (rarely needed)\n\nLOCATION HANDLING:\n- If user specifies a location (city, address, \"near X\"), geocode it to lat/lng\n- If user says \"near me\" or doesn't specify location, USE THE USER'S KNOWN COORDINATES\n- Always default to user's current/known location when available\n\nEXAMPLES:\n- \"Find Honda locations near me\" → brand_name=\"Honda\" + user's coordinates\n- \"Tire shop in Brooklyn\" → brand_name=\"Tire and Wheel\" + Brooklyn coordinates\n- \"Glass repair Charlottesville\" → brand_name=\"Glass Repair\" + Charlottesville coordinates\n- \"Locations near me\" → just coordinates (no brand)\n- \"All Toyota locations\" → brand_name=\"Toyota\" only (nationwide)\n\nSPECIALTY SERVICES (use brand_name):\n- Tires/wheels → brand_name=\"Tire and Wheel\"\n- Auto glass → brand_name=\"Glass Repair\"\n- Car rental → brand_name=\"Rent a Car\"\n\nUNIVERSAL SERVICES (no brand needed, just location):\n- Oil change, brake service, car maintenance → use location only\n\nEach result includes:\n- business_category: Type of business\n- services: Array of services offered\n- booking.schedule_service_url: URL to book a service appointment online (rendered as the \"Book Online\" link)\n\nReturns: Service locations as a formatted list with names, addresses, and booking links.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "list_brands",
+      "find_locations",
+      "get_booking_details"
+    ]
+  }
+}

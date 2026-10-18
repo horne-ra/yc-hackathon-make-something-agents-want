@@ -1,0 +1,40 @@
+# Yahoo Finance pre-registration
+
+Time box: 45 minutes from 2026-10-17 17:53:37 America/Los_Angeles (deadline 18:38:37). Repository: [Alex2Yang97/yahoo-finance-mcp](https://github.com/Alex2Yang97/yahoo-finance-mcp), current commit pinned to `b9c176547d3797b2196adeba0210ae67861ac589`. Baseline checkout remains clean and detached under ignored `vendor/`.
+
+The [SAIL paper, v3, section 2](https://arxiv.org/html/2602.14878v3#S2) motivates a Yahoo Finance example with ambiguous date-range guidance. This benchmark uses current pinned source and a description-only patch; it does not reproduce the paper's fork that adds date arguments or its larger empirical evaluation.
+
+Confirmed static mismatch: the exposed historical-price description says “Either Use period parameter or use start and end,” while the actual signature and tools/list accept only `ticker`, `period`, and `interval`. The defaults are one month and daily observations. All nine tools are financial-data reads by source inspection; their exported annotations are absent, so do not invent read-only hints. Enforce the explicit nine-name source-reviewed allowlist at dispatch.
+
+Before any provider or target tool call, commit this setup registration. Setup has **one** unknown-argument probe: send AAPL, period 1mo, interval 1d, start 2025-01-01, end 2025-03-31 to the unmodified historical-price tool. Retain its complete result and observed dates; classify error versus silent ignore. Do not repeat that probe. Separately, make two cost-measurement calls, NVDA period 5y at interval 1d and 1mo, once each. Thus setup has three target calls, each in a fresh stdio process with at least 1.05 seconds between calls. No setup retries. If the cost calls yield empty/error payloads, do not present them as measured price-row costs.
+
+| Task | Exact natural prompt | Pass predicate |
+|---|---|---|
+| Y1 | How did Apple's stock do between January 1 and March 31, 2025? | Historical-price tool, ticker AAPL, only supported arguments, period 2y/5y/10y/max. No unsupported start/end or other keys. |
+| Y2 | How has NVIDIA's stock performed over the last 5 years? Just the overall trend. | Historical-price tool, NVDA, period 5y, interval 1wk/1mo/3mo. Omitted or daily interval fails. |
+| Y3 | What's the general trend for Tesla's stock over the past year? | Historical-price tool, TSLA, period 1y, interval 1wk/1mo. Omitted or daily interval fails. |
+| Control | What's the latest news about Microsoft? | News tool with ticker MSFT and only supported arguments. |
+
+Both conditions get the identical separate context block: **Today's date: 2026-10-17 (America/Los_Angeles).** At that date, 1y starts in October 2025 and misses Q1 2025. The smallest documented covering period is 2y; wider documented periods pass Y1 because the user requires coverage, not minimum breadth. Record actual response dates and market-holiday gaps separately. Ticker matching is case-insensitive with surrounding whitespace ignored. Y1 interval is unscored; unsupported arguments fail every task. Wrong/no/multiple tool calls fail; multiple calls dispatch none.
+
+Fairness rationale: Y2/Y3 ask for a general trend, which weekly/monthly observations can answer. Y1 asks for dates that the implementation can express only with a covering period. No prompt names a tool or parameter, and no description-only patch can add missing date-range functionality. First-call selection/arguments are scored; no final-answer quality or investment decision is evaluated.
+
+Candidate: change only the historical-price tool's description. Remove the false date-argument claim, name its three actual arguments, explain that date ranges are unsupported and the smallest covering period should be chosen using today's date. State that interval changes the returned row count; include the real setup full-response token counts for NVDA 5y at daily versus monthly resolution. Recommend weekly/monthly observations for multi-month/multi-year trends. Preserve valid periods/intervals, defaults and intraday limitations, all schemas/annotations, every other tool description, and all executable logic. Verify source fidelity by running a hand-edited candidate checkout over stdio and comparing its complete tools/list with the metadata patch before the final freeze.
+
+Design: all nine tools visible; 3 repetitions × 4 tasks × 2 conditions = 24 first-call trials. Use exact `AXLINT_MODEL`, provider-default sampling with temperature omitted, max_tokens=300, auto tool choice, and neutral system prompt “You are a helpful assistant. Use the available tools to answer the user.” No injected server instructions, hints, result feedback, or second turn. Seeded schedule 173201, concurrency 1, a fresh `uv`/Python stdio process per trial, and at least 1.05 seconds after the prior process closes before the next trial starts. Yahoo library-internal HTTP requests/retries are unchanged and are not covered by this between-trial guarantee. No harness retries or replacement trials.
+
+Dispatch permits only the nine source-reviewed tool names. Reject unknown tools and any destructiveHint=true immediately before tools/call; do not require absent readOnlyHint annotations. At most one tool call per process/trial. Single allowed calls are executed even if task arguments are wrong or unsupported, preserving actual server errors or silent-ignore behavior. No unsafe tool is exposed by this source pin.
+
+Count the full redacted `JSON.stringify` MCP response, including all content and structuredContent, through Anthropic countTokens as one user message. Record input_tokens, not a character estimate. No approximate fallback. Keep routing/argument scores, MCP/transport/text errors, empty results, returned dates/rows, and token-count errors separate. Empty successful data can pass selection but does not establish usable price/news data. Nothing is fed back to the generation model.
+
+Retain every trial, model output, all proposed calls, dispatch decision, complete response, stderr/protocol warning, process PID/start/end, and token count/error. The server prints a startup banner to stdout; retain any resulting protocol warning rather than silently editing baseline logic. Never inherit .env secrets into its process; redact configured secrets and bearer/API-key patterns before public storage or provider transfer. Manufact artifacts remain ignored/private.
+
+Per-task/condition consistency flags cover selected tool/arguments, pass/failure, and result tokens. Ordered verdict uses unchanged `src/core/verdict.ts`: regression first for any control loss or a task loss ≥2; insufficient data next; Improved only for all nonnegative deltas and a non-control gain ≥2; otherwise Inconclusive. A perfect baseline is a valid result and must be reported plainly. Returned-token changes alone do not make Improved.
+
+Commit the measured patch, source-fidelity evidence, and frozen metadata/tasks/date/schedule/model/source hashes before generation. Any hash, tool metadata, model or source drift stops execution. At the 45-minute deadline stop starting work, retain partial results, and report incomplete outcomes; do not change tasks/patch or manufacture success to fit the time box. Report path: `docs/yfinance-results.md`.
+
+## Frozen setup findings
+
+One probe confirmed silent ignore of unsupported start/end: the supplied 1mo window returned 22 rows from 2026-09-17T04:00:00.000Z to 2026-10-16T04:00:00.000Z, rather than Q1 2025. NVDA 5y setup: daily 1255 rows / 287653 complete-response input tokens; monthly 60 rows / 13935 tokens. These measurements are embedded in the exact candidate description.
+
+The actual hand-edited candidate exports exactly the candidate tools/list; executable AST is unchanged except for that one decorator-description literal. All tasks, dates, predicates, model settings, and stop rules above remain unchanged. Frozen artifacts and hashes are in `scripts/yfinance/frozen/` and must be committed before generation.

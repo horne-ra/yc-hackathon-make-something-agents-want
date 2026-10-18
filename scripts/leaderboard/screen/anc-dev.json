@@ -1,0 +1,907 @@
+{
+  "slug": "anc-dev",
+  "source_url": "https://manufact.com/mcp-catalog/anc-dev",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:30:40.092Z",
+    "endpoint": "https://anc.dev/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "anc",
+      "version": "0.1.0"
+    },
+    "capabilities": {
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "anc.dev exposes the agent-native CLI standard catalog over a streamable HTTP MCP server, per spec revision 2026-07-28. Every scored CLI, every principle of the spec, and the vendored spec sections are queryable without authentication. Response format is driven by the Accept header. The server accepts application/json alone, text/event-stream alone, both together (any order, any q-values), */*, and absent Accept. JSON wins ties; q-values resolve unequal preferences. A request that accepts neither MIME type receives 406 Not Acceptable with a text/plain body, no JSON-RPC envelope, since the rejection is pre-JSON-RPC. Surface: 13 tools (list_tools, get_tool, search_tools, list_principles, get_principle, list_spec_sections, get_spec_section, get_scorecard, score_cli, get_website_audit, audit_website, list_website_audits, get_web_remediation) plus 5 resources total (1 concrete anc://registry plus 4 templates anc://tool/{slug}, anc://principle/{n}, anc://spec/{section}, anc://scorecard/{binary}). Per-item records live behind the templates; full schemas are on tools/list and resources/templates/list. The four web tools score a website and its MCP server against the same eight principles as a CLI. get_website_audit reads a cached web scorecard by URL (miss returns next_tool: audit_website); audit_website runs a fresh audit and returns a single terminal scorecard with no progress notifications (stateless mode); list_website_audits returns the curated web leaderboard; get_web_remediation returns the static fix for a web-audit check id. Web scorecards carry the score_pct/score/categories/results shape at https://anc.dev/web-scorecard-schema. Every read and transact tool returns the one result envelope: { kind, tier, target, scorecard_url, markdown_url, json_url, freshness, spec_version, scorecard } plus the lane metadata. The same envelope is what https://anc.dev/score/<target>/json serves, so a tool result and the page an agent follows it to cannot disagree. Follow scorecard_url for the page, markdown_url or json_url for the pinned twins. Errors carry on two layers. Tool-level failures return CallToolResult with isError: true plus a textual message; the JSON-RPC envelope itself is successful. Transport-level failures return JSON-RPC error envelopes at HTTP 200 (-32099 rate-limit breach at either limiter, -32022 with data.supported listing 2026-07-28 when the disabled legacy lane rejects a request) or at HTTP 400 (-32700 malformed JSON with id null, -32600 invalid batch, -32020 header mismatch, and -32022 with data.requested for an unsupported version claim). The 406 Accept-header rejection is the one transport error that bypasses the JSON-RPC envelope. Rate limits are split. 60 requests per 60 seconds per IP gate every call (MCP_LIMITER). 5 fresh audits per 60 minutes per IP gate score_cli cache-miss audits only (MCP_AUDIT_LIMITER). audit_website has its own budget: a per-IP burst limiter (WEB_AUDIT_LIMITER_IP) plus 30 fresh audits per 60 minutes per IP, no anon fallback. All keyed on cf-connecting-ip; the read tier falls back to a shared anon bucket, the audit tiers reject on missing IP rather than consuming a shared bucket. Four of the five kill switches let the operator disable the whole surface (MCP_ENABLED), only the cost-bearing CLI audit tool (MCP_LIVE_SCORING_ENABLED), the website audit (WEB_AUDIT_ENABLED), or only the following of declared hosts (WEB_AUDIT_FOLLOW_ENABLED) without a deploy; the fifth (MCP_LEGACY_ENABLED) surfaces as the -32022 legacy reject above. By default (follow_declarations true) a website audit also contacts third-party hosts the site declares. An MCP server the site's server card names gets GETs for the documents that could confirm it (a card at <endpoint>/server-card, its host's /.well-known/ai-catalog.json, RFC 9728 protected-resource metadata) and is wire-probed (JSON-RPC POSTs, a CORS preflight) only after one of those documents on the endpoint's own host names the endpoint. An API host anchored in the site's api-catalog gets document fetches (its OpenAPI description) and one GET to a nonsense path on the site's declaration alone. anc sends no plaintext request: an http URL, declared or linked, and any redirect to http, is never requested. Each audit follows at most 4 off-origin hosts with at most 12 follow-phase document requests inside a 6-second follow window, so following lengthens an audit's wall time. Across all audits and sites, following is also capped at about 30 audits per hour per declared registrable domain; an audit past that cap leaves that domain's hosts unprobed, and when the site has a saved scorecard from the last 24 hours that audit is returned without replacing it, with no scorecard_url, markdown_url, or json_url. follow_declarations false audits only the site and returns a result that is never saved, and the operator can switch following off for every audit (WEB_AUDIT_FOLLOW_ENABLED). Spec revision is pinned to 2026-07-28; the /.well-known/mcp/server-card.json server card advertises the same value, and the two are bumped in lockstep when the SDK is upgraded. Connect now at https://anc.dev/mcp (no authentication). Full recipes remain at https://anc.dev/mcp-skill.md.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "list_tools",
+            "title": "List scored CLI registry entries",
+            "description": "Return summaries of every scored CLI in the anc.dev registry. Each entry carries slug, name, binary, install command, version (when a scorecard has been committed), score_pct (percentage pass rate of the latest audit), scorecard_url (path under anc.dev), and audit_profile (when the tool opts out of the default profile).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {}
+            },
+            "annotations": {
+              "readOnlyHint": true
+            }
+          },
+          {
+            "name": "get_tool",
+            "title": "Get a registry entry",
+            "description": "Return the full registry record for a single CLI by slug. Fields: slug, name, binary, install, audit_profile (when set), repo (when a GitHub owner/repo is parseable), version, anc_version, scorecard_url, score_pct. Look-not-found returns isError: false with a typed { found: false, message } body because absence is data, not failure.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "slug": {
+                  "type": "string",
+                  "description": "The CLI slug, e.g. \"ripgrep\" or \"curl\"."
+                }
+              },
+              "required": [
+                "slug"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true
+            }
+          },
+          {
+            "name": "search_tools",
+            "title": "Search the CLI registry",
+            "description": "Filter the registry by one or more criteria. All filters AND together. score_min / score_max are inclusive bounds on score_pct (rows without a committed scorecard are excluded when either bound is set). audit_profile is an exact match. principle_min_score is reserved for a future per-principle score filter and is currently a no-op (the catalog projection does not yet carry per-principle scores).",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "score_min": {
+                  "description": "Inclusive lower bound on score_pct.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "score_max": {
+                  "description": "Inclusive upper bound on score_pct.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "audit_profile": {
+                  "description": "Exact audit_profile match.",
+                  "type": "string"
+                },
+                "principle_min_score": {
+                  "description": "Reserved for a future per-principle filter; no-op today.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true
+            }
+          },
+          {
+            "name": "list_principles",
+            "title": "List agent-native principles",
+            "description": "Return summaries of every agent-native CLI principle. Each entry carries n (1-based), slug, title, and a level_summary object with counts of MUST / SHOULD / MAY requirements at the principle level.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {}
+            },
+            "annotations": {
+              "readOnlyHint": true
+            }
+          },
+          {
+            "name": "get_principle",
+            "title": "Get an agent-native principle",
+            "description": "Return the full record for a single principle by ordinal number. Fields: n, slug, title, body_markdown, and requirements (each carrying id, level: must/should/may, summary, and audit_ids — the verifier identifiers the anc CLI emits when auditing a binary).",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "n": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991,
+                  "description": "Principle ordinal, 1-based."
+                }
+              },
+              "required": [
+                "n"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true
+            }
+          },
+          {
+            "name": "list_spec_sections",
+            "title": "List spec sections",
+            "description": "Return the table of contents for the vendored agentnative spec at the current spec_version. Each entry carries slug, title, level (1 for top-level files, 2 for sub-folder files such as principles/p*.md), and parent_slug (null for top-level sections).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {}
+            },
+            "annotations": {
+              "readOnlyHint": true
+            }
+          },
+          {
+            "name": "get_spec_section",
+            "title": "Get a spec section",
+            "description": "Return the full body of a single spec section by slug. Fields: slug, title, body_markdown, spec_version. Look-not-found returns isError: false with a typed { found: false, message } body.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "slug": {
+                  "type": "string",
+                  "description": "The section slug, e.g. \"p1-non-interactive-by-default\" or \"scoring\"."
+                }
+              },
+              "required": [
+                "slug"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true
+            }
+          },
+          {
+            "name": "get_scorecard",
+            "title": "Get a cached CLI scorecard",
+            "description": "Cheap read-only lookup over the agent-native CLI scorecard surface. Composes the shared CLI read tier, so a hit returns the same result envelope the scorecard page serves at its json_url. Provide ONE of: slug (registry slug), binary (CLI binary name), install (full install command, e.g. \"brew install ripgrep\"), or github_url (https://github.com/owner/repo, branch URLs accepted). Returns isError: false for all cache-state outcomes: a hit returns { found: true, kind, tier, target, scorecard_url, markdown_url, json_url, freshness, spec_version, scorecard }; a target already being audited returns { found: false, in_progress: true, started_at }; a miss returns { found: false, next_tool: \"score_cli\" }. isError: true is reserved for validator rejection or an infrastructure error. The companion tool score_cli runs a fresh container audit on a miss.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "slug": {
+                  "description": "Registry slug, e.g. \"ripgrep\".",
+                  "type": "string"
+                },
+                "binary": {
+                  "description": "CLI binary name. Treated as a slug for the registry lookup.",
+                  "type": "string"
+                },
+                "install": {
+                  "description": "Full install command, e.g. \"brew install ripgrep\".",
+                  "type": "string"
+                },
+                "github_url": {
+                  "description": "GitHub URL (https://github.com/owner/repo, branch URLs accepted).",
+                  "type": "string"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true
+            }
+          },
+          {
+            "name": "score_cli",
+            "title": "Run a live CLI audit",
+            "description": "Run a fresh container audit for a CLI when no cached scorecard exists. Provide ONE of: slug, binary, install, github_url (same validator as get_scorecard). On registry or R2-cache hit, returns isError: false with next_tool: get_scorecard — cache state is data, not failure. On cache miss, runs a metered container audit gated by MCP_AUDIT_LIMITER (5 per 60-second burst) AND a KV-backed per-hour window (5 audits per 60 minutes per IP — the plan ceiling that the CF binding alone cannot express). No anon fallback at the audit tier: a request without cf-connecting-ip returns -32099 immediately. Disabled when MCP_LIVE_SCORING_ENABLED is not \"true\" — the read tier on get_scorecard stays alive serving cached scorecards.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "slug": {
+                  "description": "Registry slug, e.g. \"ripgrep\".",
+                  "type": "string"
+                },
+                "binary": {
+                  "description": "CLI binary name.",
+                  "type": "string"
+                },
+                "install": {
+                  "description": "Full install command, e.g. \"brew install ripgrep\".",
+                  "type": "string"
+                },
+                "github_url": {
+                  "description": "GitHub URL (https://github.com/owner/repo).",
+                  "type": "string"
+                },
+                "bypass_cache": {
+                  "description": "Release-smoke escape hatch: when true AND the operator has bound MCP_CACHE_BYPASS_ALLOWED=\"true\" (staging env only), skip the R2 read tier so the live container DO path is always exercised. Silently ignored when the env binding is absent (prod). Rate limiters still apply.",
+                  "type": "boolean"
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "get_website_audit",
+            "title": "Get a cached website audit",
+            "description": "Read a cached website agent-readiness scorecard by URL without re-running the audit. Returns isError:false for every outcome: a hit returns { found:true, ...envelope } carrying kind, tier, target, scorecard_url, markdown_url, json_url, freshness and the scorecard, the same envelope the result page serves at its json_url; a target already being audited returns { found:false, in_progress:true, started_at }; a miss returns { found:false, next_tool:\"audit_website\" }. freshness.cached is always true on a hit; freshness.scored_at is when the audit ran (null on a legacy entry) and freshness.refresh_after is the earliest time the entry leaves the 1-minute cache-reuse window, which is eligibility only, not a promise a fresh audit will be available, since kill switches, rate limits, and service failures still apply. The companion tool audit_website runs a fresh audit on a miss.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "description": "The website URL or bare domain, e.g. \"anc.dev\" or \"https://anc.dev/\". Read at its https origin; an http:// URL reads the https record."
+                }
+              },
+              "required": [
+                "url"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true
+            }
+          },
+          {
+            "name": "audit_website",
+            "title": "Run a live website audit",
+            "description": "Run a fresh website agent-readiness audit and return the complete scorecard. Returns a single terminal scorecard (no progress notifications — the server is stateless per-request). A cached result younger than 1 minute is returned without re-running; an older one re-runs (and is still served as-is when the audit is disabled). Every scorecard-bearing result carries cached, scored_at, and refresh_after beside the scorecard: cached is true for a served cache entry or a listing-only patch and false for a result this call produced, scored_at is when the audit ran (null on a legacy entry, and refresh_after is the earliest time the entry leaves the 1-minute cache-reuse window — eligibility only, not a promise a fresh audit will be available, since kill switches, rate limits, and service failures still apply. A fresh audit is gated like score_cli: disabled when WEB_AUDIT_ENABLED or MCP_ENABLED is not \"true\"; a request without cf-connecting-ip returns -32099 (no anon fallback); a per-IP burst limiter plus a 30-fresh-audits-per-hour-per-IP window apply. By default (follow_declarations true) a website audit also contacts third-party hosts the site declares. An MCP server the site's server card names gets GETs for the documents that could confirm it (a card at <endpoint>/server-card, its host's /.well-known/ai-catalog.json, RFC 9728 protected-resource metadata) and is wire-probed (JSON-RPC POSTs, a CORS preflight) only after one of those documents on the endpoint's own host names the endpoint. An API host anchored in the site's api-catalog gets document fetches (its OpenAPI description) and one GET to a nonsense path on the site's declaration alone. anc sends no plaintext request: an http URL, declared or linked, and any redirect to http, is never requested. Each audit follows at most 4 off-origin hosts with at most 12 follow-phase document requests inside a 6-second follow window, so following lengthens an audit's wall time. Across all audits and sites, following is also capped at about 30 audits per hour per declared registrable domain; an audit past that cap leaves that domain's hosts unprobed, and when the site has a saved scorecard from the last 24 hours that audit is returned without replacing it, with no scorecard_url, markdown_url, or json_url. follow_declarations false audits only the site and returns a result that is never saved, and the operator can switch following off for every audit (WEB_AUDIT_FOLLOW_ENABLED).",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "description": "The website URL or bare domain to audit; audited at its https origin; an http:// URL is upgraded."
+                },
+                "site_type": {
+                  "description": "Declared site type scoping applicability: \"content\" (blog/docs/marketing) or \"api\" (REST API and/or interactive app). Omit to run everything. MCP surfaces are auto-detected regardless.",
+                  "type": "string",
+                  "enum": [
+                    "content",
+                    "api"
+                  ]
+                },
+                "public_listing": {
+                  "description": "Opt this domain in to (true) or out of (false) the public website leaderboard at /scorecards?lane=web. Omit to keep the current stored choice — a blank never erases a prior opt-in. Defaults to off only on a domain's first-ever audit.",
+                  "type": "boolean"
+                },
+                "follow_declarations": {
+                  "description": "Follow the hosts the site declares (its MCP server, its API host) and score them with the site; defaults to true. false audits only the site itself and returns a transient result: never cached, never listed, no scorecard_url, markdown_url, or json_url, and never joined to another caller's run. With false, a public_listing that differs from the stored choice is rejected.",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "url"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "list_website_audits",
+            "title": "List cached website audits",
+            "description": "Return the website half of the leaderboard (curated + opted-in). Each entry carries domain, url, name, score_pct, and scorecard_url. view \"curated\" (the default) returns only the curated board; view \"all\" adds the user-submitted domains that opted in to public listing, bounded to the first 100. An empty list means the board is mid-rescore; get_website_audit still serves per-domain results.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "view": {
+                  "description": "Which board to return: \"curated\" (default) for the curated leaderboard only, or \"all\" to also include user-submitted domains that opted in to public listing. Mirrors /scorecards?lane=web&view=all.",
+                  "type": "string",
+                  "enum": [
+                    "curated",
+                    "all"
+                  ]
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true
+            }
+          },
+          {
+            "name": "get_web_remediation",
+            "title": "Get web-audit remediation guidance",
+            "description": "Return the canonical remediation for a web-audit check by id (e.g. \"llms-txt\", \"mcp-initialize\"). Returns isError:false for both outcomes: found returns { found:true, remediation: { check_id, title, goal, fix, skill_url, resources, host, evidence, prompt } }, not-found returns { found:false, message }. Pass the failing row's evidence and its remediation.host (omit host when that is null) to append them to the prompt as a delimited, length-bounded data block, the same prompt the row carries inline; omit both for the catalog text alone.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "check_id": {
+                  "type": "string",
+                  "description": "The check id from the web scorecard results, e.g. \"llms-txt\"."
+                },
+                "evidence": {
+                  "description": "Optional: this run's evidence line for the check. It is embedded as untrusted data in a delimited block, flattened to one line and truncated past 140 characters.",
+                  "type": "string"
+                },
+                "host": {
+                  "description": "Optional: the failing row's remediation.host, the one host its evidence came from; omit it when that is null. Not the row's own host, which names the audited host for a row that recorded none. It opens the delimited block as a Host line.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "check_id"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "list_tools",
+        "title": "List scored CLI registry entries",
+        "description": "Return summaries of every scored CLI in the anc.dev registry. Each entry carries slug, name, binary, install command, version (when a scorecard has been committed), score_pct (percentage pass rate of the latest audit), scorecard_url (path under anc.dev), and audit_profile (when the tool opts out of the default profile).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        },
+        "annotations": {
+          "readOnlyHint": true
+        }
+      },
+      {
+        "name": "get_tool",
+        "title": "Get a registry entry",
+        "description": "Return the full registry record for a single CLI by slug. Fields: slug, name, binary, install, audit_profile (when set), repo (when a GitHub owner/repo is parseable), version, anc_version, scorecard_url, score_pct. Look-not-found returns isError: false with a typed { found: false, message } body because absence is data, not failure.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "slug": {
+              "type": "string",
+              "description": "The CLI slug, e.g. \"ripgrep\" or \"curl\"."
+            }
+          },
+          "required": [
+            "slug"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true
+        }
+      },
+      {
+        "name": "search_tools",
+        "title": "Search the CLI registry",
+        "description": "Filter the registry by one or more criteria. All filters AND together. score_min / score_max are inclusive bounds on score_pct (rows without a committed scorecard are excluded when either bound is set). audit_profile is an exact match. principle_min_score is reserved for a future per-principle score filter and is currently a no-op (the catalog projection does not yet carry per-principle scores).",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "score_min": {
+              "description": "Inclusive lower bound on score_pct.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "score_max": {
+              "description": "Inclusive upper bound on score_pct.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "audit_profile": {
+              "description": "Exact audit_profile match.",
+              "type": "string"
+            },
+            "principle_min_score": {
+              "description": "Reserved for a future per-principle filter; no-op today.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true
+        }
+      },
+      {
+        "name": "list_principles",
+        "title": "List agent-native principles",
+        "description": "Return summaries of every agent-native CLI principle. Each entry carries n (1-based), slug, title, and a level_summary object with counts of MUST / SHOULD / MAY requirements at the principle level.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        },
+        "annotations": {
+          "readOnlyHint": true
+        }
+      },
+      {
+        "name": "get_principle",
+        "title": "Get an agent-native principle",
+        "description": "Return the full record for a single principle by ordinal number. Fields: n, slug, title, body_markdown, and requirements (each carrying id, level: must/should/may, summary, and audit_ids — the verifier identifiers the anc CLI emits when auditing a binary).",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "n": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Principle ordinal, 1-based."
+            }
+          },
+          "required": [
+            "n"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true
+        }
+      },
+      {
+        "name": "list_spec_sections",
+        "title": "List spec sections",
+        "description": "Return the table of contents for the vendored agentnative spec at the current spec_version. Each entry carries slug, title, level (1 for top-level files, 2 for sub-folder files such as principles/p*.md), and parent_slug (null for top-level sections).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        },
+        "annotations": {
+          "readOnlyHint": true
+        }
+      },
+      {
+        "name": "get_spec_section",
+        "title": "Get a spec section",
+        "description": "Return the full body of a single spec section by slug. Fields: slug, title, body_markdown, spec_version. Look-not-found returns isError: false with a typed { found: false, message } body.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "slug": {
+              "type": "string",
+              "description": "The section slug, e.g. \"p1-non-interactive-by-default\" or \"scoring\"."
+            }
+          },
+          "required": [
+            "slug"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true
+        }
+      },
+      {
+        "name": "get_scorecard",
+        "title": "Get a cached CLI scorecard",
+        "description": "Cheap read-only lookup over the agent-native CLI scorecard surface. Composes the shared CLI read tier, so a hit returns the same result envelope the scorecard page serves at its json_url. Provide ONE of: slug (registry slug), binary (CLI binary name), install (full install command, e.g. \"brew install ripgrep\"), or github_url (https://github.com/owner/repo, branch URLs accepted). Returns isError: false for all cache-state outcomes: a hit returns { found: true, kind, tier, target, scorecard_url, markdown_url, json_url, freshness, spec_version, scorecard }; a target already being audited returns { found: false, in_progress: true, started_at }; a miss returns { found: false, next_tool: \"score_cli\" }. isError: true is reserved for validator rejection or an infrastructure error. The companion tool score_cli runs a fresh container audit on a miss.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "slug": {
+              "description": "Registry slug, e.g. \"ripgrep\".",
+              "type": "string"
+            },
+            "binary": {
+              "description": "CLI binary name. Treated as a slug for the registry lookup.",
+              "type": "string"
+            },
+            "install": {
+              "description": "Full install command, e.g. \"brew install ripgrep\".",
+              "type": "string"
+            },
+            "github_url": {
+              "description": "GitHub URL (https://github.com/owner/repo, branch URLs accepted).",
+              "type": "string"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true
+        }
+      },
+      {
+        "name": "score_cli",
+        "title": "Run a live CLI audit",
+        "description": "Run a fresh container audit for a CLI when no cached scorecard exists. Provide ONE of: slug, binary, install, github_url (same validator as get_scorecard). On registry or R2-cache hit, returns isError: false with next_tool: get_scorecard — cache state is data, not failure. On cache miss, runs a metered container audit gated by MCP_AUDIT_LIMITER (5 per 60-second burst) AND a KV-backed per-hour window (5 audits per 60 minutes per IP — the plan ceiling that the CF binding alone cannot express). No anon fallback at the audit tier: a request without cf-connecting-ip returns -32099 immediately. Disabled when MCP_LIVE_SCORING_ENABLED is not \"true\" — the read tier on get_scorecard stays alive serving cached scorecards.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "slug": {
+              "description": "Registry slug, e.g. \"ripgrep\".",
+              "type": "string"
+            },
+            "binary": {
+              "description": "CLI binary name.",
+              "type": "string"
+            },
+            "install": {
+              "description": "Full install command, e.g. \"brew install ripgrep\".",
+              "type": "string"
+            },
+            "github_url": {
+              "description": "GitHub URL (https://github.com/owner/repo).",
+              "type": "string"
+            },
+            "bypass_cache": {
+              "description": "Release-smoke escape hatch: when true AND the operator has bound MCP_CACHE_BYPASS_ALLOWED=\"true\" (staging env only), skip the R2 read tier so the live container DO path is always exercised. Silently ignored when the env binding is absent (prod). Rate limiters still apply.",
+              "type": "boolean"
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "get_website_audit",
+        "title": "Get a cached website audit",
+        "description": "Read a cached website agent-readiness scorecard by URL without re-running the audit. Returns isError:false for every outcome: a hit returns { found:true, ...envelope } carrying kind, tier, target, scorecard_url, markdown_url, json_url, freshness and the scorecard, the same envelope the result page serves at its json_url; a target already being audited returns { found:false, in_progress:true, started_at }; a miss returns { found:false, next_tool:\"audit_website\" }. freshness.cached is always true on a hit; freshness.scored_at is when the audit ran (null on a legacy entry) and freshness.refresh_after is the earliest time the entry leaves the 1-minute cache-reuse window, which is eligibility only, not a promise a fresh audit will be available, since kill switches, rate limits, and service failures still apply. The companion tool audit_website runs a fresh audit on a miss.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "The website URL or bare domain, e.g. \"anc.dev\" or \"https://anc.dev/\". Read at its https origin; an http:// URL reads the https record."
+            }
+          },
+          "required": [
+            "url"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true
+        }
+      },
+      {
+        "name": "audit_website",
+        "title": "Run a live website audit",
+        "description": "Run a fresh website agent-readiness audit and return the complete scorecard. Returns a single terminal scorecard (no progress notifications — the server is stateless per-request). A cached result younger than 1 minute is returned without re-running; an older one re-runs (and is still served as-is when the audit is disabled). Every scorecard-bearing result carries cached, scored_at, and refresh_after beside the scorecard: cached is true for a served cache entry or a listing-only patch and false for a result this call produced, scored_at is when the audit ran (null on a legacy entry, and refresh_after is the earliest time the entry leaves the 1-minute cache-reuse window — eligibility only, not a promise a fresh audit will be available, since kill switches, rate limits, and service failures still apply. A fresh audit is gated like score_cli: disabled when WEB_AUDIT_ENABLED or MCP_ENABLED is not \"true\"; a request without cf-connecting-ip returns -32099 (no anon fallback); a per-IP burst limiter plus a 30-fresh-audits-per-hour-per-IP window apply. By default (follow_declarations true) a website audit also contacts third-party hosts the site declares. An MCP server the site's server card names gets GETs for the documents that could confirm it (a card at <endpoint>/server-card, its host's /.well-known/ai-catalog.json, RFC 9728 protected-resource metadata) and is wire-probed (JSON-RPC POSTs, a CORS preflight) only after one of those documents on the endpoint's own host names the endpoint. An API host anchored in the site's api-catalog gets document fetches (its OpenAPI description) and one GET to a nonsense path on the site's declaration alone. anc sends no plaintext request: an http URL, declared or linked, and any redirect to http, is never requested. Each audit follows at most 4 off-origin hosts with at most 12 follow-phase document requests inside a 6-second follow window, so following lengthens an audit's wall time. Across all audits and sites, following is also capped at about 30 audits per hour per declared registrable domain; an audit past that cap leaves that domain's hosts unprobed, and when the site has a saved scorecard from the last 24 hours that audit is returned without replacing it, with no scorecard_url, markdown_url, or json_url. follow_declarations false audits only the site and returns a result that is never saved, and the operator can switch following off for every audit (WEB_AUDIT_FOLLOW_ENABLED).",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "The website URL or bare domain to audit; audited at its https origin; an http:// URL is upgraded."
+            },
+            "site_type": {
+              "description": "Declared site type scoping applicability: \"content\" (blog/docs/marketing) or \"api\" (REST API and/or interactive app). Omit to run everything. MCP surfaces are auto-detected regardless.",
+              "type": "string",
+              "enum": [
+                "content",
+                "api"
+              ]
+            },
+            "public_listing": {
+              "description": "Opt this domain in to (true) or out of (false) the public website leaderboard at /scorecards?lane=web. Omit to keep the current stored choice — a blank never erases a prior opt-in. Defaults to off only on a domain's first-ever audit.",
+              "type": "boolean"
+            },
+            "follow_declarations": {
+              "description": "Follow the hosts the site declares (its MCP server, its API host) and score them with the site; defaults to true. false audits only the site itself and returns a transient result: never cached, never listed, no scorecard_url, markdown_url, or json_url, and never joined to another caller's run. With false, a public_listing that differs from the stored choice is rejected.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "url"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "list_website_audits",
+        "title": "List cached website audits",
+        "description": "Return the website half of the leaderboard (curated + opted-in). Each entry carries domain, url, name, score_pct, and scorecard_url. view \"curated\" (the default) returns only the curated board; view \"all\" adds the user-submitted domains that opted in to public listing, bounded to the first 100. An empty list means the board is mid-rescore; get_website_audit still serves per-domain results.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "view": {
+              "description": "Which board to return: \"curated\" (default) for the curated leaderboard only, or \"all\" to also include user-submitted domains that opted in to public listing. Mirrors /scorecards?lane=web&view=all.",
+              "type": "string",
+              "enum": [
+                "curated",
+                "all"
+              ]
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true
+        }
+      },
+      {
+        "name": "get_web_remediation",
+        "title": "Get web-audit remediation guidance",
+        "description": "Return the canonical remediation for a web-audit check by id (e.g. \"llms-txt\", \"mcp-initialize\"). Returns isError:false for both outcomes: found returns { found:true, remediation: { check_id, title, goal, fix, skill_url, resources, host, evidence, prompt } }, not-found returns { found:false, message }. Pass the failing row's evidence and its remediation.host (omit host when that is null) to append them to the prompt as a delimited, length-bounded data block, the same prompt the row carries inline; omit both for the catalog text alone.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "check_id": {
+              "type": "string",
+              "description": "The check id from the web scorecard results, e.g. \"llms-txt\"."
+            },
+            "evidence": {
+              "description": "Optional: this run's evidence line for the check. It is embedded as untrusted data in a delimited block, flattened to one line and truncated past 140 characters.",
+              "type": "string"
+            },
+            "host": {
+              "description": "Optional: the failing row's remediation.host, the one host its evidence came from; omit it when that is null. Not the row's own host, which names the audited host for a row that recorded none. It opens the delimited block as a Host line.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "check_id"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:30:36.901Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:30:37.952Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:30:39.002Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:30:40.053Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 13,
+    "tools_hash": "sha256:05fac2d4529aba018a4180a369c25396e7cc55bab0675a7e6d1b4925a54950bb",
+    "static_tool_tokens": 5365,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_tools",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_tool",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_tools",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_principles",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_principles",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_principle",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_spec_sections",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_spec_sections",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_spec_section",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_spec_section",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_scorecard",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_scorecard",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "score_cli",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_website_audit",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F18",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "audit_website",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "audit_website",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_website_audits",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_website_audits",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F22",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_web_remediation",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 18,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "search_tools"
+          ],
+          "description": "Filter the registry by one or more criteria. All filters AND together. score_min / score_max are inclusive bounds on score_pct (rows without a committed scorecard are excluded when either bound is set). audit_profile is an exact match. principle_min_score is reserved for a future per-principle score filter and is currently a no-op (the catalog projection does not yet carry per-principle scores).",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_scorecard"
+          ],
+          "description": "Cheap read-only lookup over the agent-native CLI scorecard surface. Composes the shared CLI read tier, so a hit returns the same result envelope the scorecard page serves at its json_url. Provide ONE of: slug (registry slug), binary (CLI binary name), install (full install command, e.g. \"brew install ripgrep\"), or github_url (https://github.com/owner/repo, branch URLs accepted). Returns isError: false for all cache-state outcomes: a hit returns { found: true, kind, tier, target, scorecard_url, markdown_url, json_url, freshness, spec_version, scorecard }; a target already being audited returns { found: false, in_progress: true, started_at }; a miss returns { found: false, next_tool: \"score_cli\" }. isError: true is reserved for validator rejection or an infrastructure error. The companion tool score_cli runs a fresh container audit on a miss.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "audit_website"
+          ],
+          "description": "Run a fresh website agent-readiness audit and return the complete scorecard. Returns a single terminal scorecard (no progress notifications — the server is stateless per-request). A cached result younger than 1 minute is returned without re-running; an older one re-runs (and is still served as-is when the audit is disabled). Every scorecard-bearing result carries cached, scored_at, and refresh_after beside the scorecard: cached is true for a served cache entry or a listing-only patch and false for a result this call produced, scored_at is when the audit ran (null on a legacy entry, and refresh_after is the earliest time the entry leaves the 1-minute cache-reuse window — eligibility only, not a promise a fresh audit will be available, since kill switches, rate limits, and service failures still apply. A fresh audit is gated like score_cli: disabled when WEB_AUDIT_ENABLED or MCP_ENABLED is not \"true\"; a request without cf-connecting-ip returns -32099 (no anon fallback); a per-IP burst limiter plus a 30-fresh-audits-per-hour-per-IP window apply. By default (follow_declarations true) a website audit also contacts third-party hosts the site declares. An MCP server the site's server card names gets GETs for the documents that could confirm it (a card at <endpoint>/server-card, its host's /.well-known/ai-catalog.json, RFC 9728 protected-resource metadata) and is wire-probed (JSON-RPC POSTs, a CORS preflight) only after one of those documents on the endpoint's own host names the endpoint. An API host anchored in the site's api-catalog gets document fetches (its OpenAPI description) and one GET to a nonsense path on the site's declaration alone. anc sends no plaintext request: an http URL, declared or linked, and any redirect to http, is never requested. Each audit follows at most 4 off-origin hosts with at most 12 follow-phase document requests inside a 6-second follow window, so following lengthens an audit's wall time. Across all audits and sites, following is also capped at about 30 audits per hour per declared registrable domain; an audit past that cap leaves that domain's hosts unprobed, and when the site has a saved scorecard from the last 24 hours that audit is returned without replacing it, with no scorecard_url, markdown_url, or json_url. follow_declarations false audits only the site and returns a result that is never saved, and the operator can switch following off for every audit (WEB_AUDIT_FOLLOW_ENABLED).",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "list_website_audits"
+          ],
+          "description": "Return the website half of the leaderboard (curated + opted-in). Each entry carries domain, url, name, score_pct, and scorecard_url. view \"curated\" (the default) returns only the curated board; view \"all\" adds the user-submitted domains that opted in to public listing, bounded to the first 100. An empty list means the board is mid-rescore; get_website_audit still serves per-domain results.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_principles",
+            "get_principle"
+          ],
+          "hypothesis": "Read tools share resource terms (principle), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_spec_sections",
+            "get_spec_section"
+          ],
+          "hypothesis": "Read tools share resource terms (spec, section), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "list_tools",
+      "get_tool",
+      "search_tools",
+      "list_principles",
+      "get_principle",
+      "list_spec_sections",
+      "get_spec_section",
+      "get_scorecard",
+      "get_website_audit",
+      "list_website_audits",
+      "get_web_remediation"
+    ]
+  }
+}

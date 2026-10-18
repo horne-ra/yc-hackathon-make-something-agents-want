@@ -1,0 +1,179 @@
+{
+  "status": "DRAFT_HYPOTHESES_NO_TRIALS_APPROVED",
+  "selection_basis": "High catalog score, anonymous live metadata, advertised read-only tools, and a concrete response-scope or routing hypothesis. Imported scores and untested backend auth are explicitly identified in the report.",
+  "candidates": [
+    {
+      "slug": "robtex-network-intelligence",
+      "hypothesis": "Reverse-IP tools overlap, the generic lookup defaults to only A records, and reverse-lookup pages default to 100 hostnames. A dual-stack or historical question may choose the wrong projection, while a five-result question may inherit a large page. Both descriptions already give useful scope clues; failure is not assumed.",
+      "quotes": [
+        {
+          "tool": "reverse_lookup_ip",
+          "text": "Searches both A and AAAA records."
+        },
+        {
+          "tool": "historic_reverse_lookup_ip",
+          "text": "Find hostnames that *previously* pointed to a specific IP address but no longer do."
+        }
+      ],
+      "tasks": [
+        {
+          "prompt": "Show one page of at most five current hostnames pointing to IPv6 address 2606:4700:4700::1111.",
+          "pass": "reverse_lookup_ip with that exact ip, limit=5, offset omitted/0; also accept reverse_lookup_dns_records with that exact value, record_type=AAAA, limit=5, offset omitted/0. The generic A default fails."
+        },
+        {
+          "prompt": "Show at most three hostnames that previously pointed to 1.1.1.1 and no longer do.",
+          "pass": "historic_reverse_lookup_ip; ip=1.1.1.1, limit=3, offset omitted or 0. Current reverse lookup fails."
+        },
+        {
+          "prompt": "Find just two hostnames currently using the mail server aspmx.l.google.com.",
+          "pass": "reverse_lookup_mx with mx_server=aspmx.l.google.com, limit=2, offset omitted/0; also accept reverse_lookup_dns_records with value=aspmx.l.google.com, record_type=MX, limit=2, offset omitted/0. Its generic A default fails."
+        }
+      ],
+      "control": {
+        "prompt": "Look up the DNS records for example.com.",
+        "pass": "lookup_dns with hostname=example.com and no reverse-lookup call."
+      }
+    },
+    {
+      "slug": "griddo-ax-docs",
+      "hypothesis": "An orientation/list tool returns every documentation page, a get tool returns a full page, and search returns excerpts. A narrow how-to may fetch the whole index or full page unnecessarily. Search limit lacks a parameter description even though its schema bounds it to 1–10 with default 5.",
+      "quotes": [
+        {
+          "tool": "get_griddo_editor_doc",
+          "text": "Fetch the full Markdown of one Griddo backoffice (Author Experience) documentation page"
+        },
+        {
+          "tool": "list_griddo_editor_docs",
+          "text": "List every page of the Griddo backoffice"
+        }
+      ],
+      "tasks": [
+        {
+          "prompt": "Find one English documentation excerpt about adding an image in the Griddo editor; do not fetch an entire page.",
+          "pass": "search_griddo_editor_docs; a relevant adding-image query, lang=en, limit=1; reject list/get and extra calls."
+        },
+        {
+          "prompt": "Find at most two Spanish excerpts about publishing a Griddo page.",
+          "pass": "search_griddo_editor_docs; a relevant publishing query, lang=es, limit=2; reject full-index/full-page calls."
+        },
+        {
+          "prompt": "The documentation path is /editor/anadir-imagen. Read that exact page in full.",
+          "pass": "get_griddo_editor_doc with that exact path (equivalent documented .md/full canonical URL forms may be frozen before approval); reject searching/listing instead."
+        }
+      ],
+      "control": {
+        "prompt": "Give me an overview of every English Griddo editor documentation page, grouped by section.",
+        "pass": "list_griddo_editor_docs with lang=en. The deliberately broad call is correct for this control."
+      }
+    },
+    {
+      "slug": "snomed-ct-terminology",
+      "hypothesis": "The metadata tool defaults include_raw=true; a count-only expansion has summary_only=false and max_contains=100 defaults; immediate-child and all-descendant tools sit together. These can cause raw payloads or a hierarchy dump for a narrow terminology-service request. This benchmark concerns API routing only, not clinical interpretation.",
+      "quotes": [
+        {
+          "tool": "fhir_metadata",
+          "text": "Set include_raw=true (default) to also include the raw CapabilityStatement payload."
+        },
+        {
+          "tool": "snomed_get_children",
+          "text": "Get direct IS-A children of a SNOMED concept"
+        }
+      ],
+      "tasks": [
+        {
+          "prompt": "Show only the parsed capability summary for the default terminology backend; omit the raw FHIR CapabilityStatement.",
+          "pass": "fhir_metadata with include_raw=false and no alternate terminology/target. Returning raw metadata by default fails."
+        },
+        {
+          "prompt": "For concept ID 404684003, show only the first five immediate IS-A children, not all descendants.",
+          "pass": "snomed_get_children; concept_id=404684003, count=5, offset omitted or 0. Freeze availability of the concept on the default public edition before approval; do not execute a setup call now."
+        },
+        {
+          "prompt": "Count the concepts in the value set http://snomed.info/sct?fhir_vs=ecl/<<404684003, without returning concept members.",
+          "pass": "snomed_expand with that exact value_set_url and summary_only=true. Freeze optional count/max_contains handling from implementation documentation before approval; no clinical conclusion is scored."
+        }
+      ],
+      "control": {
+        "prompt": "List the terminology editions and branches available on this server.",
+        "pass": "list_terminologies with an empty argument object."
+      }
+    },
+    {
+      "slug": "sqd",
+      "hypothesis": "A wallet-summary tool offers summary/compact/full response formats and fast/deep execution, while raw transaction and analytics tools overlap in subject. include_tokens defaults true. A headline-only preview may request a deeper or fuller response, or a simple feed may route to raw VM records. The current descriptions already contain extensive routing/budget guidance; remaining risk is unmeasured.",
+      "quotes": [
+        {
+          "tool": "portal_get_wallet_summary",
+          "parameter": "response_format",
+          "text": "Use 'summary' for headline flow only"
+        },
+        {
+          "tool": "portal_get_head",
+          "text": "Get just the latest indexed head block or slot"
+        }
+      ],
+      "tasks": [
+        {
+          "prompt": "For the public Ethereum wallet address supplied in the frozen context, give only headline fund flow for the last hour, using an explicitly bounded preview. Exclude token and NFT transfers.",
+          "pass": "portal_get_wallet_summary; exact frozen public address/network, timeframe=1h, response_format=summary, mode=fast, include_tokens=false, include_nfts=false. Freeze a public non-personal fixture address before approval; no wallet is queried now."
+        },
+        {
+          "prompt": "Show just the three newest recent-activity rows on Base over the last hour, as one page.",
+          "pass": "portal_get_recent_activity; network=base-mainnet, timeframe=1h, limit=3, no cursor. Reject raw VM transaction tools."
+        },
+        {
+          "prompt": "Give a Bitcoin transaction-count chart for the last hour in 15-minute buckets, without raw transactions or previous-period comparison.",
+          "pass": "portal_get_time_series; network=bitcoin-mainnet, metric=transaction_count, interval=15m, duration=1h, compare_previous omitted/false; freeze mode handling before approval."
+        }
+      ],
+      "control": {
+        "prompt": "What is the latest indexed head block for Base?",
+        "pass": "portal_get_head; network=base-mainnet and type omitted/latest. No freshness dump or raw blocks query."
+      }
+    },
+    {
+      "slug": "git-cafe",
+      "hypothesis": "Public-repository read tools are available anonymously according to the live server instructions. File windows default to 200 lines, code search defaults to 100 matching lines plus three context lines, and directory pages default to 50 entries. A ten-line read or five-match search may inherit those defaults despite the current 96/100 documentation score. Existing bounds and guidance already reduce the risk; no failure or response size has been measured.",
+      "exclude_read_only": [
+        "get_me"
+      ],
+      "allowlist_note": "get_me is excluded from the candidate dispatch allowlist because the live anonymous-session instructions say it returns HTTP 401. Only a frozen public GitCafe repository may be read; private repositories are outside scope.",
+      "quotes": [
+        {
+          "tool": "read_file",
+          "text": "A window holds at most maxLines lines and 64 KiB"
+        },
+        {
+          "tool": "search_code",
+          "parameter": "maxMatches",
+          "text": "How many matching lines to return at most; omit for the default."
+        }
+      ],
+      "fixture_requirements": "Before approval, choose a real public GitCafe repository and freeze owner, repo, full commit OID, an existing text-file path with at least 20 lines, a directory with at least three entries, and a literal pattern with at least five matches. Confirm availability from the public web UI or separately approved read-only setup; do not create a repository, execute a tool, or fabricate fixture contents during this scan.",
+      "tasks": [
+        {
+          "prompt": "For the public repository, commit, and text-file path in the frozen context, show only lines 1 through 10.",
+          "pass": "read_file with exact owner/repo/oid/path, startLine=1 (or omitted), maxLines=10. No search or directory listing is needed for the supplied path."
+        },
+        {
+          "prompt": "Search the supplied directory in that public repository for the frozen literal text. Return at most five matching lines and no surrounding context.",
+          "pass": "search_code with exact owner/repo/oid/path/pattern, maxMatches=5, contextLines=0, ignoreCase omitted/false. Reject a full-file read or a default 100-match search."
+        },
+        {
+          "prompt": "List only the first three entries of the supplied directory at the frozen commit, without descending into subdirectories.",
+          "pass": "list_tree with exact owner/repo/oid/path, limit=3, after omitted. Reject an implicit 50-entry page or recursive work."
+        }
+      ],
+      "control": {
+        "prompt": "Show the identity, description, visibility, and default branch of the supplied public repository.",
+        "pass": "get_repository with the exact owner and repo. This is a metadata lookup, not a tree or content search."
+      }
+    }
+  ],
+  "considered_alternates": [
+    {
+      "slug": "context7",
+      "reason": "A known-library-ID routing hypothesis exists, but the automated screen finds no context-cost flag and current descriptions already state the exception. GitCafe has a current documentation score of 96 plus explicit large window defaults and confirmed anonymous public-repository read instructions."
+    }
+  ]
+}

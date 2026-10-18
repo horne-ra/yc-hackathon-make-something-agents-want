@@ -1,0 +1,682 @@
+{
+  "slug": "killfear-held-at-the-gate-netlify-app",
+  "source_url": "https://manufact.com/mcp-catalog/killfear-held-at-the-gate-netlify-app",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:24:11.707Z",
+    "endpoint": "https://killfear-held-at-the-gate.netlify.app/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "held-at-the-gate",
+      "title": "Held at the Gate",
+      "icons": [
+        {
+          "src": "https://killfear-held-at-the-gate.netlify.app/icon.svg",
+          "mimeType": "image/svg+xml",
+          "sizes": [
+            "any"
+          ]
+        }
+      ],
+      "version": "1.1.0",
+      "websiteUrl": "https://killfear-held-at-the-gate.netlify.app",
+      "description": "Read-only demo of an agent mandate engine: check whether a request is allowed under a mandate, and replay a simulated agent-fleet incident with hash-chained evidence records."
+    },
+    "capabilities": {
+      "tools": {
+        "listChanged": false
+      }
+    },
+    "instructions": "Read-only demo of a mandate engine. Call get_mandate, then evaluate_request or replay_incident. Simulation only.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "get_mandate",
+            "title": "Get mandate",
+            "description": "Returns the illustrative mandate used by the Held at the Gate demo. The result lists the allowed hosts, actions and credentials, the request cap and the trusted instruction sources. Call it first, before evaluate_request, to see what the mandate permits.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "description": "The illustrative mandate: who the agent is, what it may do, and its limits",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Mandate identifier"
+                },
+                "operator": {
+                  "type": "string",
+                  "description": "Declared operator of the agent"
+                },
+                "agent": {
+                  "type": "string",
+                  "description": "Agent the mandate applies to"
+                },
+                "purpose": {
+                  "type": "string",
+                  "description": "What the agent is allowed to work on"
+                },
+                "allowHosts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Hosts the agent may contact"
+                },
+                "allowActions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Actions the agent may take"
+                },
+                "allowCredentials": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Credentials issued under the mandate"
+                },
+                "maxRequests": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Largest number of allowed requests before further ones are denied"
+                },
+                "trustedInstructionSources": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Sources whose instructions count as authority"
+                }
+              },
+              "required": [
+                "id",
+                "operator",
+                "agent",
+                "purpose",
+                "allowHosts",
+                "allowActions",
+                "allowCredentials",
+                "maxRequests",
+                "trustedInstructionSources"
+              ],
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "id": "mandate-demo-001",
+                  "operator": "operator:demo-lab (declared)",
+                  "agent": "agent:poi-researcher-07",
+                  "purpose": "Answer one question about one public place page",
+                  "allowHosts": [
+                    "ditu.amap.com"
+                  ],
+                  "allowActions": [
+                    "http.get.public_page"
+                  ],
+                  "allowCredentials": [],
+                  "maxRequests": 12,
+                  "trustedInstructionSources": [
+                    "operator"
+                  ]
+                }
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "evaluate_request",
+            "title": "Check request against mandate",
+            "description": "Checks one hypothetical agent request against the demo mandate and answers whether it would be allowed. Returns a verdict of ALLOW or DENY plus a list of reasons naming each rule that blocked it (empty when allowed). Use it after get_mandate to test a specific action, host, credential or instruction source. Nothing is sent anywhere.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "description": "The operation the agent is attempting, in the mandate's dotted naming, for example http.get.public_page or token.replay"
+                },
+                "host": {
+                  "type": "string",
+                  "description": "Hostname the request is aimed at, for example ditu.amap.com or webhook.site"
+                },
+                "credential": {
+                  "type": "string",
+                  "description": "The credential the request would present, so the check can see whether the mandate issued it"
+                },
+                "instruction_source": {
+                  "type": "string",
+                  "description": "Who told the agent to do this, so the check can tell operator instructions from page content"
+                }
+              },
+              "required": [
+                "action",
+                "host"
+              ],
+              "additionalProperties": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "description": "The decision for one request, with the rules that blocked it if any",
+              "properties": {
+                "verdict": {
+                  "type": "string",
+                  "enum": [
+                    "ALLOW",
+                    "DENY"
+                  ],
+                  "description": "Decision for the request"
+                },
+                "reasons": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Why the request was denied; empty when allowed"
+                }
+              },
+              "required": [
+                "verdict",
+                "reasons"
+              ],
+              "additionalProperties": false,
+              "examples": [
+                {
+                  "verdict": "DENY",
+                  "reasons": [
+                    "host 'webhook.site' not in mandate"
+                  ]
+                }
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "replay_incident",
+            "title": "Replay incident",
+            "description": "Replays 14 simulated attempts based on tactics published in the swarmcha.se report through the demo mandate and returns each decision with a hash-chained evidence record, plus whether the chain verifies. Use it to see the whole incident end to end: the result gives how many attempts were allowed and denied, whether the evidence chain verifies, and every record in order with its decision and reasons. Simulation only; nothing is sent anywhere.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "description": "Outcome of the full simulated replay: totals, chain check and one record per attempt",
+              "properties": {
+                "simulation": {
+                  "type": "boolean",
+                  "description": "Always true; no real requests are made"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Report the tactics come from"
+                },
+                "allowed": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Count of allowed attempts"
+                },
+                "denied": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Count of denied attempts"
+                },
+                "chain_verified": {
+                  "type": "boolean",
+                  "description": "Whether the evidence hash chain verifies"
+                },
+                "records": {
+                  "type": "array",
+                  "description": "One evidence record per attempt, in order",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "seq": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Position of the attempt, starting at 1"
+                      },
+                      "mandate": {
+                        "type": "string",
+                        "description": "Mandate the attempt was judged under"
+                      },
+                      "agent": {
+                        "type": "string",
+                        "description": "Agent that made the attempt"
+                      },
+                      "operator": {
+                        "type": "string",
+                        "description": "Declared operator of the agent"
+                      },
+                      "req": {
+                        "type": "object",
+                        "description": "The attempted request: label, action, host and optional credential or instruction source"
+                      },
+                      "verdict": {
+                        "type": "string",
+                        "enum": [
+                          "ALLOW",
+                          "DENY"
+                        ],
+                        "description": "Decision for the attempt"
+                      },
+                      "reasons": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Reasons for a denial; empty when allowed"
+                      },
+                      "prev": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{64}$",
+                        "description": "Hash of the previous record, 64 zeros for the first"
+                      },
+                      "hash": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{64}$",
+                        "description": "SHA-256 hash linking this record to the previous one"
+                      }
+                    },
+                    "required": [
+                      "seq",
+                      "mandate",
+                      "agent",
+                      "operator",
+                      "req",
+                      "verdict",
+                      "reasons",
+                      "prev",
+                      "hash"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "simulation",
+                "allowed",
+                "denied",
+                "chain_verified",
+                "records"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_mandate",
+        "title": "Get mandate",
+        "description": "Returns the illustrative mandate used by the Held at the Gate demo. The result lists the allowed hosts, actions and credentials, the request cap and the trusted instruction sources. Call it first, before evaluate_request, to see what the mandate permits.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "description": "The illustrative mandate: who the agent is, what it may do, and its limits",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Mandate identifier"
+            },
+            "operator": {
+              "type": "string",
+              "description": "Declared operator of the agent"
+            },
+            "agent": {
+              "type": "string",
+              "description": "Agent the mandate applies to"
+            },
+            "purpose": {
+              "type": "string",
+              "description": "What the agent is allowed to work on"
+            },
+            "allowHosts": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Hosts the agent may contact"
+            },
+            "allowActions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Actions the agent may take"
+            },
+            "allowCredentials": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Credentials issued under the mandate"
+            },
+            "maxRequests": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Largest number of allowed requests before further ones are denied"
+            },
+            "trustedInstructionSources": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Sources whose instructions count as authority"
+            }
+          },
+          "required": [
+            "id",
+            "operator",
+            "agent",
+            "purpose",
+            "allowHosts",
+            "allowActions",
+            "allowCredentials",
+            "maxRequests",
+            "trustedInstructionSources"
+          ],
+          "additionalProperties": false,
+          "examples": [
+            {
+              "id": "mandate-demo-001",
+              "operator": "operator:demo-lab (declared)",
+              "agent": "agent:poi-researcher-07",
+              "purpose": "Answer one question about one public place page",
+              "allowHosts": [
+                "ditu.amap.com"
+              ],
+              "allowActions": [
+                "http.get.public_page"
+              ],
+              "allowCredentials": [],
+              "maxRequests": 12,
+              "trustedInstructionSources": [
+                "operator"
+              ]
+            }
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "evaluate_request",
+        "title": "Check request against mandate",
+        "description": "Checks one hypothetical agent request against the demo mandate and answers whether it would be allowed. Returns a verdict of ALLOW or DENY plus a list of reasons naming each rule that blocked it (empty when allowed). Use it after get_mandate to test a specific action, host, credential or instruction source. Nothing is sent anywhere.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "description": "The operation the agent is attempting, in the mandate's dotted naming, for example http.get.public_page or token.replay"
+            },
+            "host": {
+              "type": "string",
+              "description": "Hostname the request is aimed at, for example ditu.amap.com or webhook.site"
+            },
+            "credential": {
+              "type": "string",
+              "description": "The credential the request would present, so the check can see whether the mandate issued it"
+            },
+            "instruction_source": {
+              "type": "string",
+              "description": "Who told the agent to do this, so the check can tell operator instructions from page content"
+            }
+          },
+          "required": [
+            "action",
+            "host"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "description": "The decision for one request, with the rules that blocked it if any",
+          "properties": {
+            "verdict": {
+              "type": "string",
+              "enum": [
+                "ALLOW",
+                "DENY"
+              ],
+              "description": "Decision for the request"
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Why the request was denied; empty when allowed"
+            }
+          },
+          "required": [
+            "verdict",
+            "reasons"
+          ],
+          "additionalProperties": false,
+          "examples": [
+            {
+              "verdict": "DENY",
+              "reasons": [
+                "host 'webhook.site' not in mandate"
+              ]
+            }
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "replay_incident",
+        "title": "Replay incident",
+        "description": "Replays 14 simulated attempts based on tactics published in the swarmcha.se report through the demo mandate and returns each decision with a hash-chained evidence record, plus whether the chain verifies. Use it to see the whole incident end to end: the result gives how many attempts were allowed and denied, whether the evidence chain verifies, and every record in order with its decision and reasons. Simulation only; nothing is sent anywhere.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "description": "Outcome of the full simulated replay: totals, chain check and one record per attempt",
+          "properties": {
+            "simulation": {
+              "type": "boolean",
+              "description": "Always true; no real requests are made"
+            },
+            "source": {
+              "type": "string",
+              "description": "Report the tactics come from"
+            },
+            "allowed": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Count of allowed attempts"
+            },
+            "denied": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Count of denied attempts"
+            },
+            "chain_verified": {
+              "type": "boolean",
+              "description": "Whether the evidence hash chain verifies"
+            },
+            "records": {
+              "type": "array",
+              "description": "One evidence record per attempt, in order",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "seq": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Position of the attempt, starting at 1"
+                  },
+                  "mandate": {
+                    "type": "string",
+                    "description": "Mandate the attempt was judged under"
+                  },
+                  "agent": {
+                    "type": "string",
+                    "description": "Agent that made the attempt"
+                  },
+                  "operator": {
+                    "type": "string",
+                    "description": "Declared operator of the agent"
+                  },
+                  "req": {
+                    "type": "object",
+                    "description": "The attempted request: label, action, host and optional credential or instruction source"
+                  },
+                  "verdict": {
+                    "type": "string",
+                    "enum": [
+                      "ALLOW",
+                      "DENY"
+                    ],
+                    "description": "Decision for the attempt"
+                  },
+                  "reasons": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Reasons for a denial; empty when allowed"
+                  },
+                  "prev": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "description": "Hash of the previous record, 64 zeros for the first"
+                  },
+                  "hash": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "description": "SHA-256 hash linking this record to the previous one"
+                  }
+                },
+                "required": [
+                  "seq",
+                  "mandate",
+                  "agent",
+                  "operator",
+                  "req",
+                  "verdict",
+                  "reasons",
+                  "prev",
+                  "hash"
+                ]
+              }
+            }
+          },
+          "required": [
+            "simulation",
+            "allowed",
+            "denied",
+            "chain_verified",
+            "records"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:24:08.046Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:24:09.197Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:24:10.248Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:24:11.299Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 3,
+    "tools_hash": "sha256:382a9d97be337b9a51095f2f9203b9524503245f0e56b07b44730d6939c2d614",
+    "static_tool_tokens": 974,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_mandate",
+        "message": "Description does not say when to use this tool."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 1,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [],
+      "flags": []
+    },
+    "read_only_allowlist": [
+      "get_mandate",
+      "evaluate_request",
+      "replay_incident"
+    ]
+  }
+}

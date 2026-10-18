@@ -1,0 +1,4137 @@
+{
+  "slug": "swissrailways",
+  "source_url": "https://manufact.com/mcp-catalog/swissrailways",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:25:15.870Z",
+    "endpoint": "https://anthropic.mcp.swissrailways.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "swissrailways_mcp",
+      "version": "3.4.4"
+    },
+    "capabilities": {
+      "experimental": {},
+      "logging": {},
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "subscribe": false,
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      },
+      "extensions": {
+        "io.modelcontextprotocol/ui": {}
+      }
+    },
+    "instructions": "\n            ## General:\n            Swissrailways MCP server - provides ability to purchase:\n            - Swiss Travel Pass tickets\n            - Swiss Travel Flex Pass tickets\n            - Swiss Half Fare Cards\n\n            == Ticket types short description ==\n            1. With the Swiss Travel Pass, you can enjoy unlimited travel by train,\n            bus and boat in Switzerland for selected amount of consecutive days.\n            Free museum admission and discounted mountain railway tickets are included in the pass.\n\n            2. With the Swiss Half Fare Card, you can buy tickets anywhere in Switzerland at half price for one month.\n            You get a 50% discount on public transport.\n\n            3. With the Swiss Travel Pass Flex, you can enjoy unlimited travel by train,\n            bus and boat on any days of your choice. You choose amount of travel days within one month.\n            Many museum tickets and discounts on mountain railways are included.\n\n            ## Workflow:\n            You should lead user step by step, to enter one step data in a moment,\n            then proceed to the next step and enter next step data.\n\n            !!!Important:\n            Never call any tool for a person whose date of birth you do not know yet: ask for it first.\n            On every change of birth_date or new person data being entered, call swissrailways_check_person_eligibility\n            tool once per person, before asking anything else.\n            If the tool returns an error, display error message as is (just translate if needed), do not\n            rephrase or reduce it!\n            If a date of birth is ambiguous (DD/MM vs MM/DD), confirm it with the user before the check.\n\n            1. User select ticket type (swissPass, swissFlexiPass or swissHalfFareCard).\n            2. User fills ticket details (start date, duration and comfort class if needed),\n             use swissrailways_fetch_ticket_options tool to define what info user should provide on that step\n            3. User fills billing person details:\n              - first name\n              - last name\n              - date of birth\n              - country of residence\n              (then call swissrailways_check_person_eligibility with role billing_person)\n              - email\n              - title - always ask explicitly from the list returned by swissrailways_fetch_billing_person_titles tool.\n            4. User fills traveller details (first and last name, date of birth, residence country),\n            traveller is not obligated to be the same as billing person.\n            Call swissrailways_check_person_eligibility with role traveller for every traveller as soon as\n            date of birth and country of residence are known.\n            5. Request if there are any other travellers, if any go to 4. step to add one more traveller.\n            6. User selects currency from available currencies list (CHF, GBP, USD, EUR).\n            7. User selects payment system for the selected currency\n            (request swissrailways_fetch_order_payment_systems tool for available payment options).\n            8. UI widget is being rendered for order overview and handling checkout.\n\n\n            ## Restrictions:\n            Model should be concise, strictly follow defined workflow (none of the steps can be omitted).\n            Do not guess/create/add defaults, always ask user what option to use.\n\n            ## Validation:\n            Pay user attention that he should write first and last names like it is in passport,\n            otherwise user will not be permitted to the train.\n            Validate user first and last names according to international names standards.\n\n            ## Behaviour:\n            All communication with user should be in the language of his request.\n            Info should be displayed in user locale (for example consider date format).\n            When a tool call renders an embedded UI widget, output NO text at all after the tool call —\n            not a summary, not a confirmation, not even a single sentence. The UI is self-contained.\n\n            ## Special cases:\n            Billing person and traveller person can be different.\n            User can buy more than one ticket at once.\n            ",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "swissrailways_fetch_billing_person_titles",
+            "title": "Possible email salutation prefixes",
+            "description": "\n            Use this when user fills billing person details.\n\n            This tool will return possible salutation prefixes used in email correspondence.\n\n            User must select one of the options explicitly, do not guess what title he/she needs.\n            To fetch possible title options use user messages language.\n            If user talks in unexpected language, use English as fallback.\n            ",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "language": {
+                  "enum": [
+                    "en",
+                    "it",
+                    "fr",
+                    "nl",
+                    "de",
+                    "es",
+                    "pt",
+                    "ja",
+                    "ko",
+                    "zh-Hans",
+                    "zh-Hant",
+                    "th"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "language"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "properties": {
+                "result": {
+                  "items": {
+                    "properties": {
+                      "value": {
+                        "description": "value of the title for programmatic handling (for application code)",
+                        "examples": [
+                          "mr",
+                          "ms"
+                        ],
+                        "type": "string"
+                      },
+                      "title": {
+                        "description": "Person title, to display to user",
+                        "examples": [
+                          "Monsieur",
+                          "Mr."
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "value",
+                      "title"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "type": "object",
+              "x-fastmcp-wrap-result": true
+            },
+            "annotations": {
+              "title": "Possible email salutation prefixes",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "version": "1.0.0",
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "swissrailways_render_order_overview",
+            "title": "Render order overview",
+            "description": "\n            Use this when user filled all needed details, and want to see order overview or proceed with purchase.\n            The embedded UI widget renders interface and handles all further interaction.\n\n            IMPORTANT: After calling this tool, output NO text at all — not even a single word.\n            The UI widget is self-contained and requires no additional commentary from you.\n            Do not show uuid to user.\n\n            Detect conversation language (not interface one), pass it as parameter to the tool.\n            ",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "language": {
+                  "enum": [
+                    "en",
+                    "it",
+                    "fr",
+                    "nl",
+                    "de",
+                    "es",
+                    "pt",
+                    "ja",
+                    "ko",
+                    "zh-Hans",
+                    "zh-Hant",
+                    "th"
+                  ],
+                  "type": "string"
+                },
+                "order": {
+                  "properties": {
+                    "currency": {
+                      "enum": [
+                        "USD",
+                        "EUR",
+                        "CHF",
+                        "GBP"
+                      ],
+                      "type": "string",
+                      "description": "Currency of order"
+                    },
+                    "payment_type": {
+                      "description": "\n            Payment system code, internal code of payment system,\n            that was returned by swissrailways_fetch_order_payment_systems tool.\n            example: \"VISA\"\n            ",
+                      "type": "string"
+                    },
+                    "cancellation_protection": {
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": false,
+                      "description": "\n            Ask explicitly whether to enable cancellation protection or not for the order.\n            When enabled, user can cancel tickets up to 1 day before the first day of validity with no additional cost.\n            "
+                    },
+                    "billing_person": {
+                      "properties": {
+                        "residence_country_code": {
+                          "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                          "examples": [
+                            "US",
+                            "CA",
+                            "GB"
+                          ],
+                          "maxLength": 2,
+                          "minLength": 2,
+                          "type": "string"
+                        },
+                        "birth_date": {
+                          "description": "Date of birth of the person",
+                          "format": "date",
+                          "type": "string"
+                        },
+                        "first_name": {
+                          "type": "string"
+                        },
+                        "last_name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "description": "Email address to send e-tickets and order confirmation",
+                          "format": "email",
+                          "type": "string"
+                        },
+                        "title": {
+                          "properties": {
+                            "value": {
+                              "description": "value of the title for programmatic handling (for application code)",
+                              "examples": [
+                                "mr",
+                                "ms"
+                              ],
+                              "type": "string"
+                            },
+                            "title": {
+                              "description": "Person title, to display to user",
+                              "examples": [
+                                "Monsieur",
+                                "Mr."
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "title"
+                          ],
+                          "type": "object",
+                          "description": "\n            A salutation prefix used in email correspondence. This field determines how the recipient will be addressed.\n            "
+                        }
+                      },
+                      "required": [
+                        "residence_country_code",
+                        "birth_date",
+                        "first_name",
+                        "last_name",
+                        "email",
+                        "title"
+                      ],
+                      "type": "object",
+                      "description": "Person, responsible for buying swiss travel pass tickets, who will get order confirmation email."
+                    },
+                    "tickets": {
+                      "description": "List of tickets in order",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "properties": {
+                              "ticket_type": {
+                                "const": "swissPass",
+                                "default": "swissPass",
+                                "type": "string"
+                              },
+                              "start_date": {
+                                "description": "Date when ticket starts becomes valid, should be in the future or today",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "person": {
+                                "properties": {
+                                  "residence_country_code": {
+                                    "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                    "examples": [
+                                      "US",
+                                      "CA",
+                                      "GB"
+                                    ],
+                                    "maxLength": 2,
+                                    "minLength": 2,
+                                    "type": "string"
+                                  },
+                                  "birth_date": {
+                                    "description": "Date of birth of the person",
+                                    "format": "date",
+                                    "type": "string"
+                                  },
+                                  "first_name": {
+                                    "type": "string"
+                                  },
+                                  "last_name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "residence_country_code",
+                                  "birth_date",
+                                  "first_name",
+                                  "last_name"
+                                ],
+                                "type": "object",
+                                "description": "Person the ticket is bought for"
+                              },
+                              "discount": {
+                                "anyOf": [
+                                  {
+                                    "properties": {
+                                      "discount_key": {
+                                        "description": "STC key of the discount",
+                                        "type": "string"
+                                      },
+                                      "human_readable_name": {
+                                        "description": "Human readable name of the discount",
+                                        "type": "string"
+                                      },
+                                      "tariffs": {
+                                        "description": "List of ticket tariffs this discount is valid for",
+                                        "items": {
+                                          "enum": [
+                                            "adult",
+                                            "youth"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      }
+                                    },
+                                    "required": [
+                                      "discount_key",
+                                      "human_readable_name",
+                                      "tariffs"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "default": null,
+                                "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                              },
+                              "comfort_class": {
+                                "description": "Comfort class of the ticket, usually 1 or 2",
+                                "type": "integer"
+                              },
+                              "duration": {
+                                "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "start_date",
+                              "person",
+                              "comfort_class",
+                              "duration",
+                              "ticket_type"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "properties": {
+                              "ticket_type": {
+                                "const": "swissFlexiPass",
+                                "default": "swissFlexiPass",
+                                "type": "string"
+                              },
+                              "start_date": {
+                                "description": "Date when ticket starts becomes valid, should be in the future or today",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "person": {
+                                "properties": {
+                                  "residence_country_code": {
+                                    "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                    "examples": [
+                                      "US",
+                                      "CA",
+                                      "GB"
+                                    ],
+                                    "maxLength": 2,
+                                    "minLength": 2,
+                                    "type": "string"
+                                  },
+                                  "birth_date": {
+                                    "description": "Date of birth of the person",
+                                    "format": "date",
+                                    "type": "string"
+                                  },
+                                  "first_name": {
+                                    "type": "string"
+                                  },
+                                  "last_name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "residence_country_code",
+                                  "birth_date",
+                                  "first_name",
+                                  "last_name"
+                                ],
+                                "type": "object",
+                                "description": "Person the ticket is bought for"
+                              },
+                              "discount": {
+                                "anyOf": [
+                                  {
+                                    "properties": {
+                                      "discount_key": {
+                                        "description": "STC key of the discount",
+                                        "type": "string"
+                                      },
+                                      "human_readable_name": {
+                                        "description": "Human readable name of the discount",
+                                        "type": "string"
+                                      },
+                                      "tariffs": {
+                                        "description": "List of ticket tariffs this discount is valid for",
+                                        "items": {
+                                          "enum": [
+                                            "adult",
+                                            "youth"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      }
+                                    },
+                                    "required": [
+                                      "discount_key",
+                                      "human_readable_name",
+                                      "tariffs"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "default": null,
+                                "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                              },
+                              "comfort_class": {
+                                "description": "Comfort class of the ticket, usually 1 or 2",
+                                "type": "integer"
+                              },
+                              "duration": {
+                                "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "start_date",
+                              "person",
+                              "comfort_class",
+                              "duration",
+                              "ticket_type"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "properties": {
+                              "ticket_type": {
+                                "const": "swissHalfFareCard",
+                                "default": "swissHalfFareCard",
+                                "type": "string"
+                              },
+                              "start_date": {
+                                "description": "Date when ticket starts becomes valid, should be in the future or today",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "person": {
+                                "properties": {
+                                  "residence_country_code": {
+                                    "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                    "examples": [
+                                      "US",
+                                      "CA",
+                                      "GB"
+                                    ],
+                                    "maxLength": 2,
+                                    "minLength": 2,
+                                    "type": "string"
+                                  },
+                                  "birth_date": {
+                                    "description": "Date of birth of the person",
+                                    "format": "date",
+                                    "type": "string"
+                                  },
+                                  "first_name": {
+                                    "type": "string"
+                                  },
+                                  "last_name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "residence_country_code",
+                                  "birth_date",
+                                  "first_name",
+                                  "last_name"
+                                ],
+                                "type": "object",
+                                "description": "Person the ticket is bought for"
+                              },
+                              "discount": {
+                                "anyOf": [
+                                  {
+                                    "properties": {
+                                      "discount_key": {
+                                        "description": "STC key of the discount",
+                                        "type": "string"
+                                      },
+                                      "human_readable_name": {
+                                        "description": "Human readable name of the discount",
+                                        "type": "string"
+                                      },
+                                      "tariffs": {
+                                        "description": "List of ticket tariffs this discount is valid for",
+                                        "items": {
+                                          "enum": [
+                                            "adult",
+                                            "youth"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      }
+                                    },
+                                    "required": [
+                                      "discount_key",
+                                      "human_readable_name",
+                                      "tariffs"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "default": null,
+                                "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                              }
+                            },
+                            "required": [
+                              "start_date",
+                              "person",
+                              "ticket_type"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "currency",
+                    "payment_type",
+                    "billing_person",
+                    "tickets"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "language",
+                "order"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "properties": {
+                "order": {
+                  "properties": {
+                    "currency": {
+                      "enum": [
+                        "USD",
+                        "EUR",
+                        "CHF",
+                        "GBP"
+                      ],
+                      "type": "string",
+                      "description": "Currency of order"
+                    },
+                    "payment_type": {
+                      "description": "\n            Payment system code, internal code of payment system,\n            that was returned by swissrailways_fetch_order_payment_systems tool.\n            example: \"VISA\"\n            ",
+                      "type": "string"
+                    },
+                    "cancellation_protection": {
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": false,
+                      "description": "\n            Ask explicitly whether to enable cancellation protection or not for the order.\n            When enabled, user can cancel tickets up to 1 day before the first day of validity with no additional cost.\n            "
+                    },
+                    "billing_person": {
+                      "properties": {
+                        "residence_country_code": {
+                          "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                          "examples": [
+                            "US",
+                            "CA",
+                            "GB"
+                          ],
+                          "maxLength": 2,
+                          "minLength": 2,
+                          "type": "string"
+                        },
+                        "birth_date": {
+                          "description": "Date of birth of the person",
+                          "format": "date",
+                          "type": "string"
+                        },
+                        "first_name": {
+                          "type": "string"
+                        },
+                        "last_name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "description": "Email address to send e-tickets and order confirmation",
+                          "format": "email",
+                          "type": "string"
+                        },
+                        "title": {
+                          "properties": {
+                            "value": {
+                              "description": "value of the title for programmatic handling (for application code)",
+                              "examples": [
+                                "mr",
+                                "ms"
+                              ],
+                              "type": "string"
+                            },
+                            "title": {
+                              "description": "Person title, to display to user",
+                              "examples": [
+                                "Monsieur",
+                                "Mr."
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "title"
+                          ],
+                          "type": "object",
+                          "description": "\n            A salutation prefix used in email correspondence. This field determines how the recipient will be addressed.\n            "
+                        }
+                      },
+                      "required": [
+                        "residence_country_code",
+                        "birth_date",
+                        "first_name",
+                        "last_name",
+                        "email",
+                        "title"
+                      ],
+                      "type": "object",
+                      "description": "Person, responsible for buying swiss travel pass tickets, who will get order confirmation email."
+                    },
+                    "tickets": {
+                      "description": "List of tickets in order",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "properties": {
+                              "ticket_type": {
+                                "const": "swissPass",
+                                "default": "swissPass",
+                                "type": "string"
+                              },
+                              "start_date": {
+                                "description": "Date when ticket starts becomes valid, should be in the future or today",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "person": {
+                                "properties": {
+                                  "residence_country_code": {
+                                    "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                    "examples": [
+                                      "US",
+                                      "CA",
+                                      "GB"
+                                    ],
+                                    "maxLength": 2,
+                                    "minLength": 2,
+                                    "type": "string"
+                                  },
+                                  "birth_date": {
+                                    "description": "Date of birth of the person",
+                                    "format": "date",
+                                    "type": "string"
+                                  },
+                                  "first_name": {
+                                    "type": "string"
+                                  },
+                                  "last_name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "residence_country_code",
+                                  "birth_date",
+                                  "first_name",
+                                  "last_name"
+                                ],
+                                "type": "object",
+                                "description": "Person the ticket is bought for"
+                              },
+                              "discount": {
+                                "anyOf": [
+                                  {
+                                    "properties": {
+                                      "discount_key": {
+                                        "description": "STC key of the discount",
+                                        "type": "string"
+                                      },
+                                      "human_readable_name": {
+                                        "description": "Human readable name of the discount",
+                                        "type": "string"
+                                      },
+                                      "tariffs": {
+                                        "description": "List of ticket tariffs this discount is valid for",
+                                        "items": {
+                                          "enum": [
+                                            "adult",
+                                            "youth"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      }
+                                    },
+                                    "required": [
+                                      "discount_key",
+                                      "human_readable_name",
+                                      "tariffs"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "default": null,
+                                "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                              },
+                              "comfort_class": {
+                                "description": "Comfort class of the ticket, usually 1 or 2",
+                                "type": "integer"
+                              },
+                              "duration": {
+                                "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "start_date",
+                              "person",
+                              "comfort_class",
+                              "duration",
+                              "ticket_type"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "properties": {
+                              "ticket_type": {
+                                "const": "swissFlexiPass",
+                                "default": "swissFlexiPass",
+                                "type": "string"
+                              },
+                              "start_date": {
+                                "description": "Date when ticket starts becomes valid, should be in the future or today",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "person": {
+                                "properties": {
+                                  "residence_country_code": {
+                                    "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                    "examples": [
+                                      "US",
+                                      "CA",
+                                      "GB"
+                                    ],
+                                    "maxLength": 2,
+                                    "minLength": 2,
+                                    "type": "string"
+                                  },
+                                  "birth_date": {
+                                    "description": "Date of birth of the person",
+                                    "format": "date",
+                                    "type": "string"
+                                  },
+                                  "first_name": {
+                                    "type": "string"
+                                  },
+                                  "last_name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "residence_country_code",
+                                  "birth_date",
+                                  "first_name",
+                                  "last_name"
+                                ],
+                                "type": "object",
+                                "description": "Person the ticket is bought for"
+                              },
+                              "discount": {
+                                "anyOf": [
+                                  {
+                                    "properties": {
+                                      "discount_key": {
+                                        "description": "STC key of the discount",
+                                        "type": "string"
+                                      },
+                                      "human_readable_name": {
+                                        "description": "Human readable name of the discount",
+                                        "type": "string"
+                                      },
+                                      "tariffs": {
+                                        "description": "List of ticket tariffs this discount is valid for",
+                                        "items": {
+                                          "enum": [
+                                            "adult",
+                                            "youth"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      }
+                                    },
+                                    "required": [
+                                      "discount_key",
+                                      "human_readable_name",
+                                      "tariffs"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "default": null,
+                                "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                              },
+                              "comfort_class": {
+                                "description": "Comfort class of the ticket, usually 1 or 2",
+                                "type": "integer"
+                              },
+                              "duration": {
+                                "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "start_date",
+                              "person",
+                              "comfort_class",
+                              "duration",
+                              "ticket_type"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "properties": {
+                              "ticket_type": {
+                                "const": "swissHalfFareCard",
+                                "default": "swissHalfFareCard",
+                                "type": "string"
+                              },
+                              "start_date": {
+                                "description": "Date when ticket starts becomes valid, should be in the future or today",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "person": {
+                                "properties": {
+                                  "residence_country_code": {
+                                    "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                    "examples": [
+                                      "US",
+                                      "CA",
+                                      "GB"
+                                    ],
+                                    "maxLength": 2,
+                                    "minLength": 2,
+                                    "type": "string"
+                                  },
+                                  "birth_date": {
+                                    "description": "Date of birth of the person",
+                                    "format": "date",
+                                    "type": "string"
+                                  },
+                                  "first_name": {
+                                    "type": "string"
+                                  },
+                                  "last_name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "residence_country_code",
+                                  "birth_date",
+                                  "first_name",
+                                  "last_name"
+                                ],
+                                "type": "object",
+                                "description": "Person the ticket is bought for"
+                              },
+                              "discount": {
+                                "anyOf": [
+                                  {
+                                    "properties": {
+                                      "discount_key": {
+                                        "description": "STC key of the discount",
+                                        "type": "string"
+                                      },
+                                      "human_readable_name": {
+                                        "description": "Human readable name of the discount",
+                                        "type": "string"
+                                      },
+                                      "tariffs": {
+                                        "description": "List of ticket tariffs this discount is valid for",
+                                        "items": {
+                                          "enum": [
+                                            "adult",
+                                            "youth"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      }
+                                    },
+                                    "required": [
+                                      "discount_key",
+                                      "human_readable_name",
+                                      "tariffs"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "default": null,
+                                "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                              }
+                            },
+                            "required": [
+                              "start_date",
+                              "person",
+                              "ticket_type"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "currency",
+                    "payment_type",
+                    "billing_person",
+                    "tickets"
+                  ],
+                  "type": "object"
+                },
+                "language": {
+                  "enum": [
+                    "en",
+                    "it",
+                    "fr",
+                    "nl",
+                    "de",
+                    "es",
+                    "pt",
+                    "ja",
+                    "ko",
+                    "zh-Hans",
+                    "zh-Hant",
+                    "th"
+                  ],
+                  "type": "string"
+                },
+                "url": {
+                  "format": "uri",
+                  "maxLength": 2083,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "uuid": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "order",
+                "language",
+                "url",
+                "uuid"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Render order overview",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "version": "1.0.0",
+              "ui": {
+                "resourceUri": "ui://swissrailways/order_overview_widget.html"
+              },
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "swissrailways_fetch_order_payment_systems",
+            "title": "Available payment systems for selected currency",
+            "description": "\n            Use this tool after:\n             - user fills with billing person\n             - user fills travellers\n             - user selects currency from the available currencies.\n\n            Tool should be called before calculating order price.\n            Tool returns payment systems list available for the currency user chose.\n\n            Do not guess, ask user for currency he/she wants to pay before calling this tool.\n            ",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "currency": {
+                  "enum": [
+                    "USD",
+                    "EUR",
+                    "CHF",
+                    "GBP"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "currency"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "properties": {
+                "result": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "type": "object",
+              "x-fastmcp-wrap-result": true
+            },
+            "annotations": {
+              "title": "Available payment systems for selected currency",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "version": "1.0.0",
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "swissrailways_calculate_order_total_price",
+            "title": "Calculate order price",
+            "description": "\n            Always ask user if all travellers were filled before calling this tool.\n            Give user order overview in text format before using this tool.\n\n            Use this when user finished with:\n            - ticket configuration\n            - billing person details\n            - travellers details\n            - explicitly selected currency and payment system for it\n            - selected whether to include or not cancellation protection\n            ",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "language": {
+                  "enum": [
+                    "en",
+                    "it",
+                    "fr",
+                    "nl",
+                    "de",
+                    "es",
+                    "pt",
+                    "ja",
+                    "ko",
+                    "zh-Hans",
+                    "zh-Hant",
+                    "th"
+                  ],
+                  "type": "string"
+                },
+                "order": {
+                  "properties": {
+                    "currency": {
+                      "enum": [
+                        "USD",
+                        "EUR",
+                        "CHF",
+                        "GBP"
+                      ],
+                      "type": "string",
+                      "description": "Currency of order"
+                    },
+                    "payment_type": {
+                      "description": "\n            Payment system code, internal code of payment system,\n            that was returned by swissrailways_fetch_order_payment_systems tool.\n            example: \"VISA\"\n            ",
+                      "type": "string"
+                    },
+                    "cancellation_protection": {
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": false,
+                      "description": "\n            Ask explicitly whether to enable cancellation protection or not for the order.\n            When enabled, user can cancel tickets up to 1 day before the first day of validity with no additional cost.\n            "
+                    },
+                    "billing_person": {
+                      "properties": {
+                        "residence_country_code": {
+                          "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                          "examples": [
+                            "US",
+                            "CA",
+                            "GB"
+                          ],
+                          "maxLength": 2,
+                          "minLength": 2,
+                          "type": "string"
+                        },
+                        "birth_date": {
+                          "description": "Date of birth of the person",
+                          "format": "date",
+                          "type": "string"
+                        },
+                        "first_name": {
+                          "type": "string"
+                        },
+                        "last_name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "description": "Email address to send e-tickets and order confirmation",
+                          "format": "email",
+                          "type": "string"
+                        },
+                        "title": {
+                          "properties": {
+                            "value": {
+                              "description": "value of the title for programmatic handling (for application code)",
+                              "examples": [
+                                "mr",
+                                "ms"
+                              ],
+                              "type": "string"
+                            },
+                            "title": {
+                              "description": "Person title, to display to user",
+                              "examples": [
+                                "Monsieur",
+                                "Mr."
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "title"
+                          ],
+                          "type": "object",
+                          "description": "\n            A salutation prefix used in email correspondence. This field determines how the recipient will be addressed.\n            "
+                        }
+                      },
+                      "required": [
+                        "residence_country_code",
+                        "birth_date",
+                        "first_name",
+                        "last_name",
+                        "email",
+                        "title"
+                      ],
+                      "type": "object",
+                      "description": "Person, responsible for buying swiss travel pass tickets, who will get order confirmation email."
+                    },
+                    "tickets": {
+                      "description": "List of tickets in order",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "properties": {
+                              "ticket_type": {
+                                "const": "swissPass",
+                                "default": "swissPass",
+                                "type": "string"
+                              },
+                              "start_date": {
+                                "description": "Date when ticket starts becomes valid, should be in the future or today",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "person": {
+                                "properties": {
+                                  "residence_country_code": {
+                                    "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                    "examples": [
+                                      "US",
+                                      "CA",
+                                      "GB"
+                                    ],
+                                    "maxLength": 2,
+                                    "minLength": 2,
+                                    "type": "string"
+                                  },
+                                  "birth_date": {
+                                    "description": "Date of birth of the person",
+                                    "format": "date",
+                                    "type": "string"
+                                  },
+                                  "first_name": {
+                                    "type": "string"
+                                  },
+                                  "last_name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "residence_country_code",
+                                  "birth_date",
+                                  "first_name",
+                                  "last_name"
+                                ],
+                                "type": "object",
+                                "description": "Person the ticket is bought for"
+                              },
+                              "discount": {
+                                "anyOf": [
+                                  {
+                                    "properties": {
+                                      "discount_key": {
+                                        "description": "STC key of the discount",
+                                        "type": "string"
+                                      },
+                                      "human_readable_name": {
+                                        "description": "Human readable name of the discount",
+                                        "type": "string"
+                                      },
+                                      "tariffs": {
+                                        "description": "List of ticket tariffs this discount is valid for",
+                                        "items": {
+                                          "enum": [
+                                            "adult",
+                                            "youth"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      }
+                                    },
+                                    "required": [
+                                      "discount_key",
+                                      "human_readable_name",
+                                      "tariffs"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "default": null,
+                                "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                              },
+                              "comfort_class": {
+                                "description": "Comfort class of the ticket, usually 1 or 2",
+                                "type": "integer"
+                              },
+                              "duration": {
+                                "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "start_date",
+                              "person",
+                              "comfort_class",
+                              "duration",
+                              "ticket_type"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "properties": {
+                              "ticket_type": {
+                                "const": "swissFlexiPass",
+                                "default": "swissFlexiPass",
+                                "type": "string"
+                              },
+                              "start_date": {
+                                "description": "Date when ticket starts becomes valid, should be in the future or today",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "person": {
+                                "properties": {
+                                  "residence_country_code": {
+                                    "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                    "examples": [
+                                      "US",
+                                      "CA",
+                                      "GB"
+                                    ],
+                                    "maxLength": 2,
+                                    "minLength": 2,
+                                    "type": "string"
+                                  },
+                                  "birth_date": {
+                                    "description": "Date of birth of the person",
+                                    "format": "date",
+                                    "type": "string"
+                                  },
+                                  "first_name": {
+                                    "type": "string"
+                                  },
+                                  "last_name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "residence_country_code",
+                                  "birth_date",
+                                  "first_name",
+                                  "last_name"
+                                ],
+                                "type": "object",
+                                "description": "Person the ticket is bought for"
+                              },
+                              "discount": {
+                                "anyOf": [
+                                  {
+                                    "properties": {
+                                      "discount_key": {
+                                        "description": "STC key of the discount",
+                                        "type": "string"
+                                      },
+                                      "human_readable_name": {
+                                        "description": "Human readable name of the discount",
+                                        "type": "string"
+                                      },
+                                      "tariffs": {
+                                        "description": "List of ticket tariffs this discount is valid for",
+                                        "items": {
+                                          "enum": [
+                                            "adult",
+                                            "youth"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      }
+                                    },
+                                    "required": [
+                                      "discount_key",
+                                      "human_readable_name",
+                                      "tariffs"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "default": null,
+                                "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                              },
+                              "comfort_class": {
+                                "description": "Comfort class of the ticket, usually 1 or 2",
+                                "type": "integer"
+                              },
+                              "duration": {
+                                "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "start_date",
+                              "person",
+                              "comfort_class",
+                              "duration",
+                              "ticket_type"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "properties": {
+                              "ticket_type": {
+                                "const": "swissHalfFareCard",
+                                "default": "swissHalfFareCard",
+                                "type": "string"
+                              },
+                              "start_date": {
+                                "description": "Date when ticket starts becomes valid, should be in the future or today",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "person": {
+                                "properties": {
+                                  "residence_country_code": {
+                                    "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                    "examples": [
+                                      "US",
+                                      "CA",
+                                      "GB"
+                                    ],
+                                    "maxLength": 2,
+                                    "minLength": 2,
+                                    "type": "string"
+                                  },
+                                  "birth_date": {
+                                    "description": "Date of birth of the person",
+                                    "format": "date",
+                                    "type": "string"
+                                  },
+                                  "first_name": {
+                                    "type": "string"
+                                  },
+                                  "last_name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "residence_country_code",
+                                  "birth_date",
+                                  "first_name",
+                                  "last_name"
+                                ],
+                                "type": "object",
+                                "description": "Person the ticket is bought for"
+                              },
+                              "discount": {
+                                "anyOf": [
+                                  {
+                                    "properties": {
+                                      "discount_key": {
+                                        "description": "STC key of the discount",
+                                        "type": "string"
+                                      },
+                                      "human_readable_name": {
+                                        "description": "Human readable name of the discount",
+                                        "type": "string"
+                                      },
+                                      "tariffs": {
+                                        "description": "List of ticket tariffs this discount is valid for",
+                                        "items": {
+                                          "enum": [
+                                            "adult",
+                                            "youth"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      }
+                                    },
+                                    "required": [
+                                      "discount_key",
+                                      "human_readable_name",
+                                      "tariffs"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "default": null,
+                                "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                              }
+                            },
+                            "required": [
+                              "start_date",
+                              "person",
+                              "ticket_type"
+                            ],
+                            "type": "object"
+                          }
+                        ]
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "currency",
+                    "payment_type",
+                    "billing_person",
+                    "tickets"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "language",
+                "order"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "properties": {
+                "cancellationProtection": {
+                  "pattern": "^(?:0|[1-9]\\d*)\\.\\d{2}$",
+                  "type": "string"
+                },
+                "total": {
+                  "pattern": "^(?:0|[1-9]\\d*)\\.\\d{2}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "cancellationProtection",
+                "total"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Calculate order price",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "version": "1.0.0",
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "swissrailways_fetch_order_status",
+            "title": "Order status",
+            "description": "\n            Use this tool to clarify status of user order.\n            Use this tool only once and only when user confirms he payed the order.\n            Use uuid that was returned by swissrailways_order_overview tool, do not create your own.\n            ",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "uuid": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "uuid"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Order status",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "version": "1.0.0",
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "swissrailways_check_person_eligibility",
+            "title": "Person eligibility check",
+            "description": "\n            Use this tool right after user provided date of birth of the billing person or a traveller,\n            BEFORE asking for any further details and before calling any other tool.\n            Call it once per person.\n\n            Checks that the person is at least 18 years old on the date of purchase and,\n            for travellers, that the person does not live in Switzerland or Liechtenstein.\n            ",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "enum": [
+                    "billing_person",
+                    "traveller"
+                  ],
+                  "type": "string"
+                },
+                "birth_date": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "residence_country": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "birth_date",
+                "residence_country"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "properties": {
+                "result": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "type": "object",
+              "x-fastmcp-wrap-result": true
+            },
+            "annotations": {
+              "title": "Person eligibility check",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "version": "1.0.0",
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "swissrailways_fetch_prices",
+            "title": "Prices for swiss travel passes and half fare card",
+            "description": "\n            Use this tool when user requests prices for:\n            - Swiss Travel Pass\n            - Swiss Travel Pass Flex\n            - swiss half fare card\n\n            Tool will return list of prices for every comfort class (1, 2),\n            possible ticket durations (3 days, 5 days and etc) and\n            for all available tariffs: youth, adult in provided currency.\n            ",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "ticket_type": {
+                  "enum": [
+                    "swissPass",
+                    "swissFlexiPass",
+                    "swissHalfFareCard"
+                  ],
+                  "type": "string"
+                },
+                "currency": {
+                  "enum": [
+                    "USD",
+                    "EUR",
+                    "CHF",
+                    "GBP"
+                  ],
+                  "type": "string",
+                  "default": "CHF"
+                }
+              },
+              "required": [
+                "ticket_type"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "properties": {
+                "result": {
+                  "items": {
+                    "properties": {
+                      "tariff": {
+                        "enum": [
+                          "adult",
+                          "youth"
+                        ],
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number"
+                      },
+                      "comfort_class": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null
+                      },
+                      "duration": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null
+                      }
+                    },
+                    "required": [
+                      "tariff",
+                      "price"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "type": "object",
+              "x-fastmcp-wrap-result": true
+            },
+            "annotations": {
+              "title": "Prices for swiss travel passes and half fare card",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "version": "1.0.0",
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "swissrailways_get_ticket_info",
+            "title": "Get ticket type info",
+            "description": "\n            Use this when user wants to clarify some info about swiss passes, exactly about:\n            - swiss travel pass\n            - swiss travel pass flex\n            - swiss half fare card.\n\n            This tool gives description of the ticket, what it includes and what is not included,\n            ticket discounts (if applicable), usage best cases, restrictions (if any).\n            ",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "ticket_type": {
+                  "enum": [
+                    "swissPass",
+                    "swissFlexiPass",
+                    "swissHalfFareCard"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ticket_type"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "properties": {
+                "name": {
+                  "description": "Name of the ticket",
+                  "examples": [
+                    "Swiss Travel Pass",
+                    "Swiss Half Fare Card"
+                  ],
+                  "minLength": 10,
+                  "type": "string"
+                },
+                "summary": {
+                  "description": "General ticket description",
+                  "minLength": 10,
+                  "type": "string"
+                },
+                "validity": {
+                  "description": "Time range when the ticket is valid",
+                  "minLength": 10,
+                  "type": "string"
+                },
+                "included": {
+                  "description": "What does this ticket includes (like discounts for excursions and etc.)",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "not_included": {
+                  "description": "What this ticket does not include (like seat reservations and etc.)",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "best_suitable_for": {
+                  "description": "Cases when it is worth to buy this ticket type",
+                  "minLength": 10,
+                  "type": "string"
+                },
+                "less_suitable_for": {
+                  "description": "Cases when it is better to choose another type of ticket",
+                  "minLength": 10,
+                  "type": "string"
+                },
+                "important_notes": {
+                  "description": "Additional info user should consider of",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "name",
+                "summary",
+                "validity",
+                "included",
+                "not_included",
+                "best_suitable_for",
+                "less_suitable_for",
+                "important_notes"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Get ticket type info",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "version": "1.0.0",
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "swissrailways_fetch_ticket_options",
+            "title": "Ticket options",
+            "description": "\n            Use this tool when user selects ticket type.\n            This will provide list of options and their possible values for the selected type of the ticket.\n            Return example:\n            {\n                \"class\": [1, 2],\n                \"duration\": [3, 8, 15],\n                \"start_date\": 2026-09-01\n            }\n\n            ## Options description:\n            1. Class:\n            Comfort class of the ticket.\n            Return example: [1, 2]\n\n            2. Duration:\n            How many days ticket is valid for.\n            Return example: [3, 4, 8, 15]\n\n            3. Minimal start date:\n            The closest date the ticket can start on.\n            Return example: 2026-04-05 (format: YYYY-MM-DD should be adopted to user locale)\n\n            4. Discounts:\n            Will return tariff and possible discounts for it.\n            Return example: [{\n                \"discount_key\": \"familyCard\",\n                \"tariffs\": [\"youth\"],\n                \"human_readable_name\": \"Family Card Discount\"\n            }]\n            ",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "ticket_type": {
+                  "enum": [
+                    "swissPass",
+                    "swissFlexiPass",
+                    "swissHalfFareCard"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ticket_type"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "properties": {
+                "minimal_start_date": {
+                  "description": "Minimal date the ticket can start on",
+                  "format": "date",
+                  "type": "string"
+                },
+                "comfort_class": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Possible comfort classes for the ticket of selected type of the ticket. Example: [1, 2]"
+                },
+                "duration": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "type": "integer"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Amount of days ticket of selected type can be valid for. Example: [3, 4, 6, 8, 15]"
+                },
+                "discounts": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "properties": {
+                          "discount_key": {
+                            "description": "STC key of the discount",
+                            "type": "string"
+                          },
+                          "human_readable_name": {
+                            "description": "Human readable name of the discount",
+                            "type": "string"
+                          },
+                          "tariffs": {
+                            "description": "List of ticket tariffs this discount is valid for",
+                            "items": {
+                              "enum": [
+                                "adult",
+                                "youth"
+                              ],
+                              "type": "string"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "required": [
+                          "discount_key",
+                          "human_readable_name",
+                          "tariffs"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "List of discounts available for the selected ticket type basing on traveller tariff"
+                }
+              },
+              "required": [
+                "minimal_start_date"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Ticket options",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "version": "1.0.0",
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "swissrailways_fetch_billing_person_titles",
+        "title": "Possible email salutation prefixes",
+        "description": "\n            Use this when user fills billing person details.\n\n            This tool will return possible salutation prefixes used in email correspondence.\n\n            User must select one of the options explicitly, do not guess what title he/she needs.\n            To fetch possible title options use user messages language.\n            If user talks in unexpected language, use English as fallback.\n            ",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "language": {
+              "enum": [
+                "en",
+                "it",
+                "fr",
+                "nl",
+                "de",
+                "es",
+                "pt",
+                "ja",
+                "ko",
+                "zh-Hans",
+                "zh-Hant",
+                "th"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "language"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "items": {
+                "properties": {
+                  "value": {
+                    "description": "value of the title for programmatic handling (for application code)",
+                    "examples": [
+                      "mr",
+                      "ms"
+                    ],
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Person title, to display to user",
+                    "examples": [
+                      "Monsieur",
+                      "Mr."
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "value",
+                  "title"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "type": "object",
+          "x-fastmcp-wrap-result": true
+        },
+        "annotations": {
+          "title": "Possible email salutation prefixes",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "version": "1.0.0",
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "swissrailways_render_order_overview",
+        "title": "Render order overview",
+        "description": "\n            Use this when user filled all needed details, and want to see order overview or proceed with purchase.\n            The embedded UI widget renders interface and handles all further interaction.\n\n            IMPORTANT: After calling this tool, output NO text at all — not even a single word.\n            The UI widget is self-contained and requires no additional commentary from you.\n            Do not show uuid to user.\n\n            Detect conversation language (not interface one), pass it as parameter to the tool.\n            ",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "language": {
+              "enum": [
+                "en",
+                "it",
+                "fr",
+                "nl",
+                "de",
+                "es",
+                "pt",
+                "ja",
+                "ko",
+                "zh-Hans",
+                "zh-Hant",
+                "th"
+              ],
+              "type": "string"
+            },
+            "order": {
+              "properties": {
+                "currency": {
+                  "enum": [
+                    "USD",
+                    "EUR",
+                    "CHF",
+                    "GBP"
+                  ],
+                  "type": "string",
+                  "description": "Currency of order"
+                },
+                "payment_type": {
+                  "description": "\n            Payment system code, internal code of payment system,\n            that was returned by swissrailways_fetch_order_payment_systems tool.\n            example: \"VISA\"\n            ",
+                  "type": "string"
+                },
+                "cancellation_protection": {
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": false,
+                  "description": "\n            Ask explicitly whether to enable cancellation protection or not for the order.\n            When enabled, user can cancel tickets up to 1 day before the first day of validity with no additional cost.\n            "
+                },
+                "billing_person": {
+                  "properties": {
+                    "residence_country_code": {
+                      "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                      "examples": [
+                        "US",
+                        "CA",
+                        "GB"
+                      ],
+                      "maxLength": 2,
+                      "minLength": 2,
+                      "type": "string"
+                    },
+                    "birth_date": {
+                      "description": "Date of birth of the person",
+                      "format": "date",
+                      "type": "string"
+                    },
+                    "first_name": {
+                      "type": "string"
+                    },
+                    "last_name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "description": "Email address to send e-tickets and order confirmation",
+                      "format": "email",
+                      "type": "string"
+                    },
+                    "title": {
+                      "properties": {
+                        "value": {
+                          "description": "value of the title for programmatic handling (for application code)",
+                          "examples": [
+                            "mr",
+                            "ms"
+                          ],
+                          "type": "string"
+                        },
+                        "title": {
+                          "description": "Person title, to display to user",
+                          "examples": [
+                            "Monsieur",
+                            "Mr."
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "title"
+                      ],
+                      "type": "object",
+                      "description": "\n            A salutation prefix used in email correspondence. This field determines how the recipient will be addressed.\n            "
+                    }
+                  },
+                  "required": [
+                    "residence_country_code",
+                    "birth_date",
+                    "first_name",
+                    "last_name",
+                    "email",
+                    "title"
+                  ],
+                  "type": "object",
+                  "description": "Person, responsible for buying swiss travel pass tickets, who will get order confirmation email."
+                },
+                "tickets": {
+                  "description": "List of tickets in order",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "properties": {
+                          "ticket_type": {
+                            "const": "swissPass",
+                            "default": "swissPass",
+                            "type": "string"
+                          },
+                          "start_date": {
+                            "description": "Date when ticket starts becomes valid, should be in the future or today",
+                            "format": "date",
+                            "type": "string"
+                          },
+                          "person": {
+                            "properties": {
+                              "residence_country_code": {
+                                "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                "examples": [
+                                  "US",
+                                  "CA",
+                                  "GB"
+                                ],
+                                "maxLength": 2,
+                                "minLength": 2,
+                                "type": "string"
+                              },
+                              "birth_date": {
+                                "description": "Date of birth of the person",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "first_name": {
+                                "type": "string"
+                              },
+                              "last_name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "residence_country_code",
+                              "birth_date",
+                              "first_name",
+                              "last_name"
+                            ],
+                            "type": "object",
+                            "description": "Person the ticket is bought for"
+                          },
+                          "discount": {
+                            "anyOf": [
+                              {
+                                "properties": {
+                                  "discount_key": {
+                                    "description": "STC key of the discount",
+                                    "type": "string"
+                                  },
+                                  "human_readable_name": {
+                                    "description": "Human readable name of the discount",
+                                    "type": "string"
+                                  },
+                                  "tariffs": {
+                                    "description": "List of ticket tariffs this discount is valid for",
+                                    "items": {
+                                      "enum": [
+                                        "adult",
+                                        "youth"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "discount_key",
+                                  "human_readable_name",
+                                  "tariffs"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                          },
+                          "comfort_class": {
+                            "description": "Comfort class of the ticket, usually 1 or 2",
+                            "type": "integer"
+                          },
+                          "duration": {
+                            "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "start_date",
+                          "person",
+                          "comfort_class",
+                          "duration",
+                          "ticket_type"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "properties": {
+                          "ticket_type": {
+                            "const": "swissFlexiPass",
+                            "default": "swissFlexiPass",
+                            "type": "string"
+                          },
+                          "start_date": {
+                            "description": "Date when ticket starts becomes valid, should be in the future or today",
+                            "format": "date",
+                            "type": "string"
+                          },
+                          "person": {
+                            "properties": {
+                              "residence_country_code": {
+                                "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                "examples": [
+                                  "US",
+                                  "CA",
+                                  "GB"
+                                ],
+                                "maxLength": 2,
+                                "minLength": 2,
+                                "type": "string"
+                              },
+                              "birth_date": {
+                                "description": "Date of birth of the person",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "first_name": {
+                                "type": "string"
+                              },
+                              "last_name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "residence_country_code",
+                              "birth_date",
+                              "first_name",
+                              "last_name"
+                            ],
+                            "type": "object",
+                            "description": "Person the ticket is bought for"
+                          },
+                          "discount": {
+                            "anyOf": [
+                              {
+                                "properties": {
+                                  "discount_key": {
+                                    "description": "STC key of the discount",
+                                    "type": "string"
+                                  },
+                                  "human_readable_name": {
+                                    "description": "Human readable name of the discount",
+                                    "type": "string"
+                                  },
+                                  "tariffs": {
+                                    "description": "List of ticket tariffs this discount is valid for",
+                                    "items": {
+                                      "enum": [
+                                        "adult",
+                                        "youth"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "discount_key",
+                                  "human_readable_name",
+                                  "tariffs"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                          },
+                          "comfort_class": {
+                            "description": "Comfort class of the ticket, usually 1 or 2",
+                            "type": "integer"
+                          },
+                          "duration": {
+                            "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "start_date",
+                          "person",
+                          "comfort_class",
+                          "duration",
+                          "ticket_type"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "properties": {
+                          "ticket_type": {
+                            "const": "swissHalfFareCard",
+                            "default": "swissHalfFareCard",
+                            "type": "string"
+                          },
+                          "start_date": {
+                            "description": "Date when ticket starts becomes valid, should be in the future or today",
+                            "format": "date",
+                            "type": "string"
+                          },
+                          "person": {
+                            "properties": {
+                              "residence_country_code": {
+                                "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                "examples": [
+                                  "US",
+                                  "CA",
+                                  "GB"
+                                ],
+                                "maxLength": 2,
+                                "minLength": 2,
+                                "type": "string"
+                              },
+                              "birth_date": {
+                                "description": "Date of birth of the person",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "first_name": {
+                                "type": "string"
+                              },
+                              "last_name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "residence_country_code",
+                              "birth_date",
+                              "first_name",
+                              "last_name"
+                            ],
+                            "type": "object",
+                            "description": "Person the ticket is bought for"
+                          },
+                          "discount": {
+                            "anyOf": [
+                              {
+                                "properties": {
+                                  "discount_key": {
+                                    "description": "STC key of the discount",
+                                    "type": "string"
+                                  },
+                                  "human_readable_name": {
+                                    "description": "Human readable name of the discount",
+                                    "type": "string"
+                                  },
+                                  "tariffs": {
+                                    "description": "List of ticket tariffs this discount is valid for",
+                                    "items": {
+                                      "enum": [
+                                        "adult",
+                                        "youth"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "discount_key",
+                                  "human_readable_name",
+                                  "tariffs"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                          }
+                        },
+                        "required": [
+                          "start_date",
+                          "person",
+                          "ticket_type"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "currency",
+                "payment_type",
+                "billing_person",
+                "tickets"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "language",
+            "order"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "order": {
+              "properties": {
+                "currency": {
+                  "enum": [
+                    "USD",
+                    "EUR",
+                    "CHF",
+                    "GBP"
+                  ],
+                  "type": "string",
+                  "description": "Currency of order"
+                },
+                "payment_type": {
+                  "description": "\n            Payment system code, internal code of payment system,\n            that was returned by swissrailways_fetch_order_payment_systems tool.\n            example: \"VISA\"\n            ",
+                  "type": "string"
+                },
+                "cancellation_protection": {
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": false,
+                  "description": "\n            Ask explicitly whether to enable cancellation protection or not for the order.\n            When enabled, user can cancel tickets up to 1 day before the first day of validity with no additional cost.\n            "
+                },
+                "billing_person": {
+                  "properties": {
+                    "residence_country_code": {
+                      "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                      "examples": [
+                        "US",
+                        "CA",
+                        "GB"
+                      ],
+                      "maxLength": 2,
+                      "minLength": 2,
+                      "type": "string"
+                    },
+                    "birth_date": {
+                      "description": "Date of birth of the person",
+                      "format": "date",
+                      "type": "string"
+                    },
+                    "first_name": {
+                      "type": "string"
+                    },
+                    "last_name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "description": "Email address to send e-tickets and order confirmation",
+                      "format": "email",
+                      "type": "string"
+                    },
+                    "title": {
+                      "properties": {
+                        "value": {
+                          "description": "value of the title for programmatic handling (for application code)",
+                          "examples": [
+                            "mr",
+                            "ms"
+                          ],
+                          "type": "string"
+                        },
+                        "title": {
+                          "description": "Person title, to display to user",
+                          "examples": [
+                            "Monsieur",
+                            "Mr."
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "title"
+                      ],
+                      "type": "object",
+                      "description": "\n            A salutation prefix used in email correspondence. This field determines how the recipient will be addressed.\n            "
+                    }
+                  },
+                  "required": [
+                    "residence_country_code",
+                    "birth_date",
+                    "first_name",
+                    "last_name",
+                    "email",
+                    "title"
+                  ],
+                  "type": "object",
+                  "description": "Person, responsible for buying swiss travel pass tickets, who will get order confirmation email."
+                },
+                "tickets": {
+                  "description": "List of tickets in order",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "properties": {
+                          "ticket_type": {
+                            "const": "swissPass",
+                            "default": "swissPass",
+                            "type": "string"
+                          },
+                          "start_date": {
+                            "description": "Date when ticket starts becomes valid, should be in the future or today",
+                            "format": "date",
+                            "type": "string"
+                          },
+                          "person": {
+                            "properties": {
+                              "residence_country_code": {
+                                "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                "examples": [
+                                  "US",
+                                  "CA",
+                                  "GB"
+                                ],
+                                "maxLength": 2,
+                                "minLength": 2,
+                                "type": "string"
+                              },
+                              "birth_date": {
+                                "description": "Date of birth of the person",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "first_name": {
+                                "type": "string"
+                              },
+                              "last_name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "residence_country_code",
+                              "birth_date",
+                              "first_name",
+                              "last_name"
+                            ],
+                            "type": "object",
+                            "description": "Person the ticket is bought for"
+                          },
+                          "discount": {
+                            "anyOf": [
+                              {
+                                "properties": {
+                                  "discount_key": {
+                                    "description": "STC key of the discount",
+                                    "type": "string"
+                                  },
+                                  "human_readable_name": {
+                                    "description": "Human readable name of the discount",
+                                    "type": "string"
+                                  },
+                                  "tariffs": {
+                                    "description": "List of ticket tariffs this discount is valid for",
+                                    "items": {
+                                      "enum": [
+                                        "adult",
+                                        "youth"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "discount_key",
+                                  "human_readable_name",
+                                  "tariffs"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                          },
+                          "comfort_class": {
+                            "description": "Comfort class of the ticket, usually 1 or 2",
+                            "type": "integer"
+                          },
+                          "duration": {
+                            "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "start_date",
+                          "person",
+                          "comfort_class",
+                          "duration",
+                          "ticket_type"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "properties": {
+                          "ticket_type": {
+                            "const": "swissFlexiPass",
+                            "default": "swissFlexiPass",
+                            "type": "string"
+                          },
+                          "start_date": {
+                            "description": "Date when ticket starts becomes valid, should be in the future or today",
+                            "format": "date",
+                            "type": "string"
+                          },
+                          "person": {
+                            "properties": {
+                              "residence_country_code": {
+                                "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                "examples": [
+                                  "US",
+                                  "CA",
+                                  "GB"
+                                ],
+                                "maxLength": 2,
+                                "minLength": 2,
+                                "type": "string"
+                              },
+                              "birth_date": {
+                                "description": "Date of birth of the person",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "first_name": {
+                                "type": "string"
+                              },
+                              "last_name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "residence_country_code",
+                              "birth_date",
+                              "first_name",
+                              "last_name"
+                            ],
+                            "type": "object",
+                            "description": "Person the ticket is bought for"
+                          },
+                          "discount": {
+                            "anyOf": [
+                              {
+                                "properties": {
+                                  "discount_key": {
+                                    "description": "STC key of the discount",
+                                    "type": "string"
+                                  },
+                                  "human_readable_name": {
+                                    "description": "Human readable name of the discount",
+                                    "type": "string"
+                                  },
+                                  "tariffs": {
+                                    "description": "List of ticket tariffs this discount is valid for",
+                                    "items": {
+                                      "enum": [
+                                        "adult",
+                                        "youth"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "discount_key",
+                                  "human_readable_name",
+                                  "tariffs"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                          },
+                          "comfort_class": {
+                            "description": "Comfort class of the ticket, usually 1 or 2",
+                            "type": "integer"
+                          },
+                          "duration": {
+                            "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "start_date",
+                          "person",
+                          "comfort_class",
+                          "duration",
+                          "ticket_type"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "properties": {
+                          "ticket_type": {
+                            "const": "swissHalfFareCard",
+                            "default": "swissHalfFareCard",
+                            "type": "string"
+                          },
+                          "start_date": {
+                            "description": "Date when ticket starts becomes valid, should be in the future or today",
+                            "format": "date",
+                            "type": "string"
+                          },
+                          "person": {
+                            "properties": {
+                              "residence_country_code": {
+                                "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                "examples": [
+                                  "US",
+                                  "CA",
+                                  "GB"
+                                ],
+                                "maxLength": 2,
+                                "minLength": 2,
+                                "type": "string"
+                              },
+                              "birth_date": {
+                                "description": "Date of birth of the person",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "first_name": {
+                                "type": "string"
+                              },
+                              "last_name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "residence_country_code",
+                              "birth_date",
+                              "first_name",
+                              "last_name"
+                            ],
+                            "type": "object",
+                            "description": "Person the ticket is bought for"
+                          },
+                          "discount": {
+                            "anyOf": [
+                              {
+                                "properties": {
+                                  "discount_key": {
+                                    "description": "STC key of the discount",
+                                    "type": "string"
+                                  },
+                                  "human_readable_name": {
+                                    "description": "Human readable name of the discount",
+                                    "type": "string"
+                                  },
+                                  "tariffs": {
+                                    "description": "List of ticket tariffs this discount is valid for",
+                                    "items": {
+                                      "enum": [
+                                        "adult",
+                                        "youth"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "discount_key",
+                                  "human_readable_name",
+                                  "tariffs"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                          }
+                        },
+                        "required": [
+                          "start_date",
+                          "person",
+                          "ticket_type"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "currency",
+                "payment_type",
+                "billing_person",
+                "tickets"
+              ],
+              "type": "object"
+            },
+            "language": {
+              "enum": [
+                "en",
+                "it",
+                "fr",
+                "nl",
+                "de",
+                "es",
+                "pt",
+                "ja",
+                "ko",
+                "zh-Hans",
+                "zh-Hant",
+                "th"
+              ],
+              "type": "string"
+            },
+            "url": {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            "uuid": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "order",
+            "language",
+            "url",
+            "uuid"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Render order overview",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "version": "1.0.0",
+          "ui": {
+            "resourceUri": "ui://swissrailways/order_overview_widget.html"
+          },
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "swissrailways_fetch_order_payment_systems",
+        "title": "Available payment systems for selected currency",
+        "description": "\n            Use this tool after:\n             - user fills with billing person\n             - user fills travellers\n             - user selects currency from the available currencies.\n\n            Tool should be called before calculating order price.\n            Tool returns payment systems list available for the currency user chose.\n\n            Do not guess, ask user for currency he/she wants to pay before calling this tool.\n            ",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "currency": {
+              "enum": [
+                "USD",
+                "EUR",
+                "CHF",
+                "GBP"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "currency"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "type": "object",
+          "x-fastmcp-wrap-result": true
+        },
+        "annotations": {
+          "title": "Available payment systems for selected currency",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "version": "1.0.0",
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "swissrailways_calculate_order_total_price",
+        "title": "Calculate order price",
+        "description": "\n            Always ask user if all travellers were filled before calling this tool.\n            Give user order overview in text format before using this tool.\n\n            Use this when user finished with:\n            - ticket configuration\n            - billing person details\n            - travellers details\n            - explicitly selected currency and payment system for it\n            - selected whether to include or not cancellation protection\n            ",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "language": {
+              "enum": [
+                "en",
+                "it",
+                "fr",
+                "nl",
+                "de",
+                "es",
+                "pt",
+                "ja",
+                "ko",
+                "zh-Hans",
+                "zh-Hant",
+                "th"
+              ],
+              "type": "string"
+            },
+            "order": {
+              "properties": {
+                "currency": {
+                  "enum": [
+                    "USD",
+                    "EUR",
+                    "CHF",
+                    "GBP"
+                  ],
+                  "type": "string",
+                  "description": "Currency of order"
+                },
+                "payment_type": {
+                  "description": "\n            Payment system code, internal code of payment system,\n            that was returned by swissrailways_fetch_order_payment_systems tool.\n            example: \"VISA\"\n            ",
+                  "type": "string"
+                },
+                "cancellation_protection": {
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": false,
+                  "description": "\n            Ask explicitly whether to enable cancellation protection or not for the order.\n            When enabled, user can cancel tickets up to 1 day before the first day of validity with no additional cost.\n            "
+                },
+                "billing_person": {
+                  "properties": {
+                    "residence_country_code": {
+                      "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                      "examples": [
+                        "US",
+                        "CA",
+                        "GB"
+                      ],
+                      "maxLength": 2,
+                      "minLength": 2,
+                      "type": "string"
+                    },
+                    "birth_date": {
+                      "description": "Date of birth of the person",
+                      "format": "date",
+                      "type": "string"
+                    },
+                    "first_name": {
+                      "type": "string"
+                    },
+                    "last_name": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "description": "Email address to send e-tickets and order confirmation",
+                      "format": "email",
+                      "type": "string"
+                    },
+                    "title": {
+                      "properties": {
+                        "value": {
+                          "description": "value of the title for programmatic handling (for application code)",
+                          "examples": [
+                            "mr",
+                            "ms"
+                          ],
+                          "type": "string"
+                        },
+                        "title": {
+                          "description": "Person title, to display to user",
+                          "examples": [
+                            "Monsieur",
+                            "Mr."
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "title"
+                      ],
+                      "type": "object",
+                      "description": "\n            A salutation prefix used in email correspondence. This field determines how the recipient will be addressed.\n            "
+                    }
+                  },
+                  "required": [
+                    "residence_country_code",
+                    "birth_date",
+                    "first_name",
+                    "last_name",
+                    "email",
+                    "title"
+                  ],
+                  "type": "object",
+                  "description": "Person, responsible for buying swiss travel pass tickets, who will get order confirmation email."
+                },
+                "tickets": {
+                  "description": "List of tickets in order",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "properties": {
+                          "ticket_type": {
+                            "const": "swissPass",
+                            "default": "swissPass",
+                            "type": "string"
+                          },
+                          "start_date": {
+                            "description": "Date when ticket starts becomes valid, should be in the future or today",
+                            "format": "date",
+                            "type": "string"
+                          },
+                          "person": {
+                            "properties": {
+                              "residence_country_code": {
+                                "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                "examples": [
+                                  "US",
+                                  "CA",
+                                  "GB"
+                                ],
+                                "maxLength": 2,
+                                "minLength": 2,
+                                "type": "string"
+                              },
+                              "birth_date": {
+                                "description": "Date of birth of the person",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "first_name": {
+                                "type": "string"
+                              },
+                              "last_name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "residence_country_code",
+                              "birth_date",
+                              "first_name",
+                              "last_name"
+                            ],
+                            "type": "object",
+                            "description": "Person the ticket is bought for"
+                          },
+                          "discount": {
+                            "anyOf": [
+                              {
+                                "properties": {
+                                  "discount_key": {
+                                    "description": "STC key of the discount",
+                                    "type": "string"
+                                  },
+                                  "human_readable_name": {
+                                    "description": "Human readable name of the discount",
+                                    "type": "string"
+                                  },
+                                  "tariffs": {
+                                    "description": "List of ticket tariffs this discount is valid for",
+                                    "items": {
+                                      "enum": [
+                                        "adult",
+                                        "youth"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "discount_key",
+                                  "human_readable_name",
+                                  "tariffs"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                          },
+                          "comfort_class": {
+                            "description": "Comfort class of the ticket, usually 1 or 2",
+                            "type": "integer"
+                          },
+                          "duration": {
+                            "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "start_date",
+                          "person",
+                          "comfort_class",
+                          "duration",
+                          "ticket_type"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "properties": {
+                          "ticket_type": {
+                            "const": "swissFlexiPass",
+                            "default": "swissFlexiPass",
+                            "type": "string"
+                          },
+                          "start_date": {
+                            "description": "Date when ticket starts becomes valid, should be in the future or today",
+                            "format": "date",
+                            "type": "string"
+                          },
+                          "person": {
+                            "properties": {
+                              "residence_country_code": {
+                                "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                "examples": [
+                                  "US",
+                                  "CA",
+                                  "GB"
+                                ],
+                                "maxLength": 2,
+                                "minLength": 2,
+                                "type": "string"
+                              },
+                              "birth_date": {
+                                "description": "Date of birth of the person",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "first_name": {
+                                "type": "string"
+                              },
+                              "last_name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "residence_country_code",
+                              "birth_date",
+                              "first_name",
+                              "last_name"
+                            ],
+                            "type": "object",
+                            "description": "Person the ticket is bought for"
+                          },
+                          "discount": {
+                            "anyOf": [
+                              {
+                                "properties": {
+                                  "discount_key": {
+                                    "description": "STC key of the discount",
+                                    "type": "string"
+                                  },
+                                  "human_readable_name": {
+                                    "description": "Human readable name of the discount",
+                                    "type": "string"
+                                  },
+                                  "tariffs": {
+                                    "description": "List of ticket tariffs this discount is valid for",
+                                    "items": {
+                                      "enum": [
+                                        "adult",
+                                        "youth"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "discount_key",
+                                  "human_readable_name",
+                                  "tariffs"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                          },
+                          "comfort_class": {
+                            "description": "Comfort class of the ticket, usually 1 or 2",
+                            "type": "integer"
+                          },
+                          "duration": {
+                            "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "start_date",
+                          "person",
+                          "comfort_class",
+                          "duration",
+                          "ticket_type"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "properties": {
+                          "ticket_type": {
+                            "const": "swissHalfFareCard",
+                            "default": "swissHalfFareCard",
+                            "type": "string"
+                          },
+                          "start_date": {
+                            "description": "Date when ticket starts becomes valid, should be in the future or today",
+                            "format": "date",
+                            "type": "string"
+                          },
+                          "person": {
+                            "properties": {
+                              "residence_country_code": {
+                                "description": "\n            Country code of the person's residency, can be any country code except Switzerland (CH) as\n            Swiss Travel Pass can be bought only by foreigners (live outside Switzerland).\n            ",
+                                "examples": [
+                                  "US",
+                                  "CA",
+                                  "GB"
+                                ],
+                                "maxLength": 2,
+                                "minLength": 2,
+                                "type": "string"
+                              },
+                              "birth_date": {
+                                "description": "Date of birth of the person",
+                                "format": "date",
+                                "type": "string"
+                              },
+                              "first_name": {
+                                "type": "string"
+                              },
+                              "last_name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "residence_country_code",
+                              "birth_date",
+                              "first_name",
+                              "last_name"
+                            ],
+                            "type": "object",
+                            "description": "Person the ticket is bought for"
+                          },
+                          "discount": {
+                            "anyOf": [
+                              {
+                                "properties": {
+                                  "discount_key": {
+                                    "description": "STC key of the discount",
+                                    "type": "string"
+                                  },
+                                  "human_readable_name": {
+                                    "description": "Human readable name of the discount",
+                                    "type": "string"
+                                  },
+                                  "tariffs": {
+                                    "description": "List of ticket tariffs this discount is valid for",
+                                    "items": {
+                                      "enum": [
+                                        "adult",
+                                        "youth"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "type": "array"
+                                  }
+                                },
+                                "required": [
+                                  "discount_key",
+                                  "human_readable_name",
+                                  "tariffs"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "\n            Discount enabled for the ticket. Discount should be valid for the ticket tariff.\n            "
+                          }
+                        },
+                        "required": [
+                          "start_date",
+                          "person",
+                          "ticket_type"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "currency",
+                "payment_type",
+                "billing_person",
+                "tickets"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "language",
+            "order"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "cancellationProtection": {
+              "pattern": "^(?:0|[1-9]\\d*)\\.\\d{2}$",
+              "type": "string"
+            },
+            "total": {
+              "pattern": "^(?:0|[1-9]\\d*)\\.\\d{2}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "cancellationProtection",
+            "total"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Calculate order price",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "version": "1.0.0",
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "swissrailways_fetch_order_status",
+        "title": "Order status",
+        "description": "\n            Use this tool to clarify status of user order.\n            Use this tool only once and only when user confirms he payed the order.\n            Use uuid that was returned by swissrailways_order_overview tool, do not create your own.\n            ",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "uuid": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "uuid"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Order status",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "version": "1.0.0",
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "swissrailways_check_person_eligibility",
+        "title": "Person eligibility check",
+        "description": "\n            Use this tool right after user provided date of birth of the billing person or a traveller,\n            BEFORE asking for any further details and before calling any other tool.\n            Call it once per person.\n\n            Checks that the person is at least 18 years old on the date of purchase and,\n            for travellers, that the person does not live in Switzerland or Liechtenstein.\n            ",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "role": {
+              "enum": [
+                "billing_person",
+                "traveller"
+              ],
+              "type": "string"
+            },
+            "birth_date": {
+              "format": "date",
+              "type": "string"
+            },
+            "residence_country": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "role",
+            "birth_date",
+            "residence_country"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "type": "object",
+          "x-fastmcp-wrap-result": true
+        },
+        "annotations": {
+          "title": "Person eligibility check",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "version": "1.0.0",
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "swissrailways_fetch_prices",
+        "title": "Prices for swiss travel passes and half fare card",
+        "description": "\n            Use this tool when user requests prices for:\n            - Swiss Travel Pass\n            - Swiss Travel Pass Flex\n            - swiss half fare card\n\n            Tool will return list of prices for every comfort class (1, 2),\n            possible ticket durations (3 days, 5 days and etc) and\n            for all available tariffs: youth, adult in provided currency.\n            ",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "ticket_type": {
+              "enum": [
+                "swissPass",
+                "swissFlexiPass",
+                "swissHalfFareCard"
+              ],
+              "type": "string"
+            },
+            "currency": {
+              "enum": [
+                "USD",
+                "EUR",
+                "CHF",
+                "GBP"
+              ],
+              "type": "string",
+              "default": "CHF"
+            }
+          },
+          "required": [
+            "ticket_type"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "result": {
+              "items": {
+                "properties": {
+                  "tariff": {
+                    "enum": [
+                      "adult",
+                      "youth"
+                    ],
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "number"
+                  },
+                  "comfort_class": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null
+                  },
+                  "duration": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null
+                  }
+                },
+                "required": [
+                  "tariff",
+                  "price"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "result"
+          ],
+          "type": "object",
+          "x-fastmcp-wrap-result": true
+        },
+        "annotations": {
+          "title": "Prices for swiss travel passes and half fare card",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "version": "1.0.0",
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "swissrailways_get_ticket_info",
+        "title": "Get ticket type info",
+        "description": "\n            Use this when user wants to clarify some info about swiss passes, exactly about:\n            - swiss travel pass\n            - swiss travel pass flex\n            - swiss half fare card.\n\n            This tool gives description of the ticket, what it includes and what is not included,\n            ticket discounts (if applicable), usage best cases, restrictions (if any).\n            ",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "ticket_type": {
+              "enum": [
+                "swissPass",
+                "swissFlexiPass",
+                "swissHalfFareCard"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "ticket_type"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "name": {
+              "description": "Name of the ticket",
+              "examples": [
+                "Swiss Travel Pass",
+                "Swiss Half Fare Card"
+              ],
+              "minLength": 10,
+              "type": "string"
+            },
+            "summary": {
+              "description": "General ticket description",
+              "minLength": 10,
+              "type": "string"
+            },
+            "validity": {
+              "description": "Time range when the ticket is valid",
+              "minLength": 10,
+              "type": "string"
+            },
+            "included": {
+              "description": "What does this ticket includes (like discounts for excursions and etc.)",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "not_included": {
+              "description": "What this ticket does not include (like seat reservations and etc.)",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "best_suitable_for": {
+              "description": "Cases when it is worth to buy this ticket type",
+              "minLength": 10,
+              "type": "string"
+            },
+            "less_suitable_for": {
+              "description": "Cases when it is better to choose another type of ticket",
+              "minLength": 10,
+              "type": "string"
+            },
+            "important_notes": {
+              "description": "Additional info user should consider of",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "name",
+            "summary",
+            "validity",
+            "included",
+            "not_included",
+            "best_suitable_for",
+            "less_suitable_for",
+            "important_notes"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get ticket type info",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "version": "1.0.0",
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "swissrailways_fetch_ticket_options",
+        "title": "Ticket options",
+        "description": "\n            Use this tool when user selects ticket type.\n            This will provide list of options and their possible values for the selected type of the ticket.\n            Return example:\n            {\n                \"class\": [1, 2],\n                \"duration\": [3, 8, 15],\n                \"start_date\": 2026-09-01\n            }\n\n            ## Options description:\n            1. Class:\n            Comfort class of the ticket.\n            Return example: [1, 2]\n\n            2. Duration:\n            How many days ticket is valid for.\n            Return example: [3, 4, 8, 15]\n\n            3. Minimal start date:\n            The closest date the ticket can start on.\n            Return example: 2026-04-05 (format: YYYY-MM-DD should be adopted to user locale)\n\n            4. Discounts:\n            Will return tariff and possible discounts for it.\n            Return example: [{\n                \"discount_key\": \"familyCard\",\n                \"tariffs\": [\"youth\"],\n                \"human_readable_name\": \"Family Card Discount\"\n            }]\n            ",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "ticket_type": {
+              "enum": [
+                "swissPass",
+                "swissFlexiPass",
+                "swissHalfFareCard"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "ticket_type"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "properties": {
+            "minimal_start_date": {
+              "description": "Minimal date the ticket can start on",
+              "format": "date",
+              "type": "string"
+            },
+            "comfort_class": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Possible comfort classes for the ticket of selected type of the ticket. Example: [1, 2]"
+            },
+            "duration": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Amount of days ticket of selected type can be valid for. Example: [3, 4, 6, 8, 15]"
+            },
+            "discounts": {
+              "anyOf": [
+                {
+                  "items": {
+                    "properties": {
+                      "discount_key": {
+                        "description": "STC key of the discount",
+                        "type": "string"
+                      },
+                      "human_readable_name": {
+                        "description": "Human readable name of the discount",
+                        "type": "string"
+                      },
+                      "tariffs": {
+                        "description": "List of ticket tariffs this discount is valid for",
+                        "items": {
+                          "enum": [
+                            "adult",
+                            "youth"
+                          ],
+                          "type": "string"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "discount_key",
+                      "human_readable_name",
+                      "tariffs"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "List of discounts available for the selected ticket type basing on traveller tariff"
+            }
+          },
+          "required": [
+            "minimal_start_date"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Ticket options",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "version": "1.0.0",
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:25:12.533Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:25:13.584Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:25:14.635Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:25:15.686Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 9,
+    "tools_hash": "sha256:e604fdbe84ccfa646ebaa502b9a6aad6f8b7a276b60fb2802a942950a5e41b2d",
+    "static_tool_tokens": 8367,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F2",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "swissrailways_fetch_order_status",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "uuid"
+      },
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "swissrailways_fetch_billing_person_titles",
+        "message": "Parameter has no description.",
+        "param": "language"
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "swissrailways_render_order_overview",
+        "message": "Parameter has no description.",
+        "param": "language"
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "swissrailways_render_order_overview",
+        "message": "Parameter has no description.",
+        "param": "order"
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "swissrailways_fetch_order_payment_systems",
+        "message": "Parameter has no description.",
+        "param": "currency"
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "swissrailways_calculate_order_total_price",
+        "message": "Parameter has no description.",
+        "param": "language"
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "swissrailways_calculate_order_total_price",
+        "message": "Parameter has no description.",
+        "param": "order"
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "swissrailways_fetch_order_status",
+        "message": "Parameter has no description.",
+        "param": "uuid"
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "swissrailways_check_person_eligibility",
+        "message": "Parameter has no description.",
+        "param": "role"
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "swissrailways_check_person_eligibility",
+        "message": "Parameter has no description.",
+        "param": "birth_date"
+      },
+      {
+        "id": "F13",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "swissrailways_check_person_eligibility",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "birth_date"
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "swissrailways_check_person_eligibility",
+        "message": "Parameter has no description.",
+        "param": "residence_country"
+      },
+      {
+        "id": "F15",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "swissrailways_check_person_eligibility",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "residence_country"
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "swissrailways_fetch_prices",
+        "message": "Parameter has no description.",
+        "param": "ticket_type"
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "swissrailways_fetch_prices",
+        "message": "Parameter has no description.",
+        "param": "currency"
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "swissrailways_get_ticket_info",
+        "message": "Parameter has no description.",
+        "param": "ticket_type"
+      },
+      {
+        "id": "F19",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "swissrailways_fetch_ticket_options",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "swissrailways_fetch_ticket_options",
+        "message": "Parameter has no description.",
+        "param": "ticket_type"
+      }
+    ],
+    "severity_counts": {
+      "high": 3,
+      "medium": 14,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "swissrailways_render_order_overview",
+          "path": "inputSchema.properties.order.properties.tickets.items.oneOf[0].properties.duration",
+          "name": "duration",
+          "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "swissrailways_render_order_overview",
+          "path": "inputSchema.properties.order.properties.tickets.items.oneOf[1].properties.duration",
+          "name": "duration",
+          "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "swissrailways_calculate_order_total_price",
+          "path": "inputSchema.properties.order.properties.tickets.items.oneOf[0].properties.duration",
+          "name": "duration",
+          "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "swissrailways_calculate_order_total_price",
+          "path": "inputSchema.properties.order.properties.tickets.items.oneOf[1].properties.duration",
+          "name": "duration",
+          "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+          "mentions_size_or_cost": false
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "swissrailways_render_order_overview"
+          ],
+          "path": "inputSchema.properties.order.properties.tickets.items.oneOf[0].properties.duration",
+          "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "swissrailways_render_order_overview"
+          ],
+          "path": "inputSchema.properties.order.properties.tickets.items.oneOf[1].properties.duration",
+          "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "swissrailways_render_order_overview"
+          ],
+          "description": "\n            Use this when user filled all needed details, and want to see order overview or proceed with purchase.\n            The embedded UI widget renders interface and handles all further interaction.\n\n            IMPORTANT: After calling this tool, output NO text at all — not even a single word.\n            The UI widget is self-contained and requires no additional commentary from you.\n            Do not show uuid to user.\n\n            Detect conversation language (not interface one), pass it as parameter to the tool.\n            ",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "swissrailways_calculate_order_total_price"
+          ],
+          "path": "inputSchema.properties.order.properties.tickets.items.oneOf[0].properties.duration",
+          "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "swissrailways_calculate_order_total_price"
+          ],
+          "path": "inputSchema.properties.order.properties.tickets.items.oneOf[1].properties.duration",
+          "description": "Amount of days ticket is valid for, for example 3 or 4 or 15",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "swissrailways_calculate_order_total_price"
+          ],
+          "description": "\n            Always ask user if all travellers were filled before calling this tool.\n            Give user order overview in text format before using this tool.\n\n            Use this when user finished with:\n            - ticket configuration\n            - billing person details\n            - travellers details\n            - explicitly selected currency and payment system for it\n            - selected whether to include or not cancellation protection\n            ",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "swissrailways_fetch_prices"
+          ],
+          "description": "\n            Use this tool when user requests prices for:\n            - Swiss Travel Pass\n            - Swiss Travel Pass Flex\n            - swiss half fare card\n\n            Tool will return list of prices for every comfort class (1, 2),\n            possible ticket durations (3 days, 5 days and etc) and\n            for all available tariffs: youth, adult in provided currency.\n            ",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "swissrailways_fetch_billing_person_titles",
+      "swissrailways_fetch_order_payment_systems",
+      "swissrailways_calculate_order_total_price",
+      "swissrailways_fetch_order_status",
+      "swissrailways_check_person_eligibility",
+      "swissrailways_fetch_prices",
+      "swissrailways_get_ticket_info",
+      "swissrailways_fetch_ticket_options"
+    ]
+  }
+}

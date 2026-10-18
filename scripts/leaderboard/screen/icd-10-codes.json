@@ -1,0 +1,3573 @@
+{
+  "slug": "icd-10-codes",
+  "source_url": "https://manufact.com/mcp-catalog/icd-10-codes",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:24:03.267Z",
+    "endpoint": "https://hcls.mcp.claude.com/icd10_codes/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "icd10_codes",
+      "version": "3.2.0"
+    },
+    "capabilities": {
+      "experimental": {},
+      "logging": {},
+      "tools": {
+        "listChanged": true
+      },
+      "extensions": {
+        "io.modelcontextprotocol/ui": {}
+      }
+    },
+    "instructions": "An MCP server for accessing ICD-10-CM (diagnosis) and ICD-10-PCS (procedure) codes.\n\nThis server provides:\n- Tools: Search codes by code number or description, validate codes, explore hierarchies\n- Code types: ICD-10-CM for diagnoses, ICD-10-PCS for inpatient procedures\n- Features: Full descriptions, billing validation, category exploration, body system navigation\n\nICD-10-CM codes are used for diagnosis coding in the United States healthcare system.\nICD-10-PCS codes are used for inpatient procedure coding.\nThis server uses the FY2027 code sets (in effect 2026-10-01 through 2027-09-30; ICD-10 updates every October 1, and some codes change mid-year). Tools accept an as_of date of service and report whether each code was in effect on that date (history from FY2020 for CM, FY2021 for PCS).\n\nTOOL SELECTION GUIDE:\n• lookup_code: Get details for a specific code when you know the exact code (e.g., 'E11.65', 'C92.11')\n• search_codes: The unified search tool. Use it for:\n    - Finding diagnosis codes by prefix (e.g., query='E11', code_type='diagnosis', search_by='code')\n    - Finding diagnosis codes by description (e.g., query='diabetes', code_type='diagnosis')\n    - Finding procedure codes by prefix (e.g., query='0DT', code_type='procedure', search_by='code')\n    - Finding procedure codes by description (e.g., query='appendix', code_type='procedure')\n• validate_code: Check if a code is valid and billable for HIPAA transactions\n• get_chapter/get_category: Navigate code hierarchy to understand related codes\n\nMULTI-TOOL WORKFLOWS:\nFor comprehensive diagnosis analysis:\n1. Use search_codes (by description) to find relevant codes by disease name\n2. Use lookup_code to get full details including billability status\n3. Use get_category to understand related codes in the same family\n4. For disease progression scenarios, look up related status codes\n\nDISEASE PROGRESSION PATTERNS:\nMany conditions have related codes for different stages - always look up the full set:\n• Cancer: primary site codes, 'in remission' codes, 'relapse' codes (e.g., C92.10 → C92.11 → C92.12)\n• Diabetes: codes with/without complications, type specification\n• Heart disease: acute vs chronic phase codes\n• Use search_codes (by code) with the base code prefix to find all related codes",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "lookup_code",
+            "title": "Lookup ICD-10 Code",
+            "description": "Look up a specific ICD-10 code by its code number. Returns full details including descriptions, HIPAA transaction validity status, and the fiscal years the code has been in effect (FY2027 code set; history tracked from FY2020 for diagnosis, FY2021 for procedure). Pass as_of with the encounter's date of service to check the code was in effect on that date — ICD-10 sets change every October 1 and sometimes mid-year. Codes retired from the current set still resolve, marked with the last year or day they were in effect.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "description": "ICD-10 code to look up (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure).",
+                  "type": "string"
+                },
+                "code_type": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "diagnosis",
+                        "procedure"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "'diagnosis' (ICD-10-CM) or 'procedure' (ICD-10-PCS). Omit to auto-detect: CM is tried first, then PCS if the code is 7 alphanumeric characters."
+                },
+                "as_of": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Optional date of service (YYYY-MM-DD). ICD-10 code sets change every October 1, and some codes are added or deleted partway through a year (usually April 1): a code valid today may not have existed on the encounter date, and vice versa. When provided, the response reports whether the code was in effect on this date. Omit for current-set (FY2027) behavior."
+                }
+              },
+              "required": [
+                "code"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "description": "Response for single code lookup.",
+              "properties": {
+                "found": {
+                  "description": "Whether the code was found in the database",
+                  "type": "boolean"
+                },
+                "code": {
+                  "anyOf": [
+                    {
+                      "description": "Base model for ICD-10 codes.",
+                      "properties": {
+                        "code": {
+                          "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                          "type": "string"
+                        },
+                        "short_description": {
+                          "description": "Short description of the code (typically under 60 characters)",
+                          "type": "string"
+                        },
+                        "long_description": {
+                          "description": "Full/detailed description of the code with complete clinical terminology",
+                          "type": "string"
+                        },
+                        "valid_for_hipaa_transactions": {
+                          "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                          "type": "boolean"
+                        },
+                        "first_fy": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                        },
+                        "last_fy": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                        },
+                        "as_of_note": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "short_description",
+                        "long_description",
+                        "valid_for_hipaa_transactions"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "description": "ICD-10-CM diagnosis code with additional metadata.",
+                      "properties": {
+                        "code": {
+                          "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                          "type": "string"
+                        },
+                        "short_description": {
+                          "description": "Short description of the code (typically under 60 characters)",
+                          "type": "string"
+                        },
+                        "long_description": {
+                          "description": "Full/detailed description of the code with complete clinical terminology",
+                          "type": "string"
+                        },
+                        "valid_for_hipaa_transactions": {
+                          "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                          "type": "boolean"
+                        },
+                        "first_fy": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                        },
+                        "last_fy": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                        },
+                        "as_of_note": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                        },
+                        "chapter": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "ICD-10-CM chapter code (single letter, e.g., 'E' for Endocrine/nutritional/metabolic diseases)"
+                        },
+                        "category": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "ICD-10-CM category (first 3 characters, e.g., 'E11' for Type 2 Diabetes Mellitus)"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "short_description",
+                        "long_description",
+                        "valid_for_hipaa_transactions"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "description": "ICD-10-PCS procedure code with additional metadata.",
+                      "properties": {
+                        "code": {
+                          "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                          "type": "string"
+                        },
+                        "short_description": {
+                          "description": "Short description of the code (typically under 60 characters)",
+                          "type": "string"
+                        },
+                        "long_description": {
+                          "description": "Full/detailed description of the code with complete clinical terminology",
+                          "type": "string"
+                        },
+                        "valid_for_hipaa_transactions": {
+                          "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                          "type": "boolean"
+                        },
+                        "first_fy": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                        },
+                        "last_fy": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                        },
+                        "as_of_note": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                        },
+                        "body_system_code": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Body system code (second character for most sections, fourth character for Section F, e.g., '0' for Central Nervous System)"
+                        },
+                        "body_system_name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Human-readable body system name (e.g., 'Central Nervous System', 'Heart and Great Vessels')"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "short_description",
+                        "long_description",
+                        "valid_for_hipaa_transactions"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Code details if found"
+                }
+              },
+              "required": [
+                "found"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Lookup ICD-10 Code",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true
+            },
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "search_codes",
+            "title": "Search ICD-10 Codes",
+            "description": "Search ICD-10-CM diagnosis and ICD-10-PCS procedure codes. Unified tool that supports searching by code or description. Use this for all ICD-10 search needs. Serves the FY2027 code set (in effect Oct 1 through Sep 30). Pass as_of with the encounter's date of service to annotate each result with whether it was in effect on that date — codes added after the date of service must not go on the claim.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "query": {
+                  "description": "The search query. Can be a code (e.g., 'E11.65', '0B1') or a description term (e.g., 'diabetes', 'appendectomy').",
+                  "type": "string"
+                },
+                "code_type": {
+                  "default": "diagnosis",
+                  "description": "Type of codes to search: 'diagnosis' (ICD-10-CM) or 'procedure' (ICD-10-PCS).",
+                  "type": "string"
+                },
+                "search_by": {
+                  "default": "description",
+                  "description": "Field to search: 'code' (exact or prefix) or 'description' (text search).",
+                  "type": "string"
+                },
+                "exact": {
+                  "default": false,
+                  "description": "If True, search for exact code match. If False, search by prefix. Only used when search_by='code'.",
+                  "type": "boolean"
+                },
+                "valid_for_hipaa_only": {
+                  "default": true,
+                  "description": "If True, only return codes valid for HIPAA transactions. Only used when search_by='description'.",
+                  "type": "boolean"
+                },
+                "limit": {
+                  "default": 20,
+                  "description": "Maximum number of results to return",
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "as_of": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Optional date of service (YYYY-MM-DD). ICD-10 code sets change every October 1, and some codes are added or deleted partway through a year (usually April 1): a code valid today may not have existed on the encounter date, and vice versa. When provided, the response reports whether the code was in effect on this date. Omit for current-set (FY2027) behavior."
+                }
+              },
+              "required": [
+                "query"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "description": "Response for code search queries.",
+              "properties": {
+                "count": {
+                  "description": "Number of results returned",
+                  "type": "integer"
+                },
+                "results": {
+                  "description": "List of matching codes",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "description": "Base model for ICD-10 codes.",
+                        "properties": {
+                          "code": {
+                            "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                            "type": "string"
+                          },
+                          "short_description": {
+                            "description": "Short description of the code (typically under 60 characters)",
+                            "type": "string"
+                          },
+                          "long_description": {
+                            "description": "Full/detailed description of the code with complete clinical terminology",
+                            "type": "string"
+                          },
+                          "valid_for_hipaa_transactions": {
+                            "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                            "type": "boolean"
+                          },
+                          "first_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                          },
+                          "last_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                          },
+                          "as_of_note": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "short_description",
+                          "long_description",
+                          "valid_for_hipaa_transactions"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "description": "ICD-10-CM diagnosis code with additional metadata.",
+                        "properties": {
+                          "code": {
+                            "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                            "type": "string"
+                          },
+                          "short_description": {
+                            "description": "Short description of the code (typically under 60 characters)",
+                            "type": "string"
+                          },
+                          "long_description": {
+                            "description": "Full/detailed description of the code with complete clinical terminology",
+                            "type": "string"
+                          },
+                          "valid_for_hipaa_transactions": {
+                            "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                            "type": "boolean"
+                          },
+                          "first_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                          },
+                          "last_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                          },
+                          "as_of_note": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                          },
+                          "chapter": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "ICD-10-CM chapter code (single letter, e.g., 'E' for Endocrine/nutritional/metabolic diseases)"
+                          },
+                          "category": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "ICD-10-CM category (first 3 characters, e.g., 'E11' for Type 2 Diabetes Mellitus)"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "short_description",
+                          "long_description",
+                          "valid_for_hipaa_transactions"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "description": "ICD-10-PCS procedure code with additional metadata.",
+                        "properties": {
+                          "code": {
+                            "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                            "type": "string"
+                          },
+                          "short_description": {
+                            "description": "Short description of the code (typically under 60 characters)",
+                            "type": "string"
+                          },
+                          "long_description": {
+                            "description": "Full/detailed description of the code with complete clinical terminology",
+                            "type": "string"
+                          },
+                          "valid_for_hipaa_transactions": {
+                            "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                            "type": "boolean"
+                          },
+                          "first_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                          },
+                          "last_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                          },
+                          "as_of_note": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                          },
+                          "body_system_code": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Body system code (second character for most sections, fourth character for Section F, e.g., '0' for Central Nervous System)"
+                          },
+                          "body_system_name": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Human-readable body system name (e.g., 'Central Nervous System', 'Heart and Great Vessels')"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "short_description",
+                          "long_description",
+                          "valid_for_hipaa_transactions"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "count",
+                "results"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Search ICD-10 Codes",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true
+            },
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "validate_code",
+            "title": "Validate ICD-10 Code",
+            "description": "Validate an ICD-10 code to check if it exists and is valid for HIPAA-covered transactions. Pass as_of with the encounter's date of service to also check the code was in effect on that date — ICD-10 sets change every October 1 and sometimes mid-year, and a code not in effect on the date of service is not billable (current set: FY2027). Codes retired from the current set are reported as retired, with the period they were in effect.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "description": "ICD-10 code to validate (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure). ",
+                  "type": "string"
+                },
+                "code_type": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "diagnosis",
+                        "procedure"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "'diagnosis' (ICD-10-CM) or 'procedure' (ICD-10-PCS). Omit to auto-detect: CM is tried first, then PCS if the code is 7 alphanumeric characters."
+                },
+                "as_of": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Optional date of service (YYYY-MM-DD). ICD-10 code sets change every October 1, and some codes are added or deleted partway through a year (usually April 1): a code valid today may not have existed on the encounter date, and vice versa. When provided, the response reports whether the code was in effect on this date. Omit for current-set (FY2027) behavior."
+                }
+              },
+              "required": [
+                "code"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "description": "Response for code validation.",
+              "properties": {
+                "code": {
+                  "description": "The code that was validated",
+                  "type": "string"
+                },
+                "exists": {
+                  "description": "Whether the code exists in the database",
+                  "type": "boolean"
+                },
+                "valid_for_hipaa_transactions": {
+                  "description": "Whether the code is valid for HIPAA-covered transactions (not a category header). With as_of, judged as of that date if the code was in effect then and the date is in a tracked fiscal year; otherwise judged in the current code set (for a retired code, its last edition)",
+                  "type": "boolean"
+                },
+                "is_valid": {
+                  "description": "True if the code exists, is valid for HIPAA transactions, and is in effect: on the as_of date when given (a date whose in-effect status the code history cannot settle counts as in effect), otherwise in the current code set",
+                  "type": "boolean"
+                },
+                "message": {
+                  "description": "Human-readable validation message",
+                  "type": "string"
+                },
+                "short_description": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Short description of the code (if found)"
+                }
+              },
+              "required": [
+                "code",
+                "exists",
+                "valid_for_hipaa_transactions",
+                "is_valid",
+                "message"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Validate ICD-10 Code",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true
+            },
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "get_hierarchy",
+            "title": "Get Code Hierarchy",
+            "description": "Get the hierarchy of codes under a category. Returns the category header and up to `limit` child codes (default 500, max 2000) ordered by code; broad prefixes (e.g. a single-letter chapter) may be truncated. Use this to explore related codes within a disease category or code family.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "code_prefix": {
+                  "description": "Code prefix to get hierarchy for (e.g., 'E11' for Type 2 Diabetes)",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 500,
+                  "description": "Maximum number of results to return",
+                  "maximum": 2000,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "code_prefix"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "description": "Response for code search queries.",
+              "properties": {
+                "count": {
+                  "description": "Number of results returned",
+                  "type": "integer"
+                },
+                "results": {
+                  "description": "List of matching codes",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "description": "Base model for ICD-10 codes.",
+                        "properties": {
+                          "code": {
+                            "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                            "type": "string"
+                          },
+                          "short_description": {
+                            "description": "Short description of the code (typically under 60 characters)",
+                            "type": "string"
+                          },
+                          "long_description": {
+                            "description": "Full/detailed description of the code with complete clinical terminology",
+                            "type": "string"
+                          },
+                          "valid_for_hipaa_transactions": {
+                            "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                            "type": "boolean"
+                          },
+                          "first_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                          },
+                          "last_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                          },
+                          "as_of_note": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "short_description",
+                          "long_description",
+                          "valid_for_hipaa_transactions"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "description": "ICD-10-CM diagnosis code with additional metadata.",
+                        "properties": {
+                          "code": {
+                            "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                            "type": "string"
+                          },
+                          "short_description": {
+                            "description": "Short description of the code (typically under 60 characters)",
+                            "type": "string"
+                          },
+                          "long_description": {
+                            "description": "Full/detailed description of the code with complete clinical terminology",
+                            "type": "string"
+                          },
+                          "valid_for_hipaa_transactions": {
+                            "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                            "type": "boolean"
+                          },
+                          "first_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                          },
+                          "last_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                          },
+                          "as_of_note": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                          },
+                          "chapter": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "ICD-10-CM chapter code (single letter, e.g., 'E' for Endocrine/nutritional/metabolic diseases)"
+                          },
+                          "category": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "ICD-10-CM category (first 3 characters, e.g., 'E11' for Type 2 Diabetes Mellitus)"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "short_description",
+                          "long_description",
+                          "valid_for_hipaa_transactions"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "description": "ICD-10-PCS procedure code with additional metadata.",
+                        "properties": {
+                          "code": {
+                            "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                            "type": "string"
+                          },
+                          "short_description": {
+                            "description": "Short description of the code (typically under 60 characters)",
+                            "type": "string"
+                          },
+                          "long_description": {
+                            "description": "Full/detailed description of the code with complete clinical terminology",
+                            "type": "string"
+                          },
+                          "valid_for_hipaa_transactions": {
+                            "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                            "type": "boolean"
+                          },
+                          "first_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                          },
+                          "last_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                          },
+                          "as_of_note": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                          },
+                          "body_system_code": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Body system code (second character for most sections, fourth character for Section F, e.g., '0' for Central Nervous System)"
+                          },
+                          "body_system_name": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Human-readable body system name (e.g., 'Central Nervous System', 'Heart and Great Vessels')"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "short_description",
+                          "long_description",
+                          "valid_for_hipaa_transactions"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "count",
+                "results"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Get Code Hierarchy",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true
+            },
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "get_by_category",
+            "title": "Get Codes by Category",
+            "description": "Get diagnosis codes by ICD-10-CM chapter or category. Use chapter (single letter) for broad categories or category (3 characters) for specific disease groups. Useful for exploring codes within a clinical area.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "chapter": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Single character chapter code (e.g., 'E' for Endocrine diseases)"
+                },
+                "category": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Three character category code (e.g., 'E11' for Type 2 Diabetes)"
+                },
+                "valid_for_hipaa_only": {
+                  "default": true,
+                  "description": "If True, only return codes valid for HIPAA transactions",
+                  "type": "boolean"
+                },
+                "limit": {
+                  "default": 500,
+                  "description": "Maximum number of results to return",
+                  "maximum": 2000,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "outputSchema": {
+              "description": "Response for code search queries.",
+              "properties": {
+                "count": {
+                  "description": "Number of results returned",
+                  "type": "integer"
+                },
+                "results": {
+                  "description": "List of matching codes",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "description": "Base model for ICD-10 codes.",
+                        "properties": {
+                          "code": {
+                            "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                            "type": "string"
+                          },
+                          "short_description": {
+                            "description": "Short description of the code (typically under 60 characters)",
+                            "type": "string"
+                          },
+                          "long_description": {
+                            "description": "Full/detailed description of the code with complete clinical terminology",
+                            "type": "string"
+                          },
+                          "valid_for_hipaa_transactions": {
+                            "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                            "type": "boolean"
+                          },
+                          "first_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                          },
+                          "last_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                          },
+                          "as_of_note": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "short_description",
+                          "long_description",
+                          "valid_for_hipaa_transactions"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "description": "ICD-10-CM diagnosis code with additional metadata.",
+                        "properties": {
+                          "code": {
+                            "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                            "type": "string"
+                          },
+                          "short_description": {
+                            "description": "Short description of the code (typically under 60 characters)",
+                            "type": "string"
+                          },
+                          "long_description": {
+                            "description": "Full/detailed description of the code with complete clinical terminology",
+                            "type": "string"
+                          },
+                          "valid_for_hipaa_transactions": {
+                            "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                            "type": "boolean"
+                          },
+                          "first_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                          },
+                          "last_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                          },
+                          "as_of_note": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                          },
+                          "chapter": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "ICD-10-CM chapter code (single letter, e.g., 'E' for Endocrine/nutritional/metabolic diseases)"
+                          },
+                          "category": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "ICD-10-CM category (first 3 characters, e.g., 'E11' for Type 2 Diabetes Mellitus)"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "short_description",
+                          "long_description",
+                          "valid_for_hipaa_transactions"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "description": "ICD-10-PCS procedure code with additional metadata.",
+                        "properties": {
+                          "code": {
+                            "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                            "type": "string"
+                          },
+                          "short_description": {
+                            "description": "Short description of the code (typically under 60 characters)",
+                            "type": "string"
+                          },
+                          "long_description": {
+                            "description": "Full/detailed description of the code with complete clinical terminology",
+                            "type": "string"
+                          },
+                          "valid_for_hipaa_transactions": {
+                            "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                            "type": "boolean"
+                          },
+                          "first_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                          },
+                          "last_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                          },
+                          "as_of_note": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                          },
+                          "body_system_code": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Body system code (second character for most sections, fourth character for Section F, e.g., '0' for Central Nervous System)"
+                          },
+                          "body_system_name": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Human-readable body system name (e.g., 'Central Nervous System', 'Heart and Great Vessels')"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "short_description",
+                          "long_description",
+                          "valid_for_hipaa_transactions"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "count",
+                "results"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Get Codes by Category",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true
+            },
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "get_by_body_system",
+            "title": "Get Procedures by Body System",
+            "description": "Get ICD-10-PCS procedure codes for a specific body system, optionally filtered by section. Body system is identified by the second character of the code for most sections (fourth character for Section F). Example: '0' for Central Nervous System (Section 0), '0' for Neurological System (Section F). Useful for finding all procedures related to an anatomical system.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "body_system_code": {
+                  "description": "Body system code (second character for most sections, fourth for Section F, e.g., '0' for Central Nervous System)",
+                  "type": "string"
+                },
+                "section_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Optional section code to filter by (e.g., '0' for Medical and Surgical, 'F' for Physical Rehabilitation). If not specified, returns codes from all sections."
+                },
+                "valid_for_hipaa_only": {
+                  "default": true,
+                  "description": "If True, only return codes valid for HIPAA transactions",
+                  "type": "boolean"
+                },
+                "limit": {
+                  "default": 100,
+                  "description": "Maximum number of results to return",
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "body_system_code"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "description": "Response for code search queries.",
+              "properties": {
+                "count": {
+                  "description": "Number of results returned",
+                  "type": "integer"
+                },
+                "results": {
+                  "description": "List of matching codes",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "description": "Base model for ICD-10 codes.",
+                        "properties": {
+                          "code": {
+                            "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                            "type": "string"
+                          },
+                          "short_description": {
+                            "description": "Short description of the code (typically under 60 characters)",
+                            "type": "string"
+                          },
+                          "long_description": {
+                            "description": "Full/detailed description of the code with complete clinical terminology",
+                            "type": "string"
+                          },
+                          "valid_for_hipaa_transactions": {
+                            "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                            "type": "boolean"
+                          },
+                          "first_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                          },
+                          "last_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                          },
+                          "as_of_note": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "short_description",
+                          "long_description",
+                          "valid_for_hipaa_transactions"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "description": "ICD-10-CM diagnosis code with additional metadata.",
+                        "properties": {
+                          "code": {
+                            "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                            "type": "string"
+                          },
+                          "short_description": {
+                            "description": "Short description of the code (typically under 60 characters)",
+                            "type": "string"
+                          },
+                          "long_description": {
+                            "description": "Full/detailed description of the code with complete clinical terminology",
+                            "type": "string"
+                          },
+                          "valid_for_hipaa_transactions": {
+                            "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                            "type": "boolean"
+                          },
+                          "first_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                          },
+                          "last_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                          },
+                          "as_of_note": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                          },
+                          "chapter": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "ICD-10-CM chapter code (single letter, e.g., 'E' for Endocrine/nutritional/metabolic diseases)"
+                          },
+                          "category": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "ICD-10-CM category (first 3 characters, e.g., 'E11' for Type 2 Diabetes Mellitus)"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "short_description",
+                          "long_description",
+                          "valid_for_hipaa_transactions"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "description": "ICD-10-PCS procedure code with additional metadata.",
+                        "properties": {
+                          "code": {
+                            "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                            "type": "string"
+                          },
+                          "short_description": {
+                            "description": "Short description of the code (typically under 60 characters)",
+                            "type": "string"
+                          },
+                          "long_description": {
+                            "description": "Full/detailed description of the code with complete clinical terminology",
+                            "type": "string"
+                          },
+                          "valid_for_hipaa_transactions": {
+                            "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                            "type": "boolean"
+                          },
+                          "first_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                          },
+                          "last_fy": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                          },
+                          "as_of_note": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                          },
+                          "body_system_code": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Body system code (second character for most sections, fourth character for Section F, e.g., '0' for Central Nervous System)"
+                          },
+                          "body_system_name": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null,
+                            "description": "Human-readable body system name (e.g., 'Central Nervous System', 'Heart and Great Vessels')"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "short_description",
+                          "long_description",
+                          "valid_for_hipaa_transactions"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "count",
+                "results"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Get Procedures by Body System",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true
+            },
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "lookup_code",
+        "title": "Lookup ICD-10 Code",
+        "description": "Look up a specific ICD-10 code by its code number. Returns full details including descriptions, HIPAA transaction validity status, and the fiscal years the code has been in effect (FY2027 code set; history tracked from FY2020 for diagnosis, FY2021 for procedure). Pass as_of with the encounter's date of service to check the code was in effect on that date — ICD-10 sets change every October 1 and sometimes mid-year. Codes retired from the current set still resolve, marked with the last year or day they were in effect.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "description": "ICD-10 code to look up (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure).",
+              "type": "string"
+            },
+            "code_type": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "diagnosis",
+                    "procedure"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "'diagnosis' (ICD-10-CM) or 'procedure' (ICD-10-PCS). Omit to auto-detect: CM is tried first, then PCS if the code is 7 alphanumeric characters."
+            },
+            "as_of": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional date of service (YYYY-MM-DD). ICD-10 code sets change every October 1, and some codes are added or deleted partway through a year (usually April 1): a code valid today may not have existed on the encounter date, and vice versa. When provided, the response reports whether the code was in effect on this date. Omit for current-set (FY2027) behavior."
+            }
+          },
+          "required": [
+            "code"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "description": "Response for single code lookup.",
+          "properties": {
+            "found": {
+              "description": "Whether the code was found in the database",
+              "type": "boolean"
+            },
+            "code": {
+              "anyOf": [
+                {
+                  "description": "Base model for ICD-10 codes.",
+                  "properties": {
+                    "code": {
+                      "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                      "type": "string"
+                    },
+                    "short_description": {
+                      "description": "Short description of the code (typically under 60 characters)",
+                      "type": "string"
+                    },
+                    "long_description": {
+                      "description": "Full/detailed description of the code with complete clinical terminology",
+                      "type": "string"
+                    },
+                    "valid_for_hipaa_transactions": {
+                      "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                      "type": "boolean"
+                    },
+                    "first_fy": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                    },
+                    "last_fy": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                    },
+                    "as_of_note": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "short_description",
+                    "long_description",
+                    "valid_for_hipaa_transactions"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "description": "ICD-10-CM diagnosis code with additional metadata.",
+                  "properties": {
+                    "code": {
+                      "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                      "type": "string"
+                    },
+                    "short_description": {
+                      "description": "Short description of the code (typically under 60 characters)",
+                      "type": "string"
+                    },
+                    "long_description": {
+                      "description": "Full/detailed description of the code with complete clinical terminology",
+                      "type": "string"
+                    },
+                    "valid_for_hipaa_transactions": {
+                      "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                      "type": "boolean"
+                    },
+                    "first_fy": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                    },
+                    "last_fy": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                    },
+                    "as_of_note": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                    },
+                    "chapter": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "ICD-10-CM chapter code (single letter, e.g., 'E' for Endocrine/nutritional/metabolic diseases)"
+                    },
+                    "category": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "ICD-10-CM category (first 3 characters, e.g., 'E11' for Type 2 Diabetes Mellitus)"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "short_description",
+                    "long_description",
+                    "valid_for_hipaa_transactions"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "description": "ICD-10-PCS procedure code with additional metadata.",
+                  "properties": {
+                    "code": {
+                      "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                      "type": "string"
+                    },
+                    "short_description": {
+                      "description": "Short description of the code (typically under 60 characters)",
+                      "type": "string"
+                    },
+                    "long_description": {
+                      "description": "Full/detailed description of the code with complete clinical terminology",
+                      "type": "string"
+                    },
+                    "valid_for_hipaa_transactions": {
+                      "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                      "type": "boolean"
+                    },
+                    "first_fy": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                    },
+                    "last_fy": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                    },
+                    "as_of_note": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                    },
+                    "body_system_code": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Body system code (second character for most sections, fourth character for Section F, e.g., '0' for Central Nervous System)"
+                    },
+                    "body_system_name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Human-readable body system name (e.g., 'Central Nervous System', 'Heart and Great Vessels')"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "short_description",
+                    "long_description",
+                    "valid_for_hipaa_transactions"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Code details if found"
+            }
+          },
+          "required": [
+            "found"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Lookup ICD-10 Code",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "search_codes",
+        "title": "Search ICD-10 Codes",
+        "description": "Search ICD-10-CM diagnosis and ICD-10-PCS procedure codes. Unified tool that supports searching by code or description. Use this for all ICD-10 search needs. Serves the FY2027 code set (in effect Oct 1 through Sep 30). Pass as_of with the encounter's date of service to annotate each result with whether it was in effect on that date — codes added after the date of service must not go on the claim.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "query": {
+              "description": "The search query. Can be a code (e.g., 'E11.65', '0B1') or a description term (e.g., 'diabetes', 'appendectomy').",
+              "type": "string"
+            },
+            "code_type": {
+              "default": "diagnosis",
+              "description": "Type of codes to search: 'diagnosis' (ICD-10-CM) or 'procedure' (ICD-10-PCS).",
+              "type": "string"
+            },
+            "search_by": {
+              "default": "description",
+              "description": "Field to search: 'code' (exact or prefix) or 'description' (text search).",
+              "type": "string"
+            },
+            "exact": {
+              "default": false,
+              "description": "If True, search for exact code match. If False, search by prefix. Only used when search_by='code'.",
+              "type": "boolean"
+            },
+            "valid_for_hipaa_only": {
+              "default": true,
+              "description": "If True, only return codes valid for HIPAA transactions. Only used when search_by='description'.",
+              "type": "boolean"
+            },
+            "limit": {
+              "default": 20,
+              "description": "Maximum number of results to return",
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "as_of": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional date of service (YYYY-MM-DD). ICD-10 code sets change every October 1, and some codes are added or deleted partway through a year (usually April 1): a code valid today may not have existed on the encounter date, and vice versa. When provided, the response reports whether the code was in effect on this date. Omit for current-set (FY2027) behavior."
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "description": "Response for code search queries.",
+          "properties": {
+            "count": {
+              "description": "Number of results returned",
+              "type": "integer"
+            },
+            "results": {
+              "description": "List of matching codes",
+              "items": {
+                "anyOf": [
+                  {
+                    "description": "Base model for ICD-10 codes.",
+                    "properties": {
+                      "code": {
+                        "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                        "type": "string"
+                      },
+                      "short_description": {
+                        "description": "Short description of the code (typically under 60 characters)",
+                        "type": "string"
+                      },
+                      "long_description": {
+                        "description": "Full/detailed description of the code with complete clinical terminology",
+                        "type": "string"
+                      },
+                      "valid_for_hipaa_transactions": {
+                        "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                        "type": "boolean"
+                      },
+                      "first_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                      },
+                      "last_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                      },
+                      "as_of_note": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "short_description",
+                      "long_description",
+                      "valid_for_hipaa_transactions"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "description": "ICD-10-CM diagnosis code with additional metadata.",
+                    "properties": {
+                      "code": {
+                        "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                        "type": "string"
+                      },
+                      "short_description": {
+                        "description": "Short description of the code (typically under 60 characters)",
+                        "type": "string"
+                      },
+                      "long_description": {
+                        "description": "Full/detailed description of the code with complete clinical terminology",
+                        "type": "string"
+                      },
+                      "valid_for_hipaa_transactions": {
+                        "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                        "type": "boolean"
+                      },
+                      "first_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                      },
+                      "last_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                      },
+                      "as_of_note": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                      },
+                      "chapter": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "ICD-10-CM chapter code (single letter, e.g., 'E' for Endocrine/nutritional/metabolic diseases)"
+                      },
+                      "category": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "ICD-10-CM category (first 3 characters, e.g., 'E11' for Type 2 Diabetes Mellitus)"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "short_description",
+                      "long_description",
+                      "valid_for_hipaa_transactions"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "description": "ICD-10-PCS procedure code with additional metadata.",
+                    "properties": {
+                      "code": {
+                        "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                        "type": "string"
+                      },
+                      "short_description": {
+                        "description": "Short description of the code (typically under 60 characters)",
+                        "type": "string"
+                      },
+                      "long_description": {
+                        "description": "Full/detailed description of the code with complete clinical terminology",
+                        "type": "string"
+                      },
+                      "valid_for_hipaa_transactions": {
+                        "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                        "type": "boolean"
+                      },
+                      "first_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                      },
+                      "last_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                      },
+                      "as_of_note": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                      },
+                      "body_system_code": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Body system code (second character for most sections, fourth character for Section F, e.g., '0' for Central Nervous System)"
+                      },
+                      "body_system_name": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Human-readable body system name (e.g., 'Central Nervous System', 'Heart and Great Vessels')"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "short_description",
+                      "long_description",
+                      "valid_for_hipaa_transactions"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "count",
+            "results"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Search ICD-10 Codes",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "validate_code",
+        "title": "Validate ICD-10 Code",
+        "description": "Validate an ICD-10 code to check if it exists and is valid for HIPAA-covered transactions. Pass as_of with the encounter's date of service to also check the code was in effect on that date — ICD-10 sets change every October 1 and sometimes mid-year, and a code not in effect on the date of service is not billable (current set: FY2027). Codes retired from the current set are reported as retired, with the period they were in effect.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "description": "ICD-10 code to validate (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure). ",
+              "type": "string"
+            },
+            "code_type": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "diagnosis",
+                    "procedure"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "'diagnosis' (ICD-10-CM) or 'procedure' (ICD-10-PCS). Omit to auto-detect: CM is tried first, then PCS if the code is 7 alphanumeric characters."
+            },
+            "as_of": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional date of service (YYYY-MM-DD). ICD-10 code sets change every October 1, and some codes are added or deleted partway through a year (usually April 1): a code valid today may not have existed on the encounter date, and vice versa. When provided, the response reports whether the code was in effect on this date. Omit for current-set (FY2027) behavior."
+            }
+          },
+          "required": [
+            "code"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "description": "Response for code validation.",
+          "properties": {
+            "code": {
+              "description": "The code that was validated",
+              "type": "string"
+            },
+            "exists": {
+              "description": "Whether the code exists in the database",
+              "type": "boolean"
+            },
+            "valid_for_hipaa_transactions": {
+              "description": "Whether the code is valid for HIPAA-covered transactions (not a category header). With as_of, judged as of that date if the code was in effect then and the date is in a tracked fiscal year; otherwise judged in the current code set (for a retired code, its last edition)",
+              "type": "boolean"
+            },
+            "is_valid": {
+              "description": "True if the code exists, is valid for HIPAA transactions, and is in effect: on the as_of date when given (a date whose in-effect status the code history cannot settle counts as in effect), otherwise in the current code set",
+              "type": "boolean"
+            },
+            "message": {
+              "description": "Human-readable validation message",
+              "type": "string"
+            },
+            "short_description": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Short description of the code (if found)"
+            }
+          },
+          "required": [
+            "code",
+            "exists",
+            "valid_for_hipaa_transactions",
+            "is_valid",
+            "message"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Validate ICD-10 Code",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "get_hierarchy",
+        "title": "Get Code Hierarchy",
+        "description": "Get the hierarchy of codes under a category. Returns the category header and up to `limit` child codes (default 500, max 2000) ordered by code; broad prefixes (e.g. a single-letter chapter) may be truncated. Use this to explore related codes within a disease category or code family.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "code_prefix": {
+              "description": "Code prefix to get hierarchy for (e.g., 'E11' for Type 2 Diabetes)",
+              "type": "string"
+            },
+            "limit": {
+              "default": 500,
+              "description": "Maximum number of results to return",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "code_prefix"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "description": "Response for code search queries.",
+          "properties": {
+            "count": {
+              "description": "Number of results returned",
+              "type": "integer"
+            },
+            "results": {
+              "description": "List of matching codes",
+              "items": {
+                "anyOf": [
+                  {
+                    "description": "Base model for ICD-10 codes.",
+                    "properties": {
+                      "code": {
+                        "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                        "type": "string"
+                      },
+                      "short_description": {
+                        "description": "Short description of the code (typically under 60 characters)",
+                        "type": "string"
+                      },
+                      "long_description": {
+                        "description": "Full/detailed description of the code with complete clinical terminology",
+                        "type": "string"
+                      },
+                      "valid_for_hipaa_transactions": {
+                        "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                        "type": "boolean"
+                      },
+                      "first_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                      },
+                      "last_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                      },
+                      "as_of_note": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "short_description",
+                      "long_description",
+                      "valid_for_hipaa_transactions"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "description": "ICD-10-CM diagnosis code with additional metadata.",
+                    "properties": {
+                      "code": {
+                        "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                        "type": "string"
+                      },
+                      "short_description": {
+                        "description": "Short description of the code (typically under 60 characters)",
+                        "type": "string"
+                      },
+                      "long_description": {
+                        "description": "Full/detailed description of the code with complete clinical terminology",
+                        "type": "string"
+                      },
+                      "valid_for_hipaa_transactions": {
+                        "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                        "type": "boolean"
+                      },
+                      "first_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                      },
+                      "last_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                      },
+                      "as_of_note": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                      },
+                      "chapter": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "ICD-10-CM chapter code (single letter, e.g., 'E' for Endocrine/nutritional/metabolic diseases)"
+                      },
+                      "category": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "ICD-10-CM category (first 3 characters, e.g., 'E11' for Type 2 Diabetes Mellitus)"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "short_description",
+                      "long_description",
+                      "valid_for_hipaa_transactions"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "description": "ICD-10-PCS procedure code with additional metadata.",
+                    "properties": {
+                      "code": {
+                        "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                        "type": "string"
+                      },
+                      "short_description": {
+                        "description": "Short description of the code (typically under 60 characters)",
+                        "type": "string"
+                      },
+                      "long_description": {
+                        "description": "Full/detailed description of the code with complete clinical terminology",
+                        "type": "string"
+                      },
+                      "valid_for_hipaa_transactions": {
+                        "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                        "type": "boolean"
+                      },
+                      "first_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                      },
+                      "last_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                      },
+                      "as_of_note": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                      },
+                      "body_system_code": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Body system code (second character for most sections, fourth character for Section F, e.g., '0' for Central Nervous System)"
+                      },
+                      "body_system_name": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Human-readable body system name (e.g., 'Central Nervous System', 'Heart and Great Vessels')"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "short_description",
+                      "long_description",
+                      "valid_for_hipaa_transactions"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "count",
+            "results"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get Code Hierarchy",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "get_by_category",
+        "title": "Get Codes by Category",
+        "description": "Get diagnosis codes by ICD-10-CM chapter or category. Use chapter (single letter) for broad categories or category (3 characters) for specific disease groups. Useful for exploring codes within a clinical area.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "chapter": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Single character chapter code (e.g., 'E' for Endocrine diseases)"
+            },
+            "category": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Three character category code (e.g., 'E11' for Type 2 Diabetes)"
+            },
+            "valid_for_hipaa_only": {
+              "default": true,
+              "description": "If True, only return codes valid for HIPAA transactions",
+              "type": "boolean"
+            },
+            "limit": {
+              "default": 500,
+              "description": "Maximum number of results to return",
+              "maximum": 2000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "outputSchema": {
+          "description": "Response for code search queries.",
+          "properties": {
+            "count": {
+              "description": "Number of results returned",
+              "type": "integer"
+            },
+            "results": {
+              "description": "List of matching codes",
+              "items": {
+                "anyOf": [
+                  {
+                    "description": "Base model for ICD-10 codes.",
+                    "properties": {
+                      "code": {
+                        "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                        "type": "string"
+                      },
+                      "short_description": {
+                        "description": "Short description of the code (typically under 60 characters)",
+                        "type": "string"
+                      },
+                      "long_description": {
+                        "description": "Full/detailed description of the code with complete clinical terminology",
+                        "type": "string"
+                      },
+                      "valid_for_hipaa_transactions": {
+                        "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                        "type": "boolean"
+                      },
+                      "first_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                      },
+                      "last_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                      },
+                      "as_of_note": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "short_description",
+                      "long_description",
+                      "valid_for_hipaa_transactions"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "description": "ICD-10-CM diagnosis code with additional metadata.",
+                    "properties": {
+                      "code": {
+                        "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                        "type": "string"
+                      },
+                      "short_description": {
+                        "description": "Short description of the code (typically under 60 characters)",
+                        "type": "string"
+                      },
+                      "long_description": {
+                        "description": "Full/detailed description of the code with complete clinical terminology",
+                        "type": "string"
+                      },
+                      "valid_for_hipaa_transactions": {
+                        "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                        "type": "boolean"
+                      },
+                      "first_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                      },
+                      "last_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                      },
+                      "as_of_note": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                      },
+                      "chapter": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "ICD-10-CM chapter code (single letter, e.g., 'E' for Endocrine/nutritional/metabolic diseases)"
+                      },
+                      "category": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "ICD-10-CM category (first 3 characters, e.g., 'E11' for Type 2 Diabetes Mellitus)"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "short_description",
+                      "long_description",
+                      "valid_for_hipaa_transactions"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "description": "ICD-10-PCS procedure code with additional metadata.",
+                    "properties": {
+                      "code": {
+                        "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                        "type": "string"
+                      },
+                      "short_description": {
+                        "description": "Short description of the code (typically under 60 characters)",
+                        "type": "string"
+                      },
+                      "long_description": {
+                        "description": "Full/detailed description of the code with complete clinical terminology",
+                        "type": "string"
+                      },
+                      "valid_for_hipaa_transactions": {
+                        "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                        "type": "boolean"
+                      },
+                      "first_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                      },
+                      "last_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                      },
+                      "as_of_note": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                      },
+                      "body_system_code": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Body system code (second character for most sections, fourth character for Section F, e.g., '0' for Central Nervous System)"
+                      },
+                      "body_system_name": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Human-readable body system name (e.g., 'Central Nervous System', 'Heart and Great Vessels')"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "short_description",
+                      "long_description",
+                      "valid_for_hipaa_transactions"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "count",
+            "results"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get Codes by Category",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "get_by_body_system",
+        "title": "Get Procedures by Body System",
+        "description": "Get ICD-10-PCS procedure codes for a specific body system, optionally filtered by section. Body system is identified by the second character of the code for most sections (fourth character for Section F). Example: '0' for Central Nervous System (Section 0), '0' for Neurological System (Section F). Useful for finding all procedures related to an anatomical system.",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "body_system_code": {
+              "description": "Body system code (second character for most sections, fourth for Section F, e.g., '0' for Central Nervous System)",
+              "type": "string"
+            },
+            "section_code": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional section code to filter by (e.g., '0' for Medical and Surgical, 'F' for Physical Rehabilitation). If not specified, returns codes from all sections."
+            },
+            "valid_for_hipaa_only": {
+              "default": true,
+              "description": "If True, only return codes valid for HIPAA transactions",
+              "type": "boolean"
+            },
+            "limit": {
+              "default": 100,
+              "description": "Maximum number of results to return",
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "body_system_code"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "description": "Response for code search queries.",
+          "properties": {
+            "count": {
+              "description": "Number of results returned",
+              "type": "integer"
+            },
+            "results": {
+              "description": "List of matching codes",
+              "items": {
+                "anyOf": [
+                  {
+                    "description": "Base model for ICD-10 codes.",
+                    "properties": {
+                      "code": {
+                        "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                        "type": "string"
+                      },
+                      "short_description": {
+                        "description": "Short description of the code (typically under 60 characters)",
+                        "type": "string"
+                      },
+                      "long_description": {
+                        "description": "Full/detailed description of the code with complete clinical terminology",
+                        "type": "string"
+                      },
+                      "valid_for_hipaa_transactions": {
+                        "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                        "type": "boolean"
+                      },
+                      "first_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                      },
+                      "last_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                      },
+                      "as_of_note": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "short_description",
+                      "long_description",
+                      "valid_for_hipaa_transactions"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "description": "ICD-10-CM diagnosis code with additional metadata.",
+                    "properties": {
+                      "code": {
+                        "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                        "type": "string"
+                      },
+                      "short_description": {
+                        "description": "Short description of the code (typically under 60 characters)",
+                        "type": "string"
+                      },
+                      "long_description": {
+                        "description": "Full/detailed description of the code with complete clinical terminology",
+                        "type": "string"
+                      },
+                      "valid_for_hipaa_transactions": {
+                        "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                        "type": "boolean"
+                      },
+                      "first_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                      },
+                      "last_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                      },
+                      "as_of_note": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                      },
+                      "chapter": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "ICD-10-CM chapter code (single letter, e.g., 'E' for Endocrine/nutritional/metabolic diseases)"
+                      },
+                      "category": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "ICD-10-CM category (first 3 characters, e.g., 'E11' for Type 2 Diabetes Mellitus)"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "short_description",
+                      "long_description",
+                      "valid_for_hipaa_transactions"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "description": "ICD-10-PCS procedure code with additional metadata.",
+                    "properties": {
+                      "code": {
+                        "description": "ICD-10 code (e.g., 'E11.65' for diagnosis, '0DTJ4ZZ' for procedure)",
+                        "type": "string"
+                      },
+                      "short_description": {
+                        "description": "Short description of the code (typically under 60 characters)",
+                        "type": "string"
+                      },
+                      "long_description": {
+                        "description": "Full/detailed description of the code with complete clinical terminology",
+                        "type": "string"
+                      },
+                      "valid_for_hipaa_transactions": {
+                        "description": "Whether this code is valid for HIPAA-covered transactions (True) or is a category header only (False). Only codes with True can be used for billing",
+                        "type": "boolean"
+                      },
+                      "first_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "First CMS fiscal year this code was in effect. The history begins at FY2020 (diagnosis) and FY2021 (procedure), so a code whose first year is that one may be older"
+                      },
+                      "last_fy": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Last CMS fiscal year this code was in effect (less than the current code-set year means the code has been retired)"
+                      },
+                      "as_of_note": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Whether this code was in effect on the as_of date of service; from lookup_code, also whether it was billable on that date when that differs from valid_for_hipaa_transactions. Without as_of, set only for a retired code or one that took effect partway through a fiscal year"
+                      },
+                      "body_system_code": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Body system code (second character for most sections, fourth character for Section F, e.g., '0' for Central Nervous System)"
+                      },
+                      "body_system_name": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Human-readable body system name (e.g., 'Central Nervous System', 'Heart and Great Vessels')"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "short_description",
+                      "long_description",
+                      "valid_for_hipaa_transactions"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "count",
+            "results"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Get Procedures by Body System",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:23:59.982Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:24:01.034Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:24:02.084Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:24:03.136Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 6,
+    "tools_hash": "sha256:3aa5e0d15930e6f2a6ba6f31047e140718b7ea996a7b9b5f4a733366933e803d",
+    "static_tool_tokens": 3199,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "lookup_code",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "validate_code",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_by_body_system",
+        "message": "Description does not say when to use this tool."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 3,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_codes",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Maximum number of results to return",
+          "mentions_size_or_cost": true,
+          "default": 20,
+          "maximum": 200
+        },
+        {
+          "tool": "get_hierarchy",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Maximum number of results to return",
+          "mentions_size_or_cost": true,
+          "default": 500,
+          "maximum": 2000
+        },
+        {
+          "tool": "get_by_category",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Maximum number of results to return",
+          "mentions_size_or_cost": true,
+          "default": 500,
+          "maximum": 2000
+        },
+        {
+          "tool": "get_by_body_system",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Maximum number of results to return",
+          "mentions_size_or_cost": true,
+          "default": 100,
+          "maximum": 200
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "search_codes"
+          ],
+          "description": "Search ICD-10-CM diagnosis and ICD-10-PCS procedure codes. Unified tool that supports searching by code or description. Use this for all ICD-10 search needs. Serves the FY2027 code set (in effect Oct 1 through Sep 30). Pass as_of with the encounter's date of service to annotate each result with whether it was in effect on that date — codes added after the date of service must not go on the claim.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "get_hierarchy"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "Maximum number of results to return",
+          "default": 500,
+          "default_source": "schema",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        },
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "get_by_category"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "Maximum number of results to return",
+          "default": 500,
+          "default_source": "schema",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        },
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "get_by_body_system"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "Maximum number of results to return",
+          "default": 100,
+          "default_source": "schema",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_by_body_system"
+          ],
+          "description": "Get ICD-10-PCS procedure codes for a specific body system, optionally filtered by section. Body system is identified by the second character of the code for most sections (fourth character for Section F). Example: '0' for Central Nervous System (Section 0), '0' for Neurological System (Section F). Useful for finding all procedures related to an anatomical system.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "lookup_code",
+            "search_codes"
+          ],
+          "hypothesis": "Read tools share resource terms (code), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "lookup_code",
+      "search_codes",
+      "validate_code",
+      "get_hierarchy",
+      "get_by_category",
+      "get_by_body_system"
+    ]
+  }
+}

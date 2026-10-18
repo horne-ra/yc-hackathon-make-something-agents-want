@@ -1,0 +1,4262 @@
+{
+  "slug": "zinc",
+  "source_url": "https://manufact.com/mcp-catalog/zinc",
+  "metadata_only": true,
+  "catalog_review_used_auth": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:30:33.827Z",
+    "endpoint": "https://mcp.zinc.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "zinc",
+      "title": "Zinc",
+      "icons": [
+        {
+          "src": "https://mcp.zinc.com/mcp/_mcp-use/public/icon.svg",
+          "mimeType": "image/svg+xml",
+          "sizes": [
+            "512x512"
+          ]
+        }
+      ],
+      "version": "1.1.0",
+      "websiteUrl": "https://zinc.com",
+      "description": "Search products across retailers and buy them with a card, with every step rendered as an interactive card."
+    },
+    "capabilities": {
+      "logging": {},
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "subscribe": true,
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Use search-products when the user wants to buy something and has not given a product URL. Then STOP: the results card is where the user chooses, so name the standouts briefly and wait. Never call prepare-order in the same turn as a search; 'get me some coffee' is a search, not a pick, even if you know their address. Go straight to prepare-order only when the user names one specific product or, after seeing results, picks one or tells you to choose.\n\nBuying takes two steps and you only ever do the first: prepare-order renders a review card with the item and the estimated total, and only the user can confirm it. Never call place-order yourself; it needs a token you are not given. Nothing is spent until the retailer order is placed.\n\nNever ask for a shipping address: the shopper enters it on the payment page with their card. list-addresses has nothing until the user has signed in via list-orders; do not call it to start a purchase.\n\nprepare-order prices the order itself from each product's url, title, image and price_cents from search; tax is estimated at a flat 10% and shipping is filled in. Leave max_price out unless the user named a budget. Not sold here: weapons, tobacco and nicotine, regulated drugs, prescription medication, adult products, gambling, covert surveillance, counterfeits. Both tools refuse those; say so plainly and do not rephrase around it.\n\nNo sign-in is needed to search or buy. Search is free. The shopper pays by card: Pay & place opens the payment page in a new tab while the card polls get-payment-status until the order exists. Only the actual total plus a $1 fee is captured; the rest of the hold is released. An order placed in this conversation can be shown any time with get-order or get-order-tracking by the id that place-order and get-payment-status return.\n\nOrder history needs the user's Zinc account. When they ask for it, just call list-orders: the host asks them to sign in right there, then the call goes through. Never send them elsewhere to sign in, and never ask them to sign in to buy.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "list-orders",
+            "title": "List Zinc orders",
+            "description": "List or search the Zinc orders on the configured account, newest first. Renders an interactive order list. Use `search` for a partial order ID or tracking number, `status` to filter by order status, and `has_tracking` to show only shipped orders.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "search": {
+                  "description": "Partial Zinc order ID or tracking number to match",
+                  "type": "string"
+                },
+                "status": {
+                  "description": "Filter to one Zinc order status",
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "in_progress",
+                    "order_placed",
+                    "order_failed",
+                    "cancelled",
+                    "cancelled_by_retailer"
+                  ]
+                },
+                "has_tracking": {
+                  "description": "True to return only orders that already have tracking numbers",
+                  "type": "boolean"
+                },
+                "limit": {
+                  "default": 10,
+                  "description": "How many orders to return (1-50, default 10)",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50
+                }
+              }
+            },
+            "annotations": {
+              "title": "List Zinc orders",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "openai/toolInvocation": {
+                "invoking": "Loading orders",
+                "invoked": "Showing orders"
+              },
+              "ui/resourceUri": "ui://views/orders-list.html",
+              "ui": {
+                "resourceUri": "ui://views/orders-list.html"
+              },
+              "securitySchemes": [
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "orders:read",
+                    "orders:write"
+                  ]
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "orders": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "Zinc order UUID"
+                      },
+                      "status": {
+                        "type": "string",
+                        "description": "Zinc order status"
+                      },
+                      "retailer": {
+                        "type": "string",
+                        "description": "Merchant inferred from the item URLs — Zinc stores no retailer field"
+                      },
+                      "item_count": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991,
+                        "description": "Total units across all line items"
+                      },
+                      "item_urls": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Retailer URL per line item. Zinc stores no product name, so this is the only identification of what was ordered — a title derived from the URL path was a guess and often wrong."
+                      },
+                      "retailer_logo": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "The retailer's mark, for rows with no product picture."
+                      },
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "url": {
+                              "type": "string"
+                            },
+                            "title": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "image": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "url",
+                            "title",
+                            "image"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "description": "One per line item. title/image are what the shopper saw in the review card when the order was placed through this connector; null when the order came from elsewhere."
+                      },
+                      "total_cents": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "What the retailer charged, in cents. Null when the order was never placed AND null on every list-orders row — the Zinc list endpoint omits it. Call get-order for the real total."
+                      },
+                      "total_display": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Preformatted total, e.g. $41.98"
+                      },
+                      "max_price_cents": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Customer's price ceiling, in cents. Null means withheld, not zero: the public tracking view a guest reads does not carry it. A zero ceiling means something specific (see is_trial) that null does not."
+                      },
+                      "merchant_order_ids": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Retailer's own order numbers"
+                      },
+                      "shipment_summary": {
+                        "type": "string",
+                        "description": "One-line shipment state rolled up from the tracking rows"
+                      },
+                      "tracking": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "carrier": {
+                              "type": "string",
+                              "description": "Carrier code, e.g. ups, usps, fedex"
+                            },
+                            "tracking_number": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "pending, in_transit, or delivered; null before first scan"
+                            },
+                            "estimated_delivery_date": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Carrier ETA as a destination-local YYYY-MM-DD date"
+                            },
+                            "tracking_url": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "carrier",
+                            "tracking_number",
+                            "status",
+                            "estimated_delivery_date",
+                            "tracking_url"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "error": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Failure reason when status is order_failed"
+                      },
+                      "error_type": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Worker's classification of the failure, e.g. max_price_exceeded"
+                      },
+                      "is_trial": {
+                        "type": "boolean",
+                        "description": "max_price of 0 marks a trial run: the retailer validates the order and deliberately does not place it, charging nothing. That outcome is recorded as order_failed with error_type max_price_exceeded, and nothing went wrong — do not report it as a failure. A trial carrying any other error_type did fail, before the price ceiling was ever reached, and the error explains how. This flag is the one to read: a null max_price_cents is an unknown ceiling, never a trial."
+                      },
+                      "created_at": {
+                        "type": "string"
+                      },
+                      "updated_at": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "status",
+                      "retailer",
+                      "item_count",
+                      "item_urls",
+                      "retailer_logo",
+                      "items",
+                      "total_cents",
+                      "total_display",
+                      "max_price_cents",
+                      "merchant_order_ids",
+                      "shipment_summary",
+                      "tracking",
+                      "error",
+                      "error_type",
+                      "is_trial",
+                      "created_at",
+                      "updated_at"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "total": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "Total matching orders on the account"
+                },
+                "returned": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "environment": {
+                  "type": "string",
+                  "enum": [
+                    "sandbox",
+                    "live"
+                  ],
+                  "description": "Which Zinc dataset the configured API key reads"
+                }
+              },
+              "required": [
+                "orders",
+                "total",
+                "returned",
+                "environment"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "orders:read",
+                  "orders:write"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "get-order",
+            "title": "Get a Zinc order",
+            "description": "Fetch one Zinc order by its UUID and render a detail card: line items, retailer price breakdown, shipping destination, and shipment timeline.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "order_id": {
+                  "type": "string",
+                  "description": "The Zinc order UUID"
+                }
+              },
+              "required": [
+                "order_id"
+              ]
+            },
+            "annotations": {
+              "title": "Get a Zinc order",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "openai/toolInvocation": {
+                "invoking": "Fetching the order",
+                "invoked": "Showing the order"
+              },
+              "ui/resourceUri": "ui://views/order-detail.html",
+              "ui": {
+                "resourceUri": "ui://views/order-detail.html"
+              },
+              "securitySchemes": [
+                {
+                  "type": "noauth"
+                },
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "orders:read"
+                  ]
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "order": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Zinc order UUID"
+                    },
+                    "status": {
+                      "type": "string",
+                      "description": "Zinc order status"
+                    },
+                    "retailer": {
+                      "type": "string",
+                      "description": "Merchant inferred from the item URLs — Zinc stores no retailer field"
+                    },
+                    "item_count": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Total units across all line items"
+                    },
+                    "item_urls": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Retailer URL per line item. Zinc stores no product name, so this is the only identification of what was ordered — a title derived from the URL path was a guess and often wrong."
+                    },
+                    "retailer_logo": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "The retailer's mark, for rows with no product picture."
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "image": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "url",
+                          "title",
+                          "image"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "One per line item. title/image are what the shopper saw in the review card when the order was placed through this connector; null when the order came from elsewhere."
+                    },
+                    "total_cents": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "What the retailer charged, in cents. Null when the order was never placed AND null on every list-orders row — the Zinc list endpoint omits it. Call get-order for the real total."
+                    },
+                    "total_display": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Preformatted total, e.g. $41.98"
+                    },
+                    "max_price_cents": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Customer's price ceiling, in cents. Null means withheld, not zero: the public tracking view a guest reads does not carry it. A zero ceiling means something specific (see is_trial) that null does not."
+                    },
+                    "merchant_order_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Retailer's own order numbers"
+                    },
+                    "shipment_summary": {
+                      "type": "string",
+                      "description": "One-line shipment state rolled up from the tracking rows"
+                    },
+                    "tracking": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "carrier": {
+                            "type": "string",
+                            "description": "Carrier code, e.g. ups, usps, fedex"
+                          },
+                          "tracking_number": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "pending, in_transit, or delivered; null before first scan"
+                          },
+                          "estimated_delivery_date": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Carrier ETA as a destination-local YYYY-MM-DD date"
+                          },
+                          "tracking_url": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "carrier",
+                          "tracking_number",
+                          "status",
+                          "estimated_delivery_date",
+                          "tracking_url"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "error": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Failure reason when status is order_failed"
+                    },
+                    "error_type": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Worker's classification of the failure, e.g. max_price_exceeded"
+                    },
+                    "is_trial": {
+                      "type": "boolean",
+                      "description": "max_price of 0 marks a trial run: the retailer validates the order and deliberately does not place it, charging nothing. That outcome is recorded as order_failed with error_type max_price_exceeded, and nothing went wrong — do not report it as a failure. A trial carrying any other error_type did fail, before the price ceiling was ever reached, and the error explains how. This flag is the one to read: a null max_price_cents is an unknown ceiling, never a trial."
+                    },
+                    "created_at": {
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "status",
+                    "retailer",
+                    "item_count",
+                    "item_urls",
+                    "retailer_logo",
+                    "items",
+                    "total_cents",
+                    "total_display",
+                    "max_price_cents",
+                    "merchant_order_ids",
+                    "shipment_summary",
+                    "tracking",
+                    "error",
+                    "error_type",
+                    "is_trial",
+                    "created_at",
+                    "updated_at"
+                  ],
+                  "additionalProperties": false
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "What the shopper saw when buying through this connector; null otherwise."
+                      },
+                      "image": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "retailer_logo": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "quantity": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "variant": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "cancellation_reason": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "url",
+                      "title",
+                      "image",
+                      "retailer_logo",
+                      "quantity",
+                      "status",
+                      "variant",
+                      "cancellation_reason"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "price_breakdown": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "subtotal_cents": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "tax_cents": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "shipping_cents": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "discount_cents": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "fees_cents": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "total_cents": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "currency": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "subtotal_cents",
+                        "tax_cents",
+                        "shipping_cents",
+                        "discount_cents",
+                        "fees_cents",
+                        "total_cents",
+                        "currency"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Null until the retailer order is placed — unless prices_withheld is true, which means the amounts exist and this read cannot see them. All amounts in cents."
+                },
+                "prices_withheld": {
+                  "type": "boolean",
+                  "description": "True when the order was read without an account, from the public tracking view, which carries no money at all. The order may well have been charged in full: never report it as uncharged. False on a signed-in read, where a null breakdown does mean not charged yet."
+                },
+                "ship_to": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "city": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "state": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "postal_code": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "country": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "city",
+                        "state",
+                        "postal_code",
+                        "country"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "environment": {
+                  "type": "string",
+                  "enum": [
+                    "sandbox",
+                    "live"
+                  ]
+                }
+              },
+              "required": [
+                "order",
+                "items",
+                "price_breakdown",
+                "prices_withheld",
+                "ship_to",
+                "environment"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "noauth"
+              },
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "orders:read"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "get-order-tracking",
+            "title": "Get shipment tracking for a Zinc order",
+            "description": "Return the carrier tracking timeline (scan checkpoints) for one Zinc order. Use this when the question is only about where a package is, not about pricing or line items.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "order_id": {
+                  "type": "string",
+                  "description": "The Zinc order UUID"
+                }
+              },
+              "required": [
+                "order_id"
+              ]
+            },
+            "annotations": {
+              "title": "Get shipment tracking for a Zinc order",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "noauth"
+                },
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "orders:read"
+                  ]
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "order_id": {
+                  "type": "string"
+                },
+                "order_status": {
+                  "type": "string"
+                },
+                "shipment_summary": {
+                  "type": "string"
+                },
+                "shipments": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "carrier": {
+                        "type": "string"
+                      },
+                      "tracking_number": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "estimated_delivery_date": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "tracking_url": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "checkpoints": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "checkpoint_time": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string"
+                            },
+                            "message": {
+                              "type": "string"
+                            },
+                            "location": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "checkpoint_time",
+                            "status",
+                            "message",
+                            "location"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "description": "Newest scan first"
+                      }
+                    },
+                    "required": [
+                      "carrier",
+                      "tracking_number",
+                      "status",
+                      "estimated_delivery_date",
+                      "tracking_url",
+                      "checkpoints"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "order_id",
+                "order_status",
+                "shipment_summary",
+                "shipments"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "noauth"
+              },
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "orders:read"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "list-addresses",
+            "title": "List addresses the user has shipped to before",
+            "description": "Destinations from the signed-in user's recent orders, each with an id you can pass to prepare-order as address_id. Only useful once the user has signed in (list-orders has worked, or they asked for their history); for anyone else it has nothing, and the shopper enters the address on the payment page instead. It never prompts for sign-in.\n\nLabels are deliberately partial — a name, a city, a truncated postal code. You are not shown the street, and you do not need it: the full address is resolved server-side and shown to the user in the review card before anything is placed. Never reconstruct or guess an address from a label; if none of these is the right destination, ask the user.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {}
+            },
+            "annotations": {
+              "title": "List addresses the user has shipped to before",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "noauth"
+                },
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "orders:read"
+                  ]
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "addresses": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "Pass as prepare-order's address_id"
+                      },
+                      "label": {
+                        "type": "string",
+                        "description": "Partial by design — not the full address"
+                      },
+                      "last_used": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "order_count": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "label",
+                      "last_used",
+                      "order_count"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "orders_inspected": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "addresses",
+                "orders_inspected"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "noauth"
+              },
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "orders:read"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "prepare-order",
+            "title": "Prepare an order for the user to review",
+            "description": "Show the user an order to review: items, what it will cost and the hold on the card. This does NOT place the order or spend anything — the user places it by clicking Pay & place in the card that appears, and enters their shipping address on the payment page that opens. Use this whenever the user wants to buy something; never ask them for an address first. Pass each product's title, image and price_cents from search so the card shows the item and quotes the total; leave max_price out unless the user named a budget. address_id, from list-addresses, is only for a signed-in user shipping somewhere they have shipped before. Not sold through this connector: weapons, tobacco and nicotine, regulated drugs and paraphernalia, prescription medication, adult products, gambling, covert surveillance and counterfeit goods. An order for one of those is refused.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "products": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "description": "Product URL on the retailer's site"
+                      },
+                      "quantity": {
+                        "default": 1,
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "title": {
+                        "description": "Product title from search, for the card.",
+                        "type": "string"
+                      },
+                      "image": {
+                        "description": "Product image URL, copied verbatim from the search result. Only an address search returned can be shown — a constructed or substituted one is dropped rather than rendered.",
+                        "type": "string"
+                      },
+                      "price_cents": {
+                        "description": "Listed unit price from search, in cents. Drives the quote and the cap.",
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "url"
+                    ]
+                  }
+                },
+                "address_id": {
+                  "description": "An id from list-addresses, for a signed-in user shipping somewhere they have shipped before. Resolved against their own order history; the full address appears in the review card, not here. Leave it out otherwise: the shopper enters the address on the payment page. Never ask for an address in the conversation.",
+                  "type": "string"
+                },
+                "max_price": {
+                  "description": "Hard spending cap for this order, in cents, including tax and shipping. Pass it only when the user named a budget; otherwise leave it out and the cap is derived from the listed price, an estimated tax and shipping, with a margin. The order fails rather than exceeding it.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "products"
+              ]
+            },
+            "annotations": {
+              "title": "Prepare an order for the user to review",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "openai/toolInvocation": {
+                "invoking": "Preparing your order",
+                "invoked": "Ready to review"
+              },
+              "ui/resourceUri": "ui://views/order-confirm.html",
+              "ui": {
+                "resourceUri": "ui://views/order-confirm.html"
+              },
+              "securitySchemes": [
+                {
+                  "type": "noauth"
+                },
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "orders:write"
+                  ]
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "products": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "description": "Product URL on the retailer's site"
+                      },
+                      "quantity": {
+                        "default": 1,
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "title": {
+                        "description": "Product title from search, for the card.",
+                        "type": "string"
+                      },
+                      "image": {
+                        "description": "Product image URL, copied verbatim from the search result. Only an address search returned can be shown — a constructed or substituted one is dropped rather than rendered.",
+                        "type": "string"
+                      },
+                      "price_cents": {
+                        "description": "Listed unit price from search, in cents. Drives the quote and the cap.",
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "retailer_logo": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "url",
+                      "quantity"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "shipping_address": {
+                  "description": "Only when resolved from a saved address; otherwise entered at checkout.",
+                  "type": "object",
+                  "properties": {
+                    "first_name": {
+                      "type": "string"
+                    },
+                    "last_name": {
+                      "type": "string"
+                    },
+                    "address_line1": {
+                      "type": "string"
+                    },
+                    "address_line2": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "description": "Two-letter state code where applicable",
+                      "type": "string"
+                    },
+                    "postal_code": {
+                      "type": "string"
+                    },
+                    "phone_number": {
+                      "type": "string"
+                    },
+                    "country": {
+                      "default": "US",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "first_name",
+                    "last_name",
+                    "address_line1",
+                    "city",
+                    "postal_code",
+                    "phone_number",
+                    "country"
+                  ],
+                  "additionalProperties": false
+                },
+                "max_price_cents": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "max_price_display": {
+                  "type": "string"
+                },
+                "quote": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "listed_price_cents": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "estimated_tax_cents": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "shipping_cents": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "order_fee_cents": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "estimated_total_cents": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "What the card will most likely be charged: goods + tax + shipping + fee."
+                        },
+                        "hold_cents": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Authorized on the card: max_price + fee."
+                        },
+                        "tax_rate": {
+                          "type": "number",
+                          "description": "The rate the tax ESTIMATE used, as a decimal. Not a lookup: the destination is not known until checkout, so a flat 10% is assumed and the retailer charges the real tax. It only sizes the hold; only the actual total is ever captured."
+                        },
+                        "tax_basis": {
+                          "type": "string",
+                          "enum": [
+                            "assistant",
+                            "assumed",
+                            "floored"
+                          ],
+                          "description": "Always 'assumed' here: a flat 10% estimate, not a rate lookup."
+                        },
+                        "shipping_basis": {
+                          "type": "string",
+                          "enum": [
+                            "member",
+                            "free_over_threshold",
+                            "standard"
+                          ],
+                          "description": "member: ships free at any size on this connector; free_over_threshold: the basket clears the retailer's free-shipping line; standard: the retailer's ground charge applies."
+                        },
+                        "cap_basis": {
+                          "type": "string",
+                          "enum": [
+                            "derived",
+                            "budget"
+                          ],
+                          "description": "derived: the cap is the estimate plus a margin; budget: it is the max_price the user named."
+                        }
+                      },
+                      "required": [
+                        "listed_price_cents",
+                        "estimated_tax_cents",
+                        "shipping_cents",
+                        "order_fee_cents",
+                        "estimated_total_cents",
+                        "hold_cents",
+                        "tax_rate",
+                        "tax_basis",
+                        "shipping_basis",
+                        "cap_basis"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "ship_to_summary": {
+                  "type": "string",
+                  "description": "Empty when the shopper will enter the address on the payment page."
+                },
+                "environment": {
+                  "type": "string",
+                  "enum": [
+                    "sandbox",
+                    "live"
+                  ]
+                },
+                "can_place": {
+                  "type": "boolean",
+                  "description": "False when this connection lacks the orders:write scope."
+                },
+                "guest": {
+                  "type": "boolean",
+                  "description": "True when nobody is signed in: the order belongs to a guest account made from the checkout email rather than to a Zinc account."
+                }
+              },
+              "required": [
+                "products",
+                "max_price_cents",
+                "max_price_display",
+                "quote",
+                "ship_to_summary",
+                "environment",
+                "can_place",
+                "guest"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "noauth"
+              },
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "orders:write"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "place-order",
+            "title": "Place a reviewed order",
+            "description": "Internal: places an order the user already confirmed in the review card, paying by card. Requires a confirmation issued by prepare-order, which is not available to you — call prepare-order and let the user confirm instead.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "confirmation": {
+                  "type": "string",
+                  "description": "Issued by prepare-order to the view."
+                },
+                "order": {
+                  "type": "object",
+                  "properties": {
+                    "products": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "url": {
+                            "type": "string",
+                            "description": "Product URL on the retailer's site"
+                          },
+                          "quantity": {
+                            "default": 1,
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "image": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "url"
+                        ]
+                      }
+                    },
+                    "shipping_address": {
+                      "type": "object",
+                      "properties": {
+                        "first_name": {
+                          "type": "string"
+                        },
+                        "last_name": {
+                          "type": "string"
+                        },
+                        "address_line1": {
+                          "type": "string"
+                        },
+                        "address_line2": {
+                          "type": "string"
+                        },
+                        "city": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "description": "Two-letter state code where applicable",
+                          "type": "string"
+                        },
+                        "postal_code": {
+                          "type": "string"
+                        },
+                        "phone_number": {
+                          "type": "string"
+                        },
+                        "country": {
+                          "default": "US",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "first_name",
+                        "last_name",
+                        "address_line1",
+                        "city",
+                        "postal_code",
+                        "phone_number"
+                      ]
+                    },
+                    "max_price": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "products",
+                    "max_price"
+                  ]
+                }
+              },
+              "required": [
+                "confirmation",
+                "order"
+              ]
+            },
+            "annotations": {
+              "title": "Place a reviewed order",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": false,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "noauth"
+                },
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "orders:write"
+                  ]
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "description": "An order status once placed, or requires_action while the buyer pays."
+                },
+                "order_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "max_price_cents": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "payment": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "payment_id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "order_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "pay_url": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "expires_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "hold_cents": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "failure": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Why the payment ended `failed`, for the shopper — e.g. the address they entered at checkout could not be used. The hold has been released."
+                        }
+                      },
+                      "required": [
+                        "payment_id",
+                        "status",
+                        "order_id",
+                        "pay_url",
+                        "expires_at",
+                        "hold_cents",
+                        "failure"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Set when the buyer has to pay on pay_url before the order exists."
+                }
+              },
+              "required": [
+                "status",
+                "order_id",
+                "max_price_cents",
+                "payment"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "noauth"
+              },
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "orders:write"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "get-payment-status",
+            "title": "Check a pending card payment",
+            "description": "Where a card payment stands after place-order sent the buyer to a payment page: requires_action until they pay, then placed with the order_id. The review card polls this itself; call it only if the user asks whether their payment went through.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "payment_id": {
+                  "type": "string",
+                  "description": "The payment id place-order returned."
+                }
+              },
+              "required": [
+                "payment_id"
+              ]
+            },
+            "annotations": {
+              "title": "Check a pending card payment",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "securitySchemes": [
+                {
+                  "type": "noauth"
+                },
+                {
+                  "type": "oauth2",
+                  "scopes": [
+                    "orders:read"
+                  ]
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "payment_id": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "order_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "pay_url": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "expires_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "hold_cents": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "failure": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Why the payment ended `failed`, for the shopper — e.g. the address they entered at checkout could not be used. The hold has been released."
+                }
+              },
+              "required": [
+                "payment_id",
+                "status",
+                "order_id",
+                "pay_url",
+                "expires_at",
+                "hold_cents",
+                "failure"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "noauth"
+              },
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "orders:read"
+                ]
+              }
+            ]
+          },
+          {
+            "name": "search-products",
+            "title": "Search for products across retailers",
+            "description": "Find products across Amazon, Walmart, Target, Best Buy and more. Each result carries an orderable URL that can be passed straight to prepare-order, along with its title, image and price_cents — pass those too, so the review card can show the item and quote the total. Use this when the user wants to buy something but has not given a product URL. Then stop and let the user choose from the card — do not go on to prepare-order in the same turn unless they already named the exact item or asked you to pick.\n\nSearch once with the user's best query rather than issuing speculative variations, and do not retry a failed search without saying why.\n\nWhen the user names the store they want to buy from, pass it in retailers rather than in the query; otherwise leave retailers out and search everywhere.\n\nNot sold through this connector: weapons, tobacco and nicotine, regulated drugs and paraphernalia, prescription medication, adult products, gambling, covert surveillance and counterfeit goods. A search for one of those is refused and matching results are dropped; tell the user plainly rather than rephrasing the query to get around it.",
+            "inputSchema": {
+              "type": "object",
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "What to search for, e.g. 'airpods pro' or 'cotton bath towels'"
+                },
+                "retailers": {
+                  "description": "Only return results from these stores: any of amazon, bestbuy, bhphotovideo, chewy, costco, homedepot, kohls, lowes, macys, newegg, staples, target, walmart, wayfair, plus up to 3 Shopify stores by domain (e.g. 'yetch.studio'). A Shopify store must be in Zinc's catalog; an unknown value is rejected with the list of accepted ones. Omit to search every retailer.",
+                  "maxItems": 17,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  }
+                }
+              },
+              "required": [
+                "query"
+              ]
+            },
+            "annotations": {
+              "title": "Search for products across retailers",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "openai/toolInvocation": {
+                "invoking": "Searching retailers",
+                "invoked": "Showing results"
+              },
+              "ui/resourceUri": "ui://views/product-search.html",
+              "ui": {
+                "resourceUri": "ui://views/product-search.html"
+              },
+              "securitySchemes": [
+                {
+                  "type": "noauth"
+                }
+              ]
+            },
+            "outputSchema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string"
+                },
+                "retailers": {
+                  "description": "The stores the search was limited to; absent when it searched everywhere.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "results": {
+                  "maxItems": 20,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "description": "Orderable retailer URL — pass straight to prepare-order"
+                      },
+                      "retailer": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "image": {
+                        "type": "string"
+                      },
+                      "retailer_logo": {
+                        "type": "string"
+                      },
+                      "brand": {
+                        "type": "string"
+                      },
+                      "price_cents": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "price_display": {
+                        "type": "string"
+                      },
+                      "stars": {
+                        "type": "number"
+                      },
+                      "num_reviews": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "url",
+                      "retailer",
+                      "title"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "At most 20 results, best first. The card shows them all; a narrower query finds more, not a second page."
+                },
+                "result_count": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "How many results are in `results`."
+                },
+                "environment": {
+                  "type": "string",
+                  "enum": [
+                    "sandbox",
+                    "live"
+                  ]
+                }
+              },
+              "required": [
+                "query",
+                "results",
+                "result_count",
+                "environment"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "noauth"
+              }
+            ]
+          },
+          {
+            "name": "send_feedback",
+            "title": "Send feedback",
+            "description": "Records feedback about this MCP server, including unexpected tool failures, unhelpful responses, or missing capabilities observed by the agent or reported by the user.",
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "content": {
+                  "type": "string",
+                  "description": "The feedback content, stripped of any PII."
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "user",
+                    "model"
+                  ],
+                  "description": "Who initiated the feedback: \"user\" or \"model\"."
+                }
+              },
+              "required": [
+                "content",
+                "source"
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "list-orders",
+        "title": "List Zinc orders",
+        "description": "List or search the Zinc orders on the configured account, newest first. Renders an interactive order list. Use `search` for a partial order ID or tracking number, `status` to filter by order status, and `has_tracking` to show only shipped orders.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "search": {
+              "description": "Partial Zinc order ID or tracking number to match",
+              "type": "string"
+            },
+            "status": {
+              "description": "Filter to one Zinc order status",
+              "type": "string",
+              "enum": [
+                "pending",
+                "in_progress",
+                "order_placed",
+                "order_failed",
+                "cancelled",
+                "cancelled_by_retailer"
+              ]
+            },
+            "has_tracking": {
+              "description": "True to return only orders that already have tracking numbers",
+              "type": "boolean"
+            },
+            "limit": {
+              "default": 10,
+              "description": "How many orders to return (1-50, default 10)",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        },
+        "annotations": {
+          "title": "List Zinc orders",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "openai/toolInvocation": {
+            "invoking": "Loading orders",
+            "invoked": "Showing orders"
+          },
+          "ui/resourceUri": "ui://views/orders-list.html",
+          "ui": {
+            "resourceUri": "ui://views/orders-list.html"
+          },
+          "securitySchemes": [
+            {
+              "type": "oauth2",
+              "scopes": [
+                "orders:read",
+                "orders:write"
+              ]
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "orders": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Zinc order UUID"
+                  },
+                  "status": {
+                    "type": "string",
+                    "description": "Zinc order status"
+                  },
+                  "retailer": {
+                    "type": "string",
+                    "description": "Merchant inferred from the item URLs — Zinc stores no retailer field"
+                  },
+                  "item_count": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
+                    "description": "Total units across all line items"
+                  },
+                  "item_urls": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Retailer URL per line item. Zinc stores no product name, so this is the only identification of what was ordered — a title derived from the URL path was a guess and often wrong."
+                  },
+                  "retailer_logo": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The retailer's mark, for rows with no product picture."
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "url": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "image": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "url",
+                        "title",
+                        "image"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "description": "One per line item. title/image are what the shopper saw in the review card when the order was placed through this connector; null when the order came from elsewhere."
+                  },
+                  "total_cents": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "What the retailer charged, in cents. Null when the order was never placed AND null on every list-orders row — the Zinc list endpoint omits it. Call get-order for the real total."
+                  },
+                  "total_display": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Preformatted total, e.g. $41.98"
+                  },
+                  "max_price_cents": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Customer's price ceiling, in cents. Null means withheld, not zero: the public tracking view a guest reads does not carry it. A zero ceiling means something specific (see is_trial) that null does not."
+                  },
+                  "merchant_order_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Retailer's own order numbers"
+                  },
+                  "shipment_summary": {
+                    "type": "string",
+                    "description": "One-line shipment state rolled up from the tracking rows"
+                  },
+                  "tracking": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "carrier": {
+                          "type": "string",
+                          "description": "Carrier code, e.g. ups, usps, fedex"
+                        },
+                        "tracking_number": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "pending, in_transit, or delivered; null before first scan"
+                        },
+                        "estimated_delivery_date": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Carrier ETA as a destination-local YYYY-MM-DD date"
+                        },
+                        "tracking_url": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "carrier",
+                        "tracking_number",
+                        "status",
+                        "estimated_delivery_date",
+                        "tracking_url"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "error": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Failure reason when status is order_failed"
+                  },
+                  "error_type": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Worker's classification of the failure, e.g. max_price_exceeded"
+                  },
+                  "is_trial": {
+                    "type": "boolean",
+                    "description": "max_price of 0 marks a trial run: the retailer validates the order and deliberately does not place it, charging nothing. That outcome is recorded as order_failed with error_type max_price_exceeded, and nothing went wrong — do not report it as a failure. A trial carrying any other error_type did fail, before the price ceiling was ever reached, and the error explains how. This flag is the one to read: a null max_price_cents is an unknown ceiling, never a trial."
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "updated_at": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "status",
+                  "retailer",
+                  "item_count",
+                  "item_urls",
+                  "retailer_logo",
+                  "items",
+                  "total_cents",
+                  "total_display",
+                  "max_price_cents",
+                  "merchant_order_ids",
+                  "shipment_summary",
+                  "tracking",
+                  "error",
+                  "error_type",
+                  "is_trial",
+                  "created_at",
+                  "updated_at"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "total": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991,
+              "description": "Total matching orders on the account"
+            },
+            "returned": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "environment": {
+              "type": "string",
+              "enum": [
+                "sandbox",
+                "live"
+              ],
+              "description": "Which Zinc dataset the configured API key reads"
+            }
+          },
+          "required": [
+            "orders",
+            "total",
+            "returned",
+            "environment"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "orders:read",
+              "orders:write"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "get-order",
+        "title": "Get a Zinc order",
+        "description": "Fetch one Zinc order by its UUID and render a detail card: line items, retailer price breakdown, shipping destination, and shipment timeline.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "order_id": {
+              "type": "string",
+              "description": "The Zinc order UUID"
+            }
+          },
+          "required": [
+            "order_id"
+          ]
+        },
+        "annotations": {
+          "title": "Get a Zinc order",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "openai/toolInvocation": {
+            "invoking": "Fetching the order",
+            "invoked": "Showing the order"
+          },
+          "ui/resourceUri": "ui://views/order-detail.html",
+          "ui": {
+            "resourceUri": "ui://views/order-detail.html"
+          },
+          "securitySchemes": [
+            {
+              "type": "noauth"
+            },
+            {
+              "type": "oauth2",
+              "scopes": [
+                "orders:read"
+              ]
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "order": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Zinc order UUID"
+                },
+                "status": {
+                  "type": "string",
+                  "description": "Zinc order status"
+                },
+                "retailer": {
+                  "type": "string",
+                  "description": "Merchant inferred from the item URLs — Zinc stores no retailer field"
+                },
+                "item_count": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "Total units across all line items"
+                },
+                "item_urls": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Retailer URL per line item. Zinc stores no product name, so this is the only identification of what was ordered — a title derived from the URL path was a guess and often wrong."
+                },
+                "retailer_logo": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "The retailer's mark, for rows with no product picture."
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "image": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "url",
+                      "title",
+                      "image"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "One per line item. title/image are what the shopper saw in the review card when the order was placed through this connector; null when the order came from elsewhere."
+                },
+                "total_cents": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "What the retailer charged, in cents. Null when the order was never placed AND null on every list-orders row — the Zinc list endpoint omits it. Call get-order for the real total."
+                },
+                "total_display": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Preformatted total, e.g. $41.98"
+                },
+                "max_price_cents": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Customer's price ceiling, in cents. Null means withheld, not zero: the public tracking view a guest reads does not carry it. A zero ceiling means something specific (see is_trial) that null does not."
+                },
+                "merchant_order_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Retailer's own order numbers"
+                },
+                "shipment_summary": {
+                  "type": "string",
+                  "description": "One-line shipment state rolled up from the tracking rows"
+                },
+                "tracking": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "carrier": {
+                        "type": "string",
+                        "description": "Carrier code, e.g. ups, usps, fedex"
+                      },
+                      "tracking_number": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "pending, in_transit, or delivered; null before first scan"
+                      },
+                      "estimated_delivery_date": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Carrier ETA as a destination-local YYYY-MM-DD date"
+                      },
+                      "tracking_url": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "carrier",
+                      "tracking_number",
+                      "status",
+                      "estimated_delivery_date",
+                      "tracking_url"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "error": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Failure reason when status is order_failed"
+                },
+                "error_type": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Worker's classification of the failure, e.g. max_price_exceeded"
+                },
+                "is_trial": {
+                  "type": "boolean",
+                  "description": "max_price of 0 marks a trial run: the retailer validates the order and deliberately does not place it, charging nothing. That outcome is recorded as order_failed with error_type max_price_exceeded, and nothing went wrong — do not report it as a failure. A trial carrying any other error_type did fail, before the price ceiling was ever reached, and the error explains how. This flag is the one to read: a null max_price_cents is an unknown ceiling, never a trial."
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "updated_at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "status",
+                "retailer",
+                "item_count",
+                "item_urls",
+                "retailer_logo",
+                "items",
+                "total_cents",
+                "total_display",
+                "max_price_cents",
+                "merchant_order_ids",
+                "shipment_summary",
+                "tracking",
+                "error",
+                "error_type",
+                "is_trial",
+                "created_at",
+                "updated_at"
+              ],
+              "additionalProperties": false
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "What the shopper saw when buying through this connector; null otherwise."
+                  },
+                  "image": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "retailer_logo": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "variant": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "cancellation_reason": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "url",
+                  "title",
+                  "image",
+                  "retailer_logo",
+                  "quantity",
+                  "status",
+                  "variant",
+                  "cancellation_reason"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "price_breakdown": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "subtotal_cents": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "tax_cents": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "shipping_cents": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "discount_cents": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "fees_cents": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "total_cents": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "currency": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "subtotal_cents",
+                    "tax_cents",
+                    "shipping_cents",
+                    "discount_cents",
+                    "fees_cents",
+                    "total_cents",
+                    "currency"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Null until the retailer order is placed — unless prices_withheld is true, which means the amounts exist and this read cannot see them. All amounts in cents."
+            },
+            "prices_withheld": {
+              "type": "boolean",
+              "description": "True when the order was read without an account, from the public tracking view, which carries no money at all. The order may well have been charged in full: never report it as uncharged. False on a signed-in read, where a null breakdown does mean not charged yet."
+            },
+            "ship_to": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "city": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "state": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "postal_code": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "country": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "city",
+                    "state",
+                    "postal_code",
+                    "country"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "environment": {
+              "type": "string",
+              "enum": [
+                "sandbox",
+                "live"
+              ]
+            }
+          },
+          "required": [
+            "order",
+            "items",
+            "price_breakdown",
+            "prices_withheld",
+            "ship_to",
+            "environment"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "noauth"
+          },
+          {
+            "type": "oauth2",
+            "scopes": [
+              "orders:read"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "get-order-tracking",
+        "title": "Get shipment tracking for a Zinc order",
+        "description": "Return the carrier tracking timeline (scan checkpoints) for one Zinc order. Use this when the question is only about where a package is, not about pricing or line items.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "order_id": {
+              "type": "string",
+              "description": "The Zinc order UUID"
+            }
+          },
+          "required": [
+            "order_id"
+          ]
+        },
+        "annotations": {
+          "title": "Get shipment tracking for a Zinc order",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "noauth"
+            },
+            {
+              "type": "oauth2",
+              "scopes": [
+                "orders:read"
+              ]
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "order_id": {
+              "type": "string"
+            },
+            "order_status": {
+              "type": "string"
+            },
+            "shipment_summary": {
+              "type": "string"
+            },
+            "shipments": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "carrier": {
+                    "type": "string"
+                  },
+                  "tracking_number": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "estimated_delivery_date": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "tracking_url": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "checkpoints": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "checkpoint_time": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "location": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "checkpoint_time",
+                        "status",
+                        "message",
+                        "location"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "description": "Newest scan first"
+                  }
+                },
+                "required": [
+                  "carrier",
+                  "tracking_number",
+                  "status",
+                  "estimated_delivery_date",
+                  "tracking_url",
+                  "checkpoints"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "order_id",
+            "order_status",
+            "shipment_summary",
+            "shipments"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "noauth"
+          },
+          {
+            "type": "oauth2",
+            "scopes": [
+              "orders:read"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "list-addresses",
+        "title": "List addresses the user has shipped to before",
+        "description": "Destinations from the signed-in user's recent orders, each with an id you can pass to prepare-order as address_id. Only useful once the user has signed in (list-orders has worked, or they asked for their history); for anyone else it has nothing, and the shopper enters the address on the payment page instead. It never prompts for sign-in.\n\nLabels are deliberately partial — a name, a city, a truncated postal code. You are not shown the street, and you do not need it: the full address is resolved server-side and shown to the user in the review card before anything is placed. Never reconstruct or guess an address from a label; if none of these is the right destination, ask the user.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {}
+        },
+        "annotations": {
+          "title": "List addresses the user has shipped to before",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "noauth"
+            },
+            {
+              "type": "oauth2",
+              "scopes": [
+                "orders:read"
+              ]
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "addresses": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Pass as prepare-order's address_id"
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "Partial by design — not the full address"
+                  },
+                  "last_used": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "order_count": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "id",
+                  "label",
+                  "last_used",
+                  "order_count"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "orders_inspected": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "addresses",
+            "orders_inspected"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "noauth"
+          },
+          {
+            "type": "oauth2",
+            "scopes": [
+              "orders:read"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "prepare-order",
+        "title": "Prepare an order for the user to review",
+        "description": "Show the user an order to review: items, what it will cost and the hold on the card. This does NOT place the order or spend anything — the user places it by clicking Pay & place in the card that appears, and enters their shipping address on the payment page that opens. Use this whenever the user wants to buy something; never ask them for an address first. Pass each product's title, image and price_cents from search so the card shows the item and quotes the total; leave max_price out unless the user named a budget. address_id, from list-addresses, is only for a signed-in user shipping somewhere they have shipped before. Not sold through this connector: weapons, tobacco and nicotine, regulated drugs and paraphernalia, prescription medication, adult products, gambling, covert surveillance and counterfeit goods. An order for one of those is refused.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "products": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "description": "Product URL on the retailer's site"
+                  },
+                  "quantity": {
+                    "default": 1,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "title": {
+                    "description": "Product title from search, for the card.",
+                    "type": "string"
+                  },
+                  "image": {
+                    "description": "Product image URL, copied verbatim from the search result. Only an address search returned can be shown — a constructed or substituted one is dropped rather than rendered.",
+                    "type": "string"
+                  },
+                  "price_cents": {
+                    "description": "Listed unit price from search, in cents. Drives the quote and the cap.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "url"
+                ]
+              }
+            },
+            "address_id": {
+              "description": "An id from list-addresses, for a signed-in user shipping somewhere they have shipped before. Resolved against their own order history; the full address appears in the review card, not here. Leave it out otherwise: the shopper enters the address on the payment page. Never ask for an address in the conversation.",
+              "type": "string"
+            },
+            "max_price": {
+              "description": "Hard spending cap for this order, in cents, including tax and shipping. Pass it only when the user named a budget; otherwise leave it out and the cap is derived from the listed price, an estimated tax and shipping, with a margin. The order fails rather than exceeding it.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "products"
+          ]
+        },
+        "annotations": {
+          "title": "Prepare an order for the user to review",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "openai/toolInvocation": {
+            "invoking": "Preparing your order",
+            "invoked": "Ready to review"
+          },
+          "ui/resourceUri": "ui://views/order-confirm.html",
+          "ui": {
+            "resourceUri": "ui://views/order-confirm.html"
+          },
+          "securitySchemes": [
+            {
+              "type": "noauth"
+            },
+            {
+              "type": "oauth2",
+              "scopes": [
+                "orders:write"
+              ]
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "products": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "description": "Product URL on the retailer's site"
+                  },
+                  "quantity": {
+                    "default": 1,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "title": {
+                    "description": "Product title from search, for the card.",
+                    "type": "string"
+                  },
+                  "image": {
+                    "description": "Product image URL, copied verbatim from the search result. Only an address search returned can be shown — a constructed or substituted one is dropped rather than rendered.",
+                    "type": "string"
+                  },
+                  "price_cents": {
+                    "description": "Listed unit price from search, in cents. Drives the quote and the cap.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "retailer_logo": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url",
+                  "quantity"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "shipping_address": {
+              "description": "Only when resolved from a saved address; otherwise entered at checkout.",
+              "type": "object",
+              "properties": {
+                "first_name": {
+                  "type": "string"
+                },
+                "last_name": {
+                  "type": "string"
+                },
+                "address_line1": {
+                  "type": "string"
+                },
+                "address_line2": {
+                  "type": "string"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "state": {
+                  "description": "Two-letter state code where applicable",
+                  "type": "string"
+                },
+                "postal_code": {
+                  "type": "string"
+                },
+                "phone_number": {
+                  "type": "string"
+                },
+                "country": {
+                  "default": "US",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "first_name",
+                "last_name",
+                "address_line1",
+                "city",
+                "postal_code",
+                "phone_number",
+                "country"
+              ],
+              "additionalProperties": false
+            },
+            "max_price_cents": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "max_price_display": {
+              "type": "string"
+            },
+            "quote": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "listed_price_cents": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "estimated_tax_cents": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "shipping_cents": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "order_fee_cents": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "estimated_total_cents": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "What the card will most likely be charged: goods + tax + shipping + fee."
+                    },
+                    "hold_cents": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Authorized on the card: max_price + fee."
+                    },
+                    "tax_rate": {
+                      "type": "number",
+                      "description": "The rate the tax ESTIMATE used, as a decimal. Not a lookup: the destination is not known until checkout, so a flat 10% is assumed and the retailer charges the real tax. It only sizes the hold; only the actual total is ever captured."
+                    },
+                    "tax_basis": {
+                      "type": "string",
+                      "enum": [
+                        "assistant",
+                        "assumed",
+                        "floored"
+                      ],
+                      "description": "Always 'assumed' here: a flat 10% estimate, not a rate lookup."
+                    },
+                    "shipping_basis": {
+                      "type": "string",
+                      "enum": [
+                        "member",
+                        "free_over_threshold",
+                        "standard"
+                      ],
+                      "description": "member: ships free at any size on this connector; free_over_threshold: the basket clears the retailer's free-shipping line; standard: the retailer's ground charge applies."
+                    },
+                    "cap_basis": {
+                      "type": "string",
+                      "enum": [
+                        "derived",
+                        "budget"
+                      ],
+                      "description": "derived: the cap is the estimate plus a margin; budget: it is the max_price the user named."
+                    }
+                  },
+                  "required": [
+                    "listed_price_cents",
+                    "estimated_tax_cents",
+                    "shipping_cents",
+                    "order_fee_cents",
+                    "estimated_total_cents",
+                    "hold_cents",
+                    "tax_rate",
+                    "tax_basis",
+                    "shipping_basis",
+                    "cap_basis"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ship_to_summary": {
+              "type": "string",
+              "description": "Empty when the shopper will enter the address on the payment page."
+            },
+            "environment": {
+              "type": "string",
+              "enum": [
+                "sandbox",
+                "live"
+              ]
+            },
+            "can_place": {
+              "type": "boolean",
+              "description": "False when this connection lacks the orders:write scope."
+            },
+            "guest": {
+              "type": "boolean",
+              "description": "True when nobody is signed in: the order belongs to a guest account made from the checkout email rather than to a Zinc account."
+            }
+          },
+          "required": [
+            "products",
+            "max_price_cents",
+            "max_price_display",
+            "quote",
+            "ship_to_summary",
+            "environment",
+            "can_place",
+            "guest"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "noauth"
+          },
+          {
+            "type": "oauth2",
+            "scopes": [
+              "orders:write"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "place-order",
+        "title": "Place a reviewed order",
+        "description": "Internal: places an order the user already confirmed in the review card, paying by card. Requires a confirmation issued by prepare-order, which is not available to you — call prepare-order and let the user confirm instead.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "confirmation": {
+              "type": "string",
+              "description": "Issued by prepare-order to the view."
+            },
+            "order": {
+              "type": "object",
+              "properties": {
+                "products": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "description": "Product URL on the retailer's site"
+                      },
+                      "quantity": {
+                        "default": 1,
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "image": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "url"
+                    ]
+                  }
+                },
+                "shipping_address": {
+                  "type": "object",
+                  "properties": {
+                    "first_name": {
+                      "type": "string"
+                    },
+                    "last_name": {
+                      "type": "string"
+                    },
+                    "address_line1": {
+                      "type": "string"
+                    },
+                    "address_line2": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "description": "Two-letter state code where applicable",
+                      "type": "string"
+                    },
+                    "postal_code": {
+                      "type": "string"
+                    },
+                    "phone_number": {
+                      "type": "string"
+                    },
+                    "country": {
+                      "default": "US",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "first_name",
+                    "last_name",
+                    "address_line1",
+                    "city",
+                    "postal_code",
+                    "phone_number"
+                  ]
+                },
+                "max_price": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "products",
+                "max_price"
+              ]
+            }
+          },
+          "required": [
+            "confirmation",
+            "order"
+          ]
+        },
+        "annotations": {
+          "title": "Place a reviewed order",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "noauth"
+            },
+            {
+              "type": "oauth2",
+              "scopes": [
+                "orders:write"
+              ]
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "description": "An order status once placed, or requires_action while the buyer pays."
+            },
+            "order_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "max_price_cents": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "payment": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "payment_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "order_id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "pay_url": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "expires_at": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "hold_cents": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "failure": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Why the payment ended `failed`, for the shopper — e.g. the address they entered at checkout could not be used. The hold has been released."
+                    }
+                  },
+                  "required": [
+                    "payment_id",
+                    "status",
+                    "order_id",
+                    "pay_url",
+                    "expires_at",
+                    "hold_cents",
+                    "failure"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Set when the buyer has to pay on pay_url before the order exists."
+            }
+          },
+          "required": [
+            "status",
+            "order_id",
+            "max_price_cents",
+            "payment"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "noauth"
+          },
+          {
+            "type": "oauth2",
+            "scopes": [
+              "orders:write"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "get-payment-status",
+        "title": "Check a pending card payment",
+        "description": "Where a card payment stands after place-order sent the buyer to a payment page: requires_action until they pay, then placed with the order_id. The review card polls this itself; call it only if the user asks whether their payment went through.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "payment_id": {
+              "type": "string",
+              "description": "The payment id place-order returned."
+            }
+          },
+          "required": [
+            "payment_id"
+          ]
+        },
+        "annotations": {
+          "title": "Check a pending card payment",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "securitySchemes": [
+            {
+              "type": "noauth"
+            },
+            {
+              "type": "oauth2",
+              "scopes": [
+                "orders:read"
+              ]
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "payment_id": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "order_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "pay_url": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "expires_at": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "hold_cents": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "failure": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Why the payment ended `failed`, for the shopper — e.g. the address they entered at checkout could not be used. The hold has been released."
+            }
+          },
+          "required": [
+            "payment_id",
+            "status",
+            "order_id",
+            "pay_url",
+            "expires_at",
+            "hold_cents",
+            "failure"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "noauth"
+          },
+          {
+            "type": "oauth2",
+            "scopes": [
+              "orders:read"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "search-products",
+        "title": "Search for products across retailers",
+        "description": "Find products across Amazon, Walmart, Target, Best Buy and more. Each result carries an orderable URL that can be passed straight to prepare-order, along with its title, image and price_cents — pass those too, so the review card can show the item and quote the total. Use this when the user wants to buy something but has not given a product URL. Then stop and let the user choose from the card — do not go on to prepare-order in the same turn unless they already named the exact item or asked you to pick.\n\nSearch once with the user's best query rather than issuing speculative variations, and do not retry a failed search without saying why.\n\nWhen the user names the store they want to buy from, pass it in retailers rather than in the query; otherwise leave retailers out and search everywhere.\n\nNot sold through this connector: weapons, tobacco and nicotine, regulated drugs and paraphernalia, prescription medication, adult products, gambling, covert surveillance and counterfeit goods. A search for one of those is refused and matching results are dropped; tell the user plainly rather than rephrasing the query to get around it.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "description": "What to search for, e.g. 'airpods pro' or 'cotton bath towels'"
+            },
+            "retailers": {
+              "description": "Only return results from these stores: any of amazon, bestbuy, bhphotovideo, chewy, costco, homedepot, kohls, lowes, macys, newegg, staples, target, walmart, wayfair, plus up to 3 Shopify stores by domain (e.g. 'yetch.studio'). A Shopify store must be in Zinc's catalog; an unknown value is rejected with the list of accepted ones. Omit to search every retailer.",
+              "maxItems": 17,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              }
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "annotations": {
+          "title": "Search for products across retailers",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "openai/toolInvocation": {
+            "invoking": "Searching retailers",
+            "invoked": "Showing results"
+          },
+          "ui/resourceUri": "ui://views/product-search.html",
+          "ui": {
+            "resourceUri": "ui://views/product-search.html"
+          },
+          "securitySchemes": [
+            {
+              "type": "noauth"
+            }
+          ]
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "retailers": {
+              "description": "The stores the search was limited to; absent when it searched everywhere.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "results": {
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "description": "Orderable retailer URL — pass straight to prepare-order"
+                  },
+                  "retailer": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "image": {
+                    "type": "string"
+                  },
+                  "retailer_logo": {
+                    "type": "string"
+                  },
+                  "brand": {
+                    "type": "string"
+                  },
+                  "price_cents": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "price_display": {
+                    "type": "string"
+                  },
+                  "stars": {
+                    "type": "number"
+                  },
+                  "num_reviews": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "url",
+                  "retailer",
+                  "title"
+                ],
+                "additionalProperties": false
+              },
+              "description": "At most 20 results, best first. The card shows them all; a narrower query finds more, not a second page."
+            },
+            "result_count": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991,
+              "description": "How many results are in `results`."
+            },
+            "environment": {
+              "type": "string",
+              "enum": [
+                "sandbox",
+                "live"
+              ]
+            }
+          },
+          "required": [
+            "query",
+            "results",
+            "result_count",
+            "environment"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "noauth"
+          }
+        ]
+      },
+      {
+        "name": "send_feedback",
+        "title": "Send feedback",
+        "description": "Records feedback about this MCP server, including unexpected tool failures, unhelpful responses, or missing capabilities observed by the agent or reported by the user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "content": {
+              "type": "string",
+              "description": "The feedback content, stripped of any PII."
+            },
+            "source": {
+              "type": "string",
+              "enum": [
+                "user",
+                "model"
+              ],
+              "description": "Who initiated the feedback: \"user\" or \"model\"."
+            }
+          },
+          "required": [
+            "content",
+            "source"
+          ]
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:30:24.822Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:30:31.100Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:30:32.152Z",
+        "status": 204
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:30:33.203Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 9,
+    "tools_hash": "sha256:20c09a0edd39191e15720eb17437cd493c228a4ee68f61d293fab1cdb8c8ee95",
+    "static_tool_tokens": 3695,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get-order",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "prepare-order",
+        "message": "Parameter has no description.",
+        "param": "products"
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "place-order",
+        "message": "Parameter has no description.",
+        "param": "order"
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get-payment-status",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F8",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search-products",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "send_feedback",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "send_feedback",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 6,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "list-orders",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "How many orders to return (1-50, default 10)",
+          "mentions_size_or_cost": true,
+          "default": 10,
+          "described_default": 10,
+          "maximum": 50
+        },
+        {
+          "tool": "prepare-order",
+          "path": "inputSchema.properties.max_price",
+          "name": "max_price",
+          "description": "Hard spending cap for this order, in cents, including tax and shipping. Pass it only when the user named a budget; otherwise leave it out and the cap is derived from the listed price, an estimated tax and shipping, with a margin. The order fails rather than exceeding it.",
+          "mentions_size_or_cost": true,
+          "maximum": 9007199254740991
+        },
+        {
+          "tool": "place-order",
+          "path": "inputSchema.properties.order.properties.max_price",
+          "name": "max_price",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "maximum": 9007199254740991
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "place-order"
+          ],
+          "path": "inputSchema.properties.order.properties.max_price",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list-orders",
+            "get-order"
+          ],
+          "hypothesis": "Read tools share resource terms (order), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list-orders",
+            "get-order-tracking"
+          ],
+          "hypothesis": "Read tools share resource terms (order), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get-order",
+            "get-order-tracking"
+          ],
+          "hypothesis": "Read tools share resource terms (order), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "list-orders",
+      "get-order",
+      "get-order-tracking",
+      "list-addresses",
+      "prepare-order",
+      "get-payment-status",
+      "search-products"
+    ]
+  }
+}

@@ -1,0 +1,1782 @@
+{
+  "slug": "square-yards",
+  "source_url": "https://manufact.com/mcp-catalog/square-yards",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:24:49.500Z",
+    "endpoint": "https://sy-mcp.squareyards.com/mcp/external",
+    "transport": "streamable",
+    "server": {
+      "name": "square-yards-mcp",
+      "version": "1.0.0"
+    },
+    "capabilities": {
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Square Yards real-estate data for INDIA ONLY (cities, localities, projects, listings, price rates across India; powered by Square Yards). Do NOT use these tools for real estate outside India — say so and decline for other countries. Use search_entities FIRST to resolve a place or brand (city/locality/micromarket/builder/landmark); it returns each entity with ready-to-use `forProperties` and `forProjects` scopes. Then call search_properties (sale/rent listings — set listingType) or search_projects (new developments), passing the chosen entity's scope verbatim. Budgets are absolute INR. For a deep detail a search result did NOT include (a project's possession/completion date, per-wing RERA, amenities, full spec), drill down with get_entity_details using an id from the search result. To compare 2-4 entities of the SAME type side by side (two projects, three localities), use compare_entities with their ids. To RANK many localities — or a city's top areas — for end-use vs investment (\"which area is best to buy in\") use recommend_localities (resolve the locality ids via search_entities first). For informational \"how/what\" questions (home loans, vastu, buying/renting process) use search_faq; for EMI or affordability NUMBERS (\"EMI on 80 lakh\", \"what can I afford on 2L/month\") use estimate_home_loan; for area/land unit conversions (\"how many sq ft in a bigha\", \"5 acre to gaj\") use area_conversion. Both are pure calculators. All tools are read-only and never mutate data.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "search_entities",
+            "title": "Resolve Place, Builder or Project",
+            "description": "Resolve a place/builder/project NAME (city, locality, micromarket, builder, project, landmark) into the ids the other tools need; returns ranked entity SUMMARIES, never full listings/projects. For a normal search BY PLACE do NOT call this first -> call search_properties or search_projects with `location` set (they resolve the place themselves in ONE call). Use search_entities ONLY to disambiguate an ambiguous place, get a landmark's coordinates, or resolve a builder/project name to an id. When you do use it, chain in the SAME turn: resolving a place but fetching no listings/projects/detail is INCOMPLETE.\n\nReading results:\n- city/locality/micromarket/builder -> carries ready-made `forProperties` (beats-space ids -> search_properties) and `forProjects` (dotcom-space ids -> search_projects) scope objects; pass the matching one's fields VERBATIM, never build or transform ids.\n- type:\"project\" -> take its `dotcomId`; drill in with get_entity_details (entity=\"project\") or scope search_projects by it.\n- type:\"landmark\" -> take its `coordinates` as lat/long (or landmarkId \"lat|lng|name\") for a near-<landmark> radius search.\n\nRouting after resolving: resale/rent -> search_properties; new-construction -> search_projects; general buy -> BOTH; one entity's full detail or a place's price-rates -> get_entity_details. Always pick the ONE result whose name and city match the user's words (\"Noida\" -> the city Noida, not Greater Noida). (search_faq answers how/what/why and needs no id.)",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "q": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Free-text place, brand, or PROJECT name in the user's own words (required)."
+                },
+                "entityType": {
+                  "type": "string",
+                  "description": "Optional comma list to scope result types: city, locality, micromarket, builder, project, landmark. Omit for all types. Use entityType=\"project\" to resolve a PROJECT NAME to its id (then drill into get_entity_details or search_projects). Use entityType=\"landmark\" to get a place's coordinates for a near-by radius search."
+                },
+                "cityHint": {
+                  "type": "string",
+                  "description": "City NAME to bias ranking toward when the query is ambiguous (e.g. a bare \"Sector 15\"). Matching-city results float to the top; nothing is dropped. Pass the user's city when known."
+                },
+                "cityId": {
+                  "type": "string",
+                  "description": "Dotcom city id(s), comma-separated. Restrict results to these cities."
+                },
+                "beatsCityId": {
+                  "type": "string",
+                  "description": "Beats-space city id(s), comma-separated. OR'd with cityId."
+                },
+                "size": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50,
+                  "description": "Max number of results."
+                }
+              },
+              "required": [
+                "q"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Resolve Place, Builder or Project",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "search_properties",
+            "title": "Search Property Listings",
+            "description": "Search actual SALE or RENT LISTINGS - individual resale/rental units, shown as property cards. ROUTING: listing intent (\"flats/for sale/resale/to rent\") -> THIS; \"project/new launch/under construction\" -> search_projects; a general buy with no resale-vs-new preference -> call BOTH (this with Sale + search_projects); a PLACE's price rates / per-sq-ft / market trends (not individual units) -> get_entity_details entity=\"property-rates\" (NOT a listings search). ALWAYS set listingType (Sale|Rent). SIMPLEST (one call): pass `location` as the place in the user's words (\"Gurgaon\") plus filters - it auto-resolves the place, so do NOT call search_entities first. For precise scope pass an entity's `forProperties` ids (cityId/subLocalityId/microMarketId = BEATS ids) VERBATIM; explicit ids or lat/long override `location`; never guess numeric ids and never reuse a `forProjects`/dotcom id (different id space). budget = absolute INR (40 lakh -> 4000000); area in sq ft; bedrooms = BHK label (\"2 BHK\"). propertyTypeName takes EXACT propertyType values (Apartment, Villa, Builder Floor, Independent House, Office Space, Shop, Plot, ...) - \"Studio\"/\"1 RK\"/\"Ind Floor\" are bedrooms (unitType) values, NOT types. With NO propertyTypeName the search defaults to RESIDENTIAL types - set a commercial type explicitly for offices/shops (project-scoped searches exempt). A geo search (lat/long or landmark) adds `distanceInKm` per card. Results follow Square Yards ranking; promoted cards carry isFeatured/isExclusive flags (use `sort` for price/newest order). Each card carries a normalized pricePerSqft (₹/sq.ft) + areaSqft so \"cheapest per sq.ft\" is directly answerable; a dataQualityFlag caveats an implausible area/price. For \"what EMI would this cost\" pass a card price to estimate_home_loan. DRILL-DOWN: every listing has an `id` -> get_entity_details entity=\"listing\" id=that `id`, copied verbatim (never the title or URL).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "listingType": {
+                  "type": "string",
+                  "enum": [
+                    "Sale",
+                    "Rent"
+                  ],
+                  "description": "Sale or Rent listings. ALWAYS set this."
+                },
+                "location": {
+                  "type": "string",
+                  "description": "Free-text place in the user's words — \"Gurgaon\", \"Sector 43 Gurgaon\", \"Whitefield Bangalore\". The tool resolves it to the right city/locality internally, so you can search in ONE call without first calling search_entities. Ignored if you pass explicit scope ids (cityId/…) or lat/long. Prefer this for a simple place-based search."
+                },
+                "cityHint": {
+                  "type": "string",
+                  "description": "City to disambiguate an ambiguous `location` (a bare \"Sector 15\" exists in many cities). Pass the user's city when known. If `location` matches multiple cities and no hint is given, the result comes back `ambiguous:true` with a `candidates` list so you can ask which city."
+                },
+                "cityId": {
+                  "type": "string",
+                  "description": "City id — BEATS id space. Use an entity's `forProperties.cityId` VERBATIM; never reuse a `forProjects`/dotcom city id here (the two searches use different id spaces)."
+                },
+                "subLocalityId": {
+                  "type": "string",
+                  "description": "Locality id(s), comma-separated (from forProperties)."
+                },
+                "microMarketId": {
+                  "type": "string",
+                  "description": "Micromarket id(s), comma-separated (from forProperties)."
+                },
+                "builderId": {
+                  "type": "string",
+                  "description": "Builder id (from forProperties)."
+                },
+                "dotcomprojectid": {
+                  "type": "string",
+                  "description": "Project id(s), comma-separated."
+                },
+                "propertyTypeName": {
+                  "type": "string",
+                  "description": "EXACT propertyType value(s), comma-separated — e.g. \"Apartment,Villa\". Use only real types: Apartment, Builder Floor, Independent House, Villa, Penthouse, Townhouse, Plot, Office Space, Shop, Showroom. NOT \"Studio\"/\"Ind Floor\"/\"1 RK\" — those are bedrooms (unitType) values and match nothing here. Omit it with bedrooms set to get the residential default."
+                },
+                "bedrooms": {
+                  "type": "string",
+                  "description": "BHK/unit label(s), comma-separated — e.g. \"2 BHK,3 BHK\", \"Studio\", \"1 RK\". This filters unit type, NOT propertyType."
+                },
+                "minPrice": {
+                  "type": "integer",
+                  "description": "Min total price, absolute INR (40 lakh → 4000000)."
+                },
+                "maxPrice": {
+                  "type": "integer",
+                  "description": "Max total price, absolute INR (1 cr → 10000000)."
+                },
+                "minArea": {
+                  "type": "integer",
+                  "description": "Min area in sq ft."
+                },
+                "maxArea": {
+                  "type": "integer",
+                  "description": "Max area in sq ft."
+                },
+                "furnishing": {
+                  "type": "string",
+                  "description": "Furnishing, comma-separated e.g. \"Furnished,Semi-Furnished\"."
+                },
+                "amenityName": {
+                  "type": "string",
+                  "description": "Amenity filter — comma-separated amenity names, plain text, case-insensitive, matched as an exact PHRASE (not fuzzy). Pass the SHORT, singular, punctuation-free core term: \"swimming pool\", \"gymnasium\", \"security\", \"cctv\", \"power backup\", \"lift\", \"kids play\", \"clubhouse\", \"indoor games\". A short term still matches a longer catalog entry (\"security\" matches \"24 x 7 Security\"). Multiple names are AND-ed (results must have ALL of them); for \"X or Y\" run two searches and merge. NOTE: amenity data is sparse (older/resale stock often has none) — if a search returns few/zero results, retry with fewer amenities, then none, and say the amenity data may be unavailable."
+                },
+                "amenityDetail": {
+                  "type": "string",
+                  "description": "Optional: comma-separated NUMERIC amenity ids — only if you already hold canonical ids for THIS tool. Ids are NOT shared between the properties and projects searches; never copy an id from the other tool. Prefer amenityName."
+                },
+                "byOwner": {
+                  "type": "boolean",
+                  "description": "Only owner-posted listings."
+                },
+                "zeroBrokerage": {
+                  "type": "boolean",
+                  "description": "Only zero-brokerage listings."
+                },
+                "lat": {
+                  "type": "number",
+                  "description": "Latitude for a geo-radius search (each result then carries `distanceInKm`)."
+                },
+                "long": {
+                  "type": "number",
+                  "description": "Longitude for a geo-radius search."
+                },
+                "landmarkId": {
+                  "type": "string",
+                  "description": "Landmark as \"lat|lng|name\" for a radius search (parsed into lat/long). Get it from a search_entities landmark result's coordinates — lets \"near <landmark>\" work for listings."
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": [
+                    "relevance",
+                    "price_low",
+                    "price_high",
+                    "newest"
+                  ],
+                  "description": "Sort order (default relevance). price_low excludes price-on-request."
+                },
+                "countryId": {
+                  "type": "integer",
+                  "description": "Ranking country; defaults to 1 = India. This server is INDIA-focused — leave unset. (8 = UAE exists only for the rare Square Yards Dubai listing; do not use it for a general non-India request — decline those.)"
+                },
+                "sort_key": {
+                  "type": "string",
+                  "enum": [
+                    "price_H-L",
+                    "price_L-H",
+                    "newest"
+                  ],
+                  "description": "Advanced raw sort key (takes precedence over `sort`)."
+                },
+                "page": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "1-based page (default 1)."
+                },
+                "size": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50,
+                  "description": "Results per page (default 10)."
+                }
+              },
+              "required": [
+                "listingType"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Search Property Listings",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://sqy-mcp-widget",
+              "ui": {
+                "resourceUri": "ui://sqy-mcp-widget"
+              }
+            }
+          },
+          {
+            "name": "search_projects",
+            "title": "Search New-Construction Projects",
+            "description": "Search NEW-CONSTRUCTION projects/developments (NOT resale listings) - under-construction, new-launch, ready-to-move, upcoming - returned as project cards (developer, price band, BHK configs, status, RERA). ROUTING: pick THIS for \"project/new launch/under construction\"; use search_properties for resale/rental listings; for a general buy intent with no new-vs-resale preference call BOTH in the same turn. SIMPLEST PATH (one call): pass `location` as the place in the user's words (\"Noida\", \"Wakad Pune\") plus filters - it resolves the place itself, so you need NOT call search_entities first. For precise/repeat scope you may instead pass an entity's `forProjects` ids (cityId/localityId/micromarketId/builderId - DOTCOM id space) VERBATIM; explicit ids override `location`. Never reuse a search_properties BEATS id here, and never guess ids. SPECIFIC NAMED project: do NOT use this discovery list (a city-scoped search returns the wrong project) - resolve the name via search_entities (entityType=\"project\"), take its `dotcomId`, and open it with get_entity_details (entity=\"project\", id=that dotcomId). A geo (lat/long or landmark) search adds `distanceInKm` per card. Defaults: RESIDENTIAL projects unless buildingType=2 (commercial) or a type/q is set; default order is \"Top Selling\" (Square Yards promoted/featured ranking - cards carry isFocus/isAssured/hasExclusive flags; use `sort` for price/connectivity order). A card price + estimate_home_loan gives its EMI. DRILL-DOWN: every card has an `id` - for possession/completion date, per-wing RERA, amenities or full spec call get_entity_details (entity=\"project\", id=that `id` verbatim - never the name/slug).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "location": {
+                  "type": "string",
+                  "description": "Free-text place in the user's words — \"Noida\", \"Sector 150 Noida\", \"Wakad Pune\". The tool resolves it to the right city/locality internally, so you can search in ONE call without first calling search_entities. Ignored if you pass explicit scope ids (cityId/…) or lat/long. Prefer this for a simple place-based search."
+                },
+                "cityHint": {
+                  "type": "string",
+                  "description": "City to disambiguate an ambiguous `location` (a bare \"Sector 150\" exists in many cities). Pass the user's city when known. If `location` matches multiple cities and no hint is given, the result comes back `ambiguous:true` with a `candidates` list so you can ask which city."
+                },
+                "cityId": {
+                  "type": "string",
+                  "description": "City id — DOTCOM id space. Use an entity's `forProjects.cityId` VERBATIM; never reuse a `forProperties`/beats city id here (the two searches use different id spaces)."
+                },
+                "localityId": {
+                  "type": "string",
+                  "description": "Locality id(s), comma-separated (from forProjects)."
+                },
+                "micromarketId": {
+                  "type": "string",
+                  "description": "Micromarket id(s), comma-separated (from forProjects)."
+                },
+                "builderId": {
+                  "type": "string",
+                  "description": "Developer/builder id(s), comma-separated (from forProjects)."
+                },
+                "minPrice": {
+                  "type": "integer",
+                  "description": "Min price, absolute INR."
+                },
+                "maxPrice": {
+                  "type": "integer",
+                  "description": "Max price, absolute INR."
+                },
+                "propertyType": {
+                  "type": "string",
+                  "description": "Unit-category id(s), comma-separated."
+                },
+                "bhk": {
+                  "type": "string",
+                  "description": "BHK config(s), comma-separated — e.g. \"2,3\"."
+                },
+                "status": {
+                  "type": "string",
+                  "description": "Project status id(s), comma-separated."
+                },
+                "buildingType": {
+                  "type": "string",
+                  "enum": [
+                    "1",
+                    "2"
+                  ],
+                  "description": "1 = Residential, 2 = Commercial."
+                },
+                "possesion": {
+                  "type": "string",
+                  "description": "Expected COMPLETION YEAR(s) — the possession DATE filter (note the single \"s\"). Comma-separated 4-digit years, e.g. \"2026\" or \"2026,2027\". Use for timeframe phrasing (\"possession by 2027\", \"ready in 2026\", \"handover next year\") — resolve relative phrases to absolute years (today is mid-2026). Independent of possessionStatus and combines with it."
+                },
+                "amenityName": {
+                  "type": "string",
+                  "description": "Amenity filter — comma-separated amenity names, plain text, case-insensitive, matched as an exact PHRASE (not fuzzy). Pass the SHORT, singular, punctuation-free core term: \"swimming pool\", \"gymnasium\", \"security\", \"cctv\", \"power backup\", \"lift\", \"kids play\", \"clubhouse\", \"indoor games\". A short term still matches a longer catalog entry (\"security\" matches \"24 x 7 Security\"). Multiple names are AND-ed (results must have ALL of them); for \"X or Y\" run two searches and merge. NOTE: amenity data is sparse — if a search returns few/zero results, retry with fewer amenities, then none, and say the amenity data may be unavailable."
+                },
+                "amenityDetail": {
+                  "type": "string",
+                  "description": "Optional: comma-separated NUMERIC amenity ids — only if you already hold canonical ids for THIS tool. Ids are NOT shared between the projects and properties searches; never copy an id from the other tool. Prefer amenityName."
+                },
+                "more": {
+                  "type": "string",
+                  "description": "Feature filters, comma-separated — e.g. \"Rera Registered Projects\"."
+                },
+                "tags": {
+                  "type": "string",
+                  "description": "Tags, comma-separated: isFocus,isAssured,isSquareElite,hasExclusive."
+                },
+                "landmarkId": {
+                  "type": "string",
+                  "description": "Landmark as \"lat|lng|name\" for a radius search (coordinates from a search_entities landmark result). Commas separate MULTIPLE landmarks here, so use pipes within one."
+                },
+                "lat": {
+                  "type": "number",
+                  "description": "Latitude for a geo-radius search."
+                },
+                "long": {
+                  "type": "number",
+                  "description": "Longitude for a geo-radius search."
+                },
+                "q": {
+                  "type": "string",
+                  "description": "Free-text project query."
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": [
+                    "top_selling",
+                    "price_low",
+                    "price_high",
+                    "connectivity",
+                    "luxury"
+                  ],
+                  "description": "Sort order (default top_selling = promoted/featured ranking)."
+                },
+                "possessionStatus": {
+                  "type": "string",
+                  "description": "Construction STAGE filter, comma list of: new_launch | under_construction | ready_to_move. Stage phrasing: \"newly launched\", \"under construction\", \"ready to move\". Combines with `possesion` (year), e.g. under_construction + possesion=2027. Do NOT pair new_launch with a near-term year (usually empty). Omit if the user gives no possession constraint. NOTE: \"upcoming\"/pre-launch and \"stalled\"/on-hold are NOT search-filterable (the endpoint ignores them) — do not pass them; for a specific project's on-hold details use get_entity_details (fields=\"stalledData\")."
+                },
+                "sortBy": {
+                  "type": "string",
+                  "enum": [
+                    "Top Selling",
+                    "DSE_KEY_1",
+                    "DSE_KEY_2",
+                    "DSE_KEY_3",
+                    "DSE_KEY_7"
+                  ],
+                  "description": "Advanced raw sort key (takes precedence over `sort`)."
+                },
+                "page": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Page number (default 1)."
+                },
+                "paging": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50,
+                  "description": "Page size (default 36)."
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Search New-Construction Projects",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://sqy-mcp-widget",
+              "ui": {
+                "resourceUri": "ui://sqy-mcp-widget"
+              }
+            }
+          },
+          {
+            "name": "get_entity_details",
+            "title": "Get Entity Details & Rates",
+            "description": "Fetch FULL DETAIL for ONE entity by numeric id - the last drill-down step. Use ONLY when the search tools (search_properties / search_projects / search_entities) did not already answer: a project's possession/completion date, per-wing RERA, amenities or spec; a listing's full attributes; a locality's price rates & pros/cons. For how/what/why questions (loans, vastu, process) use search_faq, not this. You MUST already hold the id from a prior result - never guess an id or slug; if you only have a NAME, call the matching search tool FIRST and copy its id (pick the one whose name+city matches; else say so). Which id, by entity: listing -> a search_properties result's `id`; project -> a search_projects result's `id`, OR a search_entities `type:\"project\"` result's `dotcomId` (project has one id space); developer -> a search_entities `type:\"builder\"` result's `dotcomId`; city/locality/micromarket -> a search_entities result's `beatsId` (default) or `dotcomId` (then set idType=\"dotcom\"). For projects the result includes `possessionStartingFrom`, the authoritative possession date (earliest upcoming RERA completion). For a PLACE's PRICE / PROPERTY RATES / market insights use entity=\"property-rates\": resolve the place via search_entities, take its `beatsId`, then call with entity=\"property-rates\", rateType=(city|locality|micromarket) and id=that beatsId. Optional `fields` adds sections (comma-separated); omit for the primary detail. Returns a compact, intent-filtered detail object.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "entity": {
+                  "type": "string",
+                  "enum": [
+                    "city",
+                    "locality",
+                    "micromarket",
+                    "developer",
+                    "project",
+                    "listing",
+                    "property-rates"
+                  ],
+                  "description": "The entity type to fetch detail for. Use \"property-rates\" for a CITY / LOCALITY / MICROMARKET's price, rates or market-insight page (market overview, price trends, locality/micromarket rates, rental rates, top projects + an AI narrative) — it ALSO requires `rateType` and the place's BEATS id (resolve it via search_entities first)."
+                },
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "The entity's NUMERIC id (e.g. \"8761\"), copied VERBATIM from a prior tool result — NEVER a name, slug, or guess (\"piramal-revanta\" is wrong). EXACTLY which field to copy, by entity:\n• listing → the `id` field of a search_properties result.\n• project → the `id` field of a search_projects result, OR a search_entities result whose type is \"project\" — use its `dotcomId` (project has a single id space; idType is not needed).\n• developer → a search_entities result whose type is \"builder\" — use its `dotcomId`.\n• city / locality / micromarket → a search_entities result of that type — use its `beatsId` (idType=beats, the default) or `dotcomId` (idType=dotcom).\nIf you only have a NAME, call the matching search tool FIRST and copy the id from the result you want — do not construct or transform it. Pick the result whose name (and city) matches the user's words before copying its id; if nothing clearly matches, say so rather than drilling a different entity."
+                },
+                "idType": {
+                  "type": "string",
+                  "enum": [
+                    "beats",
+                    "dotcom"
+                  ],
+                  "description": "Which id space the id is from. Default beats. ONLY affects city/locality/micromarket (which have both id spaces). Ignored for developer/project/listing (single id) and property-rates (always beats). Pass dotcom when the id came from a dotcom-keyed field."
+                },
+                "rateType": {
+                  "type": "string",
+                  "enum": [
+                    "city",
+                    "locality",
+                    "micromarket"
+                  ],
+                  "description": "REQUIRED when entity=\"property-rates\" (ignored otherwise): which kind of place the rate record is for — a city, locality, or micromarket (there is NO project rate page). Combined with the BEATS `id` it forms the key — e.g. rateType=\"city\" + id=\"59\" → Gurgaon city rates; rateType=\"micromarket\" + id=\"154\" → Vijayawada Central. Get the beats id by calling search_entities for the place FIRST and taking its `beatsId`."
+                },
+                "fields": {
+                  "type": "string",
+                  "description": "Optional top-level section(s) to return, COMMA-SEPARATED (e.g. \"projectData,reraData\"). Omit for the primary detail section, which already answers most questions. Examples — project: projectData (default; includes status, price, RERA wings + derived possessionStartingFrom), landmarks (nearby schools/hospitals/banks/metro by distance), reraData, keyAspects, stalledData. listing: listingData, landmarks (nearby points of interest by distance). city: cityData, topDevelopers, landmarks. locality/micromarket: localityOverviewData, insightsData, nearByLocalitiesV2, landmarks. developer: developerData. property-rates: propertyRatesData (structured rates) is the DEFAULT; add propertyRatesAiData to fields ONLY when the user wants the prose narrative (it is heavy and restates the numbers) — e.g. fields=\"propertyRatesData,propertyRatesAiData\"."
+                }
+              },
+              "required": [
+                "entity",
+                "id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Get Entity Details & Rates",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://sqy-mcp-widget",
+              "ui": {
+                "resourceUri": "ui://sqy-mcp-widget"
+              }
+            }
+          },
+          {
+            "name": "compare_entities",
+            "title": "Compare Entities",
+            "description": "Compare 2-4 entities of the SAME type side by side (two projects, three localities, two listings), rendered as a comparison table. Pick this over calling get_entity_details repeatedly when the user asks to compare or contrast named places or properties. All items must share one `entity`, and you must already hold each numeric `id`: resolve each first via search_entities / search_properties / search_projects, never guessing. For city/locality/micromarket set `idType` to the id's source (beats default, or dotcom); it is ignored for project/listing. Cross-type comparison is not supported, and property-rates is not comparable. To RANK many localities or answer \"which area is best\" use recommend_localities.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "entity": {
+                        "type": "string",
+                        "enum": [
+                          "city",
+                          "locality",
+                          "micromarket",
+                          "developer",
+                          "project",
+                          "listing"
+                        ],
+                        "description": "Entity type — the SAME for every item."
+                      },
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The entity's NUMERIC id, copied verbatim from a prior search/detail result."
+                      },
+                      "idType": {
+                        "type": "string",
+                        "enum": [
+                          "beats",
+                          "dotcom"
+                        ],
+                        "description": "Id space (city/locality/micromarket only); default beats. Ignored otherwise."
+                      }
+                    },
+                    "required": [
+                      "entity",
+                      "id"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "minItems": 2,
+                  "maxItems": 4,
+                  "description": "The 2–4 entities to compare, ALL of the same `entity` type (e.g. two projects, or three localities). Resolve each id first via search_entities / search_properties / search_projects."
+                }
+              },
+              "required": [
+                "items"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Compare Entities",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://sqy-mcp-widget",
+              "ui": {
+                "resourceUri": "ui://sqy-mcp-widget"
+              }
+            }
+          },
+          {
+            "name": "recommend_localities",
+            "title": "Recommend & Rank Localities",
+            "description": "Rank 2-20 localities (or a city's top localities) for END-USE vs INVESTMENT, as a scored list. ROUTING: pick THIS when the user names MANY areas or asks for \"the best area(s)\" / a recommendation (compare_entities is only a 2-4 side-by-side TABLE and never ranks). Resolve each locality NAME to an id via search_entities (entityType=\"locality\") FIRST, then pass `localities:[{id,idType}]` (or `cityId` to rank a city's top localities). Optional `budget` (absolute INR) flags each `inBudget`; `goal` = end_use | investment | both (default). HONEST + deterministic: it only combines signals get_entity_details already returns and NEVER invents a verdict. Sub-scores (0-100): connectivity/lifestyle/livability = the backend 0-5 index x20; appreciation = price-trend % (0%->50, +/-12.5%->100/0); liquidity (govt registered-deal volume) + value (rental yield) are ranked RELATIVE to the set. Weights - end-use: livability .35, connectivity .30, lifestyle .25, value .10; investment: appreciation .40, liquidity .30, value .20, connectivity .10; overall = their mean. A missing signal is OMITTED (not zero-filled), BUT a locality is only RANKED when present signals cover >50% of the goal's CORE (discriminating) weight — investment = appreciation/liquidity/yield (connectivity alone can't rank it), end-use = livability/connectivity/lifestyle; thinner ones go to `insufficientData` (with known signals + reason), so a one-signal locality can never top the list. signalCoverage is that CORE-weight share (0-1); each item also carries signalsUsed + raw numbers (avgRate, rentalYield, priceTrendPct, transactions) and VERBATIM pros/cons. India only, read-only.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "localities": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "The locality NUMERIC id, from a search_entities locality result."
+                      },
+                      "idType": {
+                        "type": "string",
+                        "enum": [
+                          "beats",
+                          "dotcom"
+                        ],
+                        "description": "Id space of `id` (default beats). Pass \"dotcom\" when the id came from a dotcom-keyed field."
+                      }
+                    },
+                    "required": [
+                      "id"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "minItems": 2,
+                  "maxItems": 20,
+                  "description": "The 2–20 localities to rank, each { id, idType? }. Resolve names → ids via search_entities (entityType=\"locality\") FIRST; never guess. Provide this OR `cityId`."
+                },
+                "cityId": {
+                  "type": "string",
+                  "description": "Instead of an explicit list, rank the CITY's top localities (up to 15). A city id from search_entities. Ignored when `localities` is given."
+                },
+                "cityIdType": {
+                  "type": "string",
+                  "enum": [
+                    "beats",
+                    "dotcom"
+                  ],
+                  "description": "Id space of `cityId` (default beats)."
+                },
+                "budget": {
+                  "type": "object",
+                  "properties": {
+                    "min": {
+                      "type": "integer"
+                    },
+                    "max": {
+                      "type": "integer"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Optional purchase budget, absolute INR (e.g. {min:20000000,max:30000000}). Flags each locality `inBudget` when a real project there fits — never a hard filter."
+                },
+                "bedrooms": {
+                  "type": "string",
+                  "description": "Optional BHK context, e.g. \"3 BHK\" (echoed; the ranking is locality-level)."
+                },
+                "goal": {
+                  "type": "string",
+                  "enum": [
+                    "end_use",
+                    "investment",
+                    "both"
+                  ],
+                  "description": "Which composite sorts the result: end_use (livability/connectivity), investment (appreciation/liquidity/yield), or both (default)."
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Recommend & Rank Localities",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://sqy-mcp-widget",
+              "ui": {
+                "resourceUri": "ui://sqy-mcp-widget"
+              }
+            }
+          },
+          {
+            "name": "search_faq",
+            "title": "Search Real-Estate FAQ",
+            "description": "Answer INFORMATIONAL/advisory real-estate questions -- buying/renting/selling process, home loans, legal, RERA rights, NRI purchases, Azuro-managed rentals -- from the bundled Square Yards FAQ corpus. Pick this for general how/what/why questions; needs NO id, does NOT touch listings/projects. Do NOT use it to find inventory (use search_entities -> search_properties/search_projects), for a PLACE-specific price/rates question (use get_entity_details entity=\"property-rates\"), or for EMI/affordability NUMBERS (use estimate_home_loan, not this). Optionally pass `category` (e.g. buying/renting/selling) to scope results; `top_k` caps returned Q/A pairs (default 3).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "An informational question, e.g. \"what credit score do I need for a home loan\"."
+                },
+                "category": {
+                  "type": "string",
+                  "description": "Optional: scope the search to one FAQ category (e.g. \"buying\", \"renting\", \"selling\"). Matched on the category id or label, case-insensitive. If it does not match a known category the filter is ignored and a note lists the valid ones."
+                },
+                "top_k": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10,
+                  "description": "Max Q/A pairs to return (default 3)."
+                }
+              },
+              "required": [
+                "query"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Search Real-Estate FAQ",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/outputTemplate": "ui://sqy-mcp-widget",
+              "ui": {
+                "resourceUri": "ui://sqy-mcp-widget"
+              }
+            }
+          },
+          {
+            "name": "estimate_home_loan",
+            "title": "Home Loan EMI & Affordability Calculator",
+            "description": "Calculate a home-loan EMI, or estimate how much a buyer can afford, for INDIA home loans. mode=\"emi\": given loanAmount (or propertyPrice + down payment) + rate + tenure, returns the monthly EMI, total interest and total payable. mode=\"affordability\": given monthly/annual NET income (+ existing EMIs, optional down-payment cash), returns the max EMI capacity, max loan and max property price via FOIR + RBI LTV tiers. Use THIS for any loan NUMBERS question (\"EMI on X\", \"what can I afford on Y salary\", \"how much down payment do I need\") — e.g. turn a listing/project card price into an EMI. For loan PROCESS/documents/eligibility prose use search_faq instead. Pure calculator: no ids, no live data. Money is absolute INR (1.2 Cr → 12000000). Defaults: 8.75% p.a., 20-year tenure, FOIR 0.50, stamp+registration ≈6%. Results are indicative with the disclaimer included — never present them as a loan offer.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "emi",
+                    "affordability"
+                  ],
+                  "description": "\"emi\" = monthly payment for a known loan/price; \"affordability\" = max budget from income."
+                },
+                "interestRate": {
+                  "type": "number",
+                  "description": "Annual interest rate %, e.g. 8.75 (the default)."
+                },
+                "tenureYears": {
+                  "type": "integer",
+                  "description": "Loan tenure in years (default 20; clamped 1–30)."
+                },
+                "loanAmount": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "description": "emi mode: loan principal in absolute INR (₹80L → 8000000). Wins over propertyPrice."
+                },
+                "propertyPrice": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "description": "emi mode: property price in absolute INR — the loan is price minus down payment."
+                },
+                "downPayment": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "emi mode: down payment in absolute INR (used with propertyPrice)."
+                },
+                "downPaymentPercent": {
+                  "type": "number",
+                  "description": "emi mode: down payment as % of propertyPrice; used when downPayment is absent. If neither is given the RBI-minimum down payment for the price band is assumed."
+                },
+                "monthlyIncome": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "description": "affordability mode: NET take-home income per month, absolute INR (₹2L → 200000)."
+                },
+                "annualIncome": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "description": "affordability mode: NET annual income, absolute INR (divided by 12 internally)."
+                },
+                "existingEmi": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "affordability mode: existing monthly EMI obligations, INR (default 0)."
+                },
+                "foir": {
+                  "type": "number",
+                  "description": "affordability mode: share of income lenders allow for all EMIs (default 0.50; clamped 0.3–0.6)."
+                },
+                "downPaymentAvailable": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "affordability mode: cash available for down payment + costs — caps the max property price."
+                },
+                "includeTxnCosts": {
+                  "type": "boolean",
+                  "description": "Include ~6% stamp duty + registration in the cash estimates (default true)."
+                }
+              },
+              "required": [
+                "mode"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Home Loan EMI & Affordability Calculator",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "area_conversion",
+            "title": "Area Unit Converter",
+            "description": "Convert a land/area measurement between the units used in INDIA — metric (sq metre, sq km, hectare, are, sq cm), imperial (sq feet, sq yard/\"gaj\", sq inch, acre) and traditional Indian land units (cent, decimal, ground, guntha, marla, kanal, killa, ankanam, bigha, biswa, kattha). Use THIS for any unit-conversion NUMBERS (\"how many sq ft in a bigha\", \"convert 5 acre to gaj\", \"200 gaj in sq feet\"). Pure calculator — no ids, no live data. Pass `value` (a positive number) and `from`; give `to` for a single target, or omit it to get the value in the common units at once. Units accept friendly aliases (sqft, sqm, gaj, acre, cent, ground…). IMPORTANT: bigha, biswa and kattha differ by state, so pass a state-qualified code (BIGHA_PUCCA_UP_I, BISWA_HP_I, KATTHA_BIHAR, …); a bare \"bigha\" or an unknown unit returns the list of valid codes. For property PRICE/EMI numbers use estimate_home_loan; for live listings use search_properties.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "The area amount to convert — a positive number, e.g. 5 for \"5 acre\"."
+                },
+                "from": {
+                  "type": "string",
+                  "description": "Source unit. Codes or aliases: SQ_M, SQ_FT, SQ_YD (\"gaj\"), SQ_CM, SQ_IN, SQ_KM, HECTARE, ARE, ACRE, CENT, DECIMAL, GROUND, GUNTHA, MARLA, KANAL, KILLA, ANKANAM; bigha/biswa/kattha are state-qualified (e.g. BIGHA_PUCCA_UP_I, BISWA_HP_I, KATTHA_BIHAR)."
+                },
+                "to": {
+                  "type": "string",
+                  "description": "Target unit (same code/alias set). OMIT to get the value in the common units (ft², yd², m², acre, hectare) at once."
+                }
+              },
+              "required": [
+                "value",
+                "from"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "title": "Area Unit Converter",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "search_entities",
+        "title": "Resolve Place, Builder or Project",
+        "description": "Resolve a place/builder/project NAME (city, locality, micromarket, builder, project, landmark) into the ids the other tools need; returns ranked entity SUMMARIES, never full listings/projects. For a normal search BY PLACE do NOT call this first -> call search_properties or search_projects with `location` set (they resolve the place themselves in ONE call). Use search_entities ONLY to disambiguate an ambiguous place, get a landmark's coordinates, or resolve a builder/project name to an id. When you do use it, chain in the SAME turn: resolving a place but fetching no listings/projects/detail is INCOMPLETE.\n\nReading results:\n- city/locality/micromarket/builder -> carries ready-made `forProperties` (beats-space ids -> search_properties) and `forProjects` (dotcom-space ids -> search_projects) scope objects; pass the matching one's fields VERBATIM, never build or transform ids.\n- type:\"project\" -> take its `dotcomId`; drill in with get_entity_details (entity=\"project\") or scope search_projects by it.\n- type:\"landmark\" -> take its `coordinates` as lat/long (or landmarkId \"lat|lng|name\") for a near-<landmark> radius search.\n\nRouting after resolving: resale/rent -> search_properties; new-construction -> search_projects; general buy -> BOTH; one entity's full detail or a place's price-rates -> get_entity_details. Always pick the ONE result whose name and city match the user's words (\"Noida\" -> the city Noida, not Greater Noida). (search_faq answers how/what/why and needs no id.)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Free-text place, brand, or PROJECT name in the user's own words (required)."
+            },
+            "entityType": {
+              "type": "string",
+              "description": "Optional comma list to scope result types: city, locality, micromarket, builder, project, landmark. Omit for all types. Use entityType=\"project\" to resolve a PROJECT NAME to its id (then drill into get_entity_details or search_projects). Use entityType=\"landmark\" to get a place's coordinates for a near-by radius search."
+            },
+            "cityHint": {
+              "type": "string",
+              "description": "City NAME to bias ranking toward when the query is ambiguous (e.g. a bare \"Sector 15\"). Matching-city results float to the top; nothing is dropped. Pass the user's city when known."
+            },
+            "cityId": {
+              "type": "string",
+              "description": "Dotcom city id(s), comma-separated. Restrict results to these cities."
+            },
+            "beatsCityId": {
+              "type": "string",
+              "description": "Beats-space city id(s), comma-separated. OR'd with cityId."
+            },
+            "size": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "description": "Max number of results."
+            }
+          },
+          "required": [
+            "q"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Resolve Place, Builder or Project",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "search_properties",
+        "title": "Search Property Listings",
+        "description": "Search actual SALE or RENT LISTINGS - individual resale/rental units, shown as property cards. ROUTING: listing intent (\"flats/for sale/resale/to rent\") -> THIS; \"project/new launch/under construction\" -> search_projects; a general buy with no resale-vs-new preference -> call BOTH (this with Sale + search_projects); a PLACE's price rates / per-sq-ft / market trends (not individual units) -> get_entity_details entity=\"property-rates\" (NOT a listings search). ALWAYS set listingType (Sale|Rent). SIMPLEST (one call): pass `location` as the place in the user's words (\"Gurgaon\") plus filters - it auto-resolves the place, so do NOT call search_entities first. For precise scope pass an entity's `forProperties` ids (cityId/subLocalityId/microMarketId = BEATS ids) VERBATIM; explicit ids or lat/long override `location`; never guess numeric ids and never reuse a `forProjects`/dotcom id (different id space). budget = absolute INR (40 lakh -> 4000000); area in sq ft; bedrooms = BHK label (\"2 BHK\"). propertyTypeName takes EXACT propertyType values (Apartment, Villa, Builder Floor, Independent House, Office Space, Shop, Plot, ...) - \"Studio\"/\"1 RK\"/\"Ind Floor\" are bedrooms (unitType) values, NOT types. With NO propertyTypeName the search defaults to RESIDENTIAL types - set a commercial type explicitly for offices/shops (project-scoped searches exempt). A geo search (lat/long or landmark) adds `distanceInKm` per card. Results follow Square Yards ranking; promoted cards carry isFeatured/isExclusive flags (use `sort` for price/newest order). Each card carries a normalized pricePerSqft (₹/sq.ft) + areaSqft so \"cheapest per sq.ft\" is directly answerable; a dataQualityFlag caveats an implausible area/price. For \"what EMI would this cost\" pass a card price to estimate_home_loan. DRILL-DOWN: every listing has an `id` -> get_entity_details entity=\"listing\" id=that `id`, copied verbatim (never the title or URL).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "listingType": {
+              "type": "string",
+              "enum": [
+                "Sale",
+                "Rent"
+              ],
+              "description": "Sale or Rent listings. ALWAYS set this."
+            },
+            "location": {
+              "type": "string",
+              "description": "Free-text place in the user's words — \"Gurgaon\", \"Sector 43 Gurgaon\", \"Whitefield Bangalore\". The tool resolves it to the right city/locality internally, so you can search in ONE call without first calling search_entities. Ignored if you pass explicit scope ids (cityId/…) or lat/long. Prefer this for a simple place-based search."
+            },
+            "cityHint": {
+              "type": "string",
+              "description": "City to disambiguate an ambiguous `location` (a bare \"Sector 15\" exists in many cities). Pass the user's city when known. If `location` matches multiple cities and no hint is given, the result comes back `ambiguous:true` with a `candidates` list so you can ask which city."
+            },
+            "cityId": {
+              "type": "string",
+              "description": "City id — BEATS id space. Use an entity's `forProperties.cityId` VERBATIM; never reuse a `forProjects`/dotcom city id here (the two searches use different id spaces)."
+            },
+            "subLocalityId": {
+              "type": "string",
+              "description": "Locality id(s), comma-separated (from forProperties)."
+            },
+            "microMarketId": {
+              "type": "string",
+              "description": "Micromarket id(s), comma-separated (from forProperties)."
+            },
+            "builderId": {
+              "type": "string",
+              "description": "Builder id (from forProperties)."
+            },
+            "dotcomprojectid": {
+              "type": "string",
+              "description": "Project id(s), comma-separated."
+            },
+            "propertyTypeName": {
+              "type": "string",
+              "description": "EXACT propertyType value(s), comma-separated — e.g. \"Apartment,Villa\". Use only real types: Apartment, Builder Floor, Independent House, Villa, Penthouse, Townhouse, Plot, Office Space, Shop, Showroom. NOT \"Studio\"/\"Ind Floor\"/\"1 RK\" — those are bedrooms (unitType) values and match nothing here. Omit it with bedrooms set to get the residential default."
+            },
+            "bedrooms": {
+              "type": "string",
+              "description": "BHK/unit label(s), comma-separated — e.g. \"2 BHK,3 BHK\", \"Studio\", \"1 RK\". This filters unit type, NOT propertyType."
+            },
+            "minPrice": {
+              "type": "integer",
+              "description": "Min total price, absolute INR (40 lakh → 4000000)."
+            },
+            "maxPrice": {
+              "type": "integer",
+              "description": "Max total price, absolute INR (1 cr → 10000000)."
+            },
+            "minArea": {
+              "type": "integer",
+              "description": "Min area in sq ft."
+            },
+            "maxArea": {
+              "type": "integer",
+              "description": "Max area in sq ft."
+            },
+            "furnishing": {
+              "type": "string",
+              "description": "Furnishing, comma-separated e.g. \"Furnished,Semi-Furnished\"."
+            },
+            "amenityName": {
+              "type": "string",
+              "description": "Amenity filter — comma-separated amenity names, plain text, case-insensitive, matched as an exact PHRASE (not fuzzy). Pass the SHORT, singular, punctuation-free core term: \"swimming pool\", \"gymnasium\", \"security\", \"cctv\", \"power backup\", \"lift\", \"kids play\", \"clubhouse\", \"indoor games\". A short term still matches a longer catalog entry (\"security\" matches \"24 x 7 Security\"). Multiple names are AND-ed (results must have ALL of them); for \"X or Y\" run two searches and merge. NOTE: amenity data is sparse (older/resale stock often has none) — if a search returns few/zero results, retry with fewer amenities, then none, and say the amenity data may be unavailable."
+            },
+            "amenityDetail": {
+              "type": "string",
+              "description": "Optional: comma-separated NUMERIC amenity ids — only if you already hold canonical ids for THIS tool. Ids are NOT shared between the properties and projects searches; never copy an id from the other tool. Prefer amenityName."
+            },
+            "byOwner": {
+              "type": "boolean",
+              "description": "Only owner-posted listings."
+            },
+            "zeroBrokerage": {
+              "type": "boolean",
+              "description": "Only zero-brokerage listings."
+            },
+            "lat": {
+              "type": "number",
+              "description": "Latitude for a geo-radius search (each result then carries `distanceInKm`)."
+            },
+            "long": {
+              "type": "number",
+              "description": "Longitude for a geo-radius search."
+            },
+            "landmarkId": {
+              "type": "string",
+              "description": "Landmark as \"lat|lng|name\" for a radius search (parsed into lat/long). Get it from a search_entities landmark result's coordinates — lets \"near <landmark>\" work for listings."
+            },
+            "sort": {
+              "type": "string",
+              "enum": [
+                "relevance",
+                "price_low",
+                "price_high",
+                "newest"
+              ],
+              "description": "Sort order (default relevance). price_low excludes price-on-request."
+            },
+            "countryId": {
+              "type": "integer",
+              "description": "Ranking country; defaults to 1 = India. This server is INDIA-focused — leave unset. (8 = UAE exists only for the rare Square Yards Dubai listing; do not use it for a general non-India request — decline those.)"
+            },
+            "sort_key": {
+              "type": "string",
+              "enum": [
+                "price_H-L",
+                "price_L-H",
+                "newest"
+              ],
+              "description": "Advanced raw sort key (takes precedence over `sort`)."
+            },
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "1-based page (default 1)."
+            },
+            "size": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "description": "Results per page (default 10)."
+            }
+          },
+          "required": [
+            "listingType"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Search Property Listings",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://sqy-mcp-widget",
+          "ui": {
+            "resourceUri": "ui://sqy-mcp-widget"
+          }
+        }
+      },
+      {
+        "name": "search_projects",
+        "title": "Search New-Construction Projects",
+        "description": "Search NEW-CONSTRUCTION projects/developments (NOT resale listings) - under-construction, new-launch, ready-to-move, upcoming - returned as project cards (developer, price band, BHK configs, status, RERA). ROUTING: pick THIS for \"project/new launch/under construction\"; use search_properties for resale/rental listings; for a general buy intent with no new-vs-resale preference call BOTH in the same turn. SIMPLEST PATH (one call): pass `location` as the place in the user's words (\"Noida\", \"Wakad Pune\") plus filters - it resolves the place itself, so you need NOT call search_entities first. For precise/repeat scope you may instead pass an entity's `forProjects` ids (cityId/localityId/micromarketId/builderId - DOTCOM id space) VERBATIM; explicit ids override `location`. Never reuse a search_properties BEATS id here, and never guess ids. SPECIFIC NAMED project: do NOT use this discovery list (a city-scoped search returns the wrong project) - resolve the name via search_entities (entityType=\"project\"), take its `dotcomId`, and open it with get_entity_details (entity=\"project\", id=that dotcomId). A geo (lat/long or landmark) search adds `distanceInKm` per card. Defaults: RESIDENTIAL projects unless buildingType=2 (commercial) or a type/q is set; default order is \"Top Selling\" (Square Yards promoted/featured ranking - cards carry isFocus/isAssured/hasExclusive flags; use `sort` for price/connectivity order). A card price + estimate_home_loan gives its EMI. DRILL-DOWN: every card has an `id` - for possession/completion date, per-wing RERA, amenities or full spec call get_entity_details (entity=\"project\", id=that `id` verbatim - never the name/slug).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "string",
+              "description": "Free-text place in the user's words — \"Noida\", \"Sector 150 Noida\", \"Wakad Pune\". The tool resolves it to the right city/locality internally, so you can search in ONE call without first calling search_entities. Ignored if you pass explicit scope ids (cityId/…) or lat/long. Prefer this for a simple place-based search."
+            },
+            "cityHint": {
+              "type": "string",
+              "description": "City to disambiguate an ambiguous `location` (a bare \"Sector 150\" exists in many cities). Pass the user's city when known. If `location` matches multiple cities and no hint is given, the result comes back `ambiguous:true` with a `candidates` list so you can ask which city."
+            },
+            "cityId": {
+              "type": "string",
+              "description": "City id — DOTCOM id space. Use an entity's `forProjects.cityId` VERBATIM; never reuse a `forProperties`/beats city id here (the two searches use different id spaces)."
+            },
+            "localityId": {
+              "type": "string",
+              "description": "Locality id(s), comma-separated (from forProjects)."
+            },
+            "micromarketId": {
+              "type": "string",
+              "description": "Micromarket id(s), comma-separated (from forProjects)."
+            },
+            "builderId": {
+              "type": "string",
+              "description": "Developer/builder id(s), comma-separated (from forProjects)."
+            },
+            "minPrice": {
+              "type": "integer",
+              "description": "Min price, absolute INR."
+            },
+            "maxPrice": {
+              "type": "integer",
+              "description": "Max price, absolute INR."
+            },
+            "propertyType": {
+              "type": "string",
+              "description": "Unit-category id(s), comma-separated."
+            },
+            "bhk": {
+              "type": "string",
+              "description": "BHK config(s), comma-separated — e.g. \"2,3\"."
+            },
+            "status": {
+              "type": "string",
+              "description": "Project status id(s), comma-separated."
+            },
+            "buildingType": {
+              "type": "string",
+              "enum": [
+                "1",
+                "2"
+              ],
+              "description": "1 = Residential, 2 = Commercial."
+            },
+            "possesion": {
+              "type": "string",
+              "description": "Expected COMPLETION YEAR(s) — the possession DATE filter (note the single \"s\"). Comma-separated 4-digit years, e.g. \"2026\" or \"2026,2027\". Use for timeframe phrasing (\"possession by 2027\", \"ready in 2026\", \"handover next year\") — resolve relative phrases to absolute years (today is mid-2026). Independent of possessionStatus and combines with it."
+            },
+            "amenityName": {
+              "type": "string",
+              "description": "Amenity filter — comma-separated amenity names, plain text, case-insensitive, matched as an exact PHRASE (not fuzzy). Pass the SHORT, singular, punctuation-free core term: \"swimming pool\", \"gymnasium\", \"security\", \"cctv\", \"power backup\", \"lift\", \"kids play\", \"clubhouse\", \"indoor games\". A short term still matches a longer catalog entry (\"security\" matches \"24 x 7 Security\"). Multiple names are AND-ed (results must have ALL of them); for \"X or Y\" run two searches and merge. NOTE: amenity data is sparse — if a search returns few/zero results, retry with fewer amenities, then none, and say the amenity data may be unavailable."
+            },
+            "amenityDetail": {
+              "type": "string",
+              "description": "Optional: comma-separated NUMERIC amenity ids — only if you already hold canonical ids for THIS tool. Ids are NOT shared between the projects and properties searches; never copy an id from the other tool. Prefer amenityName."
+            },
+            "more": {
+              "type": "string",
+              "description": "Feature filters, comma-separated — e.g. \"Rera Registered Projects\"."
+            },
+            "tags": {
+              "type": "string",
+              "description": "Tags, comma-separated: isFocus,isAssured,isSquareElite,hasExclusive."
+            },
+            "landmarkId": {
+              "type": "string",
+              "description": "Landmark as \"lat|lng|name\" for a radius search (coordinates from a search_entities landmark result). Commas separate MULTIPLE landmarks here, so use pipes within one."
+            },
+            "lat": {
+              "type": "number",
+              "description": "Latitude for a geo-radius search."
+            },
+            "long": {
+              "type": "number",
+              "description": "Longitude for a geo-radius search."
+            },
+            "q": {
+              "type": "string",
+              "description": "Free-text project query."
+            },
+            "sort": {
+              "type": "string",
+              "enum": [
+                "top_selling",
+                "price_low",
+                "price_high",
+                "connectivity",
+                "luxury"
+              ],
+              "description": "Sort order (default top_selling = promoted/featured ranking)."
+            },
+            "possessionStatus": {
+              "type": "string",
+              "description": "Construction STAGE filter, comma list of: new_launch | under_construction | ready_to_move. Stage phrasing: \"newly launched\", \"under construction\", \"ready to move\". Combines with `possesion` (year), e.g. under_construction + possesion=2027. Do NOT pair new_launch with a near-term year (usually empty). Omit if the user gives no possession constraint. NOTE: \"upcoming\"/pre-launch and \"stalled\"/on-hold are NOT search-filterable (the endpoint ignores them) — do not pass them; for a specific project's on-hold details use get_entity_details (fields=\"stalledData\")."
+            },
+            "sortBy": {
+              "type": "string",
+              "enum": [
+                "Top Selling",
+                "DSE_KEY_1",
+                "DSE_KEY_2",
+                "DSE_KEY_3",
+                "DSE_KEY_7"
+              ],
+              "description": "Advanced raw sort key (takes precedence over `sort`)."
+            },
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number (default 1)."
+            },
+            "paging": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "description": "Page size (default 36)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Search New-Construction Projects",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://sqy-mcp-widget",
+          "ui": {
+            "resourceUri": "ui://sqy-mcp-widget"
+          }
+        }
+      },
+      {
+        "name": "get_entity_details",
+        "title": "Get Entity Details & Rates",
+        "description": "Fetch FULL DETAIL for ONE entity by numeric id - the last drill-down step. Use ONLY when the search tools (search_properties / search_projects / search_entities) did not already answer: a project's possession/completion date, per-wing RERA, amenities or spec; a listing's full attributes; a locality's price rates & pros/cons. For how/what/why questions (loans, vastu, process) use search_faq, not this. You MUST already hold the id from a prior result - never guess an id or slug; if you only have a NAME, call the matching search tool FIRST and copy its id (pick the one whose name+city matches; else say so). Which id, by entity: listing -> a search_properties result's `id`; project -> a search_projects result's `id`, OR a search_entities `type:\"project\"` result's `dotcomId` (project has one id space); developer -> a search_entities `type:\"builder\"` result's `dotcomId`; city/locality/micromarket -> a search_entities result's `beatsId` (default) or `dotcomId` (then set idType=\"dotcom\"). For projects the result includes `possessionStartingFrom`, the authoritative possession date (earliest upcoming RERA completion). For a PLACE's PRICE / PROPERTY RATES / market insights use entity=\"property-rates\": resolve the place via search_entities, take its `beatsId`, then call with entity=\"property-rates\", rateType=(city|locality|micromarket) and id=that beatsId. Optional `fields` adds sections (comma-separated); omit for the primary detail. Returns a compact, intent-filtered detail object.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "entity": {
+              "type": "string",
+              "enum": [
+                "city",
+                "locality",
+                "micromarket",
+                "developer",
+                "project",
+                "listing",
+                "property-rates"
+              ],
+              "description": "The entity type to fetch detail for. Use \"property-rates\" for a CITY / LOCALITY / MICROMARKET's price, rates or market-insight page (market overview, price trends, locality/micromarket rates, rental rates, top projects + an AI narrative) — it ALSO requires `rateType` and the place's BEATS id (resolve it via search_entities first)."
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The entity's NUMERIC id (e.g. \"8761\"), copied VERBATIM from a prior tool result — NEVER a name, slug, or guess (\"piramal-revanta\" is wrong). EXACTLY which field to copy, by entity:\n• listing → the `id` field of a search_properties result.\n• project → the `id` field of a search_projects result, OR a search_entities result whose type is \"project\" — use its `dotcomId` (project has a single id space; idType is not needed).\n• developer → a search_entities result whose type is \"builder\" — use its `dotcomId`.\n• city / locality / micromarket → a search_entities result of that type — use its `beatsId` (idType=beats, the default) or `dotcomId` (idType=dotcom).\nIf you only have a NAME, call the matching search tool FIRST and copy the id from the result you want — do not construct or transform it. Pick the result whose name (and city) matches the user's words before copying its id; if nothing clearly matches, say so rather than drilling a different entity."
+            },
+            "idType": {
+              "type": "string",
+              "enum": [
+                "beats",
+                "dotcom"
+              ],
+              "description": "Which id space the id is from. Default beats. ONLY affects city/locality/micromarket (which have both id spaces). Ignored for developer/project/listing (single id) and property-rates (always beats). Pass dotcom when the id came from a dotcom-keyed field."
+            },
+            "rateType": {
+              "type": "string",
+              "enum": [
+                "city",
+                "locality",
+                "micromarket"
+              ],
+              "description": "REQUIRED when entity=\"property-rates\" (ignored otherwise): which kind of place the rate record is for — a city, locality, or micromarket (there is NO project rate page). Combined with the BEATS `id` it forms the key — e.g. rateType=\"city\" + id=\"59\" → Gurgaon city rates; rateType=\"micromarket\" + id=\"154\" → Vijayawada Central. Get the beats id by calling search_entities for the place FIRST and taking its `beatsId`."
+            },
+            "fields": {
+              "type": "string",
+              "description": "Optional top-level section(s) to return, COMMA-SEPARATED (e.g. \"projectData,reraData\"). Omit for the primary detail section, which already answers most questions. Examples — project: projectData (default; includes status, price, RERA wings + derived possessionStartingFrom), landmarks (nearby schools/hospitals/banks/metro by distance), reraData, keyAspects, stalledData. listing: listingData, landmarks (nearby points of interest by distance). city: cityData, topDevelopers, landmarks. locality/micromarket: localityOverviewData, insightsData, nearByLocalitiesV2, landmarks. developer: developerData. property-rates: propertyRatesData (structured rates) is the DEFAULT; add propertyRatesAiData to fields ONLY when the user wants the prose narrative (it is heavy and restates the numbers) — e.g. fields=\"propertyRatesData,propertyRatesAiData\"."
+            }
+          },
+          "required": [
+            "entity",
+            "id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Get Entity Details & Rates",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://sqy-mcp-widget",
+          "ui": {
+            "resourceUri": "ui://sqy-mcp-widget"
+          }
+        }
+      },
+      {
+        "name": "compare_entities",
+        "title": "Compare Entities",
+        "description": "Compare 2-4 entities of the SAME type side by side (two projects, three localities, two listings), rendered as a comparison table. Pick this over calling get_entity_details repeatedly when the user asks to compare or contrast named places or properties. All items must share one `entity`, and you must already hold each numeric `id`: resolve each first via search_entities / search_properties / search_projects, never guessing. For city/locality/micromarket set `idType` to the id's source (beats default, or dotcom); it is ignored for project/listing. Cross-type comparison is not supported, and property-rates is not comparable. To RANK many localities or answer \"which area is best\" use recommend_localities.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "entity": {
+                    "type": "string",
+                    "enum": [
+                      "city",
+                      "locality",
+                      "micromarket",
+                      "developer",
+                      "project",
+                      "listing"
+                    ],
+                    "description": "Entity type — the SAME for every item."
+                  },
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The entity's NUMERIC id, copied verbatim from a prior search/detail result."
+                  },
+                  "idType": {
+                    "type": "string",
+                    "enum": [
+                      "beats",
+                      "dotcom"
+                    ],
+                    "description": "Id space (city/locality/micromarket only); default beats. Ignored otherwise."
+                  }
+                },
+                "required": [
+                  "entity",
+                  "id"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 2,
+              "maxItems": 4,
+              "description": "The 2–4 entities to compare, ALL of the same `entity` type (e.g. two projects, or three localities). Resolve each id first via search_entities / search_properties / search_projects."
+            }
+          },
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Compare Entities",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://sqy-mcp-widget",
+          "ui": {
+            "resourceUri": "ui://sqy-mcp-widget"
+          }
+        }
+      },
+      {
+        "name": "recommend_localities",
+        "title": "Recommend & Rank Localities",
+        "description": "Rank 2-20 localities (or a city's top localities) for END-USE vs INVESTMENT, as a scored list. ROUTING: pick THIS when the user names MANY areas or asks for \"the best area(s)\" / a recommendation (compare_entities is only a 2-4 side-by-side TABLE and never ranks). Resolve each locality NAME to an id via search_entities (entityType=\"locality\") FIRST, then pass `localities:[{id,idType}]` (or `cityId` to rank a city's top localities). Optional `budget` (absolute INR) flags each `inBudget`; `goal` = end_use | investment | both (default). HONEST + deterministic: it only combines signals get_entity_details already returns and NEVER invents a verdict. Sub-scores (0-100): connectivity/lifestyle/livability = the backend 0-5 index x20; appreciation = price-trend % (0%->50, +/-12.5%->100/0); liquidity (govt registered-deal volume) + value (rental yield) are ranked RELATIVE to the set. Weights - end-use: livability .35, connectivity .30, lifestyle .25, value .10; investment: appreciation .40, liquidity .30, value .20, connectivity .10; overall = their mean. A missing signal is OMITTED (not zero-filled), BUT a locality is only RANKED when present signals cover >50% of the goal's CORE (discriminating) weight — investment = appreciation/liquidity/yield (connectivity alone can't rank it), end-use = livability/connectivity/lifestyle; thinner ones go to `insufficientData` (with known signals + reason), so a one-signal locality can never top the list. signalCoverage is that CORE-weight share (0-1); each item also carries signalsUsed + raw numbers (avgRate, rentalYield, priceTrendPct, transactions) and VERBATIM pros/cons. India only, read-only.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "localities": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The locality NUMERIC id, from a search_entities locality result."
+                  },
+                  "idType": {
+                    "type": "string",
+                    "enum": [
+                      "beats",
+                      "dotcom"
+                    ],
+                    "description": "Id space of `id` (default beats). Pass \"dotcom\" when the id came from a dotcom-keyed field."
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 2,
+              "maxItems": 20,
+              "description": "The 2–20 localities to rank, each { id, idType? }. Resolve names → ids via search_entities (entityType=\"locality\") FIRST; never guess. Provide this OR `cityId`."
+            },
+            "cityId": {
+              "type": "string",
+              "description": "Instead of an explicit list, rank the CITY's top localities (up to 15). A city id from search_entities. Ignored when `localities` is given."
+            },
+            "cityIdType": {
+              "type": "string",
+              "enum": [
+                "beats",
+                "dotcom"
+              ],
+              "description": "Id space of `cityId` (default beats)."
+            },
+            "budget": {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "integer"
+                },
+                "max": {
+                  "type": "integer"
+                }
+              },
+              "additionalProperties": false,
+              "description": "Optional purchase budget, absolute INR (e.g. {min:20000000,max:30000000}). Flags each locality `inBudget` when a real project there fits — never a hard filter."
+            },
+            "bedrooms": {
+              "type": "string",
+              "description": "Optional BHK context, e.g. \"3 BHK\" (echoed; the ranking is locality-level)."
+            },
+            "goal": {
+              "type": "string",
+              "enum": [
+                "end_use",
+                "investment",
+                "both"
+              ],
+              "description": "Which composite sorts the result: end_use (livability/connectivity), investment (appreciation/liquidity/yield), or both (default)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Recommend & Rank Localities",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://sqy-mcp-widget",
+          "ui": {
+            "resourceUri": "ui://sqy-mcp-widget"
+          }
+        }
+      },
+      {
+        "name": "search_faq",
+        "title": "Search Real-Estate FAQ",
+        "description": "Answer INFORMATIONAL/advisory real-estate questions -- buying/renting/selling process, home loans, legal, RERA rights, NRI purchases, Azuro-managed rentals -- from the bundled Square Yards FAQ corpus. Pick this for general how/what/why questions; needs NO id, does NOT touch listings/projects. Do NOT use it to find inventory (use search_entities -> search_properties/search_projects), for a PLACE-specific price/rates question (use get_entity_details entity=\"property-rates\"), or for EMI/affordability NUMBERS (use estimate_home_loan, not this). Optionally pass `category` (e.g. buying/renting/selling) to scope results; `top_k` caps returned Q/A pairs (default 3).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "description": "An informational question, e.g. \"what credit score do I need for a home loan\"."
+            },
+            "category": {
+              "type": "string",
+              "description": "Optional: scope the search to one FAQ category (e.g. \"buying\", \"renting\", \"selling\"). Matched on the category id or label, case-insensitive. If it does not match a known category the filter is ignored and a note lists the valid ones."
+            },
+            "top_k": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "description": "Max Q/A pairs to return (default 3)."
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Search Real-Estate FAQ",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/outputTemplate": "ui://sqy-mcp-widget",
+          "ui": {
+            "resourceUri": "ui://sqy-mcp-widget"
+          }
+        }
+      },
+      {
+        "name": "estimate_home_loan",
+        "title": "Home Loan EMI & Affordability Calculator",
+        "description": "Calculate a home-loan EMI, or estimate how much a buyer can afford, for INDIA home loans. mode=\"emi\": given loanAmount (or propertyPrice + down payment) + rate + tenure, returns the monthly EMI, total interest and total payable. mode=\"affordability\": given monthly/annual NET income (+ existing EMIs, optional down-payment cash), returns the max EMI capacity, max loan and max property price via FOIR + RBI LTV tiers. Use THIS for any loan NUMBERS question (\"EMI on X\", \"what can I afford on Y salary\", \"how much down payment do I need\") — e.g. turn a listing/project card price into an EMI. For loan PROCESS/documents/eligibility prose use search_faq instead. Pure calculator: no ids, no live data. Money is absolute INR (1.2 Cr → 12000000). Defaults: 8.75% p.a., 20-year tenure, FOIR 0.50, stamp+registration ≈6%. Results are indicative with the disclaimer included — never present them as a loan offer.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "emi",
+                "affordability"
+              ],
+              "description": "\"emi\" = monthly payment for a known loan/price; \"affordability\" = max budget from income."
+            },
+            "interestRate": {
+              "type": "number",
+              "description": "Annual interest rate %, e.g. 8.75 (the default)."
+            },
+            "tenureYears": {
+              "type": "integer",
+              "description": "Loan tenure in years (default 20; clamped 1–30)."
+            },
+            "loanAmount": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "emi mode: loan principal in absolute INR (₹80L → 8000000). Wins over propertyPrice."
+            },
+            "propertyPrice": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "emi mode: property price in absolute INR — the loan is price minus down payment."
+            },
+            "downPayment": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "emi mode: down payment in absolute INR (used with propertyPrice)."
+            },
+            "downPaymentPercent": {
+              "type": "number",
+              "description": "emi mode: down payment as % of propertyPrice; used when downPayment is absent. If neither is given the RBI-minimum down payment for the price band is assumed."
+            },
+            "monthlyIncome": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "affordability mode: NET take-home income per month, absolute INR (₹2L → 200000)."
+            },
+            "annualIncome": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "affordability mode: NET annual income, absolute INR (divided by 12 internally)."
+            },
+            "existingEmi": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "affordability mode: existing monthly EMI obligations, INR (default 0)."
+            },
+            "foir": {
+              "type": "number",
+              "description": "affordability mode: share of income lenders allow for all EMIs (default 0.50; clamped 0.3–0.6)."
+            },
+            "downPaymentAvailable": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "affordability mode: cash available for down payment + costs — caps the max property price."
+            },
+            "includeTxnCosts": {
+              "type": "boolean",
+              "description": "Include ~6% stamp duty + registration in the cash estimates (default true)."
+            }
+          },
+          "required": [
+            "mode"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Home Loan EMI & Affordability Calculator",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "area_conversion",
+        "title": "Area Unit Converter",
+        "description": "Convert a land/area measurement between the units used in INDIA — metric (sq metre, sq km, hectare, are, sq cm), imperial (sq feet, sq yard/\"gaj\", sq inch, acre) and traditional Indian land units (cent, decimal, ground, guntha, marla, kanal, killa, ankanam, bigha, biswa, kattha). Use THIS for any unit-conversion NUMBERS (\"how many sq ft in a bigha\", \"convert 5 acre to gaj\", \"200 gaj in sq feet\"). Pure calculator — no ids, no live data. Pass `value` (a positive number) and `from`; give `to` for a single target, or omit it to get the value in the common units at once. Units accept friendly aliases (sqft, sqm, gaj, acre, cent, ground…). IMPORTANT: bigha, biswa and kattha differ by state, so pass a state-qualified code (BIGHA_PUCCA_UP_I, BISWA_HP_I, KATTHA_BIHAR, …); a bare \"bigha\" or an unknown unit returns the list of valid codes. For property PRICE/EMI numbers use estimate_home_loan; for live listings use search_properties.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "number",
+              "minimum": 0,
+              "description": "The area amount to convert — a positive number, e.g. 5 for \"5 acre\"."
+            },
+            "from": {
+              "type": "string",
+              "description": "Source unit. Codes or aliases: SQ_M, SQ_FT, SQ_YD (\"gaj\"), SQ_CM, SQ_IN, SQ_KM, HECTARE, ARE, ACRE, CENT, DECIMAL, GROUND, GUNTHA, MARLA, KANAL, KILLA, ANKANAM; bigha/biswa/kattha are state-qualified (e.g. BIGHA_PUCCA_UP_I, BISWA_HP_I, KATTHA_BIHAR)."
+            },
+            "to": {
+              "type": "string",
+              "description": "Target unit (same code/alias set). OMIT to get the value in the common units (ft², yd², m², acre, hectare) at once."
+            }
+          },
+          "required": [
+            "value",
+            "from"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "title": "Area Unit Converter",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:24:45.245Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:24:46.417Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:24:47.468Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:24:48.519Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 9,
+    "tools_hash": "sha256:5af503d5c7d101a5944d198d65c9b7fae8f7245c2ab6cf4f416d377265b1d77e",
+    "static_tool_tokens": 13214,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_entities",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_entities",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_properties",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_properties",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F8",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_projects",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_projects",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F10",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_entity_details",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_entity_details",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "compare_entities",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F13",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "recommend_localities",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "recommend_localities",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_faq",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "estimate_home_loan",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "area_conversion",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 9,
+      "warning": 5
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_properties",
+          "path": "inputSchema.properties.maxPrice",
+          "name": "maxPrice",
+          "description": "Max total price, absolute INR (1 cr → 10000000).",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "search_properties",
+          "path": "inputSchema.properties.maxArea",
+          "name": "maxArea",
+          "description": "Max area in sq ft.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "search_projects",
+          "path": "inputSchema.properties.maxPrice",
+          "name": "maxPrice",
+          "description": "Max price, absolute INR.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "get_entity_details",
+          "path": "inputSchema.properties.fields",
+          "name": "fields",
+          "description": "Optional top-level section(s) to return, COMMA-SEPARATED (e.g. \"projectData,reraData\"). Omit for the primary detail section, which already answers most questions. Examples — project: projectData (default; includes status, price, RERA wings + derived possessionStartingFrom), landmarks (nearby schools/hospitals/banks/metro by distance), reraData, keyAspects, stalledData. listing: listingData, landmarks (nearby points of interest by distance). city: cityData, topDevelopers, landmarks. locality/micromarket: localityOverviewData, insightsData, nearByLocalitiesV2, landmarks. developer: developerData. property-rates: propertyRatesData (structured rates) is the DEFAULT; add propertyRatesAiData to fields ONLY when the user wants the prose narrative (it is heavy and restates the numbers) — e.g. fields=\"propertyRatesData,propertyRatesAiData\".",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "recommend_localities",
+          "path": "inputSchema.properties.budget.properties.max",
+          "name": "max",
+          "description": "",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "estimate_home_loan",
+          "path": "inputSchema.properties.mode",
+          "name": "mode",
+          "description": "\"emi\" = monthly payment for a known loan/price; \"affordability\" = max budget from income.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "estimate_home_loan",
+          "path": "inputSchema.properties.includeTxnCosts",
+          "name": "includeTxnCosts",
+          "description": "Include ~6% stamp duty + registration in the cash estimates (default true).",
+          "mentions_size_or_cost": true
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "compare_entities"
+          ],
+          "description": "Compare 2-4 entities of the SAME type side by side (two projects, three localities, two listings), rendered as a comparison table. Pick this over calling get_entity_details repeatedly when the user asks to compare or contrast named places or properties. All items must share one `entity`, and you must already hold each numeric `id`: resolve each first via search_entities / search_properties / search_projects, never guessing. For city/locality/micromarket set `idType` to the id's source (beats default, or dotcom); it is ignored for project/listing. Cross-type comparison is not supported, and property-rates is not comparable. To RANK many localities or answer \"which area is best\" use recommend_localities.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "recommend_localities"
+          ],
+          "path": "inputSchema.properties.budget.properties.max",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "search_entities",
+      "search_properties",
+      "search_projects",
+      "get_entity_details",
+      "compare_entities",
+      "recommend_localities",
+      "search_faq",
+      "estimate_home_loan",
+      "area_conversion"
+    ]
+  }
+}

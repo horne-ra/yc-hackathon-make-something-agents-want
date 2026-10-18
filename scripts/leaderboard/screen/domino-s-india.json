@@ -1,0 +1,2469 @@
+{
+  "slug": "domino-s-india",
+  "source_url": "https://manufact.com/mcp-catalog/domino-s-india",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:23:39.226Z",
+    "endpoint": "https://genai-prod-ext.dominos.co.in/order-mcp/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "Domino's India Pizza Ordering Assistant",
+      "version": "1.0.1"
+    },
+    "capabilities": {
+      "logging": {},
+      "completions": {},
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "subscribe": false,
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Domino's India pizza ordering assistant (India only). All tools require an OTP-authenticated session established via manage-auth-otp (action=SEND then action=VERIFY); on a 401 from any tool, call refresh-auth-token and retry. Typical flow: authenticate -> select or add a delivery address -> resolve the delivery store -> browse menu, view bestsellers/combos, or reorder a recent order -> initialize the shopping cart -> apply promos/wallet if desired -> place the order -> track it. A VERIFY returns the saved addresses only (no order history), so the user picks a delivery address first. Once resolve-delivery-store has resolved the store, do not recite the store details unless asked; ask what the user would like to do and offer exactly three numbered options - 1. See Bestsellers (get-bestsellers), 2. Browse Menu (browse-menu), 3. Reorder (get-recent-orders-for-reorder). Addresses: when listing saved addresses, also let the user enter a landmark for a new address (resolved via resolve-delivery-store with the landmark as searchQuery and empty latitude/longitude); whenever the user asks to change the delivery address, show the saved addresses plus this landmark option first. Always mask mobile numbers as XXXXXX#### (last 4 digits only) in every response. State prices, items, availability and offers only from tool data; never guess them. Do not answer allergen, ingredient, dietary-suitability or nutrition-safety questions from your own knowledge - tell the user to check the official Domino's India website or app, or contact Domino's customer care. The user may switch to a different mobile number at any time - authenticate the new number via manage-auth-otp (SEND then VERIFY); do not refuse a request to change or use a different number. For detailed conversational flows and phrasing, read the dominos-* MCP prompts; for machine-readable tool rules (required fields, preconditions, auth gating, address policy, formatting constraints), read the resource at mcp://dominos/tool-policy.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "browse-menu",
+            "title": "browse-menu",
+            "description": "Returns curated menu categories or products for a Domino's India store. With no curatedCategoryId it returns predefined categories (CURATED_CATEGORIES); with a curatedCategoryId it returns that category's products (CURATED_PRODUCTS) or sub-categories (SUB_CATEGORIES). curatedCategoryId=BESTSELLERS (the first curated category) returns the store's bestsellers, same shape as get-bestsellers. Set showAll=true with page to get the full paginated product list (PAGINATED_PRODUCTS). The legacy categoryId path fetches products for a specific category. Never answer allergen or ingredient-safety questions from your own knowledge; refer the user to the official Domino's India website/app or customer care.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "request": {
+                  "type": "object",
+                  "properties": {
+                    "cartId": {
+                      "type": "string",
+                      "description": "Current shopping cart ID."
+                    },
+                    "categoryId": {
+                      "type": "string",
+                      "description": "Legacy category identifier for fetching products of a specific category."
+                    },
+                    "curatedCategoryId": {
+                      "type": "string",
+                      "description": "Curated category to browse. Omit to get the predefined top-level categories."
+                    },
+                    "latitude": {
+                      "type": "string",
+                      "description": "Delivery latitude."
+                    },
+                    "longitude": {
+                      "type": "string",
+                      "description": "Delivery longitude."
+                    },
+                    "page": {
+                      "type": "integer",
+                      "format": "int32",
+                      "description": "Page number for paginated results (1-indexed)."
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "format": "int32",
+                      "description": "Number of items per page."
+                    },
+                    "sessionToken": {
+                      "type": "string",
+                      "description": "Session token returned by manage-auth-otp VERIFY; identifies the authenticated user."
+                    },
+                    "showAll": {
+                      "type": "boolean",
+                      "description": "When true, returns the full paginated product list for the category."
+                    },
+                    "storeId": {
+                      "type": "string",
+                      "description": "Domino's store identifier."
+                    }
+                  },
+                  "required": [
+                    "cartId",
+                    "latitude",
+                    "longitude",
+                    "sessionToken",
+                    "storeId"
+                  ],
+                  "description": "Menu browse request"
+                }
+              },
+              "required": [
+                "request"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://order-mcp/menu-items",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              }
+            }
+          },
+          {
+            "name": "get-applicable-promos",
+            "title": "get-applicable-promos",
+            "description": "Returns applicable promotional offers and coupons for the current cart.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY"
+                },
+                "storeId": {
+                  "type": "string",
+                  "description": "Domino's store identifier"
+                },
+                "cartId": {
+                  "type": "string",
+                  "description": "Current shopping cart ID"
+                }
+              },
+              "required": [
+                "sessionToken",
+                "storeId",
+                "cartId"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get-combos",
+            "title": "get-combos",
+            "description": "Returns value combo offers for a store, grouped by selectable product groups.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY"
+                },
+                "storeId": {
+                  "type": "string",
+                  "description": "Domino's store identifier (default: 6585R)"
+                },
+                "latitude": {
+                  "type": "string",
+                  "description": "Latitude for local offers"
+                },
+                "longitude": {
+                  "type": "string",
+                  "description": "Longitude for local offers"
+                },
+                "count": {
+                  "type": "integer",
+                  "format": "int32",
+                  "description": "Number of combos to fetch (default: 3)"
+                }
+              },
+              "required": [
+                "sessionToken"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get-saved-addresses",
+            "title": "get-saved-addresses",
+            "description": "Returns the authenticated user's saved delivery addresses. Alongside the saved addresses, the user may instead enter a landmark to add a new address, which is resolved via resolve-delivery-store using the landmark as searchQuery. Whenever the user asks to change the delivery address, list the saved addresses plus this landmark option before proceeding.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY"
+                }
+              },
+              "required": [
+                "sessionToken"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://order-mcp/saved-addresses",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              }
+            }
+          },
+          {
+            "name": "get-existing-cart",
+            "title": "get-existing-cart",
+            "description": "Fetches the user's existing cart without changing it. cartId and storeId default to the session's current cart and store. Returns the same cart summary as initialize-shopping-cart: items, pricing, discounts and wallet balance.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "request": {
+                  "type": "object",
+                  "properties": {
+                    "clientFrom": {
+                      "type": "string",
+                      "description": "Client channel identifier (e.g. WHATSAPP)."
+                    },
+                    "latitude": {
+                      "type": "string",
+                      "description": "Delivery latitude. Defaults to the session's latitude."
+                    },
+                    "longitude": {
+                      "type": "string",
+                      "description": "Delivery longitude. Defaults to the session's longitude."
+                    },
+                    "sessionToken": {
+                      "type": "string",
+                      "description": "Session token returned by manage-auth-otp VERIFY; identifies the authenticated user."
+                    },
+                    "storeId": {
+                      "type": "string",
+                      "description": "Domino's store identifier the cart belongs to. Defaults to the session's store."
+                    }
+                  },
+                  "required": [
+                    "sessionToken"
+                  ],
+                  "description": "Get cart request"
+                }
+              },
+              "required": [
+                "request"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://order-mcp/cart",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              }
+            }
+          },
+          {
+            "name": "get-previously-ordered-items",
+            "title": "get-previously-ordered-items",
+            "description": "Returns items the user has previously ordered at the store (default limit 10). Response has the same product shape as get-bestsellers.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY"
+                },
+                "storeId": {
+                  "type": "string",
+                  "description": "Domino's store identifier (default: resolved store, else 6585R)"
+                },
+                "latitude": {
+                  "type": "string",
+                  "description": "Latitude for local offers"
+                },
+                "longitude": {
+                  "type": "string",
+                  "description": "Longitude for local offers"
+                },
+                "limit": {
+                  "type": "integer",
+                  "format": "int32",
+                  "description": "Number of items to fetch (default: 10)"
+                }
+              },
+              "required": [
+                "sessionToken"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://order-mcp/menu-items",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              }
+            }
+          },
+          {
+            "name": "get-bestsellers",
+            "title": "get-bestsellers",
+            "description": "Returns product recommendations for a store. type=BESTSELLER returns top items; type=NUTRITION returns bestsellers with nutritional facts.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY"
+                },
+                "storeId": {
+                  "type": "string",
+                  "description": "Domino's store identifier (default: 6585R)"
+                },
+                "latitude": {
+                  "type": "string",
+                  "description": "Latitude for local offers"
+                },
+                "longitude": {
+                  "type": "string",
+                  "description": "Longitude for local offers"
+                },
+                "type": {
+                  "type": "string",
+                  "description": "Type of recommendations: BESTSELLER or NUTRITION"
+                }
+              },
+              "required": [
+                "sessionToken",
+                "type"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://order-mcp/menu-items",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              }
+            }
+          },
+          {
+            "name": "get-recent-orders-for-reorder",
+            "title": "get-recent-orders-for-reorder",
+            "description": "Returns the user's last 3 orders with their items and skuIds for reordering. Each order names the store it was originally placed at, for display only - a reorder is always placed against the store resolve-delivery-store settled on and the address the user picked this session, never the past order's store or address (the response carries no delivery address for that reason). Use this when the user picks the Reorder option offered after resolve-delivery-store has resolved the store; it needs storeId, latitude and longitude, so it cannot be called before then. When user selects a recent order match it back to the same order in this tool's JSON, take the skuIds from there and call initialize-shopping-cart with exactly those items and quantities.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY"
+                },
+                "cartId": {
+                  "type": "string",
+                  "description": "Current shopping cart ID"
+                },
+                "storeId": {
+                  "type": "string",
+                  "description": "Domino's store identifier"
+                },
+                "latitude": {
+                  "type": "string",
+                  "description": "Latest delivery latitude"
+                },
+                "longitude": {
+                  "type": "string",
+                  "description": "Latest delivery longitude"
+                }
+              },
+              "required": [
+                "sessionToken",
+                "cartId",
+                "storeId",
+                "latitude",
+                "longitude"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://order-mcp/recent-orders",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              }
+            }
+          },
+          {
+            "name": "get-wallet-and-loyalty-balance",
+            "title": "get-wallet-and-loyalty-balance",
+            "description": "Returns the authenticated user's Domino's wallet (Piggybank) balance and loyalty balance (points and available free items) for the current cart context.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY"
+                },
+                "storeId": {
+                  "type": "string",
+                  "description": "Domino's store identifier"
+                },
+                "cartId": {
+                  "type": "string",
+                  "description": "Current shopping cart ID"
+                },
+                "latitude": {
+                  "type": "string",
+                  "description": "Delivery latitude"
+                },
+                "longitude": {
+                  "type": "string",
+                  "description": "Delivery longitude"
+                }
+              },
+              "required": [
+                "sessionToken",
+                "storeId",
+                "cartId",
+                "latitude",
+                "longitude"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "initialize-shopping-cart",
+            "title": "initialize-shopping-cart",
+            "description": "Creates a cart with the given items and optional promo or wallet settings. Each cart item carries a skuId, quantity, optional sizeId, and a menuType (MAIN, LOYALTY, or DYNAMIC_COMBO); DYNAMIC_COMBO items also carry childItems (one per combo group). When size/crust is unspecified, medium and new hand tossed are used by default. promoCode with applyDefaultPromo controls promo application, and useWallet toggles paying from the Domino's wallet. Returns cart summary, pricing, discounts, delivery ETA, and wallet balance. When the status is FAILURE/FAILED - say which items could not be added and what to try instead.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "request": {
+                  "type": "object",
+                  "properties": {
+                    "applyDefaultPromo": {
+                      "type": "boolean",
+                      "description": "Whether to auto-apply the default promo when no promoCode is provided. Defaults to true."
+                    },
+                    "cartItems": {
+                      "type": "object",
+                      "properties": {
+                        "cartItems": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "childItems": {
+                                "description": "For DYNAMIC_COMBO items: one entry per selected combo group, each with the chosen product skuId and its groupId.",
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "groupId": {
+                                      "type": "string",
+                                      "description": "Identifier of the combo group this product was selected from."
+                                    },
+                                    "quantity": {
+                                      "type": "integer",
+                                      "format": "int32",
+                                      "description": "Quantity of the chosen product (typically 1)."
+                                    },
+                                    "skuId": {
+                                      "type": "string",
+                                      "description": "SKU identifier of the product chosen for this combo group."
+                                    }
+                                  },
+                                  "required": [
+                                    "groupId",
+                                    "quantity",
+                                    "skuId"
+                                  ]
+                                }
+                              },
+                              "menuType": {
+                                "type": "string",
+                                "enum": [
+                                  "MAIN",
+                                  "DYNAMIC_COMBO",
+                                  "LOYALTY"
+                                ],
+                                "description": "Menu source of the item: MAIN (default), LOYALTY for loyalty/POTP free items, or DYNAMIC_COMBO for value combos."
+                              },
+                              "quantity": {
+                                "type": "integer",
+                                "format": "int32",
+                                "description": "Quantity of this item to add to the cart."
+                              },
+                              "sizeId": {
+                                "type": "string",
+                                "description": "Size/crust identifier. If omitted, defaults to medium size with new hand tossed crust; if that combination is unavailable, the first available size and crust is used."
+                              },
+                              "skuId": {
+                                "type": "string",
+                                "description": "SKU identifier of the item. For pizzas this comes from variants[].skuId; for non-pizza items it is the item's skuId."
+                              },
+                              "toppings": {
+                                "description": "Optional toppings/add-ons for the item.",
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "quantity": {
+                                      "type": "integer",
+                                      "format": "int32"
+                                    },
+                                    "skuId": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "quantity",
+                                    "skuId"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "childItems",
+                              "menuType",
+                              "quantity",
+                              "sizeId",
+                              "skuId",
+                              "toppings"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "cartItems"
+                      ],
+                      "description": "Items to add to the cart, each with skuId, quantity, optional sizeId, menuType, and childItems for combos."
+                    },
+                    "clientFrom": {
+                      "type": "string",
+                      "description": "Client channel identifier (e.g. WHATSAPP)."
+                    },
+                    "latitude": {
+                      "type": "string",
+                      "description": "Delivery latitude."
+                    },
+                    "longitude": {
+                      "type": "string",
+                      "description": "Delivery longitude."
+                    },
+                    "promoCode": {
+                      "type": "string",
+                      "description": "Promo code to apply to the cart. When set, pair with applyDefaultPromo=false to apply only this code."
+                    },
+                    "sessionToken": {
+                      "type": "string",
+                      "description": "Session token returned by manage-auth-otp VERIFY; identifies the authenticated user."
+                    },
+                    "storeId": {
+                      "type": "string",
+                      "description": "Domino's store identifier the cart belongs to."
+                    },
+                    "useWallet": {
+                      "type": "boolean",
+                      "description": "Whether to apply the Domino's wallet (Piggybank) balance to the cart. Defaults to false."
+                    }
+                  },
+                  "required": [
+                    "cartItems",
+                    "latitude",
+                    "longitude",
+                    "sessionToken",
+                    "storeId"
+                  ],
+                  "description": "Cart initialization request"
+                }
+              },
+              "required": [
+                "request"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://order-mcp/cart",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              }
+            }
+          },
+          {
+            "name": "manage-auth-otp",
+            "title": "manage-auth-otp",
+            "description": "Entry point of a chat/user session. Sends or verifies a mobile OTP for Domino's India sign-in. action=SEND requests an OTP; action=VERIFY validates the OTP and, on success, returns a sessionToken (a unique per-login identifier) plus the saved addresses. The returned sessionToken MUST be passed on every subsequent tool call to resolve the authenticated session. Also used to switch to a different mobile number: send and verify an OTP for the new number (this is allowed; do not refuse a request to change/use a different number) - a fresh sessionToken is issued each time, replace the old one. When presenting the returned addresses, the user may instead enter a landmark to add a new address, which is resolved via resolve-delivery-store using the landmark as searchQuery. When user select a saved address match it back to the addressResponse in this tool's JSON and take the address_id from there, then pass that address_id to resolve-delivery-store. Address details are partially masked and carry no coordinates by design - never ask the user for the masked parts, and never try to reconstruct them; the server holds the real address and resolves it from the address_id. Do not offer reorder, bestsellers or the menu yet - those come after resolve-delivery-store. If the VERIFY response contains selectedAddress and selectedStore, the delivery address and store are already set from the user's most recent order: do not call resolve-delivery-store and do not ask for an address - go straight to the three numbered options (1. See Bestsellers, 2. Browse Menu, 3. Reorder); use resolve-delivery-store only if the user asks to change the address. Otherwise the user must select a saved address or enter a landmark before proceeding.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "request": {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "string"
+                    },
+                    "mobile": {
+                      "type": "string"
+                    },
+                    "otp": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "mobile"
+                  ],
+                  "description": "OTP authentication request"
+                }
+              },
+              "required": [
+                "request"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://order-mcp/auth-summary",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              }
+            }
+          },
+          {
+            "name": "order-status",
+            "title": "order-status",
+            "description": "Returns the current delivery status of the user's most recent order.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY"
+                }
+              },
+              "required": [
+                "sessionToken"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              }
+            }
+          },
+          {
+            "name": "refresh-auth-token",
+            "title": "refresh-auth-token",
+            "description": "Refreshes the expired OTP session for the given sessionToken. Call after receiving a 401 from another tool, then retry the failed tool.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY"
+                }
+              },
+              "required": [
+                "sessionToken"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "resolve-delivery-store",
+            "title": "resolve-delivery-store",
+            "description": "Must be called after user selects a saved address or enters a landmark. Resolves the nearest Domino's delivery store. Provide either the addressId of the saved address the user picked (preferred - the server looks up its real coordinates itself), a searchQuery landmark (returns location predictions), or a placeId from a selected prediction (returns store details). Leave latitude and longitude empty in every case. Call this again with the new addressId whenever the user changes their delivery address; the most recent call is the address the order is placed against. Falls back to store 6585R when none is resolved. Once a store is resolved, do not recite the store details unless asked; instead ask the user what they would like to do and offer exactly three numbered options - 1. See Bestsellers (get-bestsellers with type=BESTSELLER), 2. Browse Menu (browse-menu with no curatedCategoryId), 3. Reorder (get-recent-orders-for-reorder) - then call the tool for whichever they pick. A landmark searchQuery returns predictions rather than a store.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "request": {
+                  "type": "object",
+                  "properties": {
+                    "addressId": {
+                      "type": "integer",
+                      "format": "int64",
+                      "description": "address_id of the saved address the user picked. Preferred over latitude/longitude: the server looks up the real coordinates itself, so the coordinates never have to be passed back."
+                    },
+                    "cartId": {
+                      "type": "string",
+                      "description": "Current shopping cart ID."
+                    },
+                    "isNewAddress": {
+                      "type": "boolean",
+                      "description": "True when resolving a store for a newly added address."
+                    },
+                    "latitude": {
+                      "type": "string",
+                      "description": "Delivery latitude. Leave empty when using addressId, searchQuery or placeId."
+                    },
+                    "longitude": {
+                      "type": "string",
+                      "description": "Delivery longitude. Leave empty when using addressId, searchQuery or placeId."
+                    },
+                    "placeId": {
+                      "type": "string",
+                      "description": "Place ID from a selected prediction; returns store details."
+                    },
+                    "searchQuery": {
+                      "type": "string",
+                      "description": "Landmark text to search; returns location predictions."
+                    },
+                    "sessionToken": {
+                      "type": "string",
+                      "description": "Session token returned by manage-auth-otp VERIFY; identifies the authenticated user."
+                    },
+                    "storeId": {
+                      "type": "string",
+                      "description": "Known Domino's store identifier, if already resolved."
+                    }
+                  },
+                  "required": [
+                    "cartId",
+                    "sessionToken"
+                  ],
+                  "description": "Store resolution request"
+                }
+              },
+              "required": [
+                "request"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://order-mcp/store-actions",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              }
+            }
+          },
+          {
+            "name": "place-order",
+            "title": "place-order",
+            "description": "Initiates the order for the current cart with the selected address and payment method - the order is only confirmed once the payment succeeds, so tell the user it has been initiated and awaits payment, never that it is placed or confirmed. paymentMode is CASH, UPI (UPI maps to UPI_WALLET internally), or WALLET_ONLY when paying fully from the Domino's wallet. price is the grandTotal from cart initialization. Pass back the same address object the user picked, masked parts and all - the server matches it by address_id and substitutes the real address. For a newly added address, leave the address id empty. Returns the initiated order and its payment details, including a QR/publicUrl for online payment. When status is not SUCCESS there is no card, so explain what failed and what to try next.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY"
+                },
+                "cartId": {
+                  "type": "string",
+                  "description": "Current shopping cart ID"
+                },
+                "selectedAddress": {
+                  "type": "object",
+                  "properties": {
+                    "address_id": {
+                      "type": "integer",
+                      "format": "int64"
+                    },
+                    "area_level0": {
+                      "type": "string"
+                    },
+                    "area_level1": {
+                      "type": "string"
+                    },
+                    "area_level2": {
+                      "type": "string"
+                    },
+                    "building_number": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "city_region": {
+                      "type": "string"
+                    },
+                    "country": {
+                      "type": "string"
+                    },
+                    "customer_address_name": {
+                      "type": "string"
+                    },
+                    "customers_mobile": {
+                      "type": "string"
+                    },
+                    "latitude": {
+                      "type": "number",
+                      "format": "double"
+                    },
+                    "longitude": {
+                      "type": "number",
+                      "format": "double"
+                    },
+                    "postal_code": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "type": "string"
+                    },
+                    "street_name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "address_id",
+                    "area_level0",
+                    "area_level1",
+                    "area_level2",
+                    "building_number",
+                    "city",
+                    "city_region",
+                    "country",
+                    "customer_address_name",
+                    "customers_mobile",
+                    "latitude",
+                    "longitude",
+                    "postal_code",
+                    "state",
+                    "street_name"
+                  ],
+                  "description": "Detailed delivery address object"
+                },
+                "price": {
+                  "type": "string",
+                  "description": "Total order price as grandTotal from cart initialization"
+                },
+                "storeId": {
+                  "type": "string",
+                  "description": "Domino's store identifier"
+                },
+                "paymentMode": {
+                  "type": "string",
+                  "description": "Selected payment method (e.g., CASH, UPI_WALLET, or WALLET_ONLY)"
+                },
+                "useWalletBalance": {
+                  "type": "boolean",
+                  "description": "True when paying with Domino's wallet (full or split with CASH/UPI)"
+                },
+                "clientFrom": {
+                  "type": "string",
+                  "description": "Client channel identifier (optional)"
+                }
+              },
+              "required": [
+                "sessionToken",
+                "cartId",
+                "selectedAddress",
+                "price",
+                "storeId",
+                "paymentMode"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": false,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://order-mcp/order-payment",
+                "visibility": [
+                  "model",
+                  "app"
+                ]
+              }
+            }
+          },
+          {
+            "name": "track-live-order",
+            "title": "track-live-order",
+            "description": "Returns live delivery tracking for the user's most recent order, including status, ETA, and a map URL. Rider name, rider contact and live rider location are shown only on the map page, not in this response; direct the user to the map URL for them.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY"
+                }
+              },
+              "required": [
+                "sessionToken"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "get-loyalty-menu",
+            "title": "get-loyalty-menu",
+            "description": "Returns a paginated loyalty (POTP) free-item menu for enrolled users with available free items.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY"
+                },
+                "storeId": {
+                  "type": "string",
+                  "description": "Domino's store identifier"
+                },
+                "cartId": {
+                  "type": "string",
+                  "description": "Current shopping cart ID"
+                },
+                "latitude": {
+                  "type": "string",
+                  "description": "Delivery latitude"
+                },
+                "longitude": {
+                  "type": "string",
+                  "description": "Delivery longitude"
+                },
+                "page": {
+                  "type": "integer",
+                  "format": "int32",
+                  "description": "Page number (1-indexed, default: 1)"
+                },
+                "pageSize": {
+                  "type": "integer",
+                  "format": "int32",
+                  "description": "Number of items per page (default: 10)"
+                }
+              },
+              "required": [
+                "sessionToken",
+                "storeId",
+                "cartId",
+                "latitude",
+                "longitude"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "manage-loyalty-enrollment",
+            "title": "manage-loyalty-enrollment",
+            "description": "Checks or completes Cheesy Rewards loyalty enrollment. action=CHECK returns status; action=ENROLL registers the user.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY"
+                },
+                "action": {
+                  "type": "string",
+                  "description": "Action to perform: CHECK or ENROLL"
+                },
+                "storeId": {
+                  "type": "string",
+                  "description": "Domino's store identifier"
+                },
+                "cartId": {
+                  "type": "string",
+                  "description": "Current shopping cart ID"
+                }
+              },
+              "required": [
+                "sessionToken",
+                "action",
+                "storeId",
+                "cartId"
+              ]
+            },
+            "annotations": {
+              "title": "",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "idempotentHint": false,
+              "openWorldHint": true
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "browse-menu",
+        "title": "browse-menu",
+        "description": "Returns curated menu categories or products for a Domino's India store. With no curatedCategoryId it returns predefined categories (CURATED_CATEGORIES); with a curatedCategoryId it returns that category's products (CURATED_PRODUCTS) or sub-categories (SUB_CATEGORIES). curatedCategoryId=BESTSELLERS (the first curated category) returns the store's bestsellers, same shape as get-bestsellers. Set showAll=true with page to get the full paginated product list (PAGINATED_PRODUCTS). The legacy categoryId path fetches products for a specific category. Never answer allergen or ingredient-safety questions from your own knowledge; refer the user to the official Domino's India website/app or customer care.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object",
+              "properties": {
+                "cartId": {
+                  "type": "string",
+                  "description": "Current shopping cart ID."
+                },
+                "categoryId": {
+                  "type": "string",
+                  "description": "Legacy category identifier for fetching products of a specific category."
+                },
+                "curatedCategoryId": {
+                  "type": "string",
+                  "description": "Curated category to browse. Omit to get the predefined top-level categories."
+                },
+                "latitude": {
+                  "type": "string",
+                  "description": "Delivery latitude."
+                },
+                "longitude": {
+                  "type": "string",
+                  "description": "Delivery longitude."
+                },
+                "page": {
+                  "type": "integer",
+                  "format": "int32",
+                  "description": "Page number for paginated results (1-indexed)."
+                },
+                "pageSize": {
+                  "type": "integer",
+                  "format": "int32",
+                  "description": "Number of items per page."
+                },
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY; identifies the authenticated user."
+                },
+                "showAll": {
+                  "type": "boolean",
+                  "description": "When true, returns the full paginated product list for the category."
+                },
+                "storeId": {
+                  "type": "string",
+                  "description": "Domino's store identifier."
+                }
+              },
+              "required": [
+                "cartId",
+                "latitude",
+                "longitude",
+                "sessionToken",
+                "storeId"
+              ],
+              "description": "Menu browse request"
+            }
+          },
+          "required": [
+            "request"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://order-mcp/menu-items",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          }
+        }
+      },
+      {
+        "name": "get-applicable-promos",
+        "title": "get-applicable-promos",
+        "description": "Returns applicable promotional offers and coupons for the current cart.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sessionToken": {
+              "type": "string",
+              "description": "Session token returned by manage-auth-otp VERIFY"
+            },
+            "storeId": {
+              "type": "string",
+              "description": "Domino's store identifier"
+            },
+            "cartId": {
+              "type": "string",
+              "description": "Current shopping cart ID"
+            }
+          },
+          "required": [
+            "sessionToken",
+            "storeId",
+            "cartId"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get-combos",
+        "title": "get-combos",
+        "description": "Returns value combo offers for a store, grouped by selectable product groups.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sessionToken": {
+              "type": "string",
+              "description": "Session token returned by manage-auth-otp VERIFY"
+            },
+            "storeId": {
+              "type": "string",
+              "description": "Domino's store identifier (default: 6585R)"
+            },
+            "latitude": {
+              "type": "string",
+              "description": "Latitude for local offers"
+            },
+            "longitude": {
+              "type": "string",
+              "description": "Longitude for local offers"
+            },
+            "count": {
+              "type": "integer",
+              "format": "int32",
+              "description": "Number of combos to fetch (default: 3)"
+            }
+          },
+          "required": [
+            "sessionToken"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get-saved-addresses",
+        "title": "get-saved-addresses",
+        "description": "Returns the authenticated user's saved delivery addresses. Alongside the saved addresses, the user may instead enter a landmark to add a new address, which is resolved via resolve-delivery-store using the landmark as searchQuery. Whenever the user asks to change the delivery address, list the saved addresses plus this landmark option before proceeding.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sessionToken": {
+              "type": "string",
+              "description": "Session token returned by manage-auth-otp VERIFY"
+            }
+          },
+          "required": [
+            "sessionToken"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://order-mcp/saved-addresses",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          }
+        }
+      },
+      {
+        "name": "get-existing-cart",
+        "title": "get-existing-cart",
+        "description": "Fetches the user's existing cart without changing it. cartId and storeId default to the session's current cart and store. Returns the same cart summary as initialize-shopping-cart: items, pricing, discounts and wallet balance.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object",
+              "properties": {
+                "clientFrom": {
+                  "type": "string",
+                  "description": "Client channel identifier (e.g. WHATSAPP)."
+                },
+                "latitude": {
+                  "type": "string",
+                  "description": "Delivery latitude. Defaults to the session's latitude."
+                },
+                "longitude": {
+                  "type": "string",
+                  "description": "Delivery longitude. Defaults to the session's longitude."
+                },
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY; identifies the authenticated user."
+                },
+                "storeId": {
+                  "type": "string",
+                  "description": "Domino's store identifier the cart belongs to. Defaults to the session's store."
+                }
+              },
+              "required": [
+                "sessionToken"
+              ],
+              "description": "Get cart request"
+            }
+          },
+          "required": [
+            "request"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://order-mcp/cart",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          }
+        }
+      },
+      {
+        "name": "get-previously-ordered-items",
+        "title": "get-previously-ordered-items",
+        "description": "Returns items the user has previously ordered at the store (default limit 10). Response has the same product shape as get-bestsellers.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sessionToken": {
+              "type": "string",
+              "description": "Session token returned by manage-auth-otp VERIFY"
+            },
+            "storeId": {
+              "type": "string",
+              "description": "Domino's store identifier (default: resolved store, else 6585R)"
+            },
+            "latitude": {
+              "type": "string",
+              "description": "Latitude for local offers"
+            },
+            "longitude": {
+              "type": "string",
+              "description": "Longitude for local offers"
+            },
+            "limit": {
+              "type": "integer",
+              "format": "int32",
+              "description": "Number of items to fetch (default: 10)"
+            }
+          },
+          "required": [
+            "sessionToken"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://order-mcp/menu-items",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          }
+        }
+      },
+      {
+        "name": "get-bestsellers",
+        "title": "get-bestsellers",
+        "description": "Returns product recommendations for a store. type=BESTSELLER returns top items; type=NUTRITION returns bestsellers with nutritional facts.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sessionToken": {
+              "type": "string",
+              "description": "Session token returned by manage-auth-otp VERIFY"
+            },
+            "storeId": {
+              "type": "string",
+              "description": "Domino's store identifier (default: 6585R)"
+            },
+            "latitude": {
+              "type": "string",
+              "description": "Latitude for local offers"
+            },
+            "longitude": {
+              "type": "string",
+              "description": "Longitude for local offers"
+            },
+            "type": {
+              "type": "string",
+              "description": "Type of recommendations: BESTSELLER or NUTRITION"
+            }
+          },
+          "required": [
+            "sessionToken",
+            "type"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://order-mcp/menu-items",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          }
+        }
+      },
+      {
+        "name": "get-recent-orders-for-reorder",
+        "title": "get-recent-orders-for-reorder",
+        "description": "Returns the user's last 3 orders with their items and skuIds for reordering. Each order names the store it was originally placed at, for display only - a reorder is always placed against the store resolve-delivery-store settled on and the address the user picked this session, never the past order's store or address (the response carries no delivery address for that reason). Use this when the user picks the Reorder option offered after resolve-delivery-store has resolved the store; it needs storeId, latitude and longitude, so it cannot be called before then. When user selects a recent order match it back to the same order in this tool's JSON, take the skuIds from there and call initialize-shopping-cart with exactly those items and quantities.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sessionToken": {
+              "type": "string",
+              "description": "Session token returned by manage-auth-otp VERIFY"
+            },
+            "cartId": {
+              "type": "string",
+              "description": "Current shopping cart ID"
+            },
+            "storeId": {
+              "type": "string",
+              "description": "Domino's store identifier"
+            },
+            "latitude": {
+              "type": "string",
+              "description": "Latest delivery latitude"
+            },
+            "longitude": {
+              "type": "string",
+              "description": "Latest delivery longitude"
+            }
+          },
+          "required": [
+            "sessionToken",
+            "cartId",
+            "storeId",
+            "latitude",
+            "longitude"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://order-mcp/recent-orders",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          }
+        }
+      },
+      {
+        "name": "get-wallet-and-loyalty-balance",
+        "title": "get-wallet-and-loyalty-balance",
+        "description": "Returns the authenticated user's Domino's wallet (Piggybank) balance and loyalty balance (points and available free items) for the current cart context.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sessionToken": {
+              "type": "string",
+              "description": "Session token returned by manage-auth-otp VERIFY"
+            },
+            "storeId": {
+              "type": "string",
+              "description": "Domino's store identifier"
+            },
+            "cartId": {
+              "type": "string",
+              "description": "Current shopping cart ID"
+            },
+            "latitude": {
+              "type": "string",
+              "description": "Delivery latitude"
+            },
+            "longitude": {
+              "type": "string",
+              "description": "Delivery longitude"
+            }
+          },
+          "required": [
+            "sessionToken",
+            "storeId",
+            "cartId",
+            "latitude",
+            "longitude"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "initialize-shopping-cart",
+        "title": "initialize-shopping-cart",
+        "description": "Creates a cart with the given items and optional promo or wallet settings. Each cart item carries a skuId, quantity, optional sizeId, and a menuType (MAIN, LOYALTY, or DYNAMIC_COMBO); DYNAMIC_COMBO items also carry childItems (one per combo group). When size/crust is unspecified, medium and new hand tossed are used by default. promoCode with applyDefaultPromo controls promo application, and useWallet toggles paying from the Domino's wallet. Returns cart summary, pricing, discounts, delivery ETA, and wallet balance. When the status is FAILURE/FAILED - say which items could not be added and what to try instead.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object",
+              "properties": {
+                "applyDefaultPromo": {
+                  "type": "boolean",
+                  "description": "Whether to auto-apply the default promo when no promoCode is provided. Defaults to true."
+                },
+                "cartItems": {
+                  "type": "object",
+                  "properties": {
+                    "cartItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "childItems": {
+                            "description": "For DYNAMIC_COMBO items: one entry per selected combo group, each with the chosen product skuId and its groupId.",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "groupId": {
+                                  "type": "string",
+                                  "description": "Identifier of the combo group this product was selected from."
+                                },
+                                "quantity": {
+                                  "type": "integer",
+                                  "format": "int32",
+                                  "description": "Quantity of the chosen product (typically 1)."
+                                },
+                                "skuId": {
+                                  "type": "string",
+                                  "description": "SKU identifier of the product chosen for this combo group."
+                                }
+                              },
+                              "required": [
+                                "groupId",
+                                "quantity",
+                                "skuId"
+                              ]
+                            }
+                          },
+                          "menuType": {
+                            "type": "string",
+                            "enum": [
+                              "MAIN",
+                              "DYNAMIC_COMBO",
+                              "LOYALTY"
+                            ],
+                            "description": "Menu source of the item: MAIN (default), LOYALTY for loyalty/POTP free items, or DYNAMIC_COMBO for value combos."
+                          },
+                          "quantity": {
+                            "type": "integer",
+                            "format": "int32",
+                            "description": "Quantity of this item to add to the cart."
+                          },
+                          "sizeId": {
+                            "type": "string",
+                            "description": "Size/crust identifier. If omitted, defaults to medium size with new hand tossed crust; if that combination is unavailable, the first available size and crust is used."
+                          },
+                          "skuId": {
+                            "type": "string",
+                            "description": "SKU identifier of the item. For pizzas this comes from variants[].skuId; for non-pizza items it is the item's skuId."
+                          },
+                          "toppings": {
+                            "description": "Optional toppings/add-ons for the item.",
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "quantity": {
+                                  "type": "integer",
+                                  "format": "int32"
+                                },
+                                "skuId": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "quantity",
+                                "skuId"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "childItems",
+                          "menuType",
+                          "quantity",
+                          "sizeId",
+                          "skuId",
+                          "toppings"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "cartItems"
+                  ],
+                  "description": "Items to add to the cart, each with skuId, quantity, optional sizeId, menuType, and childItems for combos."
+                },
+                "clientFrom": {
+                  "type": "string",
+                  "description": "Client channel identifier (e.g. WHATSAPP)."
+                },
+                "latitude": {
+                  "type": "string",
+                  "description": "Delivery latitude."
+                },
+                "longitude": {
+                  "type": "string",
+                  "description": "Delivery longitude."
+                },
+                "promoCode": {
+                  "type": "string",
+                  "description": "Promo code to apply to the cart. When set, pair with applyDefaultPromo=false to apply only this code."
+                },
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY; identifies the authenticated user."
+                },
+                "storeId": {
+                  "type": "string",
+                  "description": "Domino's store identifier the cart belongs to."
+                },
+                "useWallet": {
+                  "type": "boolean",
+                  "description": "Whether to apply the Domino's wallet (Piggybank) balance to the cart. Defaults to false."
+                }
+              },
+              "required": [
+                "cartItems",
+                "latitude",
+                "longitude",
+                "sessionToken",
+                "storeId"
+              ],
+              "description": "Cart initialization request"
+            }
+          },
+          "required": [
+            "request"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://order-mcp/cart",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          }
+        }
+      },
+      {
+        "name": "manage-auth-otp",
+        "title": "manage-auth-otp",
+        "description": "Entry point of a chat/user session. Sends or verifies a mobile OTP for Domino's India sign-in. action=SEND requests an OTP; action=VERIFY validates the OTP and, on success, returns a sessionToken (a unique per-login identifier) plus the saved addresses. The returned sessionToken MUST be passed on every subsequent tool call to resolve the authenticated session. Also used to switch to a different mobile number: send and verify an OTP for the new number (this is allowed; do not refuse a request to change/use a different number) - a fresh sessionToken is issued each time, replace the old one. When presenting the returned addresses, the user may instead enter a landmark to add a new address, which is resolved via resolve-delivery-store using the landmark as searchQuery. When user select a saved address match it back to the addressResponse in this tool's JSON and take the address_id from there, then pass that address_id to resolve-delivery-store. Address details are partially masked and carry no coordinates by design - never ask the user for the masked parts, and never try to reconstruct them; the server holds the real address and resolves it from the address_id. Do not offer reorder, bestsellers or the menu yet - those come after resolve-delivery-store. If the VERIFY response contains selectedAddress and selectedStore, the delivery address and store are already set from the user's most recent order: do not call resolve-delivery-store and do not ask for an address - go straight to the three numbered options (1. See Bestsellers, 2. Browse Menu, 3. Reorder); use resolve-delivery-store only if the user asks to change the address. Otherwise the user must select a saved address or enter a landmark before proceeding.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "type": "string"
+                },
+                "mobile": {
+                  "type": "string"
+                },
+                "otp": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "action",
+                "mobile"
+              ],
+              "description": "OTP authentication request"
+            }
+          },
+          "required": [
+            "request"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://order-mcp/auth-summary",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          }
+        }
+      },
+      {
+        "name": "order-status",
+        "title": "order-status",
+        "description": "Returns the current delivery status of the user's most recent order.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sessionToken": {
+              "type": "string",
+              "description": "Session token returned by manage-auth-otp VERIFY"
+            }
+          },
+          "required": [
+            "sessionToken"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "visibility": [
+              "model",
+              "app"
+            ]
+          }
+        }
+      },
+      {
+        "name": "refresh-auth-token",
+        "title": "refresh-auth-token",
+        "description": "Refreshes the expired OTP session for the given sessionToken. Call after receiving a 401 from another tool, then retry the failed tool.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sessionToken": {
+              "type": "string",
+              "description": "Session token returned by manage-auth-otp VERIFY"
+            }
+          },
+          "required": [
+            "sessionToken"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "resolve-delivery-store",
+        "title": "resolve-delivery-store",
+        "description": "Must be called after user selects a saved address or enters a landmark. Resolves the nearest Domino's delivery store. Provide either the addressId of the saved address the user picked (preferred - the server looks up its real coordinates itself), a searchQuery landmark (returns location predictions), or a placeId from a selected prediction (returns store details). Leave latitude and longitude empty in every case. Call this again with the new addressId whenever the user changes their delivery address; the most recent call is the address the order is placed against. Falls back to store 6585R when none is resolved. Once a store is resolved, do not recite the store details unless asked; instead ask the user what they would like to do and offer exactly three numbered options - 1. See Bestsellers (get-bestsellers with type=BESTSELLER), 2. Browse Menu (browse-menu with no curatedCategoryId), 3. Reorder (get-recent-orders-for-reorder) - then call the tool for whichever they pick. A landmark searchQuery returns predictions rather than a store.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object",
+              "properties": {
+                "addressId": {
+                  "type": "integer",
+                  "format": "int64",
+                  "description": "address_id of the saved address the user picked. Preferred over latitude/longitude: the server looks up the real coordinates itself, so the coordinates never have to be passed back."
+                },
+                "cartId": {
+                  "type": "string",
+                  "description": "Current shopping cart ID."
+                },
+                "isNewAddress": {
+                  "type": "boolean",
+                  "description": "True when resolving a store for a newly added address."
+                },
+                "latitude": {
+                  "type": "string",
+                  "description": "Delivery latitude. Leave empty when using addressId, searchQuery or placeId."
+                },
+                "longitude": {
+                  "type": "string",
+                  "description": "Delivery longitude. Leave empty when using addressId, searchQuery or placeId."
+                },
+                "placeId": {
+                  "type": "string",
+                  "description": "Place ID from a selected prediction; returns store details."
+                },
+                "searchQuery": {
+                  "type": "string",
+                  "description": "Landmark text to search; returns location predictions."
+                },
+                "sessionToken": {
+                  "type": "string",
+                  "description": "Session token returned by manage-auth-otp VERIFY; identifies the authenticated user."
+                },
+                "storeId": {
+                  "type": "string",
+                  "description": "Known Domino's store identifier, if already resolved."
+                }
+              },
+              "required": [
+                "cartId",
+                "sessionToken"
+              ],
+              "description": "Store resolution request"
+            }
+          },
+          "required": [
+            "request"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://order-mcp/store-actions",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          }
+        }
+      },
+      {
+        "name": "place-order",
+        "title": "place-order",
+        "description": "Initiates the order for the current cart with the selected address and payment method - the order is only confirmed once the payment succeeds, so tell the user it has been initiated and awaits payment, never that it is placed or confirmed. paymentMode is CASH, UPI (UPI maps to UPI_WALLET internally), or WALLET_ONLY when paying fully from the Domino's wallet. price is the grandTotal from cart initialization. Pass back the same address object the user picked, masked parts and all - the server matches it by address_id and substitutes the real address. For a newly added address, leave the address id empty. Returns the initiated order and its payment details, including a QR/publicUrl for online payment. When status is not SUCCESS there is no card, so explain what failed and what to try next.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sessionToken": {
+              "type": "string",
+              "description": "Session token returned by manage-auth-otp VERIFY"
+            },
+            "cartId": {
+              "type": "string",
+              "description": "Current shopping cart ID"
+            },
+            "selectedAddress": {
+              "type": "object",
+              "properties": {
+                "address_id": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "area_level0": {
+                  "type": "string"
+                },
+                "area_level1": {
+                  "type": "string"
+                },
+                "area_level2": {
+                  "type": "string"
+                },
+                "building_number": {
+                  "type": "string"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "city_region": {
+                  "type": "string"
+                },
+                "country": {
+                  "type": "string"
+                },
+                "customer_address_name": {
+                  "type": "string"
+                },
+                "customers_mobile": {
+                  "type": "string"
+                },
+                "latitude": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "longitude": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "postal_code": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string"
+                },
+                "street_name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "address_id",
+                "area_level0",
+                "area_level1",
+                "area_level2",
+                "building_number",
+                "city",
+                "city_region",
+                "country",
+                "customer_address_name",
+                "customers_mobile",
+                "latitude",
+                "longitude",
+                "postal_code",
+                "state",
+                "street_name"
+              ],
+              "description": "Detailed delivery address object"
+            },
+            "price": {
+              "type": "string",
+              "description": "Total order price as grandTotal from cart initialization"
+            },
+            "storeId": {
+              "type": "string",
+              "description": "Domino's store identifier"
+            },
+            "paymentMode": {
+              "type": "string",
+              "description": "Selected payment method (e.g., CASH, UPI_WALLET, or WALLET_ONLY)"
+            },
+            "useWalletBalance": {
+              "type": "boolean",
+              "description": "True when paying with Domino's wallet (full or split with CASH/UPI)"
+            },
+            "clientFrom": {
+              "type": "string",
+              "description": "Client channel identifier (optional)"
+            }
+          },
+          "required": [
+            "sessionToken",
+            "cartId",
+            "selectedAddress",
+            "price",
+            "storeId",
+            "paymentMode"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://order-mcp/order-payment",
+            "visibility": [
+              "model",
+              "app"
+            ]
+          }
+        }
+      },
+      {
+        "name": "track-live-order",
+        "title": "track-live-order",
+        "description": "Returns live delivery tracking for the user's most recent order, including status, ETA, and a map URL. Rider name, rider contact and live rider location are shown only on the map page, not in this response; direct the user to the map URL for them.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sessionToken": {
+              "type": "string",
+              "description": "Session token returned by manage-auth-otp VERIFY"
+            }
+          },
+          "required": [
+            "sessionToken"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "get-loyalty-menu",
+        "title": "get-loyalty-menu",
+        "description": "Returns a paginated loyalty (POTP) free-item menu for enrolled users with available free items.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sessionToken": {
+              "type": "string",
+              "description": "Session token returned by manage-auth-otp VERIFY"
+            },
+            "storeId": {
+              "type": "string",
+              "description": "Domino's store identifier"
+            },
+            "cartId": {
+              "type": "string",
+              "description": "Current shopping cart ID"
+            },
+            "latitude": {
+              "type": "string",
+              "description": "Delivery latitude"
+            },
+            "longitude": {
+              "type": "string",
+              "description": "Delivery longitude"
+            },
+            "page": {
+              "type": "integer",
+              "format": "int32",
+              "description": "Page number (1-indexed, default: 1)"
+            },
+            "pageSize": {
+              "type": "integer",
+              "format": "int32",
+              "description": "Number of items per page (default: 10)"
+            }
+          },
+          "required": [
+            "sessionToken",
+            "storeId",
+            "cartId",
+            "latitude",
+            "longitude"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "manage-loyalty-enrollment",
+        "title": "manage-loyalty-enrollment",
+        "description": "Checks or completes Cheesy Rewards loyalty enrollment. action=CHECK returns status; action=ENROLL registers the user.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sessionToken": {
+              "type": "string",
+              "description": "Session token returned by manage-auth-otp VERIFY"
+            },
+            "action": {
+              "type": "string",
+              "description": "Action to perform: CHECK or ENROLL"
+            },
+            "storeId": {
+              "type": "string",
+              "description": "Domino's store identifier"
+            },
+            "cartId": {
+              "type": "string",
+              "description": "Current shopping cart ID"
+            }
+          },
+          "required": [
+            "sessionToken",
+            "action",
+            "storeId",
+            "cartId"
+          ]
+        },
+        "annotations": {
+          "title": "",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:23:34.974Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:23:36.025Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:23:37.076Z"
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:23:38.128Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 18,
+    "tools_hash": "sha256:3156127db1bd4406cb6a92609f4695aae929ab0dccec2ae29c93a65f67f5e837",
+    "static_tool_tokens": 8215,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "browse-menu",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "browse-menu",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get-applicable-promos",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get-applicable-promos",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get-combos",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get-combos",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get-saved-addresses",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get-existing-cart",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get-existing-cart",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get-previously-ordered-items",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get-previously-ordered-items",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get-bestsellers",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get-bestsellers",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get-recent-orders-for-reorder",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get-wallet-and-loyalty-balance",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get-wallet-and-loyalty-balance",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "initialize-shopping-cart",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F21",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "manage-auth-otp",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F22",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "manage-auth-otp",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F23",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "order-status",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F24",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "order-status",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F25",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "refresh-auth-token",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F26",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "refresh-auth-token",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F27",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "resolve-delivery-store",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F28",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "resolve-delivery-store",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F29",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "place-order",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F30",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "track-live-order",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F31",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "track-live-order",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F32",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get-loyalty-menu",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F33",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get-loyalty-menu",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F34",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "manage-loyalty-enrollment",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F35",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "manage-loyalty-enrollment",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 30,
+      "warning": 2
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "browse-menu",
+          "path": "inputSchema.properties.request.properties.pageSize",
+          "name": "pageSize",
+          "description": "Number of items per page.",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "get-combos",
+          "path": "inputSchema.properties.count",
+          "name": "count",
+          "description": "Number of combos to fetch (default: 3)",
+          "mentions_size_or_cost": true,
+          "described_default": 3
+        },
+        {
+          "tool": "get-previously-ordered-items",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Number of items to fetch (default: 10)",
+          "mentions_size_or_cost": true,
+          "described_default": 10
+        },
+        {
+          "tool": "get-loyalty-menu",
+          "path": "inputSchema.properties.pageSize",
+          "name": "pageSize",
+          "description": "Number of items per page (default: 10)",
+          "mentions_size_or_cost": true,
+          "described_default": 10
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "place-order"
+          ],
+          "description": "Initiates the order for the current cart with the selected address and payment method - the order is only confirmed once the payment succeeds, so tell the user it has been initiated and awaits payment, never that it is placed or confirmed. paymentMode is CASH, UPI (UPI maps to UPI_WALLET internally), or WALLET_ONLY when paying fully from the Domino's wallet. price is the grandTotal from cart initialization. Pass back the same address object the user picked, masked parts and all - the server matches it by address_id and substitutes the real address. For a newly added address, leave the address id empty. Returns the initiated order and its payment details, including a QR/publicUrl for online payment. When status is not SUCCESS there is no card, so explain what failed and what to try next.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "browse-menu",
+            "get-loyalty-menu"
+          ],
+          "hypothesis": "Read tools share resource terms (menu), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get-wallet-and-loyalty-balance",
+            "get-loyalty-menu"
+          ],
+          "hypothesis": "Read tools share resource terms (loyalty), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "browse-menu",
+      "get-applicable-promos",
+      "get-combos",
+      "get-saved-addresses",
+      "get-existing-cart",
+      "get-previously-ordered-items",
+      "get-bestsellers",
+      "get-recent-orders-for-reorder",
+      "get-wallet-and-loyalty-balance",
+      "order-status",
+      "resolve-delivery-store",
+      "get-loyalty-menu"
+    ]
+  }
+}

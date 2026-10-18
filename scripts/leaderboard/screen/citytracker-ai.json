@@ -1,0 +1,325 @@
+{
+  "slug": "citytracker-ai",
+  "source_url": "https://manufact.com/mcp-catalog/citytracker-ai",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:23:26.557Z",
+    "endpoint": "https://citytracker.ai/api/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "citytracker-replica",
+      "title": "CityTracker",
+      "icons": [
+        {
+          "src": "https://citytracker.ai/favicon/apple-touch-icon-180x180.png",
+          "mimeType": "image/png",
+          "sizes": [
+            "180x180"
+          ]
+        },
+        {
+          "src": "https://citytracker.ai/favicon/favicon.svg",
+          "mimeType": "image/svg+xml",
+          "sizes": [
+            "any"
+          ]
+        }
+      ],
+      "version": "0.1.0",
+      "websiteUrl": "https://citytracker.ai",
+      "description": "Explore NYC real estate: buildings, construction filings and permits, property records, housing violations, and zoning."
+    },
+    "capabilities": {
+      "tools": {}
+    },
+    "instructions": "CityTracker is a read-only replica of NYC real-estate data: Department of Buildings (DOB) construction filings and permits, ACRIS documents (deeds, mortgages, and their parties), HPD housing violations, tax lots (BBLs), resolved companies and representatives, and zoning. To explore: call `list_tables` to see the tables (with a human label for each documented table), then `describe_table` on a table for its columns plus curated per-column descriptions and entity-level `notes`. The `notes` are authoritative domain rules and column semantics VARY per table (e.g. ACRIS party roles depend on doc_type), so read each table's `notes` before writing a query. The exact tables and columns you can query, with their descriptions, are also published as one JSON document at https://citytracker.ai/api/mcp/schema . Tables that back a REST API asset have a background docs page, whose URL `describe_table` returns as `docs_url`, but that page describes the REST API, whose rows add JOINED fields (e.g. bbl and bin on facade inspections) that are NOT columns of the table here — take column names from `describe_table` or the schema document, never from the API docs. Use the `query` tool to run a single read-only SELECT.\n\nRECIPE — contractor-license lookup. DCWP Home Improvement Contractor (HIC) 7-digit license numbers are NOT stored anywhere in this schema, so a query keyed on the license number itself cannot resolve. Trying to reach a contractor through a company/contractor FK is also unreliable (see the `filing`/`permit`/`representative_raw_data` notes on raw-id truncation and mislinked FKs). The reliable path is BIN or address: look the building up in `bin_building`/`tax_lot` by BIN or BBL, then match `filing`/`permit` rows on that same BIN/address rather than joining through the company chain.\n\nKNOWN LIMITATIONS. (1) GC/applicant-person -> job joins via *_representative_id can return zero rows on recent filings/permits even though the person exists — see `representative_raw_data` notes. (2) `*_company_id` columns on `filing`/`permit` resolve firms via `company_raw_data`, and that resolution can land on an unrelated party (e.g. an ACRIS mortgage lender/bank) rather than the actual permittee — prefer the resolved person (`applicant_representative`) or group on the raw `applicant_company_name` + address over trusting the company FK chain; see the `filing`/`permit` notes. (3) `data_type` does NOT share one vocabulary across tables: `filing` holds exactly 'NOW' or 'BIS' (enforced, so an exact match is safe there), but `certificate_occupancy` stores 'now'/'NOW'/'old' (never 'BIS'), and `permit` stores 'BIS'/'NOW' and leaves it NULL on ~63% of rows. On those two, filter case-insensitively and allow NULL (e.g. `lower(data_type) = 'now' OR data_type IS NULL`), or omit the filter — `WHERE data_type = 'NOW'` drops half of `certificate_occupancy`'s DOB NOW rows and 97% of `permit` rows.\n\nQUERY COST. Every query runs under a 15s statement timeout, so a blind multi-way join across the largest tables (`filing` ~1.0M, `permit` ~1.4M, `violation_hpd` ~3.2M, `tax_lot` ~0.9M, ACRIS `document*`) will be cancelled rather than returned. Filter on an indexed key (BIN, BBL, job_number, a bounded date range) before aggregating, and prefer a targeted lookup over a whole-table GROUP BY.\n\nOUT OF SCOPE — data not in this schema, don't chase it: DCWP HIC 7-digit contractor license numbers (not loaded; tracked as dat-19); a unit-level DHCR rent-stabilization registry (no per-apartment stabilization status exists here — the `stabilized` table is a building-level proxy, one row per rent-stabilized lot joined via `stabilized.tax_lot_id` -> `tax_lot.id`, and where absent the roughest available heuristic is `tax_lot.year_built < 1974 AND tax_lot.units_res >= 6`, presumptive only); and geography — this covers the five NYC boroughs only, no Long Island/Nassau/Westchester data.\n\nANONYMOUS USAGE LIMITS. Without an access token this endpoint meters per IP address: 25 database tool calls per UTC day, at most 20 per 60s, and at most 2 running at once. `initialize`, `tools/list` and the `overview` tool are free and never limited, so you can always connect and read this. Exceeding a limit returns a tool error beginning \"Rate limit:\" that names the limit and when to retry — relay it rather than retrying immediately. Note the quota is per IP, so it is shared by everyone behind the same network address. A free access token removes it entirely: support@citytracker.ai.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "overview",
+            "title": "Data model overview",
+            "description": "Return an orientation overview of the CityTracker data model (NYC real-estate: DOB filings/permits, ACRIS documents, HPD violations, tax lots, companies) plus the list of documented curated assets. Call this first to learn what data exists and how to explore it. The overview also states what is NOT in the schema, so it is the fastest way to tell a question this data can answer from one it cannot. Takes no arguments.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Data model overview",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "list_tables",
+            "title": "List tables",
+            "description": "List the base tables in the public schema of the read-only replica database. Returns a flat `tables` list of names plus a `labels` map of table -> human-readable label for every documented table (undocumented tables are omitted from `labels`). Use it to confirm a table exists before querying it — table names are not always the obvious ones (NYC PLUTO tax-lot data is `tax_lot`, not `pluto`). Takes no arguments.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "List tables",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "describe_table",
+            "title": "Describe table",
+            "description": "Describe the columns and data types for a table in the public schema of the read-only replica. For the documented replica tables, the result is enriched with a `label`, entity-level `notes`, a per-column `description`, and a `docs_url` for the REST API dataset over the same table (null otherwise; it documents the API, not these columns). A column the documentation does not cover gets description: null. The `notes` are the authoritative domain rules — column semantics vary by table (e.g. ACRIS party roles depend on doc_type), so read `notes` before querying. Foreign-key columns also carry a `references` object ({table, column}) naming the exact join target — join to that, not to a table you infer from the column name (e.g. filing.filing_company_id references company_raw_data, not company).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "table": {
+                  "type": "string",
+                  "description": "Exact name of a base table in the public schema, as returned by `list_tables` (e.g. 'filing', 'permit', 'tax_lot'). Case-sensitive; not a pattern, an asset slug, or a schema-qualified name. An unknown name returns an error, so call `list_tables` if unsure."
+                }
+              },
+              "required": [
+                "table"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Describe table",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "query",
+            "title": "Run a read-only SQL query",
+            "description": "Run a single read-only SQL SELECT against the NYC real-estate replica and return up to 1000 rows as {columns, rows, truncated}. Writes, multiple statements and EXPLAIN ANALYZE are rejected; the database connection is read-only, so nothing this tool does can modify data.\nTarget: the CityTracker NYC real-estate replica, documented at https://citytracker.ai/api/asset/docs (one page per dataset, with columns, filters and source links).\nCall `describe_table` before writing a query: this schema has per-table traps (foreign keys that point at *_raw_data rather than the table their name suggests, and columns whose meaning varies by table) that the entity-level `notes` spell out.\nLimits: a 15s statement timeout, a 1000-row cap and a total response-size cap. `truncated: true` means rows were dropped — the result is a partial prefix, NOT a complete answer, so never total or count it as if it were; re-run with an aggregate (COUNT/SUM/GROUP BY) or a narrower filter instead. A timeout means the query was too broad, not that the data is missing: add a filter on an indexed key or a date range and retry.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "sql": {
+                  "type": "string",
+                  "description": "A single read-only SQL SELECT statement (Postgres dialect), with no trailing extra statements. WITH/CTE, VALUES, TABLE and plain EXPLAIN are also accepted. Do not include a semicolon-separated second statement."
+                }
+              },
+              "required": [
+                "sql"
+              ],
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Run a read-only SQL query",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "overview",
+        "title": "Data model overview",
+        "description": "Return an orientation overview of the CityTracker data model (NYC real-estate: DOB filings/permits, ACRIS documents, HPD violations, tax lots, companies) plus the list of documented curated assets. Call this first to learn what data exists and how to explore it. The overview also states what is NOT in the schema, so it is the fastest way to tell a question this data can answer from one it cannot. Takes no arguments.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Data model overview",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "list_tables",
+        "title": "List tables",
+        "description": "List the base tables in the public schema of the read-only replica database. Returns a flat `tables` list of names plus a `labels` map of table -> human-readable label for every documented table (undocumented tables are omitted from `labels`). Use it to confirm a table exists before querying it — table names are not always the obvious ones (NYC PLUTO tax-lot data is `tax_lot`, not `pluto`). Takes no arguments.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "List tables",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "describe_table",
+        "title": "Describe table",
+        "description": "Describe the columns and data types for a table in the public schema of the read-only replica. For the documented replica tables, the result is enriched with a `label`, entity-level `notes`, a per-column `description`, and a `docs_url` for the REST API dataset over the same table (null otherwise; it documents the API, not these columns). A column the documentation does not cover gets description: null. The `notes` are the authoritative domain rules — column semantics vary by table (e.g. ACRIS party roles depend on doc_type), so read `notes` before querying. Foreign-key columns also carry a `references` object ({table, column}) naming the exact join target — join to that, not to a table you infer from the column name (e.g. filing.filing_company_id references company_raw_data, not company).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "table": {
+              "type": "string",
+              "description": "Exact name of a base table in the public schema, as returned by `list_tables` (e.g. 'filing', 'permit', 'tax_lot'). Case-sensitive; not a pattern, an asset slug, or a schema-qualified name. An unknown name returns an error, so call `list_tables` if unsure."
+            }
+          },
+          "required": [
+            "table"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Describe table",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "query",
+        "title": "Run a read-only SQL query",
+        "description": "Run a single read-only SQL SELECT against the NYC real-estate replica and return up to 1000 rows as {columns, rows, truncated}. Writes, multiple statements and EXPLAIN ANALYZE are rejected; the database connection is read-only, so nothing this tool does can modify data.\nTarget: the CityTracker NYC real-estate replica, documented at https://citytracker.ai/api/asset/docs (one page per dataset, with columns, filters and source links).\nCall `describe_table` before writing a query: this schema has per-table traps (foreign keys that point at *_raw_data rather than the table their name suggests, and columns whose meaning varies by table) that the entity-level `notes` spell out.\nLimits: a 15s statement timeout, a 1000-row cap and a total response-size cap. `truncated: true` means rows were dropped — the result is a partial prefix, NOT a complete answer, so never total or count it as if it were; re-run with an aggregate (COUNT/SUM/GROUP BY) or a narrower filter instead. A timeout means the query was too broad, not that the data is missing: add a filter on an indexed key or a date range and retry.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sql": {
+              "type": "string",
+              "description": "A single read-only SQL SELECT statement (Postgres dialect), with no trailing extra statements. WITH/CTE, VALUES, TABLE and plain EXPLAIN are also accepted. Do not include a semicolon-separated second statement."
+            }
+          },
+          "required": [
+            "sql"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Run a read-only SQL query",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:23:23.332Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:23:24.383Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:23:25.434Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:23:26.485Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 4,
+    "tools_hash": "sha256:ec59dd637198ddd200f61336f5485a94546e1262fcfbbd4b1a30d1e850f70d22",
+    "static_tool_tokens": 1629,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "overview",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "overview",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_tables",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "describe_table",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "describe_table",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F9",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "query",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "query",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 6,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "query"
+          ],
+          "description": "Run a single read-only SQL SELECT against the NYC real-estate replica and return up to 1000 rows as {columns, rows, truncated}. Writes, multiple statements and EXPLAIN ANALYZE are rejected; the database connection is read-only, so nothing this tool does can modify data.\nTarget: the CityTracker NYC real-estate replica, documented at https://citytracker.ai/api/asset/docs (one page per dataset, with columns, filters and source links).\nCall `describe_table` before writing a query: this schema has per-table traps (foreign keys that point at *_raw_data rather than the table their name suggests, and columns whose meaning varies by table) that the entity-level `notes` spell out.\nLimits: a 15s statement timeout, a 1000-row cap and a total response-size cap. `truncated: true` means rows were dropped — the result is a partial prefix, NOT a complete answer, so never total or count it as if it were; re-run with an aggregate (COUNT/SUM/GROUP BY) or a narrower filter instead. A timeout means the query was too broad, not that the data is missing: add a filter on an indexed key or a date range and retry.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "overview",
+      "list_tables",
+      "describe_table",
+      "query"
+    ]
+  }
+}

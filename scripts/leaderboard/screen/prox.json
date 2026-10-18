@@ -1,0 +1,1086 @@
+{
+  "slug": "prox",
+  "source_url": "https://manufact.com/mcp-catalog/prox",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-18T00:04:11.350Z",
+    "endpoint": "https://mcp.useprox.com/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "prox-product-docs",
+      "version": "1.0.0"
+    },
+    "capabilities": {
+      "tools": {
+        "listChanged": false
+      }
+    },
+    "instructions": "Use list_products to find products, get_product_tree to inspect a product's knowledge tree, read_wiki_nodes to read selected nodes, and edit_wiki_node for small exact replacements in a node's editable_content. Edits are committed to the product Git repo using the authenticated WorkOS caller as the Git actor.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "list_products",
+            "title": "List Products",
+            "description": "Use first to discover the products available in this Prox tenant. Returns product IDs, SKUs, summaries, thumbnails, URLs, and knowledge-node counts without changing anything.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "description": "Products in the authenticated Prox tenant that can be inspected with the other MCP tools.",
+              "properties": {
+                "products": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "product_id": {
+                        "type": "string",
+                        "description": "Stable UUID for this product."
+                      },
+                      "sku": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Product SKU when one is configured, otherwise null."
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Human-readable product name."
+                      },
+                      "summary": {
+                        "type": "string",
+                        "description": "Short generated product summary, if available."
+                      },
+                      "product_url": {
+                        "type": "string",
+                        "description": "External product URL, or an empty string when unavailable."
+                      },
+                      "thumbnail_url": {
+                        "type": "string",
+                        "description": "Thumbnail image URL, or an empty string when unavailable."
+                      },
+                      "node_count": {
+                        "type": "integer",
+                        "description": "Number of knowledge tree nodes currently indexed for this product."
+                      }
+                    },
+                    "required": [
+                      "product_id",
+                      "sku",
+                      "name",
+                      "summary",
+                      "product_url",
+                      "thumbnail_url",
+                      "node_count"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "products"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "email",
+                  "offline_access",
+                  "openid",
+                  "profile"
+                ]
+              }
+            ],
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_product_tree",
+            "title": "Get Product Knowledge Tree",
+            "description": "Use after list_products to inspect one product's knowledge hierarchy. Returns every node ID and parent/child relationship so a model can choose which nodes to read next.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "product_id": {
+                  "type": "string",
+                  "description": "Product UUID returned by list_products. Provide this or sku."
+                },
+                "sku": {
+                  "type": "string",
+                  "description": "Product SKU returned by list_products. Provide this or product_id."
+                }
+              },
+              "additionalProperties": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "description": "A product's knowledge tree as both a flat node list and a nested tree.",
+              "properties": {
+                "product": {
+                  "type": "object",
+                  "properties": {
+                    "product_id": {
+                      "type": "string",
+                      "description": "Stable UUID for this product."
+                    },
+                    "sku": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Product SKU when one is configured, otherwise null."
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Human-readable product name."
+                    },
+                    "summary": {
+                      "type": "string",
+                      "description": "Short generated product summary, if available."
+                    }
+                  },
+                  "required": [
+                    "product_id",
+                    "sku",
+                    "name",
+                    "summary"
+                  ],
+                  "additionalProperties": false
+                },
+                "nodes": {
+                  "type": "array",
+                  "description": "Flat list of all knowledge nodes for lookup by id.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "Knowledge node id to pass to read_wiki_nodes."
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Knowledge node title."
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "Short node description, if available."
+                      },
+                      "parent_id": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Parent knowledge node id, or null for root nodes."
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "description",
+                      "parent_id"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "tree": {
+                  "type": "array",
+                  "description": "Nested tree of the same nodes for understanding hierarchy.",
+                  "items": {
+                    "$ref": "#/$defs/treeNode"
+                  }
+                }
+              },
+              "required": [
+                "product",
+                "nodes",
+                "tree"
+              ],
+              "additionalProperties": false,
+              "$defs": {
+                "treeNode": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Knowledge node id to pass to read_wiki_nodes."
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Knowledge node title."
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "Short node description, if available."
+                    },
+                    "parent_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Parent knowledge node id, or null for root nodes."
+                    },
+                    "children": {
+                      "type": "array",
+                      "description": "Child knowledge nodes.",
+                      "items": {
+                        "$ref": "#/$defs/treeNode"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "description",
+                    "parent_id",
+                    "children"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "email",
+                  "offline_access",
+                  "openid",
+                  "profile"
+                ]
+              }
+            ],
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "read_wiki_nodes",
+            "title": "Read Wiki Nodes",
+            "description": "Read up to 10 selected product knowledge nodes. Returns markdown content, exact editable_content for safe text replacements, and public media URLs. Call this before edit_wiki_node.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "product_id": {
+                  "type": "string",
+                  "description": "Product UUID returned by list_products or get_product_tree."
+                },
+                "node_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "maxItems": 10,
+                  "description": "Node IDs returned by get_product_tree."
+                }
+              },
+              "required": [
+                "product_id",
+                "node_ids"
+              ],
+              "additionalProperties": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "description": "Markdown bodies and media for selected product knowledge nodes.",
+              "properties": {
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "node_id": {
+                            "type": "string",
+                            "description": "Knowledge node id that was read."
+                          },
+                          "product_id": {
+                            "type": "string",
+                            "description": "Product UUID that owns this node."
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "Knowledge node title."
+                          },
+                          "description": {
+                            "type": "string",
+                            "description": "Short node description, if available."
+                          },
+                          "content": {
+                            "type": "string",
+                            "description": "Markdown content with Prox media references expanded to public media URLs."
+                          },
+                          "editable_content": {
+                            "type": "string",
+                            "description": "Exact markdown body without frontmatter. Copy text from here into edit_wiki_node.old_text."
+                          },
+                          "images": {
+                            "type": "array",
+                            "description": "Public media URLs referenced by this node.",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "node_id",
+                          "product_id",
+                          "name",
+                          "description",
+                          "content",
+                          "editable_content",
+                          "images"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "node_id": {
+                            "type": "string",
+                            "description": "Knowledge node id that failed to read."
+                          },
+                          "error": {
+                            "type": "string",
+                            "description": "Read error for this node."
+                          }
+                        },
+                        "required": [
+                          "node_id",
+                          "error"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "nodes"
+              ],
+              "additionalProperties": false
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "email",
+                  "offline_access",
+                  "openid",
+                  "profile"
+                ]
+              }
+            ],
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "edit_wiki_node",
+            "title": "Edit Wiki Node",
+            "description": "Apply a small exact old_text to new_text replacement to one wiki node body, then commit the change to the product Git repo. Use only after read_wiki_nodes provides the exact editable_content.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "product_id": {
+                  "type": "string",
+                  "description": "Product UUID returned by read_wiki_nodes or get_product_tree."
+                },
+                "node_id": {
+                  "type": "string",
+                  "description": "Node ID returned by get_product_tree."
+                },
+                "old_text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Exact text copied from read_wiki_nodes editable_content. Must match the node body exactly."
+                },
+                "new_text": {
+                  "type": "string",
+                  "description": "Replacement text. Can be empty to remove old_text."
+                },
+                "replace_all": {
+                  "type": "boolean",
+                  "description": "Replace every exact occurrence. Defaults to false; when false, old_text must appear exactly once."
+                },
+                "change_summary": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Brief reason for the change, including debugging or discovery context if known."
+                }
+              },
+              "required": [
+                "product_id",
+                "node_id",
+                "old_text",
+                "new_text",
+                "change_summary"
+              ],
+              "additionalProperties": false
+            },
+            "outputSchema": {
+              "type": "object",
+              "description": "Result of applying and committing an exact replacement to one wiki node body.",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "description": "Whether the edit and commit completed successfully."
+                },
+                "product_id": {
+                  "type": "string",
+                  "description": "Product UUID that was edited."
+                },
+                "node_id": {
+                  "type": "string",
+                  "description": "Knowledge node id that was edited."
+                },
+                "path": {
+                  "type": "string",
+                  "description": "Git file path that was edited."
+                },
+                "branch": {
+                  "type": "string",
+                  "description": "Git branch that received the commit."
+                },
+                "parent_commit_id": {
+                  "type": "string",
+                  "description": "Git parent commit used for stale-write protection."
+                },
+                "commit_id": {
+                  "type": "string",
+                  "description": "Git commit id created for this edit."
+                },
+                "commit_sha": {
+                  "type": "string",
+                  "description": "Alias of commit_id for older clients."
+                },
+                "commit_url": {
+                  "type": "string",
+                  "description": "Tenant dashboard URL for the edited product."
+                },
+                "replacements": {
+                  "type": "integer",
+                  "description": "Number of exact old_text occurrences replaced."
+                }
+              },
+              "required": [
+                "ok",
+                "product_id",
+                "node_id",
+                "path",
+                "branch",
+                "parent_commit_id",
+                "commit_id",
+                "commit_sha",
+                "commit_url",
+                "replacements"
+              ],
+              "additionalProperties": true
+            },
+            "securitySchemes": [
+              {
+                "type": "oauth2",
+                "scopes": [
+                  "email",
+                  "offline_access",
+                  "openid",
+                  "profile"
+                ]
+              }
+            ],
+            "annotations": {
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": false,
+              "openWorldHint": false
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "list_products",
+        "title": "List Products",
+        "description": "Use first to discover the products available in this Prox tenant. Returns product IDs, SKUs, summaries, thumbnails, URLs, and knowledge-node counts without changing anything.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "description": "Products in the authenticated Prox tenant that can be inspected with the other MCP tools.",
+          "properties": {
+            "products": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "product_id": {
+                    "type": "string",
+                    "description": "Stable UUID for this product."
+                  },
+                  "sku": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Product SKU when one is configured, otherwise null."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Human-readable product name."
+                  },
+                  "summary": {
+                    "type": "string",
+                    "description": "Short generated product summary, if available."
+                  },
+                  "product_url": {
+                    "type": "string",
+                    "description": "External product URL, or an empty string when unavailable."
+                  },
+                  "thumbnail_url": {
+                    "type": "string",
+                    "description": "Thumbnail image URL, or an empty string when unavailable."
+                  },
+                  "node_count": {
+                    "type": "integer",
+                    "description": "Number of knowledge tree nodes currently indexed for this product."
+                  }
+                },
+                "required": [
+                  "product_id",
+                  "sku",
+                  "name",
+                  "summary",
+                  "product_url",
+                  "thumbnail_url",
+                  "node_count"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "products"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "email",
+              "offline_access",
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_product_tree",
+        "title": "Get Product Knowledge Tree",
+        "description": "Use after list_products to inspect one product's knowledge hierarchy. Returns every node ID and parent/child relationship so a model can choose which nodes to read next.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "product_id": {
+              "type": "string",
+              "description": "Product UUID returned by list_products. Provide this or sku."
+            },
+            "sku": {
+              "type": "string",
+              "description": "Product SKU returned by list_products. Provide this or product_id."
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "description": "A product's knowledge tree as both a flat node list and a nested tree.",
+          "properties": {
+            "product": {
+              "type": "object",
+              "properties": {
+                "product_id": {
+                  "type": "string",
+                  "description": "Stable UUID for this product."
+                },
+                "sku": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Product SKU when one is configured, otherwise null."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Human-readable product name."
+                },
+                "summary": {
+                  "type": "string",
+                  "description": "Short generated product summary, if available."
+                }
+              },
+              "required": [
+                "product_id",
+                "sku",
+                "name",
+                "summary"
+              ],
+              "additionalProperties": false
+            },
+            "nodes": {
+              "type": "array",
+              "description": "Flat list of all knowledge nodes for lookup by id.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Knowledge node id to pass to read_wiki_nodes."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Knowledge node title."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Short node description, if available."
+                  },
+                  "parent_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Parent knowledge node id, or null for root nodes."
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "description",
+                  "parent_id"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "tree": {
+              "type": "array",
+              "description": "Nested tree of the same nodes for understanding hierarchy.",
+              "items": {
+                "$ref": "#/$defs/treeNode"
+              }
+            }
+          },
+          "required": [
+            "product",
+            "nodes",
+            "tree"
+          ],
+          "additionalProperties": false,
+          "$defs": {
+            "treeNode": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Knowledge node id to pass to read_wiki_nodes."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Knowledge node title."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Short node description, if available."
+                },
+                "parent_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Parent knowledge node id, or null for root nodes."
+                },
+                "children": {
+                  "type": "array",
+                  "description": "Child knowledge nodes.",
+                  "items": {
+                    "$ref": "#/$defs/treeNode"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "description",
+                "parent_id",
+                "children"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "email",
+              "offline_access",
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "read_wiki_nodes",
+        "title": "Read Wiki Nodes",
+        "description": "Read up to 10 selected product knowledge nodes. Returns markdown content, exact editable_content for safe text replacements, and public media URLs. Call this before edit_wiki_node.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "product_id": {
+              "type": "string",
+              "description": "Product UUID returned by list_products or get_product_tree."
+            },
+            "node_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "maxItems": 10,
+              "description": "Node IDs returned by get_product_tree."
+            }
+          },
+          "required": [
+            "product_id",
+            "node_ids"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "description": "Markdown bodies and media for selected product knowledge nodes.",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "node_id": {
+                        "type": "string",
+                        "description": "Knowledge node id that was read."
+                      },
+                      "product_id": {
+                        "type": "string",
+                        "description": "Product UUID that owns this node."
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Knowledge node title."
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "Short node description, if available."
+                      },
+                      "content": {
+                        "type": "string",
+                        "description": "Markdown content with Prox media references expanded to public media URLs."
+                      },
+                      "editable_content": {
+                        "type": "string",
+                        "description": "Exact markdown body without frontmatter. Copy text from here into edit_wiki_node.old_text."
+                      },
+                      "images": {
+                        "type": "array",
+                        "description": "Public media URLs referenced by this node.",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": [
+                      "node_id",
+                      "product_id",
+                      "name",
+                      "description",
+                      "content",
+                      "editable_content",
+                      "images"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "node_id": {
+                        "type": "string",
+                        "description": "Knowledge node id that failed to read."
+                      },
+                      "error": {
+                        "type": "string",
+                        "description": "Read error for this node."
+                      }
+                    },
+                    "required": [
+                      "node_id",
+                      "error"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "nodes"
+          ],
+          "additionalProperties": false
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "email",
+              "offline_access",
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "edit_wiki_node",
+        "title": "Edit Wiki Node",
+        "description": "Apply a small exact old_text to new_text replacement to one wiki node body, then commit the change to the product Git repo. Use only after read_wiki_nodes provides the exact editable_content.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "product_id": {
+              "type": "string",
+              "description": "Product UUID returned by read_wiki_nodes or get_product_tree."
+            },
+            "node_id": {
+              "type": "string",
+              "description": "Node ID returned by get_product_tree."
+            },
+            "old_text": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Exact text copied from read_wiki_nodes editable_content. Must match the node body exactly."
+            },
+            "new_text": {
+              "type": "string",
+              "description": "Replacement text. Can be empty to remove old_text."
+            },
+            "replace_all": {
+              "type": "boolean",
+              "description": "Replace every exact occurrence. Defaults to false; when false, old_text must appear exactly once."
+            },
+            "change_summary": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Brief reason for the change, including debugging or discovery context if known."
+            }
+          },
+          "required": [
+            "product_id",
+            "node_id",
+            "old_text",
+            "new_text",
+            "change_summary"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": {
+          "type": "object",
+          "description": "Result of applying and committing an exact replacement to one wiki node body.",
+          "properties": {
+            "ok": {
+              "type": "boolean",
+              "description": "Whether the edit and commit completed successfully."
+            },
+            "product_id": {
+              "type": "string",
+              "description": "Product UUID that was edited."
+            },
+            "node_id": {
+              "type": "string",
+              "description": "Knowledge node id that was edited."
+            },
+            "path": {
+              "type": "string",
+              "description": "Git file path that was edited."
+            },
+            "branch": {
+              "type": "string",
+              "description": "Git branch that received the commit."
+            },
+            "parent_commit_id": {
+              "type": "string",
+              "description": "Git parent commit used for stale-write protection."
+            },
+            "commit_id": {
+              "type": "string",
+              "description": "Git commit id created for this edit."
+            },
+            "commit_sha": {
+              "type": "string",
+              "description": "Alias of commit_id for older clients."
+            },
+            "commit_url": {
+              "type": "string",
+              "description": "Tenant dashboard URL for the edited product."
+            },
+            "replacements": {
+              "type": "integer",
+              "description": "Number of exact old_text occurrences replaced."
+            }
+          },
+          "required": [
+            "ok",
+            "product_id",
+            "node_id",
+            "path",
+            "branch",
+            "parent_commit_id",
+            "commit_id",
+            "commit_sha",
+            "commit_url",
+            "replacements"
+          ],
+          "additionalProperties": true
+        },
+        "securitySchemes": [
+          {
+            "type": "oauth2",
+            "scopes": [
+              "email",
+              "offline_access",
+              "openid",
+              "profile"
+            ]
+          }
+        ],
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-18T00:04:07.840Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-18T00:04:08.890Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-18T00:04:09.940Z",
+        "status": 401
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-18T00:04:10.990Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 4,
+    "tools_hash": "sha256:052588dfedadaffe8fd23dfab38057278b78ca5eb218f60664cdfb1987a31335",
+    "static_tool_tokens": 1240,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "read_wiki_nodes",
+        "message": "Description does not say when to use this tool."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 1,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_product_tree"
+          ],
+          "description": "Use after list_products to inspect one product's knowledge hierarchy. Returns every node ID and parent/child relationship so a model can choose which nodes to read next.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "list_products",
+      "get_product_tree",
+      "read_wiki_nodes"
+    ]
+  }
+}

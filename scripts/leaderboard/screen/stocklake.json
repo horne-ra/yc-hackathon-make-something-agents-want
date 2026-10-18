@@ -1,0 +1,2557 @@
+{
+  "slug": "stocklake",
+  "source_url": "https://manufact.com/mcp-catalog/stocklake",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-18T00:09:17.957Z",
+    "endpoint": "https://api.stocklake.dev/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "Stocklake API",
+      "version": "4.1.0"
+    },
+    "capabilities": {
+      "logging": {},
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "subscribe": false,
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Real-time and historical US/international stock market data for 3,500+ symbols: fundamentals, technical indicators (RSI, MACD, Bollinger Bands, Williams %R, DeMark, Elliott Wave), AI-synthesized research, insider/institutional activity, earnings intelligence, and macro/sector outlook. Read-only data, informational only, not financial advice.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Price, fundamentals, technical indicators, and company profile for a stock.\nReturns all data needed to understand a stock in a single call.\n\nKey fields:\n- price, change_pct, prev_close, week52_high/low, volume, avg_volume\n- market_cap, enterprise_value, beta\n- pe_trailing, pe_forward, price_to_book, dividend_yield, dividend_rate\n- debt_to_equity, profit_margins, operating_margins, gross_margins, return_on_equity, free_cashflow\n- revenue_growth, earnings_growth, revenue_ttm, gross_profit_ttm\n- analyst_rating: \"strong_buy\"|\"buy\"|\"hold\"|\"sell\"|\"strong_sell\" (analyst consensus)\n- analyst_rating_score: 1.0-5.0 mean analyst recommendation (1=strong_buy, 5=strong_sell)\n- analyst_target: mean analyst price target\n- analyst_count: number of analyst opinions\n- indicators: raw RSI, MACD, Bollinger Bands, SMA20/SMA200 (the canonical\n  50/200-day averages -- no separate top-level ma_50/ma_200 field), EMA20/EMA200, ATR\n- description: company business description\n- website, employees, officers (top 5: name, title, total_pay)\n- updated_at: last data sync timestamp\nAvailable to all tiers (raw indicator numbers, no interpretation). This basic six\n(RSI/MACD/Bollinger/SMA/EMA/ATR) is standard, widely-available technical analysis.\n\nPro tier also unlocks the specialized indicators inside the SAME `indicators` block:\nwilliams_r, ultimate_osc, vix_fix, williams_ad (the Larry Williams family),\ntd_sequential (DeMark), elliott_wave, adx {adx, plus_di, minus_di}, ichimoku\n{tenkan, kijun, cloud_top, cloud_bot, above_cloud, below_cloud}, squeeze\n{squeeze_on, hist}, and rs_rank (relative-strength rank 1-99, stocks only: the past\nyear's return with the latest quarter counted double, ranked against every tracked\nstock; 99 = strongest; absent with under a year of history). These are omitted\nentirely from the free/guest response, not merely unlabeled; free/guest calls get\nindicators with only the basic six populated.\n\nPro tier adds four interpreted blocks computed from the same indicators, no extra AI cost,\nplus a minimum AI-narrative slice - all five below are precomputed, none cost a live AI call:\n- ai_verdict / ai_headline / ai_score / ai_score_band: the minimum useful\n  AI-narrative slice, shared by every pro-tier stock-returning tool. A bare verdict alone\n  isn't actionable (e.g. negative while up 8% on the day with a strong_buy analyst rating is\n  genuinely ambiguous) - the one-line headline is the \"why\", ai_score is the 0-100\n  composite (same scale/band convention as get_signals' signal_score, distinct pipeline).\n  For the full text (summary/key_points/risks/near_term/longer_term) and cross-source\n  news/insider context, call get_stock_research(symbol) instead - that's the only tool\n  with the complete bundle.\n- ai_score (0-100) / ai_score_band (Weak/Moderate/Strong/Very Strong):\n  the AI research composite score, on the same 0-100 scale and band boundaries\n  as get_signals()'s signal_score - but a separate score, never the same\n  number for the same symbol by coincidence alone.\n- rating: {score 0-10, direction POSITIVE/NEUTRAL/NEGATIVE, signals per-indicator breakdown}\n  - composite technical score\n- signals: flat labeled signals (rsi/macd/bollinger/sma200/sma50/williams_r/ultimate_osc/\n  vix_fix/williams_ad/td_sequential/elliott_wave, each with a value + plain-English label)\n  - same indicators as 'indicators', pre-interpreted for programmatic use without parsing raw numbers\n- stance_signals: unified list of per-source directional calls (technical rating, AI summary\n  near_term/longer_term, insider/institutional sentiment, analyst consensus, active screener\n  signals) - each entry {stance POSITIVE/NEGATIVE/NEUTRAL, conviction 0-10, horizon\n  INTRADAY/SWING/POSITION/LONG_TERM, edge_quality PROVEN/OBSERVATION/UNKNOWN (per-source\n  signal_backtest track record), source, raw_label, as_of}. Same canonical shape used on the\n  stock detail page - a source with missing/stale data is simply omitted, not nulled out.\n- relative_strength: {windows: {5d/20d/60d/120d/12m -> {stock_return_pct, rs_vs_spy, rs_vs_qqq,\n  rs_vs_sector}}, verdict: one-line plain-language read (e.g. \"Laggard - weak near- and long-term\")}\n  - stock's own return minus each benchmark's return (percentage points, not a ratio) per window.\n  rs_vs_sector uses the stock's GICS sector SPDR ETF (Vanguard backup if the primary lacks\n  history); omitted for stocks with no resolvable sector (crypto, FX, indices). Windows/\n  benchmarks with insufficient history are omitted rather than null. null if not precomputed yet.\n- market_risk: {beta_spy_1y, corr_spy_1y} - 1-year daily-return beta and correlation vs SPY.\n  Distinct from quote.beta (a longer-window beta) - this is computed\n  from the same daily bars as relative_strength. Both fields null if not yet\n  precomputed for this symbol (populates on the next scheduled indicators run).\n- forensic_scores: {altman_z, piotroski_f, beneish_m, computed_at} - three classic forensic-\n  accounting formulas (Altman 1968 bankruptcy-risk, Piotroski 2000 fundamental-strength,\n  Beneish 1999 earnings-manipulation-likelihood), computed from balance sheet/income\n  statement/cash flow data, refreshed on each company's own filing cadence (roughly annual).\n  Each sub-block is {score, note, ...} - altman_z adds `zone` (safe/grey/distress),\n  piotroski_f adds `strength` (strong/moderate/weak, 0-9 scale), beneish_m adds\n  `likely_manipulator` (bool, score > -1.78). `note` explains what the score measures and\n  its known caveats (e.g. Altman Z is not meaningful for banks/insurers and can flag REITs/\n  client-float businesses as \"distress\" by design) - always read alongside the score, not in\n  isolation. `score: null` means genuinely not computable for this company (common for\n  financial-sector names), not an error. No trading signal is derived from these scores\n  anywhere in this API today - treat as raw accounting-model output for your own research.\n- sector_context: where this stock's fundamentals sit versus the other tracked equities in\n  its own sector - {sector, revenue_growth, gross_margin, operating_margin, as_of}, each\n  metric {value, sector_median, percentile 0-100, n}. Purely descriptive positioning (e.g.\n  \"revenue growth is in the 80th percentile of its sector\"), no interpretation or direction.\n  A metric is omitted when the stock has no value for it or the sector has fewer than 15\n  peers with data; the whole block is omitted when nothing is computable. Baseline refreshed\n  daily; sectors are pooled globally across all tracked equities.\n  get_stock also returns `trend`: {period: \"quarterly\", points: [{period_end, revenue_growth /\n  gross_margin / operating_margin: {value, sector_median, n}}]}, oldest first - the same three\n  metrics for the last few quarters (revenue_growth is year-over-year) beside the sector\n  median for each quarter, so you can see whether the stock is gaining or losing ground on its\n  peers. Off-cycle fiscal quarters are matched to the nearest calendar quarter. A quarter or\n  metric is left out where either side lacks data. get_stocks omits `trend` to keep batch rows\n  small.",
+            "inputSchema": {
+              "properties": {
+                "symbol": {
+                  "description": "Stock ticker symbol. Also accepts a company name as a fallback (e.g. \"Apple\") when it uniquely resolves to one symbol.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "symbol"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_stock",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Stock"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true,
+              "readOnlyHint": true
+            },
+            "description": "Recent news articles for one stock, newest first.\n\n- symbol: ticker, e.g. \"AAPL\" or \"SAP.DE\".\n- days: look-back window in days. Values above the account's maximum are\n  lowered to it (30 or 90 days, depending on the account).\n- limit: max articles returned. Values above the account's maximum are\n  lowered to it (5 or 50 articles, depending on the account).\n- status: \"ok\" = articles returned | \"empty\" = no news in the window.\n- Per article: title, published_at. Depending on the account, also\n  ai_sentiment, ai_summary, signal_score (0-100 or null) and\n  signal_score_band (\"Weak\"/\"Moderate\"/\"Strong\"/\"Very Strong\" or null).\n- signal_score is the same number get_signals() and get_stock_research()\n  report for this symbol when a news-based signal was raised in the last\n  90 days; otherwise it is computed per article from that article's own\n  classification. It is always a single number.\n- collapsed_count: present when several articles reported the same event\n  (for example one analyst's target change carried by several outlets);\n  only the newest is returned and this says how many were merged into it.\n  `limit` counts distinct events.\n\nArticles are published by third parties; titles and summaries describe\nwhat those articles say.\nFor informational purposes only. Not financial advice.",
+            "inputSchema": {
+              "properties": {
+                "symbol": {
+                  "description": "Stock ticker symbol. Also accepts a company name as a fallback when it uniquely resolves to one symbol.",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 10,
+                  "description": "Max articles returned (default 10). Values above the account's maximum (5 or 50) are lowered to it.",
+                  "type": "integer"
+                },
+                "days": {
+                  "default": 30,
+                  "description": "Look-back window in days (default 30). Values above the account's maximum (30 or 90) are lowered to it.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "symbol"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_stock_news",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Stock News"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Daily OHLCV price history for a stock.\n- days: number of trading days to return (default 90). Guest/free: max 365.\n  Pro: full history, up to 20,000 trading days (most established names go back\n  decades; a full pull can be ~10,000+ bars, so request only what you need).\n- Returns: { symbol, days_requested, days_returned, count, history[],\n  history_available: { bars, earliest_date } } -\n  days_returned/count can be less than days_requested if less history exists.\n  When a guest/free caller asks for more than 365 days the response is capped\n  at 365 and carries a `pro_unlocks` note saying what Pro adds.\n- Per bar: date, open, high, low, close, volume",
+            "inputSchema": {
+              "properties": {
+                "symbol": {
+                  "description": "Stock ticker symbol. Also accepts a company name as a fallback when it uniquely resolves to one symbol.",
+                  "type": "string"
+                },
+                "days": {
+                  "default": 90,
+                  "description": "Number of trading days of daily OHLCV history to return (default 90). Max 365 for guest and free; Pro can request the full history (up to 20,000 trading days). A full-history call can be ~10,000+ bars - prefer a narrower window unless you need it all. days_returned/count in the response can be less than this if less history exists.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "symbol"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_stock_history",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Stock Price History"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Upcoming earnings dates for stocks in the Stocklake universe.\n- days: look-ahead window in days (default 7, max 30)\n- Returns: { window_days, from_date, to_date, count, results[] }\n- Each result: symbol, name, sector, market_cap, price, rsi,\n  earnings_date (ISO UTC), is_estimate, eps_trailing, eps_forward\n- Sorted by earnings_date ascending.\n- Dates sourced from market data - treat is_estimate=true dates as approximate.\nAvailable to all tiers.",
+            "inputSchema": {
+              "properties": {
+                "days": {
+                  "default": 7,
+                  "description": "Look-ahead window in days (default 7, max 30).",
+                  "type": "integer"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_earnings_calendar",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Earnings Calendar"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Combined AI market assessment: macro regime + market outlook in a single call.\nRefreshed ~4x/day, weekdays only, during market hours (~2h apart) - dead\novernight and on weekends, not a continuous 4-hourly cadence. Check\nregime_stale/outlook_stale below (which already account for the weekend\ngap) before treating either as current, especially on a Monday morning.\n\nTwo distinct perspectives returned together:\n- REGIME (RISK_OFF/CAUTIOUS/NEUTRAL/AGGRESSIVE): answers \"how much equity risk to take\"\n  → use for position sizing and asset allocation decisions\n- OUTLOOK (POSITIVE/NEUTRAL/NEGATIVE): answers \"which direction and sectors to trade\"\n  → use for sector preference and directional bias\n\nBoth share the same pipeline run so they are always in sync.\n\n- history_count: include last N prior assessments for each (0-3, default 0)\n- regime_*: risk posture fields - regime, risk_appetite_score (0-100 re-expression of\n  regime, higher = current conditions support more risk-taking), regime_bias,\n  regime_bias_note (plain sentence on whether current conditions favor long or short\n  setups, or neither), regime_confidence, regime_rationale, key_risks,\n  watch_for, vix_at_assessment, regime_updated_at, regime_stale\n- macro_score / regime_strength: macro_score is a real, continuous 0-100 read on how\n  much risk the current environment supports (0=RISK_OFF/capital preservation,\n  100=AGGRESSIVE/risk-on) - the same underlying number `regime` buckets into 4\n  discrete categories, blending arithmetic inputs (VIX level, breadth\n  oversold/overbought skew, SKEW-vs-VIX divergence, TD-exhaustion ratio) with\n  regime_strength, the AI's own 1-10 read of regime conviction. Distinct from\n  risk_appetite_score (a coarse 4-value lookup on `regime` alone) - macro_score is\n  the real underlying number. Null on a pre-2026-08-26 assessment that predates\n  this field. Not a call on any one stock.\n- macro_score_trend: {change_7d, change_30d, direction} - whether macro_score itself\n  is improving/deteriorating/stable over the trailing 7/30 days, computed\n  automatically (no history_count needed). A bare 33 doesn't tell you whether the\n  environment is getting worse or just stabilized after a worse reading; this does.\n  Either leg is null without enough history yet.\n- regime_stale / outlook_stale: true if that assessment is >72h old (the pipeline runs\n  weekdays only, so a normal Fri→Mon gap does not trip this - only a genuinely broken/stuck\n  pipeline does). null if the timestamp itself is missing.\n- indicators.macro_data: macro data (yield curve, Fed funds, cpi_index, unemployment, M2)\n- indicators.volatility_term_structure: VIX spot/3M/6M term structure + contango signal\n- indicators.market_sentiment: Fear & Greed index value and label\n- market_context: price/RSI/SMA200/perf snapshot of SPY/QQQ/IWM/TLT/GLD/VIX/TNX + sectors\n  NOTE: point-in-time snapshot recorded when AI ran - not live prices (use get_market_pulse for live)\n- outlook_*: directional fields - outlook, outlook_conviction, equity_view,\n  preferred_sectors, avoided_sectors, catalyst, outlook_key_risk, outlook_rationale,\n  outlook_updated_at, outlook_stale\n\nPro tier only - AI pipeline cost attached.\nFor informational purposes only. Not financial advice.",
+            "inputSchema": {
+              "properties": {
+                "history_count": {
+                  "default": 0,
+                  "description": "Include the last N prior assessments for each of regime and outlook (0-3, default 0).",
+                  "type": "integer"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_market_assessment",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Market Assessment"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "AI-assessed sector intelligence: signal, cycle stage, rotation signal,\ndrivers, alerts, and computed statistics per sector (RSI distribution, breadth,\nperformance 1W/1M, top/bottom movers, historical percentiles).\nPass a sector name for a single sector, or omit the parameter (or pass None)\nto get the latest assessment for all 11 sectors - the all-sectors call doubles as\nthe rotation view: use sort_by_strength to rank LEADING-first for finding leading\nvs lagging sectors, and history_count for prior signal states per sector.\n\n- sort_by_strength: sort all-sectors output LEADING→LAGGING instead of alphabetical\n  (all-sectors call only; ignored when a single sector is requested)\n- history_count: include last N prior signal states per sector, 0-3 (default 0;\n  all-sectors call only)\n- sector_score / strength_score: sector_score is a real, continuous 0-100 read on\n  this sector's relative strength/leadership (0=LAGGING, 100=LEADING) - the same\n  underlying number `signal` buckets into 5 discrete categories, blending\n  arithmetic inputs (RSI/perf percentiles, top-5 concentration, SMA200 breadth)\n  with strength_score, the AI's own 1-10 read. Comparable across all 11 sectors on\n  one absolute scale (not per-sector-relative). Null on a pre-2026-08-26 assessment\n  that predates this field. Not a buy/sell call.\n- sector_score_trend: {change_7d, change_30d, direction} - whether this sector's\n  score is improving/deteriorating/stable over the trailing 7/30 days, computed\n  automatically. Single-sector calls only - this is the only trend view available\n  for one sector at all (history_count only applies to the all-sectors call).\n  Two sectors both reading STRONG/68 can be in opposite motion; this tells them\n  apart. Either leg is null without enough history yet.\n\nRefreshed ~4x/day, weekdays only, during market hours (~2h apart) - dead\novernight and on weekends, not a continuous 4-hourly cadence. Check the\nreturned updated_at before treating this as current, especially on a\nMonday morning or after a holiday.\nAvailable to pro tier only (AI pipeline costs).\nFor informational purposes only. Not financial advice.",
+            "inputSchema": {
+              "properties": {
+                "sector": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Pass a sector name for a single sector's assessment, or omit (None) to get the latest assessment for all 11 sectors at once - the all-sectors call doubles as the rotation view."
+                },
+                "sort_by_strength": {
+                  "default": false,
+                  "description": "Sort all-sectors output LEADING→LAGGING instead of alphabetical, for finding leading vs lagging sectors. Only applies to the all-sectors call; ignored when a single sector is requested.",
+                  "type": "boolean"
+                },
+                "history_count": {
+                  "default": 0,
+                  "description": "Include the last N prior signal states per sector, 0-3 (default 0). Only applies to the all-sectors call.",
+                  "type": "integer"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_sector_intelligence",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Sector Intelligence"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Get insider transactions (regulatory insider filings for the US and several\nEuropean markets) and, on Pro, the AI read plus institutional holdings\nfor a stock.\n\nEvery tier (guest/free/pro) gets the filing facts: insider_buys and\ninsider_sells over the window (echoed as window_days), transactions (the\nindividual rows behind those counts, newest first, each with\ndate/name/role/type/shares/price/value), summary (a one-line factual\nreadout computed from those same rows -- counts, dollar totals, date\nrange -- so it can never disagree with them), source/source_name (which\nfiling feed was used), and updated_at (when the filings were last\nfetched).\n\nFree/guest: a 90-day window (a larger `days` is capped at 90, see\ndays_note), the 5 most recent rows (transactions_note says how many more\nthere are), and pro_unlocks describing what Pro adds. No AI fields and no\ninstitutional holders.\n\nPro: `days` up to 365, up to 50 rows, plus signal (POSITIVE/NEGATIVE/\nNEUTRAL etc.), signal_score (0-100, higher = stronger/more notable - the\nexact same field, formula, scale and bands as get_signals()'s\nsignal_score) with signal_score_band, insider_signal/inst_signal,\nai_commentary (a separately-generated AI narrative on its own refresh\ncadence, with ai_commentary_as_of - it can lag the transactions; trust\n`summary`/the rows if they disagree), top_holders (a union of multiple\ndata sources, up to 15, each with name/shares/pct_held/sources/\nshare_counts_by_source - the last two show which source(s) contributed\nto a merged row and each one's own reported share count), holder_count_\ndivergence (null unless every matched holder disagrees by the same\nsystemic multiplier across sources - e.g. an unrecorded reverse split -\na signal top_holders.shares may be unreliable for this symbol),\ninst_ownership (0-100%), and total_holders.\nFor informational purposes only. Not financial advice.",
+            "inputSchema": {
+              "properties": {
+                "symbol": {
+                  "description": "Stock ticker symbol to fetch insider-filing and institutional-holdings activity for.",
+                  "type": "string"
+                },
+                "days": {
+                  "default": 90,
+                  "description": "Insider-transaction window in days (default 90, max 365 on Pro; free/guest calls are capped at 90). Applies to transactions, insider_buys and insider_sells.",
+                  "maximum": 365,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "symbol"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_insider_activity",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Insider Activity"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Batch stock data for up to 25 symbols in a single call - the same fields\nget_stock returns for the same key/symbol, so this is a true batch version,\nnot a thinned-down scan. Returns a dict keyed by symbol. Missing symbols\nare omitted from the result. Each symbol in the batch counts as one call\ntoward the daily limit. A request over 25 symbols is rejected outright\n(error: batch_too_large) rather than silently served on just the first\n25 - split a larger list into multiple calls.\nAvailable to all tiers (fundamentals/indicators/company profile, free).\n\nPro tier adds, per symbol, the same precomputed blocks get_stock adds -\nrating {score, direction, signals}, signals (per-indicator breakdown),\nrelative_strength, market_risk {beta_spy_1y, corr_spy_1y}, sector_context\n(revenue growth/margins vs sector median - see get_stock), and the minimum\nAI-narrative slice (ai_verdict, ai_headline, ai_score,\nai_score_band). None of this costs a live AI call - it's all\nprecomputed and just needs projecting.\n\nNOT included, even on pro - call get_stock(symbol) for stance_signals, or\nget_stock_research(symbol) for the full ai_summary text (summary/key_points/\nrisks/near_term/longer_term) plus cross-source news/insider/signal context.\n\nResponse also carries `duplicates_collapsed`: how many input symbols\nnormalized (case-folding, share-class aliasing e.g. \"BRK.B\"->\"BRK-B\") or\nliterally repeated onto a symbol already counted elsewhere in this batch.\nrequested - len(missing or []) - duplicates_collapsed == count always holds.",
+            "inputSchema": {
+              "properties": {
+                "symbols": {
+                  "description": "List of stock ticker symbols, up to 25 per call. Each symbol counts as one call toward the daily limit. A request over 25 symbols is rejected outright (error: batch_too_large) rather than silently served on just the first 25 - split a larger list into multiple calls.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "symbols"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_stocks",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Multiple Stocks"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Market health snapshot in a single call.\nAggregates key market indicators without requiring multiple tool calls.\nNo AI cost. Index and bond/commodity prices are live; vix, fear_greed and breadth\ncome from the latest market snapshot (see updated_at).\n\nReturns:\n- vix: VIX level (a number) as of that snapshot\n- fear_greed: {value (0-100), description (\"extreme fear\" | \"fear\" | \"neutral\" |\n  \"greed\" | \"extreme greed\"), last_update}\n- breadth: market-wide RSI distribution - oversold_pct, overbought_pct, neutral_pct\n  (with their counts), universe_size\n- indices: spy, qqq, iwm, each {price, change_pct (today, in percent), rsi}\n- bonds_commodities: tlt (long-duration bonds), gld (gold), same shape as indices\n- updated_at: when the vix/breadth/fear_greed snapshot was last recorded\nAvailable to all tiers.",
+            "inputSchema": {
+              "properties": {},
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_market_pulse",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Market Pulse"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "AI-screened stock signals recently surfaced by the Stocklake pipeline -\nsourced from news analysis, sector screening, and sentiment signals.\n\nShows what the pipeline noticed in the last 24 hours (falling back to the\nmost recent signals regardless of age if nothing has fired in that window\n- see `window` in the response). Signals stay listed for their recency window\neven after they expire.\n\nParameters:\n- direction: \"POSITIVE\" | \"NEGATIVE\" | \"NEUTRAL\" (default: all). NEUTRAL\n  covers both a flat/undecided read AND a genuinely two-sided idea (real\n  opposing bull/bear theses on the same symbol) - in the latter case\n  signal_score is the STRONGER of the two sides (see signal_score below),\n  so a high score alongside NEUTRAL means \"real conviction here, just no\n  directional consensus,\" not \"nothing going on.\" The two-sided detail is\n  in `rationale`.\n- min_signal_score: minimum composite signal score 0-100 (default 60) - a\n  blend of conviction/confidence/flag_score, source track record, and real\n  technical factors. This is the field to filter on. Always compared\n  against a single number, including for NEUTRAL/two-sided ideas - a\n  result is never returned below your threshold on both sides.\n- source: filter by signal source - \"news\" | \"screener\" | \"sentiment\" (default: all)\n- limit: max results to return (default 25, max 50). Each returned signal counts\n  as one call toward your daily limit.\n\nReturns:\n- count: number of signals returned\n- window: \"24h\" (fresh activity found) or a fallback note when the last 24h\n  had nothing and the response instead shows the most recent signals overall\n- signals[]: each with symbol, direction, signal_score (0-100), signal_score_band\n             (human-readable label - \"Weak\"/\"Moderate\"/\"Strong\"/\"Very Strong\"),\n             source, rationale, expires, flagged_at\n\nPro tier only - AI pipeline cost attached.\nFor informational purposes only. Not financial advice.",
+            "inputSchema": {
+              "properties": {
+                "direction": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Filter by direction: \"POSITIVE\" | \"NEGATIVE\" | \"NEUTRAL\" (default: all). NEUTRAL covers both a flat/undecided read and a genuinely two-sided idea (see signal_score below)."
+                },
+                "source": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Filter by signal source: \"news\" | \"screener\" | \"sentiment\" (default: all)."
+                },
+                "limit": {
+                  "default": 25,
+                  "description": "Max results to return (default 25, max 50). Each returned signal counts as one call toward your daily limit.",
+                  "type": "integer"
+                },
+                "min_signal_score": {
+                  "default": 60,
+                  "description": "Minimum composite signal score, 0-100 (default 60) - a blend of conviction/confidence/flag_score, source track record, and real technical factors. This is the field to filter on.",
+                  "type": "integer"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_signals",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Signals"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "The caller's Stocklake watchlist (starred symbols from the web dashboard),\nenriched with live price, technicals, and AI verdict.\n\nReturns:\n- count: number of symbols on the watchlist\n- items[]: each with symbol, name, sector, price, change_pct, rsi, market_cap,\n           analyst_rating, atr_pct, ai_verdict, ai_headline, ai_score (0-100),\n           ai_score_band (Weak/Moderate/Strong/Very Strong),\n           added_at, price_at_add\n- empty items[] if nothing is starred yet - star symbols at stocklake.dev/dashboard\n\nPro tier only.\nFor informational purposes only. Not financial advice.",
+            "inputSchema": {
+              "properties": {},
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_watchlist",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Watchlist"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true,
+              "readOnlyHint": true
+            },
+            "description": "Most notable recent news across all tracked stocks: a market-wide briefing.\nUnlike get_stock_news (one symbol), this scans every tracked stock and\nreturns articles ranked by signal_score, newest first within each score.\n\nUse this for:\n- Morning briefing: \"what happened in the market this week?\"\n- Catalyst scanning: \"what news is driving moves right now?\"\n- Event monitoring: \"which stocks have high-impact news today?\"\n\n- min_signal_score: minimum signal_score (0-100, default 60).\n- days: look-back window in days (default 3, max 10).\n- limit: max articles returned (default 10, max 25).\n- Per article: symbol, title, published_at, ai_sentiment, ai_summary,\n  signal_score (0-100), signal_score_band (Weak/Moderate/Strong/Very Strong).\n- signal_score is the symbol's current news-based signal score when one\n  was raised in the last 90 days (the same number get_stock_news() and\n  get_signals() report), otherwise a score computed from the article's own\n  classification. It is always a single number.\n- collapsed_count: present when several articles reported the same event;\n  only the highest-ranked one is returned and this says how many were\n  merged into it. `limit` counts distinct events.\n\nArticles are published by third parties; titles and summaries describe\nwhat those articles say. Requires a Pro account.\nFor informational purposes only. Not financial advice.",
+            "inputSchema": {
+              "properties": {
+                "min_signal_score": {
+                  "default": 60,
+                  "description": "Minimum signal_score, 0-100 (default 60).",
+                  "type": "integer"
+                },
+                "days": {
+                  "default": 3,
+                  "description": "Look-back window in days (default 3, max 10).",
+                  "type": "integer"
+                },
+                "limit": {
+                  "default": 10,
+                  "description": "Max articles returned (default 10, max 25).",
+                  "type": "integer"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_news_feed",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Market News Feed"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Filter and rank stocks from the Stocklake universe - fundamentals, technicals, and AI signals in one tool.\n\nParameters:\n- sector: e.g. \"Technology\", \"Healthcare\", \"Financial Services\"\n- country: e.g. \"United States\", \"Germany\"\n- min_rsi / max_rsi: exact RSI bounds (e.g. max_rsi=30 = oversold, min_rsi=70 = overbought)\n- sma_trend: \"above_200\" (price above 200-day MA) | \"below_200\"\n- macd_signal: \"positive\" (MACD line above signal) | \"negative\"\n- min_perf_1d / max_perf_1d: 1-day performance % (e.g. min_perf_1d=2.0 = up 2%+ today)\n- min_volume: minimum daily volume (e.g. 1000000)\n- min_market_cap_b / max_market_cap_b: market cap in billions of US dollars,\n  compared against market_cap_usd (stocks with no FX rate for their currency\n  are excluded when either bound is set)\n- max_pe_forward: maximum forward P/E (e.g. 20 = value screen)\n- analyst_rating: \"strong_buy\" | \"buy\" | \"hold\" | \"sell\" | \"strong_sell\"\n- min_ai_score: minimum AI score 0-100 (pro tier only - silently ignored for free).\n  Gates on the AI research composite ai_score - same 0-100 scale and bands\n  as signal_score, but a separate score (per-stock AI\n  summary strength, not a directional signal). Renamed 2026-08-24 from the\n  retired 0-10 min_flag_score - the raw flag_score field it used to gate on is no\n  longer part of this fleet's public vocabulary at all (see ai_score below).\n- preset: \"oversold\" | \"overbought\" | \"momentum\" | \"high_conviction\" (pro only)\n  oversold = RSI≤35 + above SMA200 · overbought = RSI≥65\n  momentum = RSI 50-70, above SMA200, up 0.5%+ today · high_conviction = ai_score≥70\n- sort_by: \"market_cap\" | \"rsi\" | \"perf_1d\" | \"volume\" | \"analyst_rating\" | \"rating\" | \"ai_score\" (pro).\n  Defaults to \"market_cap\", except the \"high_conviction\" preset defaults to \"ai_score\"\n  (the dimension it's filtering by) unless you explicitly pass a different sort_by.\n- sort_dir: \"asc\" | \"desc\" (default \"desc\")\n- limit: 1-25 (default 20). Each returned stock counts as one call toward your daily limit.\n\nReturns: { count, preset, filters, results[] } - each result includes symbol, name, sector,\nindustry, country, price, change_pct, volume, market_cap, market_cap_usd, currency,\npe_forward, rsi, macd_signal, sma200_trend, analyst_rating. market_cap is in the\nlisting's own currency (the currency field); market_cap_usd is converted to US\ndollars and is what the market_cap sort and cap filters use.\nPro tier adds rating (0-10 composite score) + ai_verdict + ai_headline + ai_score\n(0-100) + ai_score_band to every result row (the headline is the \"why\" - a bare\nverdict alone isn't enough to act on), enables min_ai_score filter, high_conviction\npreset, and sorting by rating/ai_score (sort_by silently falls back to market_cap on\nfree/guest for both). All other filters available to all tiers. For the full research\nbundle on any one result, call get_stock_research(symbol).",
+            "inputSchema": {
+              "properties": {
+                "sector": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Filter by sector, e.g. \"Technology\", \"Healthcare\", \"Financial Services\"."
+                },
+                "country": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Filter by country, e.g. \"United States\", \"Germany\"."
+                },
+                "min_rsi": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Minimum RSI bound (e.g. min_rsi=70 = overbought)."
+                },
+                "max_rsi": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Maximum RSI bound (e.g. max_rsi=30 = oversold)."
+                },
+                "sma_trend": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "\"above_200\" (price above 200-day MA) | \"below_200\"."
+                },
+                "macd_signal": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "\"positive\" (MACD line above signal) | \"negative\"."
+                },
+                "min_perf_1d": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Minimum 1-day performance %, e.g. min_perf_1d=2.0 = up 2%+ today."
+                },
+                "max_perf_1d": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Maximum 1-day performance %."
+                },
+                "min_volume": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Minimum daily volume, e.g. 1000000."
+                },
+                "min_market_cap_b": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Minimum market cap in billions of US dollars (compared against market_cap_usd, so non-USD listings are converted first)."
+                },
+                "max_market_cap_b": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Maximum market cap in billions of US dollars (compared against market_cap_usd)."
+                },
+                "max_pe_forward": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Maximum forward P/E, e.g. 20 for a value screen."
+                },
+                "analyst_rating": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Filter by analyst consensus rating: \"strong_buy\" | \"buy\" | \"hold\" | \"sell\" | \"strong_sell\"."
+                },
+                "min_ai_score": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Minimum AI score, 0-100 - pro tier only (silently ignored for free). Gates on the AI research composite ai_score, same 0-100 scale and bands as signal_score but a separate score (per-stock AI summary strength, not a directional signal)."
+                },
+                "preset": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "\"oversold\" | \"overbought\" | \"momentum\" | \"high_conviction\" (pro only). oversold = RSI<=35 + above SMA200; overbought = RSI>=65; momentum = RSI 50-70, above SMA200, up 0.5%+ today; high_conviction = ai_score>=70."
+                },
+                "sort_by": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "\"market_cap\" | \"rsi\" | \"perf_1d\" | \"volume\" | \"analyst_rating\" | \"rating\" | \"ai_score\" (pro). Defaults to \"market_cap\", except the \"high_conviction\" preset defaults to \"ai_score\" (the dimension it's filtering by) unless you explicitly pass a different sort_by. Sorting by rating/ai_score silently falls back to market_cap on free/guest."
+                },
+                "sort_dir": {
+                  "default": "desc",
+                  "description": "Sort direction: \"asc\" | \"desc\" (default \"desc\").",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 20,
+                  "description": "Max results to return, 1-25 (default 20). Each returned stock counts as one call toward your daily limit.",
+                  "type": "integer"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_screener",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Screen Stocks"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Top market movers from the Stocklake universe - gainers, losers, most active.\n\n- category: \"gainers\" | \"losers\" | \"most_active\" | \"all\" (default \"all\" = all 3 categories)\n- limit: results per category (default 10, max 20). Each returned stock counts as\n  one call toward your daily limit - a symbol appearing in more than one category\n  (e.g. both \"gainers\" and \"most_active\") counts once per category it appears in.\n- min_market_cap_b: filter to stocks above this market cap in billions of US dollars\n  (e.g. 1.0 = $1B+), compared against market_cap_usd\n\nReturns per stock: symbol, name, sector, price, change_pct, volume, rsi, market_cap\n(listing currency), market_cap_usd, currency, analyst_rating, atr_pct (atr_pct omitted when the underlying volatility reading is\nmissing or corrupted).\nAvailable to all tiers.\n\nPro tier adds the minimum AI-narrative slice (ai_verdict, ai_headline,\nai_score 0-100, ai_score_band) - precomputed, no extra\nAI cost. A big mover's price/volume/RSI alone doesn't say whether the\nmove matters; the one-line headline does. For the full research bundle\non any one mover, call get_stock_research(symbol).",
+            "inputSchema": {
+              "properties": {
+                "category": {
+                  "default": "all",
+                  "description": "Which movers category to return: \"gainers\" | \"losers\" | \"most_active\" | \"all\" (default \"all\" = all 3 categories).",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 10,
+                  "description": "Results per category (default 10, max 20). Each returned stock counts as one call toward your daily limit - a symbol appearing in more than one category (e.g. both \"gainers\" and \"most_active\") counts once per category it appears in.",
+                  "type": "integer"
+                },
+                "min_market_cap_b": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Filter to stocks above this market cap in billions of US dollars, e.g. 1.0 = $1B+ (compared against market_cap_usd)."
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_market_movers",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Market Movers"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Historical daily indicator snapshots for a stock - ideal for charting and trend detection.\nReturns up to `days` days of data (max 730, default 90) from the stock_indicator_snapshots\ncollection which is populated daily by the indicator pipeline.\n\nEvery snapshot row contains:\n- recorded_at: ISO date string\n- price: closing price at snapshot time\n- rsi: RSI(14) value (0-100)\n- macd_histogram: MACD histogram value (positive = upward momentum)\n- bb_pct: Bollinger Band % position (0 = at lower, 100 = at upper band)\n- sma20 / sma200: 20-day and 200-day simple moving averages\n\nWith full=true, each row also gets:\n- williams_r: Williams %R (0 to -100; >-20 overbought, <-80 oversold)\n- ultimate_osc: Ultimate Oscillator (0-100; >70 overbought, <30 oversold)\n- vix_fix_value: Williams VIX Fix synthetic fear gauge (higher = more fear)\n- williams_ad_trend: Accumulation/Distribution trend (rising/falling/flat)\n- td_signal: DeMark TD Sequential count, named for the move that is running out\n  (DOWNTREND_EXHAUSTION_SETUP / UPTREND_EXHAUSTION_SETUP /\n  DOWNTREND_EXHAUSTION_COUNTDOWN / UPTREND_EXHAUSTION_COUNTDOWN / null)\n- td_phase: DeMark phase (setup_active/setup_complete/countdown_active/countdown_done/null)\n- analyst_rating: analyst consensus (buy/outperform/hold/underperform/sell or null)\n- analyst_target: mean analyst price target or null\n\nReturns {} if fewer than 3 snapshots found.\nPro tier only.\nFor informational purposes only. Not financial advice.",
+            "inputSchema": {
+              "properties": {
+                "symbol": {
+                  "description": "Stock ticker symbol. Also accepts a company name as a fallback when it uniquely resolves to one symbol.",
+                  "type": "string"
+                },
+                "days": {
+                  "default": 90,
+                  "description": "Number of days of historical daily indicator snapshots to return (max 730, default 90). Returns {} if fewer than 3 snapshots are found in the window.",
+                  "type": "integer"
+                },
+                "full": {
+                  "default": false,
+                  "description": "False (default) returns only recorded_at/price/rsi/macd_histogram/bb_pct/sma20/sma200 per day - enough for most charting/trend use. True adds the specialized indicators (williams_r, ultimate_osc, vix_fix_value, williams_ad_trend, td_signal, td_phase) plus analyst_rating/analyst_target, which barely change day to day and roughly double response size over a long window.",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "symbol"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_indicator_history",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Indicator History"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Raw financial statements - balance sheet, income statement, and cash\nflow line items. This is the underlying statement data itself, not a\nderived summary - for the forensic-accounting scores computed FROM these\nstatements (Altman Z / Piotroski F / Beneish M), see get_stock()'s\nforensic_scores block instead.\n\nEach returned statement is shaped {line_item_name: {period_end_iso: value}}\n- e.g. income_stmt[\"Total Revenue\"][\"2025-12-31\"] - so a caller can\ncompute its own trends/deltas/CAGRs, not just read the latest value.\nValues are in the company's reporting currency (financial_currency).\n\nTiers:\n- Free and guest: the LATEST fiscal year only. Every line item's\n  {period_end: value} map has one entry and `periods` lists one date.\n  All three statements and the `statement` filter work. period=\n  \"quarterly\"/\"both\" returns that latest annual year with\n  quarterly=null plus a `pro_unlocks` note (not an error).\n  `annual_periods_available` says how many years Pro would return.\n- Pro: period=\"annual\" (default) returns up to 5 fiscal years;\n  some symbols return fewer.\n  period=\"quarterly\" returns up to roughly 7-8 of the most recent\n  quarters. period=\"both\" returns both blocks in one call.\n\n~50-60 curated line items per statement (not a raw dump of every\nreported row): balance sheet structure (assets/liabilities/equity/debt/\nworking capital), income statement (revenue through EPS), and cash flow\n(operating/investing/financing, free cash flow, buybacks, stock-based\ncomp). Coverage genuinely varies by symbol and sector - a bank has no\n\"Inventory\" line, a company with no buyback program has no \"Repurchase\nOf Capital Stock\" entry. A missing line item means it is not reported\nfor this company, not a fetch error.\n\nquarterly can come back null (with a quarterly_note) for a symbol whose\nreal quarterly data isn't available. annual/quarterly can both be\nentirely absent (with a note) if this symbol hasn't yet been through the\nfinancials sync, or if it's not an equity (no data for ETFs/crypto/\nforex/indices) - these states read the same for every tier.\n\nFor informational purposes only. Not financial advice.",
+            "inputSchema": {
+              "properties": {
+                "symbol": {
+                  "description": "Stock ticker symbol. Also accepts a company name as a fallback when it uniquely resolves to one symbol.",
+                  "type": "string"
+                },
+                "period": {
+                  "default": "annual",
+                  "description": "'annual' (default; Pro: up to 5 fiscal years, free: the latest fiscal year), 'quarterly' (Pro: up to ~7-8 most recent quarters), or 'both' (Pro). Free/guest asking for 'quarterly' or 'both' gets the latest annual year plus a pro_unlocks note, not an error.",
+                  "type": "string"
+                },
+                "statement": {
+                  "default": "all",
+                  "description": "'all' (default), 'balance_sheet', 'income_stmt', or 'cash_flow' - restricts which statement(s) are returned.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "symbol"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_stock_financials",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Stock Financials"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "How analyst consensus on a stock has moved over time - the trajectory of the\nrating and price targets, not just today's value. Answers \"are analysts\ngetting more or less positive on this name?\", which get_stock's single\ncurrent analyst_rating / analyst_target cannot.\n\nReturns one row per day, oldest to newest, up to `days` (max 365, default 90):\n- date: YYYY-MM-DD\n- analyst_rating: consensus label (strong_buy/buy/hold/underperform/sell/strong_sell) or null\n- analyst_rating_score: numeric consensus, 1.0 (strong buy) to 5.0 (sell)\n  - LOWER is more positive. The same scale as get_stock's analyst_rating_score.\n- analyst_count: number of analysts contributing\n- analyst_target: mean price target\n- analyst_target_high / analyst_target_low / analyst_target_median: target spread\n- price: the stock's price on the snapshot date, so the target can be read\n  against where the stock actually traded\n\nSnapshots are taken once per weekday, so a 90-day window is roughly 60 rows.\nA field is null on a day where the source reported none - analyst_rating in\nparticular can be null on a day when the price targets are present. A weekday\ncan be missing entirely if the daily snapshot did not run; such days are not\nreconstructed, the date is simply absent. Coverage: most of the\ntracked universe has a usable history; a symbol with fewer than 2 snapshots\nreturns an empty `snapshots` list with a note rather than a single stranded point.\nHistory begins July 2026 and grows daily.\n\nFor the current analyst view alone, get_stock is enough. For price/indicator\nhistory, see get_indicator_history - this tool is analyst consensus only.\n\nPro tier only.\nFor informational purposes only. Not financial advice.",
+            "inputSchema": {
+              "properties": {
+                "symbol": {
+                  "description": "Stock ticker symbol. Also accepts a company name as a fallback when it uniquely resolves to one symbol.",
+                  "type": "string"
+                },
+                "days": {
+                  "default": 90,
+                  "description": "Number of days of daily analyst snapshots to return (max 365, default 90). Returns an empty list with a note if fewer than 2 snapshots exist in the window.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "symbol"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_analyst_trend",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Analyst Trend"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Upcoming and recently-released macro/economic events -- interest rate\ndecisions, CPI, GDP, PMI, unemployment, payrolls, retail sales, and more.\n\nTwo buckets:\n- released_recent: events with a real reported value, within the last\n  `lookback_days` days. Every item here carries a real `actual` value\n  (never blank) plus `diff` (actual minus previous -- a plain arithmetic\n  difference, never a beat/miss or consensus judgment; point-in-time\n  consensus is not available).\n- upcoming: not-yet-released events within `days`. No item here ever\n  carries an `actual` value.\n\nEvery item in both buckets carries `key_event`: true for the handful of\nevent types that reliably move markets on their own (rate decisions, CPI,\nGDP, headline Non-Farm Payrolls) -- an event-TYPE flag only, never a\nbeat/miss or directional judgment on the number itself. Set\n`key_events_only=true` to filter to just these, or `major_only=true` to\nrestrict to the 8 largest economies.\n\nBoth buckets sort major-economy-first, then by recency -- truncating to\n`limit` should never lose a US/EU/UK/JP/CN/DE/FR/CA print to an older or\nthinner-economy one.\n\nAll tiers. Guest and free: days max 7, lookback_days max 2, limit max 20.\nPro: days max 14, lookback_days max 7, limit max 50. When a guest/free\nvalue is above its cap, the response is served at the cap and carries\n`capped` ({param: {requested, served}}) plus a `pro_unlocks` note.\nFor informational purposes only. Not financial advice.",
+            "inputSchema": {
+              "properties": {
+                "days": {
+                  "default": 3,
+                  "description": "Look-ahead window in days for upcoming events (default 3). Max 7 for guest and free, 14 for Pro.",
+                  "type": "integer"
+                },
+                "lookback_days": {
+                  "default": 2,
+                  "description": "Look-back window in days for recently-released events (default 2). Max 2 for guest and free, 7 for Pro. Actual values arrive with about a 1-day reporting lag, so a same-day-only window misses real releases -- keep this at 2+ to reliably see them.",
+                  "type": "integer"
+                },
+                "limit": {
+                  "default": 20,
+                  "description": "Max results per bucket, released_recent and upcoming each capped independently (default 20). Max 20 for guest and free, 50 for Pro.",
+                  "type": "integer"
+                },
+                "major_only": {
+                  "default": false,
+                  "description": "Restrict to the 8 largest economies (United States, Euro Area, United Kingdom, Japan, China, Germany, France, Canada). Default false returns all countries.",
+                  "type": "boolean"
+                },
+                "key_events_only": {
+                  "default": false,
+                  "description": "Restrict to the small subset of event types that reliably move markets on their own: interest rate/rate decisions, CPI, GDP, and headline Non-Farm Payrolls. Default false returns every event matching the broader base filter (also includes PMI, unemployment, other payrolls components, retail sales, ADP, inflation).",
+                  "type": "boolean"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_economic_calendar",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Economic Calendar"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Full AI research bundle for a stock in one call - fundamentals, AI-generated\nsummary, recent AI-classified news, insider/institutional signal, and recent\ntrade signal history. Replaces 4 separate calls: get_stock + get_stock_news +\nget_insider_activity + get_signals (for one symbol).\n\nReturns:\n- stock: price, name, sector, rsi, pe_forward, market_cap, 52-week range, analyst data\n- ai_summary: verdict, ai_score (0-100)/ai_score_band (Weak/Moderate/Strong/\n  Very Strong - the AI research composite, same scale and bands as\n  signal_score but a separate score), full summary, key_points, risks,\n  price_at_generation, generated_at, headline (one-sentence plain-language take), near_term\n  (stance/confidence over <4 weeks - technicals/momentum-weighted), longer_term\n  (stance/confidence over a multi-month horizon - fundamentals/analyst/institutional-flow-weighted).\n  headline/near_term/longer_term are null on summaries generated before this schema shipped -\n  until that symbol's next regeneration, fall back to verdict/ai_score.\n- news: last 3 high-relevance articles (title, published_at, ai_sentiment,\n  ai_summary, signal_score [0-100]/signal_score_band - this symbol's LIVE\n  news-sourced signal score if one exists in the last 90 days [same number\n  as the `signals` list below and get_signals()/get_stock_news(), kept in\n  sync as it's re-scored], else a per-article magnitude computed from that\n  article's own classification. One name, no separate \"news_score\" field.\n  The 3 are distinct events: an article carries collapsed_count when\n  several articles about the same event were merged into it.)\n- sentiment: signal, signal_score (0-100)/signal_score_band - one name, no\n  separate \"insider_score\" field, same as the news block above - insider_trend\n  (buying/selling/neutral, or null with no transactions in the window), institutional_pct\n- signals[]: up to the 5 most recent trade signals for this symbol in the last\n  90 days (direction, rationale, signal_score [0-100], signal_score_band\n  [human-readable label - \"Weak\"/\"Moderate\"/\"Strong\"/\"Very Strong\" - or null\n  alongside a null signal_score], source, expires, flagged_at). Empty if\n  nothing in that window. Signals stay listed for the full window even\n  after they expire.\n- forensic_scores: {altman_z, piotroski_f, beneish_m, computed_at} - three classic\n  forensic-accounting formulas (Z-Score bankruptcy risk / F-Score fundamental\n  quality / M-Score earnings-manipulation risk), computed from `stocks.financials`\n  (GH #107). Omitted entirely if this symbol has no forensic_scores doc yet - not\n  every symbol qualifies (financial-sector companies mostly return null on all\n  three by construction, see the field's own note text). A withheld individual\n  score always surfaces as {\"score\": null, \"note\": \"<plain-English reason>\"} -\n  never a bare 0, never silently dropped from its own sub-block. Same shape\n  get_stock()/get_stocks() already return.\n\nAll data is pre-computed by the Stocklake AI pipeline - no live AI calls on request.\nPro tier only. For informational purposes only. Not financial advice.",
+            "inputSchema": {
+              "properties": {
+                "symbol": {
+                  "description": "Stock ticker symbol to fetch the full AI research bundle for.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "symbol"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_stock_research",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Stock Research"
+          },
+          {
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            },
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Upcoming earnings with AI context - AI scores, verdicts, and risk factors per stock.\nCombines the earnings calendar with AI pipeline data to surface which upcoming\nearnings events are worth monitoring.\n\nParameters:\n- days_ahead: look-ahead window in days (default 14, max 30)\n- sector: filter to one sector (e.g. \"Technology\")\n- min_ai_score: only return stocks with AI score >= this value, 0-100 (optional).\n  Gates on the same ai_score field the response returns. Applied server-side before `limit` truncates the\n  result - a stock with a qualifying score always counts against `limit` ahead\n  of one without, rather than being cut off first for reporting later in the\n  earnings window.\n- limit: max results to return (default 25, max 25). Each returned ticker\n  counts as one call toward your daily limit - see the docs' rate-limit section.\n\nReturns per stock (sorted by earnings_date ascending):\n- earnings_date: ISO UTC timestamp · is_estimate: whether date is estimated\n- symbol, name, sector, price, rsi, market_cap\n- eps_trailing, eps_forward (earnings expectations context)\n- ai_verdict (positive/neutral/negative, from nightly AI pipeline)\n- ai_score (0-100) / ai_score_band (Weak/Moderate/Strong/Very\n  Strong) - the AI research composite score, same 0-100 scale and bands\n  as signal_score but a separate score; null if\n  this stock has no AI summary yet.\n- ai_risks: top 2 AI-identified risk factors\n- analyst_rating, analyst_target\n\nPro tier only - AI pipeline cost attached.\nFor informational purposes only. Not financial advice.",
+            "inputSchema": {
+              "properties": {
+                "days_ahead": {
+                  "default": 14,
+                  "description": "Look-ahead window in days (default 14, max 30).",
+                  "type": "integer"
+                },
+                "sector": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Filter to one sector, e.g. \"Technology\"."
+                },
+                "min_ai_score": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Only return stocks with AI score >= this value, 0-100 (optional). Gates on the same ai_score field the response returns. Applied server-side before limit truncates the result, so a qualifying stock always counts against limit ahead of one without."
+                },
+                "limit": {
+                  "default": 25,
+                  "description": "Max results to return (default 25, max 25). Each returned ticker counts as one call toward your daily limit.",
+                  "type": "integer"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            },
+            "name": "get_earnings_intelligence",
+            "outputSchema": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "title": "Get Earnings Intelligence"
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Price, fundamentals, technical indicators, and company profile for a stock.\nReturns all data needed to understand a stock in a single call.\n\nKey fields:\n- price, change_pct, prev_close, week52_high/low, volume, avg_volume\n- market_cap, enterprise_value, beta\n- pe_trailing, pe_forward, price_to_book, dividend_yield, dividend_rate\n- debt_to_equity, profit_margins, operating_margins, gross_margins, return_on_equity, free_cashflow\n- revenue_growth, earnings_growth, revenue_ttm, gross_profit_ttm\n- analyst_rating: \"strong_buy\"|\"buy\"|\"hold\"|\"sell\"|\"strong_sell\" (analyst consensus)\n- analyst_rating_score: 1.0-5.0 mean analyst recommendation (1=strong_buy, 5=strong_sell)\n- analyst_target: mean analyst price target\n- analyst_count: number of analyst opinions\n- indicators: raw RSI, MACD, Bollinger Bands, SMA20/SMA200 (the canonical\n  50/200-day averages -- no separate top-level ma_50/ma_200 field), EMA20/EMA200, ATR\n- description: company business description\n- website, employees, officers (top 5: name, title, total_pay)\n- updated_at: last data sync timestamp\nAvailable to all tiers (raw indicator numbers, no interpretation). This basic six\n(RSI/MACD/Bollinger/SMA/EMA/ATR) is standard, widely-available technical analysis.\n\nPro tier also unlocks the specialized indicators inside the SAME `indicators` block:\nwilliams_r, ultimate_osc, vix_fix, williams_ad (the Larry Williams family),\ntd_sequential (DeMark), elliott_wave, adx {adx, plus_di, minus_di}, ichimoku\n{tenkan, kijun, cloud_top, cloud_bot, above_cloud, below_cloud}, squeeze\n{squeeze_on, hist}, and rs_rank (relative-strength rank 1-99, stocks only: the past\nyear's return with the latest quarter counted double, ranked against every tracked\nstock; 99 = strongest; absent with under a year of history). These are omitted\nentirely from the free/guest response, not merely unlabeled; free/guest calls get\nindicators with only the basic six populated.\n\nPro tier adds four interpreted blocks computed from the same indicators, no extra AI cost,\nplus a minimum AI-narrative slice - all five below are precomputed, none cost a live AI call:\n- ai_verdict / ai_headline / ai_score / ai_score_band: the minimum useful\n  AI-narrative slice, shared by every pro-tier stock-returning tool. A bare verdict alone\n  isn't actionable (e.g. negative while up 8% on the day with a strong_buy analyst rating is\n  genuinely ambiguous) - the one-line headline is the \"why\", ai_score is the 0-100\n  composite (same scale/band convention as get_signals' signal_score, distinct pipeline).\n  For the full text (summary/key_points/risks/near_term/longer_term) and cross-source\n  news/insider context, call get_stock_research(symbol) instead - that's the only tool\n  with the complete bundle.\n- ai_score (0-100) / ai_score_band (Weak/Moderate/Strong/Very Strong):\n  the AI research composite score, on the same 0-100 scale and band boundaries\n  as get_signals()'s signal_score - but a separate score, never the same\n  number for the same symbol by coincidence alone.\n- rating: {score 0-10, direction POSITIVE/NEUTRAL/NEGATIVE, signals per-indicator breakdown}\n  - composite technical score\n- signals: flat labeled signals (rsi/macd/bollinger/sma200/sma50/williams_r/ultimate_osc/\n  vix_fix/williams_ad/td_sequential/elliott_wave, each with a value + plain-English label)\n  - same indicators as 'indicators', pre-interpreted for programmatic use without parsing raw numbers\n- stance_signals: unified list of per-source directional calls (technical rating, AI summary\n  near_term/longer_term, insider/institutional sentiment, analyst consensus, active screener\n  signals) - each entry {stance POSITIVE/NEGATIVE/NEUTRAL, conviction 0-10, horizon\n  INTRADAY/SWING/POSITION/LONG_TERM, edge_quality PROVEN/OBSERVATION/UNKNOWN (per-source\n  signal_backtest track record), source, raw_label, as_of}. Same canonical shape used on the\n  stock detail page - a source with missing/stale data is simply omitted, not nulled out.\n- relative_strength: {windows: {5d/20d/60d/120d/12m -> {stock_return_pct, rs_vs_spy, rs_vs_qqq,\n  rs_vs_sector}}, verdict: one-line plain-language read (e.g. \"Laggard - weak near- and long-term\")}\n  - stock's own return minus each benchmark's return (percentage points, not a ratio) per window.\n  rs_vs_sector uses the stock's GICS sector SPDR ETF (Vanguard backup if the primary lacks\n  history); omitted for stocks with no resolvable sector (crypto, FX, indices). Windows/\n  benchmarks with insufficient history are omitted rather than null. null if not precomputed yet.\n- market_risk: {beta_spy_1y, corr_spy_1y} - 1-year daily-return beta and correlation vs SPY.\n  Distinct from quote.beta (a longer-window beta) - this is computed\n  from the same daily bars as relative_strength. Both fields null if not yet\n  precomputed for this symbol (populates on the next scheduled indicators run).\n- forensic_scores: {altman_z, piotroski_f, beneish_m, computed_at} - three classic forensic-\n  accounting formulas (Altman 1968 bankruptcy-risk, Piotroski 2000 fundamental-strength,\n  Beneish 1999 earnings-manipulation-likelihood), computed from balance sheet/income\n  statement/cash flow data, refreshed on each company's own filing cadence (roughly annual).\n  Each sub-block is {score, note, ...} - altman_z adds `zone` (safe/grey/distress),\n  piotroski_f adds `strength` (strong/moderate/weak, 0-9 scale), beneish_m adds\n  `likely_manipulator` (bool, score > -1.78). `note` explains what the score measures and\n  its known caveats (e.g. Altman Z is not meaningful for banks/insurers and can flag REITs/\n  client-float businesses as \"distress\" by design) - always read alongside the score, not in\n  isolation. `score: null` means genuinely not computable for this company (common for\n  financial-sector names), not an error. No trading signal is derived from these scores\n  anywhere in this API today - treat as raw accounting-model output for your own research.\n- sector_context: where this stock's fundamentals sit versus the other tracked equities in\n  its own sector - {sector, revenue_growth, gross_margin, operating_margin, as_of}, each\n  metric {value, sector_median, percentile 0-100, n}. Purely descriptive positioning (e.g.\n  \"revenue growth is in the 80th percentile of its sector\"), no interpretation or direction.\n  A metric is omitted when the stock has no value for it or the sector has fewer than 15\n  peers with data; the whole block is omitted when nothing is computable. Baseline refreshed\n  daily; sectors are pooled globally across all tracked equities.\n  get_stock also returns `trend`: {period: \"quarterly\", points: [{period_end, revenue_growth /\n  gross_margin / operating_margin: {value, sector_median, n}}]}, oldest first - the same three\n  metrics for the last few quarters (revenue_growth is year-over-year) beside the sector\n  median for each quarter, so you can see whether the stock is gaining or losing ground on its\n  peers. Off-cycle fiscal quarters are matched to the nearest calendar quarter. A quarter or\n  metric is left out where either side lacks data. get_stocks omits `trend` to keep batch rows\n  small.",
+        "inputSchema": {
+          "properties": {
+            "symbol": {
+              "description": "Stock ticker symbol. Also accepts a company name as a fallback (e.g. \"Apple\") when it uniquely resolves to one symbol.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "symbol"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_stock",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Stock"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true,
+          "readOnlyHint": true
+        },
+        "description": "Recent news articles for one stock, newest first.\n\n- symbol: ticker, e.g. \"AAPL\" or \"SAP.DE\".\n- days: look-back window in days. Values above the account's maximum are\n  lowered to it (30 or 90 days, depending on the account).\n- limit: max articles returned. Values above the account's maximum are\n  lowered to it (5 or 50 articles, depending on the account).\n- status: \"ok\" = articles returned | \"empty\" = no news in the window.\n- Per article: title, published_at. Depending on the account, also\n  ai_sentiment, ai_summary, signal_score (0-100 or null) and\n  signal_score_band (\"Weak\"/\"Moderate\"/\"Strong\"/\"Very Strong\" or null).\n- signal_score is the same number get_signals() and get_stock_research()\n  report for this symbol when a news-based signal was raised in the last\n  90 days; otherwise it is computed per article from that article's own\n  classification. It is always a single number.\n- collapsed_count: present when several articles reported the same event\n  (for example one analyst's target change carried by several outlets);\n  only the newest is returned and this says how many were merged into it.\n  `limit` counts distinct events.\n\nArticles are published by third parties; titles and summaries describe\nwhat those articles say.\nFor informational purposes only. Not financial advice.",
+        "inputSchema": {
+          "properties": {
+            "symbol": {
+              "description": "Stock ticker symbol. Also accepts a company name as a fallback when it uniquely resolves to one symbol.",
+              "type": "string"
+            },
+            "limit": {
+              "default": 10,
+              "description": "Max articles returned (default 10). Values above the account's maximum (5 or 50) are lowered to it.",
+              "type": "integer"
+            },
+            "days": {
+              "default": 30,
+              "description": "Look-back window in days (default 30). Values above the account's maximum (30 or 90) are lowered to it.",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "symbol"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_stock_news",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Stock News"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Daily OHLCV price history for a stock.\n- days: number of trading days to return (default 90). Guest/free: max 365.\n  Pro: full history, up to 20,000 trading days (most established names go back\n  decades; a full pull can be ~10,000+ bars, so request only what you need).\n- Returns: { symbol, days_requested, days_returned, count, history[],\n  history_available: { bars, earliest_date } } -\n  days_returned/count can be less than days_requested if less history exists.\n  When a guest/free caller asks for more than 365 days the response is capped\n  at 365 and carries a `pro_unlocks` note saying what Pro adds.\n- Per bar: date, open, high, low, close, volume",
+        "inputSchema": {
+          "properties": {
+            "symbol": {
+              "description": "Stock ticker symbol. Also accepts a company name as a fallback when it uniquely resolves to one symbol.",
+              "type": "string"
+            },
+            "days": {
+              "default": 90,
+              "description": "Number of trading days of daily OHLCV history to return (default 90). Max 365 for guest and free; Pro can request the full history (up to 20,000 trading days). A full-history call can be ~10,000+ bars - prefer a narrower window unless you need it all. days_returned/count in the response can be less than this if less history exists.",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "symbol"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_stock_history",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Stock Price History"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Upcoming earnings dates for stocks in the Stocklake universe.\n- days: look-ahead window in days (default 7, max 30)\n- Returns: { window_days, from_date, to_date, count, results[] }\n- Each result: symbol, name, sector, market_cap, price, rsi,\n  earnings_date (ISO UTC), is_estimate, eps_trailing, eps_forward\n- Sorted by earnings_date ascending.\n- Dates sourced from market data - treat is_estimate=true dates as approximate.\nAvailable to all tiers.",
+        "inputSchema": {
+          "properties": {
+            "days": {
+              "default": 7,
+              "description": "Look-ahead window in days (default 7, max 30).",
+              "type": "integer"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_earnings_calendar",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Earnings Calendar"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Combined AI market assessment: macro regime + market outlook in a single call.\nRefreshed ~4x/day, weekdays only, during market hours (~2h apart) - dead\novernight and on weekends, not a continuous 4-hourly cadence. Check\nregime_stale/outlook_stale below (which already account for the weekend\ngap) before treating either as current, especially on a Monday morning.\n\nTwo distinct perspectives returned together:\n- REGIME (RISK_OFF/CAUTIOUS/NEUTRAL/AGGRESSIVE): answers \"how much equity risk to take\"\n  → use for position sizing and asset allocation decisions\n- OUTLOOK (POSITIVE/NEUTRAL/NEGATIVE): answers \"which direction and sectors to trade\"\n  → use for sector preference and directional bias\n\nBoth share the same pipeline run so they are always in sync.\n\n- history_count: include last N prior assessments for each (0-3, default 0)\n- regime_*: risk posture fields - regime, risk_appetite_score (0-100 re-expression of\n  regime, higher = current conditions support more risk-taking), regime_bias,\n  regime_bias_note (plain sentence on whether current conditions favor long or short\n  setups, or neither), regime_confidence, regime_rationale, key_risks,\n  watch_for, vix_at_assessment, regime_updated_at, regime_stale\n- macro_score / regime_strength: macro_score is a real, continuous 0-100 read on how\n  much risk the current environment supports (0=RISK_OFF/capital preservation,\n  100=AGGRESSIVE/risk-on) - the same underlying number `regime` buckets into 4\n  discrete categories, blending arithmetic inputs (VIX level, breadth\n  oversold/overbought skew, SKEW-vs-VIX divergence, TD-exhaustion ratio) with\n  regime_strength, the AI's own 1-10 read of regime conviction. Distinct from\n  risk_appetite_score (a coarse 4-value lookup on `regime` alone) - macro_score is\n  the real underlying number. Null on a pre-2026-08-26 assessment that predates\n  this field. Not a call on any one stock.\n- macro_score_trend: {change_7d, change_30d, direction} - whether macro_score itself\n  is improving/deteriorating/stable over the trailing 7/30 days, computed\n  automatically (no history_count needed). A bare 33 doesn't tell you whether the\n  environment is getting worse or just stabilized after a worse reading; this does.\n  Either leg is null without enough history yet.\n- regime_stale / outlook_stale: true if that assessment is >72h old (the pipeline runs\n  weekdays only, so a normal Fri→Mon gap does not trip this - only a genuinely broken/stuck\n  pipeline does). null if the timestamp itself is missing.\n- indicators.macro_data: macro data (yield curve, Fed funds, cpi_index, unemployment, M2)\n- indicators.volatility_term_structure: VIX spot/3M/6M term structure + contango signal\n- indicators.market_sentiment: Fear & Greed index value and label\n- market_context: price/RSI/SMA200/perf snapshot of SPY/QQQ/IWM/TLT/GLD/VIX/TNX + sectors\n  NOTE: point-in-time snapshot recorded when AI ran - not live prices (use get_market_pulse for live)\n- outlook_*: directional fields - outlook, outlook_conviction, equity_view,\n  preferred_sectors, avoided_sectors, catalyst, outlook_key_risk, outlook_rationale,\n  outlook_updated_at, outlook_stale\n\nPro tier only - AI pipeline cost attached.\nFor informational purposes only. Not financial advice.",
+        "inputSchema": {
+          "properties": {
+            "history_count": {
+              "default": 0,
+              "description": "Include the last N prior assessments for each of regime and outlook (0-3, default 0).",
+              "type": "integer"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_market_assessment",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Market Assessment"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "AI-assessed sector intelligence: signal, cycle stage, rotation signal,\ndrivers, alerts, and computed statistics per sector (RSI distribution, breadth,\nperformance 1W/1M, top/bottom movers, historical percentiles).\nPass a sector name for a single sector, or omit the parameter (or pass None)\nto get the latest assessment for all 11 sectors - the all-sectors call doubles as\nthe rotation view: use sort_by_strength to rank LEADING-first for finding leading\nvs lagging sectors, and history_count for prior signal states per sector.\n\n- sort_by_strength: sort all-sectors output LEADING→LAGGING instead of alphabetical\n  (all-sectors call only; ignored when a single sector is requested)\n- history_count: include last N prior signal states per sector, 0-3 (default 0;\n  all-sectors call only)\n- sector_score / strength_score: sector_score is a real, continuous 0-100 read on\n  this sector's relative strength/leadership (0=LAGGING, 100=LEADING) - the same\n  underlying number `signal` buckets into 5 discrete categories, blending\n  arithmetic inputs (RSI/perf percentiles, top-5 concentration, SMA200 breadth)\n  with strength_score, the AI's own 1-10 read. Comparable across all 11 sectors on\n  one absolute scale (not per-sector-relative). Null on a pre-2026-08-26 assessment\n  that predates this field. Not a buy/sell call.\n- sector_score_trend: {change_7d, change_30d, direction} - whether this sector's\n  score is improving/deteriorating/stable over the trailing 7/30 days, computed\n  automatically. Single-sector calls only - this is the only trend view available\n  for one sector at all (history_count only applies to the all-sectors call).\n  Two sectors both reading STRONG/68 can be in opposite motion; this tells them\n  apart. Either leg is null without enough history yet.\n\nRefreshed ~4x/day, weekdays only, during market hours (~2h apart) - dead\novernight and on weekends, not a continuous 4-hourly cadence. Check the\nreturned updated_at before treating this as current, especially on a\nMonday morning or after a holiday.\nAvailable to pro tier only (AI pipeline costs).\nFor informational purposes only. Not financial advice.",
+        "inputSchema": {
+          "properties": {
+            "sector": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Pass a sector name for a single sector's assessment, or omit (None) to get the latest assessment for all 11 sectors at once - the all-sectors call doubles as the rotation view."
+            },
+            "sort_by_strength": {
+              "default": false,
+              "description": "Sort all-sectors output LEADING→LAGGING instead of alphabetical, for finding leading vs lagging sectors. Only applies to the all-sectors call; ignored when a single sector is requested.",
+              "type": "boolean"
+            },
+            "history_count": {
+              "default": 0,
+              "description": "Include the last N prior signal states per sector, 0-3 (default 0). Only applies to the all-sectors call.",
+              "type": "integer"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_sector_intelligence",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Sector Intelligence"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Get insider transactions (regulatory insider filings for the US and several\nEuropean markets) and, on Pro, the AI read plus institutional holdings\nfor a stock.\n\nEvery tier (guest/free/pro) gets the filing facts: insider_buys and\ninsider_sells over the window (echoed as window_days), transactions (the\nindividual rows behind those counts, newest first, each with\ndate/name/role/type/shares/price/value), summary (a one-line factual\nreadout computed from those same rows -- counts, dollar totals, date\nrange -- so it can never disagree with them), source/source_name (which\nfiling feed was used), and updated_at (when the filings were last\nfetched).\n\nFree/guest: a 90-day window (a larger `days` is capped at 90, see\ndays_note), the 5 most recent rows (transactions_note says how many more\nthere are), and pro_unlocks describing what Pro adds. No AI fields and no\ninstitutional holders.\n\nPro: `days` up to 365, up to 50 rows, plus signal (POSITIVE/NEGATIVE/\nNEUTRAL etc.), signal_score (0-100, higher = stronger/more notable - the\nexact same field, formula, scale and bands as get_signals()'s\nsignal_score) with signal_score_band, insider_signal/inst_signal,\nai_commentary (a separately-generated AI narrative on its own refresh\ncadence, with ai_commentary_as_of - it can lag the transactions; trust\n`summary`/the rows if they disagree), top_holders (a union of multiple\ndata sources, up to 15, each with name/shares/pct_held/sources/\nshare_counts_by_source - the last two show which source(s) contributed\nto a merged row and each one's own reported share count), holder_count_\ndivergence (null unless every matched holder disagrees by the same\nsystemic multiplier across sources - e.g. an unrecorded reverse split -\na signal top_holders.shares may be unreliable for this symbol),\ninst_ownership (0-100%), and total_holders.\nFor informational purposes only. Not financial advice.",
+        "inputSchema": {
+          "properties": {
+            "symbol": {
+              "description": "Stock ticker symbol to fetch insider-filing and institutional-holdings activity for.",
+              "type": "string"
+            },
+            "days": {
+              "default": 90,
+              "description": "Insider-transaction window in days (default 90, max 365 on Pro; free/guest calls are capped at 90). Applies to transactions, insider_buys and insider_sells.",
+              "maximum": 365,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "symbol"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_insider_activity",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Insider Activity"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Batch stock data for up to 25 symbols in a single call - the same fields\nget_stock returns for the same key/symbol, so this is a true batch version,\nnot a thinned-down scan. Returns a dict keyed by symbol. Missing symbols\nare omitted from the result. Each symbol in the batch counts as one call\ntoward the daily limit. A request over 25 symbols is rejected outright\n(error: batch_too_large) rather than silently served on just the first\n25 - split a larger list into multiple calls.\nAvailable to all tiers (fundamentals/indicators/company profile, free).\n\nPro tier adds, per symbol, the same precomputed blocks get_stock adds -\nrating {score, direction, signals}, signals (per-indicator breakdown),\nrelative_strength, market_risk {beta_spy_1y, corr_spy_1y}, sector_context\n(revenue growth/margins vs sector median - see get_stock), and the minimum\nAI-narrative slice (ai_verdict, ai_headline, ai_score,\nai_score_band). None of this costs a live AI call - it's all\nprecomputed and just needs projecting.\n\nNOT included, even on pro - call get_stock(symbol) for stance_signals, or\nget_stock_research(symbol) for the full ai_summary text (summary/key_points/\nrisks/near_term/longer_term) plus cross-source news/insider/signal context.\n\nResponse also carries `duplicates_collapsed`: how many input symbols\nnormalized (case-folding, share-class aliasing e.g. \"BRK.B\"->\"BRK-B\") or\nliterally repeated onto a symbol already counted elsewhere in this batch.\nrequested - len(missing or []) - duplicates_collapsed == count always holds.",
+        "inputSchema": {
+          "properties": {
+            "symbols": {
+              "description": "List of stock ticker symbols, up to 25 per call. Each symbol counts as one call toward the daily limit. A request over 25 symbols is rejected outright (error: batch_too_large) rather than silently served on just the first 25 - split a larger list into multiple calls.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "symbols"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_stocks",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Multiple Stocks"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Market health snapshot in a single call.\nAggregates key market indicators without requiring multiple tool calls.\nNo AI cost. Index and bond/commodity prices are live; vix, fear_greed and breadth\ncome from the latest market snapshot (see updated_at).\n\nReturns:\n- vix: VIX level (a number) as of that snapshot\n- fear_greed: {value (0-100), description (\"extreme fear\" | \"fear\" | \"neutral\" |\n  \"greed\" | \"extreme greed\"), last_update}\n- breadth: market-wide RSI distribution - oversold_pct, overbought_pct, neutral_pct\n  (with their counts), universe_size\n- indices: spy, qqq, iwm, each {price, change_pct (today, in percent), rsi}\n- bonds_commodities: tlt (long-duration bonds), gld (gold), same shape as indices\n- updated_at: when the vix/breadth/fear_greed snapshot was last recorded\nAvailable to all tiers.",
+        "inputSchema": {
+          "properties": {},
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_market_pulse",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Market Pulse"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "AI-screened stock signals recently surfaced by the Stocklake pipeline -\nsourced from news analysis, sector screening, and sentiment signals.\n\nShows what the pipeline noticed in the last 24 hours (falling back to the\nmost recent signals regardless of age if nothing has fired in that window\n- see `window` in the response). Signals stay listed for their recency window\neven after they expire.\n\nParameters:\n- direction: \"POSITIVE\" | \"NEGATIVE\" | \"NEUTRAL\" (default: all). NEUTRAL\n  covers both a flat/undecided read AND a genuinely two-sided idea (real\n  opposing bull/bear theses on the same symbol) - in the latter case\n  signal_score is the STRONGER of the two sides (see signal_score below),\n  so a high score alongside NEUTRAL means \"real conviction here, just no\n  directional consensus,\" not \"nothing going on.\" The two-sided detail is\n  in `rationale`.\n- min_signal_score: minimum composite signal score 0-100 (default 60) - a\n  blend of conviction/confidence/flag_score, source track record, and real\n  technical factors. This is the field to filter on. Always compared\n  against a single number, including for NEUTRAL/two-sided ideas - a\n  result is never returned below your threshold on both sides.\n- source: filter by signal source - \"news\" | \"screener\" | \"sentiment\" (default: all)\n- limit: max results to return (default 25, max 50). Each returned signal counts\n  as one call toward your daily limit.\n\nReturns:\n- count: number of signals returned\n- window: \"24h\" (fresh activity found) or a fallback note when the last 24h\n  had nothing and the response instead shows the most recent signals overall\n- signals[]: each with symbol, direction, signal_score (0-100), signal_score_band\n             (human-readable label - \"Weak\"/\"Moderate\"/\"Strong\"/\"Very Strong\"),\n             source, rationale, expires, flagged_at\n\nPro tier only - AI pipeline cost attached.\nFor informational purposes only. Not financial advice.",
+        "inputSchema": {
+          "properties": {
+            "direction": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Filter by direction: \"POSITIVE\" | \"NEGATIVE\" | \"NEUTRAL\" (default: all). NEUTRAL covers both a flat/undecided read and a genuinely two-sided idea (see signal_score below)."
+            },
+            "source": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Filter by signal source: \"news\" | \"screener\" | \"sentiment\" (default: all)."
+            },
+            "limit": {
+              "default": 25,
+              "description": "Max results to return (default 25, max 50). Each returned signal counts as one call toward your daily limit.",
+              "type": "integer"
+            },
+            "min_signal_score": {
+              "default": 60,
+              "description": "Minimum composite signal score, 0-100 (default 60) - a blend of conviction/confidence/flag_score, source track record, and real technical factors. This is the field to filter on.",
+              "type": "integer"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_signals",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Signals"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "The caller's Stocklake watchlist (starred symbols from the web dashboard),\nenriched with live price, technicals, and AI verdict.\n\nReturns:\n- count: number of symbols on the watchlist\n- items[]: each with symbol, name, sector, price, change_pct, rsi, market_cap,\n           analyst_rating, atr_pct, ai_verdict, ai_headline, ai_score (0-100),\n           ai_score_band (Weak/Moderate/Strong/Very Strong),\n           added_at, price_at_add\n- empty items[] if nothing is starred yet - star symbols at stocklake.dev/dashboard\n\nPro tier only.\nFor informational purposes only. Not financial advice.",
+        "inputSchema": {
+          "properties": {},
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_watchlist",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Watchlist"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true,
+          "readOnlyHint": true
+        },
+        "description": "Most notable recent news across all tracked stocks: a market-wide briefing.\nUnlike get_stock_news (one symbol), this scans every tracked stock and\nreturns articles ranked by signal_score, newest first within each score.\n\nUse this for:\n- Morning briefing: \"what happened in the market this week?\"\n- Catalyst scanning: \"what news is driving moves right now?\"\n- Event monitoring: \"which stocks have high-impact news today?\"\n\n- min_signal_score: minimum signal_score (0-100, default 60).\n- days: look-back window in days (default 3, max 10).\n- limit: max articles returned (default 10, max 25).\n- Per article: symbol, title, published_at, ai_sentiment, ai_summary,\n  signal_score (0-100), signal_score_band (Weak/Moderate/Strong/Very Strong).\n- signal_score is the symbol's current news-based signal score when one\n  was raised in the last 90 days (the same number get_stock_news() and\n  get_signals() report), otherwise a score computed from the article's own\n  classification. It is always a single number.\n- collapsed_count: present when several articles reported the same event;\n  only the highest-ranked one is returned and this says how many were\n  merged into it. `limit` counts distinct events.\n\nArticles are published by third parties; titles and summaries describe\nwhat those articles say. Requires a Pro account.\nFor informational purposes only. Not financial advice.",
+        "inputSchema": {
+          "properties": {
+            "min_signal_score": {
+              "default": 60,
+              "description": "Minimum signal_score, 0-100 (default 60).",
+              "type": "integer"
+            },
+            "days": {
+              "default": 3,
+              "description": "Look-back window in days (default 3, max 10).",
+              "type": "integer"
+            },
+            "limit": {
+              "default": 10,
+              "description": "Max articles returned (default 10, max 25).",
+              "type": "integer"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_news_feed",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Market News Feed"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Filter and rank stocks from the Stocklake universe - fundamentals, technicals, and AI signals in one tool.\n\nParameters:\n- sector: e.g. \"Technology\", \"Healthcare\", \"Financial Services\"\n- country: e.g. \"United States\", \"Germany\"\n- min_rsi / max_rsi: exact RSI bounds (e.g. max_rsi=30 = oversold, min_rsi=70 = overbought)\n- sma_trend: \"above_200\" (price above 200-day MA) | \"below_200\"\n- macd_signal: \"positive\" (MACD line above signal) | \"negative\"\n- min_perf_1d / max_perf_1d: 1-day performance % (e.g. min_perf_1d=2.0 = up 2%+ today)\n- min_volume: minimum daily volume (e.g. 1000000)\n- min_market_cap_b / max_market_cap_b: market cap in billions of US dollars,\n  compared against market_cap_usd (stocks with no FX rate for their currency\n  are excluded when either bound is set)\n- max_pe_forward: maximum forward P/E (e.g. 20 = value screen)\n- analyst_rating: \"strong_buy\" | \"buy\" | \"hold\" | \"sell\" | \"strong_sell\"\n- min_ai_score: minimum AI score 0-100 (pro tier only - silently ignored for free).\n  Gates on the AI research composite ai_score - same 0-100 scale and bands\n  as signal_score, but a separate score (per-stock AI\n  summary strength, not a directional signal). Renamed 2026-08-24 from the\n  retired 0-10 min_flag_score - the raw flag_score field it used to gate on is no\n  longer part of this fleet's public vocabulary at all (see ai_score below).\n- preset: \"oversold\" | \"overbought\" | \"momentum\" | \"high_conviction\" (pro only)\n  oversold = RSI≤35 + above SMA200 · overbought = RSI≥65\n  momentum = RSI 50-70, above SMA200, up 0.5%+ today · high_conviction = ai_score≥70\n- sort_by: \"market_cap\" | \"rsi\" | \"perf_1d\" | \"volume\" | \"analyst_rating\" | \"rating\" | \"ai_score\" (pro).\n  Defaults to \"market_cap\", except the \"high_conviction\" preset defaults to \"ai_score\"\n  (the dimension it's filtering by) unless you explicitly pass a different sort_by.\n- sort_dir: \"asc\" | \"desc\" (default \"desc\")\n- limit: 1-25 (default 20). Each returned stock counts as one call toward your daily limit.\n\nReturns: { count, preset, filters, results[] } - each result includes symbol, name, sector,\nindustry, country, price, change_pct, volume, market_cap, market_cap_usd, currency,\npe_forward, rsi, macd_signal, sma200_trend, analyst_rating. market_cap is in the\nlisting's own currency (the currency field); market_cap_usd is converted to US\ndollars and is what the market_cap sort and cap filters use.\nPro tier adds rating (0-10 composite score) + ai_verdict + ai_headline + ai_score\n(0-100) + ai_score_band to every result row (the headline is the \"why\" - a bare\nverdict alone isn't enough to act on), enables min_ai_score filter, high_conviction\npreset, and sorting by rating/ai_score (sort_by silently falls back to market_cap on\nfree/guest for both). All other filters available to all tiers. For the full research\nbundle on any one result, call get_stock_research(symbol).",
+        "inputSchema": {
+          "properties": {
+            "sector": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Filter by sector, e.g. \"Technology\", \"Healthcare\", \"Financial Services\"."
+            },
+            "country": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Filter by country, e.g. \"United States\", \"Germany\"."
+            },
+            "min_rsi": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Minimum RSI bound (e.g. min_rsi=70 = overbought)."
+            },
+            "max_rsi": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Maximum RSI bound (e.g. max_rsi=30 = oversold)."
+            },
+            "sma_trend": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "\"above_200\" (price above 200-day MA) | \"below_200\"."
+            },
+            "macd_signal": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "\"positive\" (MACD line above signal) | \"negative\"."
+            },
+            "min_perf_1d": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Minimum 1-day performance %, e.g. min_perf_1d=2.0 = up 2%+ today."
+            },
+            "max_perf_1d": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Maximum 1-day performance %."
+            },
+            "min_volume": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Minimum daily volume, e.g. 1000000."
+            },
+            "min_market_cap_b": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Minimum market cap in billions of US dollars (compared against market_cap_usd, so non-USD listings are converted first)."
+            },
+            "max_market_cap_b": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Maximum market cap in billions of US dollars (compared against market_cap_usd)."
+            },
+            "max_pe_forward": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Maximum forward P/E, e.g. 20 for a value screen."
+            },
+            "analyst_rating": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Filter by analyst consensus rating: \"strong_buy\" | \"buy\" | \"hold\" | \"sell\" | \"strong_sell\"."
+            },
+            "min_ai_score": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Minimum AI score, 0-100 - pro tier only (silently ignored for free). Gates on the AI research composite ai_score, same 0-100 scale and bands as signal_score but a separate score (per-stock AI summary strength, not a directional signal)."
+            },
+            "preset": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "\"oversold\" | \"overbought\" | \"momentum\" | \"high_conviction\" (pro only). oversold = RSI<=35 + above SMA200; overbought = RSI>=65; momentum = RSI 50-70, above SMA200, up 0.5%+ today; high_conviction = ai_score>=70."
+            },
+            "sort_by": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "\"market_cap\" | \"rsi\" | \"perf_1d\" | \"volume\" | \"analyst_rating\" | \"rating\" | \"ai_score\" (pro). Defaults to \"market_cap\", except the \"high_conviction\" preset defaults to \"ai_score\" (the dimension it's filtering by) unless you explicitly pass a different sort_by. Sorting by rating/ai_score silently falls back to market_cap on free/guest."
+            },
+            "sort_dir": {
+              "default": "desc",
+              "description": "Sort direction: \"asc\" | \"desc\" (default \"desc\").",
+              "type": "string"
+            },
+            "limit": {
+              "default": 20,
+              "description": "Max results to return, 1-25 (default 20). Each returned stock counts as one call toward your daily limit.",
+              "type": "integer"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_screener",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Screen Stocks"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Top market movers from the Stocklake universe - gainers, losers, most active.\n\n- category: \"gainers\" | \"losers\" | \"most_active\" | \"all\" (default \"all\" = all 3 categories)\n- limit: results per category (default 10, max 20). Each returned stock counts as\n  one call toward your daily limit - a symbol appearing in more than one category\n  (e.g. both \"gainers\" and \"most_active\") counts once per category it appears in.\n- min_market_cap_b: filter to stocks above this market cap in billions of US dollars\n  (e.g. 1.0 = $1B+), compared against market_cap_usd\n\nReturns per stock: symbol, name, sector, price, change_pct, volume, rsi, market_cap\n(listing currency), market_cap_usd, currency, analyst_rating, atr_pct (atr_pct omitted when the underlying volatility reading is\nmissing or corrupted).\nAvailable to all tiers.\n\nPro tier adds the minimum AI-narrative slice (ai_verdict, ai_headline,\nai_score 0-100, ai_score_band) - precomputed, no extra\nAI cost. A big mover's price/volume/RSI alone doesn't say whether the\nmove matters; the one-line headline does. For the full research bundle\non any one mover, call get_stock_research(symbol).",
+        "inputSchema": {
+          "properties": {
+            "category": {
+              "default": "all",
+              "description": "Which movers category to return: \"gainers\" | \"losers\" | \"most_active\" | \"all\" (default \"all\" = all 3 categories).",
+              "type": "string"
+            },
+            "limit": {
+              "default": 10,
+              "description": "Results per category (default 10, max 20). Each returned stock counts as one call toward your daily limit - a symbol appearing in more than one category (e.g. both \"gainers\" and \"most_active\") counts once per category it appears in.",
+              "type": "integer"
+            },
+            "min_market_cap_b": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Filter to stocks above this market cap in billions of US dollars, e.g. 1.0 = $1B+ (compared against market_cap_usd)."
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_market_movers",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Market Movers"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Historical daily indicator snapshots for a stock - ideal for charting and trend detection.\nReturns up to `days` days of data (max 730, default 90) from the stock_indicator_snapshots\ncollection which is populated daily by the indicator pipeline.\n\nEvery snapshot row contains:\n- recorded_at: ISO date string\n- price: closing price at snapshot time\n- rsi: RSI(14) value (0-100)\n- macd_histogram: MACD histogram value (positive = upward momentum)\n- bb_pct: Bollinger Band % position (0 = at lower, 100 = at upper band)\n- sma20 / sma200: 20-day and 200-day simple moving averages\n\nWith full=true, each row also gets:\n- williams_r: Williams %R (0 to -100; >-20 overbought, <-80 oversold)\n- ultimate_osc: Ultimate Oscillator (0-100; >70 overbought, <30 oversold)\n- vix_fix_value: Williams VIX Fix synthetic fear gauge (higher = more fear)\n- williams_ad_trend: Accumulation/Distribution trend (rising/falling/flat)\n- td_signal: DeMark TD Sequential count, named for the move that is running out\n  (DOWNTREND_EXHAUSTION_SETUP / UPTREND_EXHAUSTION_SETUP /\n  DOWNTREND_EXHAUSTION_COUNTDOWN / UPTREND_EXHAUSTION_COUNTDOWN / null)\n- td_phase: DeMark phase (setup_active/setup_complete/countdown_active/countdown_done/null)\n- analyst_rating: analyst consensus (buy/outperform/hold/underperform/sell or null)\n- analyst_target: mean analyst price target or null\n\nReturns {} if fewer than 3 snapshots found.\nPro tier only.\nFor informational purposes only. Not financial advice.",
+        "inputSchema": {
+          "properties": {
+            "symbol": {
+              "description": "Stock ticker symbol. Also accepts a company name as a fallback when it uniquely resolves to one symbol.",
+              "type": "string"
+            },
+            "days": {
+              "default": 90,
+              "description": "Number of days of historical daily indicator snapshots to return (max 730, default 90). Returns {} if fewer than 3 snapshots are found in the window.",
+              "type": "integer"
+            },
+            "full": {
+              "default": false,
+              "description": "False (default) returns only recorded_at/price/rsi/macd_histogram/bb_pct/sma20/sma200 per day - enough for most charting/trend use. True adds the specialized indicators (williams_r, ultimate_osc, vix_fix_value, williams_ad_trend, td_signal, td_phase) plus analyst_rating/analyst_target, which barely change day to day and roughly double response size over a long window.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "symbol"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_indicator_history",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Indicator History"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Raw financial statements - balance sheet, income statement, and cash\nflow line items. This is the underlying statement data itself, not a\nderived summary - for the forensic-accounting scores computed FROM these\nstatements (Altman Z / Piotroski F / Beneish M), see get_stock()'s\nforensic_scores block instead.\n\nEach returned statement is shaped {line_item_name: {period_end_iso: value}}\n- e.g. income_stmt[\"Total Revenue\"][\"2025-12-31\"] - so a caller can\ncompute its own trends/deltas/CAGRs, not just read the latest value.\nValues are in the company's reporting currency (financial_currency).\n\nTiers:\n- Free and guest: the LATEST fiscal year only. Every line item's\n  {period_end: value} map has one entry and `periods` lists one date.\n  All three statements and the `statement` filter work. period=\n  \"quarterly\"/\"both\" returns that latest annual year with\n  quarterly=null plus a `pro_unlocks` note (not an error).\n  `annual_periods_available` says how many years Pro would return.\n- Pro: period=\"annual\" (default) returns up to 5 fiscal years;\n  some symbols return fewer.\n  period=\"quarterly\" returns up to roughly 7-8 of the most recent\n  quarters. period=\"both\" returns both blocks in one call.\n\n~50-60 curated line items per statement (not a raw dump of every\nreported row): balance sheet structure (assets/liabilities/equity/debt/\nworking capital), income statement (revenue through EPS), and cash flow\n(operating/investing/financing, free cash flow, buybacks, stock-based\ncomp). Coverage genuinely varies by symbol and sector - a bank has no\n\"Inventory\" line, a company with no buyback program has no \"Repurchase\nOf Capital Stock\" entry. A missing line item means it is not reported\nfor this company, not a fetch error.\n\nquarterly can come back null (with a quarterly_note) for a symbol whose\nreal quarterly data isn't available. annual/quarterly can both be\nentirely absent (with a note) if this symbol hasn't yet been through the\nfinancials sync, or if it's not an equity (no data for ETFs/crypto/\nforex/indices) - these states read the same for every tier.\n\nFor informational purposes only. Not financial advice.",
+        "inputSchema": {
+          "properties": {
+            "symbol": {
+              "description": "Stock ticker symbol. Also accepts a company name as a fallback when it uniquely resolves to one symbol.",
+              "type": "string"
+            },
+            "period": {
+              "default": "annual",
+              "description": "'annual' (default; Pro: up to 5 fiscal years, free: the latest fiscal year), 'quarterly' (Pro: up to ~7-8 most recent quarters), or 'both' (Pro). Free/guest asking for 'quarterly' or 'both' gets the latest annual year plus a pro_unlocks note, not an error.",
+              "type": "string"
+            },
+            "statement": {
+              "default": "all",
+              "description": "'all' (default), 'balance_sheet', 'income_stmt', or 'cash_flow' - restricts which statement(s) are returned.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "symbol"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_stock_financials",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Stock Financials"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "How analyst consensus on a stock has moved over time - the trajectory of the\nrating and price targets, not just today's value. Answers \"are analysts\ngetting more or less positive on this name?\", which get_stock's single\ncurrent analyst_rating / analyst_target cannot.\n\nReturns one row per day, oldest to newest, up to `days` (max 365, default 90):\n- date: YYYY-MM-DD\n- analyst_rating: consensus label (strong_buy/buy/hold/underperform/sell/strong_sell) or null\n- analyst_rating_score: numeric consensus, 1.0 (strong buy) to 5.0 (sell)\n  - LOWER is more positive. The same scale as get_stock's analyst_rating_score.\n- analyst_count: number of analysts contributing\n- analyst_target: mean price target\n- analyst_target_high / analyst_target_low / analyst_target_median: target spread\n- price: the stock's price on the snapshot date, so the target can be read\n  against where the stock actually traded\n\nSnapshots are taken once per weekday, so a 90-day window is roughly 60 rows.\nA field is null on a day where the source reported none - analyst_rating in\nparticular can be null on a day when the price targets are present. A weekday\ncan be missing entirely if the daily snapshot did not run; such days are not\nreconstructed, the date is simply absent. Coverage: most of the\ntracked universe has a usable history; a symbol with fewer than 2 snapshots\nreturns an empty `snapshots` list with a note rather than a single stranded point.\nHistory begins July 2026 and grows daily.\n\nFor the current analyst view alone, get_stock is enough. For price/indicator\nhistory, see get_indicator_history - this tool is analyst consensus only.\n\nPro tier only.\nFor informational purposes only. Not financial advice.",
+        "inputSchema": {
+          "properties": {
+            "symbol": {
+              "description": "Stock ticker symbol. Also accepts a company name as a fallback when it uniquely resolves to one symbol.",
+              "type": "string"
+            },
+            "days": {
+              "default": 90,
+              "description": "Number of days of daily analyst snapshots to return (max 365, default 90). Returns an empty list with a note if fewer than 2 snapshots exist in the window.",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "symbol"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_analyst_trend",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Analyst Trend"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Upcoming and recently-released macro/economic events -- interest rate\ndecisions, CPI, GDP, PMI, unemployment, payrolls, retail sales, and more.\n\nTwo buckets:\n- released_recent: events with a real reported value, within the last\n  `lookback_days` days. Every item here carries a real `actual` value\n  (never blank) plus `diff` (actual minus previous -- a plain arithmetic\n  difference, never a beat/miss or consensus judgment; point-in-time\n  consensus is not available).\n- upcoming: not-yet-released events within `days`. No item here ever\n  carries an `actual` value.\n\nEvery item in both buckets carries `key_event`: true for the handful of\nevent types that reliably move markets on their own (rate decisions, CPI,\nGDP, headline Non-Farm Payrolls) -- an event-TYPE flag only, never a\nbeat/miss or directional judgment on the number itself. Set\n`key_events_only=true` to filter to just these, or `major_only=true` to\nrestrict to the 8 largest economies.\n\nBoth buckets sort major-economy-first, then by recency -- truncating to\n`limit` should never lose a US/EU/UK/JP/CN/DE/FR/CA print to an older or\nthinner-economy one.\n\nAll tiers. Guest and free: days max 7, lookback_days max 2, limit max 20.\nPro: days max 14, lookback_days max 7, limit max 50. When a guest/free\nvalue is above its cap, the response is served at the cap and carries\n`capped` ({param: {requested, served}}) plus a `pro_unlocks` note.\nFor informational purposes only. Not financial advice.",
+        "inputSchema": {
+          "properties": {
+            "days": {
+              "default": 3,
+              "description": "Look-ahead window in days for upcoming events (default 3). Max 7 for guest and free, 14 for Pro.",
+              "type": "integer"
+            },
+            "lookback_days": {
+              "default": 2,
+              "description": "Look-back window in days for recently-released events (default 2). Max 2 for guest and free, 7 for Pro. Actual values arrive with about a 1-day reporting lag, so a same-day-only window misses real releases -- keep this at 2+ to reliably see them.",
+              "type": "integer"
+            },
+            "limit": {
+              "default": 20,
+              "description": "Max results per bucket, released_recent and upcoming each capped independently (default 20). Max 20 for guest and free, 50 for Pro.",
+              "type": "integer"
+            },
+            "major_only": {
+              "default": false,
+              "description": "Restrict to the 8 largest economies (United States, Euro Area, United Kingdom, Japan, China, Germany, France, Canada). Default false returns all countries.",
+              "type": "boolean"
+            },
+            "key_events_only": {
+              "default": false,
+              "description": "Restrict to the small subset of event types that reliably move markets on their own: interest rate/rate decisions, CPI, GDP, and headline Non-Farm Payrolls. Default false returns every event matching the broader base filter (also includes PMI, unemployment, other payrolls components, retail sales, ADP, inflation).",
+              "type": "boolean"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_economic_calendar",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Economic Calendar"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Full AI research bundle for a stock in one call - fundamentals, AI-generated\nsummary, recent AI-classified news, insider/institutional signal, and recent\ntrade signal history. Replaces 4 separate calls: get_stock + get_stock_news +\nget_insider_activity + get_signals (for one symbol).\n\nReturns:\n- stock: price, name, sector, rsi, pe_forward, market_cap, 52-week range, analyst data\n- ai_summary: verdict, ai_score (0-100)/ai_score_band (Weak/Moderate/Strong/\n  Very Strong - the AI research composite, same scale and bands as\n  signal_score but a separate score), full summary, key_points, risks,\n  price_at_generation, generated_at, headline (one-sentence plain-language take), near_term\n  (stance/confidence over <4 weeks - technicals/momentum-weighted), longer_term\n  (stance/confidence over a multi-month horizon - fundamentals/analyst/institutional-flow-weighted).\n  headline/near_term/longer_term are null on summaries generated before this schema shipped -\n  until that symbol's next regeneration, fall back to verdict/ai_score.\n- news: last 3 high-relevance articles (title, published_at, ai_sentiment,\n  ai_summary, signal_score [0-100]/signal_score_band - this symbol's LIVE\n  news-sourced signal score if one exists in the last 90 days [same number\n  as the `signals` list below and get_signals()/get_stock_news(), kept in\n  sync as it's re-scored], else a per-article magnitude computed from that\n  article's own classification. One name, no separate \"news_score\" field.\n  The 3 are distinct events: an article carries collapsed_count when\n  several articles about the same event were merged into it.)\n- sentiment: signal, signal_score (0-100)/signal_score_band - one name, no\n  separate \"insider_score\" field, same as the news block above - insider_trend\n  (buying/selling/neutral, or null with no transactions in the window), institutional_pct\n- signals[]: up to the 5 most recent trade signals for this symbol in the last\n  90 days (direction, rationale, signal_score [0-100], signal_score_band\n  [human-readable label - \"Weak\"/\"Moderate\"/\"Strong\"/\"Very Strong\" - or null\n  alongside a null signal_score], source, expires, flagged_at). Empty if\n  nothing in that window. Signals stay listed for the full window even\n  after they expire.\n- forensic_scores: {altman_z, piotroski_f, beneish_m, computed_at} - three classic\n  forensic-accounting formulas (Z-Score bankruptcy risk / F-Score fundamental\n  quality / M-Score earnings-manipulation risk), computed from `stocks.financials`\n  (GH #107). Omitted entirely if this symbol has no forensic_scores doc yet - not\n  every symbol qualifies (financial-sector companies mostly return null on all\n  three by construction, see the field's own note text). A withheld individual\n  score always surfaces as {\"score\": null, \"note\": \"<plain-English reason>\"} -\n  never a bare 0, never silently dropped from its own sub-block. Same shape\n  get_stock()/get_stocks() already return.\n\nAll data is pre-computed by the Stocklake AI pipeline - no live AI calls on request.\nPro tier only. For informational purposes only. Not financial advice.",
+        "inputSchema": {
+          "properties": {
+            "symbol": {
+              "description": "Stock ticker symbol to fetch the full AI research bundle for.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "symbol"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_stock_research",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Stock Research"
+      },
+      {
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true
+        },
+        "description": "Upcoming earnings with AI context - AI scores, verdicts, and risk factors per stock.\nCombines the earnings calendar with AI pipeline data to surface which upcoming\nearnings events are worth monitoring.\n\nParameters:\n- days_ahead: look-ahead window in days (default 14, max 30)\n- sector: filter to one sector (e.g. \"Technology\")\n- min_ai_score: only return stocks with AI score >= this value, 0-100 (optional).\n  Gates on the same ai_score field the response returns. Applied server-side before `limit` truncates the\n  result - a stock with a qualifying score always counts against `limit` ahead\n  of one without, rather than being cut off first for reporting later in the\n  earnings window.\n- limit: max results to return (default 25, max 25). Each returned ticker\n  counts as one call toward your daily limit - see the docs' rate-limit section.\n\nReturns per stock (sorted by earnings_date ascending):\n- earnings_date: ISO UTC timestamp · is_estimate: whether date is estimated\n- symbol, name, sector, price, rsi, market_cap\n- eps_trailing, eps_forward (earnings expectations context)\n- ai_verdict (positive/neutral/negative, from nightly AI pipeline)\n- ai_score (0-100) / ai_score_band (Weak/Moderate/Strong/Very\n  Strong) - the AI research composite score, same 0-100 scale and bands\n  as signal_score but a separate score; null if\n  this stock has no AI summary yet.\n- ai_risks: top 2 AI-identified risk factors\n- analyst_rating, analyst_target\n\nPro tier only - AI pipeline cost attached.\nFor informational purposes only. Not financial advice.",
+        "inputSchema": {
+          "properties": {
+            "days_ahead": {
+              "default": 14,
+              "description": "Look-ahead window in days (default 14, max 30).",
+              "type": "integer"
+            },
+            "sector": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Filter to one sector, e.g. \"Technology\"."
+            },
+            "min_ai_score": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Only return stocks with AI score >= this value, 0-100 (optional). Gates on the same ai_score field the response returns. Applied server-side before limit truncates the result, so a qualifying stock always counts against limit ahead of one without."
+            },
+            "limit": {
+              "default": 25,
+              "description": "Max results to return (default 25, max 25). Each returned ticker counts as one call toward your daily limit.",
+              "type": "integer"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "name": "get_earnings_intelligence",
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "title": "Get Earnings Intelligence"
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-18T00:09:14.189Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-18T00:09:15.240Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-18T00:09:16.291Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-18T00:09:17.343Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 20,
+    "tools_hash": "sha256:ea0968a6e612532a224d3f7eb4621217fbd8f2ee84a78c626e2b6dc6f882c24c",
+    "static_tool_tokens": 21796,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_stock",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_stock_news",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_earnings_calendar",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F7",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_market_assessment",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F8",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_sector_intelligence",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F9",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_insider_activity",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_stocks",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F11",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_stocks",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F12",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_signals",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_watchlist",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F14",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_news_feed",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F15",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_screener",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F16",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_market_movers",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_indicator_history",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F18",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_indicator_history",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F19",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_stock_financials",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F20",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_analyst_trend",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F21",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_economic_calendar",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F22",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_stock_research",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F23",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_earnings_intelligence",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F24",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_earnings_intelligence",
+        "message": "Description exceeds 1,000 characters."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 5,
+      "warning": 16
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "get_stock_news",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max articles returned (default 10). Values above the account's maximum (5 or 50) are lowered to it.",
+          "mentions_size_or_cost": true,
+          "default": 10,
+          "described_default": 10
+        },
+        {
+          "tool": "get_signals",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results to return (default 25, max 50). Each returned signal counts as one call toward your daily limit.",
+          "mentions_size_or_cost": true,
+          "default": 25,
+          "described_default": 25
+        },
+        {
+          "tool": "get_news_feed",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max articles returned (default 10, max 25).",
+          "mentions_size_or_cost": true,
+          "default": 10,
+          "described_default": 10
+        },
+        {
+          "tool": "get_screener",
+          "path": "inputSchema.properties.max_rsi",
+          "name": "max_rsi",
+          "description": "Maximum RSI bound (e.g. max_rsi=30 = oversold).",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "get_screener",
+          "path": "inputSchema.properties.max_perf_1d",
+          "name": "max_perf_1d",
+          "description": "Maximum 1-day performance %.",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "get_screener",
+          "path": "inputSchema.properties.max_market_cap_b",
+          "name": "max_market_cap_b",
+          "description": "Maximum market cap in billions of US dollars (compared against market_cap_usd).",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "get_screener",
+          "path": "inputSchema.properties.max_pe_forward",
+          "name": "max_pe_forward",
+          "description": "Maximum forward P/E, e.g. 20 for a value screen.",
+          "mentions_size_or_cost": true,
+          "default": null
+        },
+        {
+          "tool": "get_screener",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results to return, 1-25 (default 20). Each returned stock counts as one call toward your daily limit.",
+          "mentions_size_or_cost": true,
+          "default": 20,
+          "described_default": 20
+        },
+        {
+          "tool": "get_market_movers",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Results per category (default 10, max 20). Each returned stock counts as one call toward your daily limit - a symbol appearing in more than one category (e.g. both \"gainers\" and \"most_active\") counts once per category it appears in.",
+          "mentions_size_or_cost": true,
+          "default": 10,
+          "described_default": 10
+        },
+        {
+          "tool": "get_economic_calendar",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results per bucket, released_recent and upcoming each capped independently (default 20). Max 20 for guest and free, 50 for Pro.",
+          "mentions_size_or_cost": true,
+          "default": 20,
+          "described_default": 20
+        },
+        {
+          "tool": "get_earnings_intelligence",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results to return (default 25, max 25). Each returned ticker counts as one call toward your daily limit.",
+          "mentions_size_or_cost": true,
+          "default": 25,
+          "described_default": 25
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_stock"
+          ],
+          "description": "Price, fundamentals, technical indicators, and company profile for a stock.\nReturns all data needed to understand a stock in a single call.\n\nKey fields:\n- price, change_pct, prev_close, week52_high/low, volume, avg_volume\n- market_cap, enterprise_value, beta\n- pe_trailing, pe_forward, price_to_book, dividend_yield, dividend_rate\n- debt_to_equity, profit_margins, operating_margins, gross_margins, return_on_equity, free_cashflow\n- revenue_growth, earnings_growth, revenue_ttm, gross_profit_ttm\n- analyst_rating: \"strong_buy\"|\"buy\"|\"hold\"|\"sell\"|\"strong_sell\" (analyst consensus)\n- analyst_rating_score: 1.0-5.0 mean analyst recommendation (1=strong_buy, 5=strong_sell)\n- analyst_target: mean analyst price target\n- analyst_count: number of analyst opinions\n- indicators: raw RSI, MACD, Bollinger Bands, SMA20/SMA200 (the canonical\n  50/200-day averages -- no separate top-level ma_50/ma_200 field), EMA20/EMA200, ATR\n- description: company business description\n- website, employees, officers (top 5: name, title, total_pay)\n- updated_at: last data sync timestamp\nAvailable to all tiers (raw indicator numbers, no interpretation). This basic six\n(RSI/MACD/Bollinger/SMA/EMA/ATR) is standard, widely-available technical analysis.\n\nPro tier also unlocks the specialized indicators inside the SAME `indicators` block:\nwilliams_r, ultimate_osc, vix_fix, williams_ad (the Larry Williams family),\ntd_sequential (DeMark), elliott_wave, adx {adx, plus_di, minus_di}, ichimoku\n{tenkan, kijun, cloud_top, cloud_bot, above_cloud, below_cloud}, squeeze\n{squeeze_on, hist}, and rs_rank (relative-strength rank 1-99, stocks only: the past\nyear's return with the latest quarter counted double, ranked against every tracked\nstock; 99 = strongest; absent with under a year of history). These are omitted\nentirely from the free/guest response, not merely unlabeled; free/guest calls get\nindicators with only the basic six populated.\n\nPro tier adds four interpreted blocks computed from the same indicators, no extra AI cost,\nplus a minimum AI-narrative slice - all five below are precomputed, none cost a live AI call:\n- ai_verdict / ai_headline / ai_score / ai_score_band: the minimum useful\n  AI-narrative slice, shared by every pro-tier stock-returning tool. A bare verdict alone\n  isn't actionable (e.g. negative while up 8% on the day with a strong_buy analyst rating is\n  genuinely ambiguous) - the one-line headline is the \"why\", ai_score is the 0-100\n  composite (same scale/band convention as get_signals' signal_score, distinct pipeline).\n  For the full text (summary/key_points/risks/near_term/longer_term) and cross-source\n  news/insider context, call get_stock_research(symbol) instead - that's the only tool\n  with the complete bundle.\n- ai_score (0-100) / ai_score_band (Weak/Moderate/Strong/Very Strong):\n  the AI research composite score, on the same 0-100 scale and band boundaries\n  as get_signals()'s signal_score - but a separate score, never the same\n  number for the same symbol by coincidence alone.\n- rating: {score 0-10, direction POSITIVE/NEUTRAL/NEGATIVE, signals per-indicator breakdown}\n  - composite technical score\n- signals: flat labeled signals (rsi/macd/bollinger/sma200/sma50/williams_r/ultimate_osc/\n  vix_fix/williams_ad/td_sequential/elliott_wave, each with a value + plain-English label)\n  - same indicators as 'indicators', pre-interpreted for programmatic use without parsing raw numbers\n- stance_signals: unified list of per-source directional calls (technical rating, AI summary\n  near_term/longer_term, insider/institutional sentiment, analyst consensus, active screener\n  signals) - each entry {stance POSITIVE/NEGATIVE/NEUTRAL, conviction 0-10, horizon\n  INTRADAY/SWING/POSITION/LONG_TERM, edge_quality PROVEN/OBSERVATION/UNKNOWN (per-source\n  signal_backtest track record), source, raw_label, as_of}. Same canonical shape used on the\n  stock detail page - a source with missing/stale data is simply omitted, not nulled out.\n- relative_strength: {windows: {5d/20d/60d/120d/12m -> {stock_return_pct, rs_vs_spy, rs_vs_qqq,\n  rs_vs_sector}}, verdict: one-line plain-language read (e.g. \"Laggard - weak near- and long-term\")}\n  - stock's own return minus each benchmark's return (percentage points, not a ratio) per window.\n  rs_vs_sector uses the stock's GICS sector SPDR ETF (Vanguard backup if the primary lacks\n  history); omitted for stocks with no resolvable sector (crypto, FX, indices). Windows/\n  benchmarks with insufficient history are omitted rather than null. null if not precomputed yet.\n- market_risk: {beta_spy_1y, corr_spy_1y} - 1-year daily-return beta and correlation vs SPY.\n  Distinct from quote.beta (a longer-window beta) - this is computed\n  from the same daily bars as relative_strength. Both fields null if not yet\n  precomputed for this symbol (populates on the next scheduled indicators run).\n- forensic_scores: {altman_z, piotroski_f, beneish_m, computed_at} - three classic forensic-\n  accounting formulas (Altman 1968 bankruptcy-risk, Piotroski 2000 fundamental-strength,\n  Beneish 1999 earnings-manipulation-likelihood), computed from balance sheet/income\n  statement/cash flow data, refreshed on each company's own filing cadence (roughly annual).\n  Each sub-block is {score, note, ...} - altman_z adds `zone` (safe/grey/distress),\n  piotroski_f adds `strength` (strong/moderate/weak, 0-9 scale), beneish_m adds\n  `likely_manipulator` (bool, score > -1.78). `note` explains what the score measures and\n  its known caveats (e.g. Altman Z is not meaningful for banks/insurers and can flag REITs/\n  client-float businesses as \"distress\" by design) - always read alongside the score, not in\n  isolation. `score: null` means genuinely not computable for this company (common for\n  financial-sector names), not an error. No trading signal is derived from these scores\n  anywhere in this API today - treat as raw accounting-model output for your own research.\n- sector_context: where this stock's fundamentals sit versus the other tracked equities in\n  its own sector - {sector, revenue_growth, gross_margin, operating_margin, as_of}, each\n  metric {value, sector_median, percentile 0-100, n}. Purely descriptive positioning (e.g.\n  \"revenue growth is in the 80th percentile of its sector\"), no interpretation or direction.\n  A metric is omitted when the stock has no value for it or the sector has fewer than 15\n  peers with data; the whole block is omitted when nothing is computable. Baseline refreshed\n  daily; sectors are pooled globally across all tracked equities.\n  get_stock also returns `trend`: {period: \"quarterly\", points: [{period_end, revenue_growth /\n  gross_margin / operating_margin: {value, sector_median, n}}]}, oldest first - the same three\n  metrics for the last few quarters (revenue_growth is year-over-year) beside the sector\n  median for each quarter, so you can see whether the stock is gaining or losing ground on its\n  peers. Off-cycle fiscal quarters are matched to the nearest calendar quarter. A quarter or\n  metric is left out where either side lacks data. get_stocks omits `trend` to keep batch rows\n  small.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_earnings_calendar"
+          ],
+          "description": "Upcoming earnings dates for stocks in the Stocklake universe.\n- days: look-ahead window in days (default 7, max 30)\n- Returns: { window_days, from_date, to_date, count, results[] }\n- Each result: symbol, name, sector, market_cap, price, rsi,\n  earnings_date (ISO UTC), is_estimate, eps_trailing, eps_forward\n- Sorted by earnings_date ascending.\n- Dates sourced from market data - treat is_estimate=true dates as approximate.\nAvailable to all tiers.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_sector_intelligence"
+          ],
+          "description": "AI-assessed sector intelligence: signal, cycle stage, rotation signal,\ndrivers, alerts, and computed statistics per sector (RSI distribution, breadth,\nperformance 1W/1M, top/bottom movers, historical percentiles).\nPass a sector name for a single sector, or omit the parameter (or pass None)\nto get the latest assessment for all 11 sectors - the all-sectors call doubles as\nthe rotation view: use sort_by_strength to rank LEADING-first for finding leading\nvs lagging sectors, and history_count for prior signal states per sector.\n\n- sort_by_strength: sort all-sectors output LEADING→LAGGING instead of alphabetical\n  (all-sectors call only; ignored when a single sector is requested)\n- history_count: include last N prior signal states per sector, 0-3 (default 0;\n  all-sectors call only)\n- sector_score / strength_score: sector_score is a real, continuous 0-100 read on\n  this sector's relative strength/leadership (0=LAGGING, 100=LEADING) - the same\n  underlying number `signal` buckets into 5 discrete categories, blending\n  arithmetic inputs (RSI/perf percentiles, top-5 concentration, SMA200 breadth)\n  with strength_score, the AI's own 1-10 read. Comparable across all 11 sectors on\n  one absolute scale (not per-sector-relative). Null on a pre-2026-08-26 assessment\n  that predates this field. Not a buy/sell call.\n- sector_score_trend: {change_7d, change_30d, direction} - whether this sector's\n  score is improving/deteriorating/stable over the trailing 7/30 days, computed\n  automatically. Single-sector calls only - this is the only trend view available\n  for one sector at all (history_count only applies to the all-sectors call).\n  Two sectors both reading STRONG/68 can be in opposite motion; this tells them\n  apart. Either leg is null without enough history yet.\n\nRefreshed ~4x/day, weekdays only, during market hours (~2h apart) - dead\novernight and on weekends, not a continuous 4-hourly cadence. Check the\nreturned updated_at before treating this as current, especially on a\nMonday morning or after a holiday.\nAvailable to pro tier only (AI pipeline costs).\nFor informational purposes only. Not financial advice.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_stocks"
+          ],
+          "description": "Batch stock data for up to 25 symbols in a single call - the same fields\nget_stock returns for the same key/symbol, so this is a true batch version,\nnot a thinned-down scan. Returns a dict keyed by symbol. Missing symbols\nare omitted from the result. Each symbol in the batch counts as one call\ntoward the daily limit. A request over 25 symbols is rejected outright\n(error: batch_too_large) rather than silently served on just the first\n25 - split a larger list into multiple calls.\nAvailable to all tiers (fundamentals/indicators/company profile, free).\n\nPro tier adds, per symbol, the same precomputed blocks get_stock adds -\nrating {score, direction, signals}, signals (per-indicator breakdown),\nrelative_strength, market_risk {beta_spy_1y, corr_spy_1y}, sector_context\n(revenue growth/margins vs sector median - see get_stock), and the minimum\nAI-narrative slice (ai_verdict, ai_headline, ai_score,\nai_score_band). None of this costs a live AI call - it's all\nprecomputed and just needs projecting.\n\nNOT included, even on pro - call get_stock(symbol) for stance_signals, or\nget_stock_research(symbol) for the full ai_summary text (summary/key_points/\nrisks/near_term/longer_term) plus cross-source news/insider/signal context.\n\nResponse also carries `duplicates_collapsed`: how many input symbols\nnormalized (case-folding, share-class aliasing e.g. \"BRK.B\"->\"BRK-B\") or\nliterally repeated onto a symbol already counted elsewhere in this batch.\nrequested - len(missing or []) - duplicates_collapsed == count always holds.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_market_pulse"
+          ],
+          "description": "Market health snapshot in a single call.\nAggregates key market indicators without requiring multiple tool calls.\nNo AI cost. Index and bond/commodity prices are live; vix, fear_greed and breadth\ncome from the latest market snapshot (see updated_at).\n\nReturns:\n- vix: VIX level (a number) as of that snapshot\n- fear_greed: {value (0-100), description (\"extreme fear\" | \"fear\" | \"neutral\" |\n  \"greed\" | \"extreme greed\"), last_update}\n- breadth: market-wide RSI distribution - oversold_pct, overbought_pct, neutral_pct\n  (with their counts), universe_size\n- indices: spy, qqq, iwm, each {price, change_pct (today, in percent), rsi}\n- bonds_commodities: tlt (long-duration bonds), gld (gold), same shape as indices\n- updated_at: when the vix/breadth/fear_greed snapshot was last recorded\nAvailable to all tiers.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_signals"
+          ],
+          "description": "AI-screened stock signals recently surfaced by the Stocklake pipeline -\nsourced from news analysis, sector screening, and sentiment signals.\n\nShows what the pipeline noticed in the last 24 hours (falling back to the\nmost recent signals regardless of age if nothing has fired in that window\n- see `window` in the response). Signals stay listed for their recency window\neven after they expire.\n\nParameters:\n- direction: \"POSITIVE\" | \"NEGATIVE\" | \"NEUTRAL\" (default: all). NEUTRAL\n  covers both a flat/undecided read AND a genuinely two-sided idea (real\n  opposing bull/bear theses on the same symbol) - in the latter case\n  signal_score is the STRONGER of the two sides (see signal_score below),\n  so a high score alongside NEUTRAL means \"real conviction here, just no\n  directional consensus,\" not \"nothing going on.\" The two-sided detail is\n  in `rationale`.\n- min_signal_score: minimum composite signal score 0-100 (default 60) - a\n  blend of conviction/confidence/flag_score, source track record, and real\n  technical factors. This is the field to filter on. Always compared\n  against a single number, including for NEUTRAL/two-sided ideas - a\n  result is never returned below your threshold on both sides.\n- source: filter by signal source - \"news\" | \"screener\" | \"sentiment\" (default: all)\n- limit: max results to return (default 25, max 50). Each returned signal counts\n  as one call toward your daily limit.\n\nReturns:\n- count: number of signals returned\n- window: \"24h\" (fresh activity found) or a fallback note when the last 24h\n  had nothing and the response instead shows the most recent signals overall\n- signals[]: each with symbol, direction, signal_score (0-100), signal_score_band\n             (human-readable label - \"Weak\"/\"Moderate\"/\"Strong\"/\"Very Strong\"),\n             source, rationale, expires, flagged_at\n\nPro tier only - AI pipeline cost attached.\nFor informational purposes only. Not financial advice.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_news_feed"
+          ],
+          "description": "Most notable recent news across all tracked stocks: a market-wide briefing.\nUnlike get_stock_news (one symbol), this scans every tracked stock and\nreturns articles ranked by signal_score, newest first within each score.\n\nUse this for:\n- Morning briefing: \"what happened in the market this week?\"\n- Catalyst scanning: \"what news is driving moves right now?\"\n- Event monitoring: \"which stocks have high-impact news today?\"\n\n- min_signal_score: minimum signal_score (0-100, default 60).\n- days: look-back window in days (default 3, max 10).\n- limit: max articles returned (default 10, max 25).\n- Per article: symbol, title, published_at, ai_sentiment, ai_summary,\n  signal_score (0-100), signal_score_band (Weak/Moderate/Strong/Very Strong).\n- signal_score is the symbol's current news-based signal score when one\n  was raised in the last 90 days (the same number get_stock_news() and\n  get_signals() report), otherwise a score computed from the article's own\n  classification. It is always a single number.\n- collapsed_count: present when several articles reported the same event;\n  only the highest-ranked one is returned and this says how many were\n  merged into it. `limit` counts distinct events.\n\nArticles are published by third parties; titles and summaries describe\nwhat those articles say. Requires a Pro account.\nFor informational purposes only. Not financial advice.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_screener"
+          ],
+          "description": "Filter and rank stocks from the Stocklake universe - fundamentals, technicals, and AI signals in one tool.\n\nParameters:\n- sector: e.g. \"Technology\", \"Healthcare\", \"Financial Services\"\n- country: e.g. \"United States\", \"Germany\"\n- min_rsi / max_rsi: exact RSI bounds (e.g. max_rsi=30 = oversold, min_rsi=70 = overbought)\n- sma_trend: \"above_200\" (price above 200-day MA) | \"below_200\"\n- macd_signal: \"positive\" (MACD line above signal) | \"negative\"\n- min_perf_1d / max_perf_1d: 1-day performance % (e.g. min_perf_1d=2.0 = up 2%+ today)\n- min_volume: minimum daily volume (e.g. 1000000)\n- min_market_cap_b / max_market_cap_b: market cap in billions of US dollars,\n  compared against market_cap_usd (stocks with no FX rate for their currency\n  are excluded when either bound is set)\n- max_pe_forward: maximum forward P/E (e.g. 20 = value screen)\n- analyst_rating: \"strong_buy\" | \"buy\" | \"hold\" | \"sell\" | \"strong_sell\"\n- min_ai_score: minimum AI score 0-100 (pro tier only - silently ignored for free).\n  Gates on the AI research composite ai_score - same 0-100 scale and bands\n  as signal_score, but a separate score (per-stock AI\n  summary strength, not a directional signal). Renamed 2026-08-24 from the\n  retired 0-10 min_flag_score - the raw flag_score field it used to gate on is no\n  longer part of this fleet's public vocabulary at all (see ai_score below).\n- preset: \"oversold\" | \"overbought\" | \"momentum\" | \"high_conviction\" (pro only)\n  oversold = RSI≤35 + above SMA200 · overbought = RSI≥65\n  momentum = RSI 50-70, above SMA200, up 0.5%+ today · high_conviction = ai_score≥70\n- sort_by: \"market_cap\" | \"rsi\" | \"perf_1d\" | \"volume\" | \"analyst_rating\" | \"rating\" | \"ai_score\" (pro).\n  Defaults to \"market_cap\", except the \"high_conviction\" preset defaults to \"ai_score\"\n  (the dimension it's filtering by) unless you explicitly pass a different sort_by.\n- sort_dir: \"asc\" | \"desc\" (default \"desc\")\n- limit: 1-25 (default 20). Each returned stock counts as one call toward your daily limit.\n\nReturns: { count, preset, filters, results[] } - each result includes symbol, name, sector,\nindustry, country, price, change_pct, volume, market_cap, market_cap_usd, currency,\npe_forward, rsi, macd_signal, sma200_trend, analyst_rating. market_cap is in the\nlisting's own currency (the currency field); market_cap_usd is converted to US\ndollars and is what the market_cap sort and cap filters use.\nPro tier adds rating (0-10 composite score) + ai_verdict + ai_headline + ai_score\n(0-100) + ai_score_band to every result row (the headline is the \"why\" - a bare\nverdict alone isn't enough to act on), enables min_ai_score filter, high_conviction\npreset, and sorting by rating/ai_score (sort_by silently falls back to market_cap on\nfree/guest for both). All other filters available to all tiers. For the full research\nbundle on any one result, call get_stock_research(symbol).",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_market_movers"
+          ],
+          "description": "Top market movers from the Stocklake universe - gainers, losers, most active.\n\n- category: \"gainers\" | \"losers\" | \"most_active\" | \"all\" (default \"all\" = all 3 categories)\n- limit: results per category (default 10, max 20). Each returned stock counts as\n  one call toward your daily limit - a symbol appearing in more than one category\n  (e.g. both \"gainers\" and \"most_active\") counts once per category it appears in.\n- min_market_cap_b: filter to stocks above this market cap in billions of US dollars\n  (e.g. 1.0 = $1B+), compared against market_cap_usd\n\nReturns per stock: symbol, name, sector, price, change_pct, volume, rsi, market_cap\n(listing currency), market_cap_usd, currency, analyst_rating, atr_pct (atr_pct omitted when the underlying volatility reading is\nmissing or corrupted).\nAvailable to all tiers.\n\nPro tier adds the minimum AI-narrative slice (ai_verdict, ai_headline,\nai_score 0-100, ai_score_band) - precomputed, no extra\nAI cost. A big mover's price/volume/RSI alone doesn't say whether the\nmove matters; the one-line headline does. For the full research bundle\non any one mover, call get_stock_research(symbol).",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_stock_financials"
+          ],
+          "description": "Raw financial statements - balance sheet, income statement, and cash\nflow line items. This is the underlying statement data itself, not a\nderived summary - for the forensic-accounting scores computed FROM these\nstatements (Altman Z / Piotroski F / Beneish M), see get_stock()'s\nforensic_scores block instead.\n\nEach returned statement is shaped {line_item_name: {period_end_iso: value}}\n- e.g. income_stmt[\"Total Revenue\"][\"2025-12-31\"] - so a caller can\ncompute its own trends/deltas/CAGRs, not just read the latest value.\nValues are in the company's reporting currency (financial_currency).\n\nTiers:\n- Free and guest: the LATEST fiscal year only. Every line item's\n  {period_end: value} map has one entry and `periods` lists one date.\n  All three statements and the `statement` filter work. period=\n  \"quarterly\"/\"both\" returns that latest annual year with\n  quarterly=null plus a `pro_unlocks` note (not an error).\n  `annual_periods_available` says how many years Pro would return.\n- Pro: period=\"annual\" (default) returns up to 5 fiscal years;\n  some symbols return fewer.\n  period=\"quarterly\" returns up to roughly 7-8 of the most recent\n  quarters. period=\"both\" returns both blocks in one call.\n\n~50-60 curated line items per statement (not a raw dump of every\nreported row): balance sheet structure (assets/liabilities/equity/debt/\nworking capital), income statement (revenue through EPS), and cash flow\n(operating/investing/financing, free cash flow, buybacks, stock-based\ncomp). Coverage genuinely varies by symbol and sector - a bank has no\n\"Inventory\" line, a company with no buyback program has no \"Repurchase\nOf Capital Stock\" entry. A missing line item means it is not reported\nfor this company, not a fetch error.\n\nquarterly can come back null (with a quarterly_note) for a symbol whose\nreal quarterly data isn't available. annual/quarterly can both be\nentirely absent (with a note) if this symbol hasn't yet been through the\nfinancials sync, or if it's not an equity (no data for ETFs/crypto/\nforex/indices) - these states read the same for every tier.\n\nFor informational purposes only. Not financial advice.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_economic_calendar"
+          ],
+          "description": "Upcoming and recently-released macro/economic events -- interest rate\ndecisions, CPI, GDP, PMI, unemployment, payrolls, retail sales, and more.\n\nTwo buckets:\n- released_recent: events with a real reported value, within the last\n  `lookback_days` days. Every item here carries a real `actual` value\n  (never blank) plus `diff` (actual minus previous -- a plain arithmetic\n  difference, never a beat/miss or consensus judgment; point-in-time\n  consensus is not available).\n- upcoming: not-yet-released events within `days`. No item here ever\n  carries an `actual` value.\n\nEvery item in both buckets carries `key_event`: true for the handful of\nevent types that reliably move markets on their own (rate decisions, CPI,\nGDP, headline Non-Farm Payrolls) -- an event-TYPE flag only, never a\nbeat/miss or directional judgment on the number itself. Set\n`key_events_only=true` to filter to just these, or `major_only=true` to\nrestrict to the 8 largest economies.\n\nBoth buckets sort major-economy-first, then by recency -- truncating to\n`limit` should never lose a US/EU/UK/JP/CN/DE/FR/CA print to an older or\nthinner-economy one.\n\nAll tiers. Guest and free: days max 7, lookback_days max 2, limit max 20.\nPro: days max 14, lookback_days max 7, limit max 50. When a guest/free\nvalue is above its cap, the response is served at the cap and carries\n`capped` ({param: {requested, served}}) plus a `pro_unlocks` note.\nFor informational purposes only. Not financial advice.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_stock_research"
+          ],
+          "description": "Full AI research bundle for a stock in one call - fundamentals, AI-generated\nsummary, recent AI-classified news, insider/institutional signal, and recent\ntrade signal history. Replaces 4 separate calls: get_stock + get_stock_news +\nget_insider_activity + get_signals (for one symbol).\n\nReturns:\n- stock: price, name, sector, rsi, pe_forward, market_cap, 52-week range, analyst data\n- ai_summary: verdict, ai_score (0-100)/ai_score_band (Weak/Moderate/Strong/\n  Very Strong - the AI research composite, same scale and bands as\n  signal_score but a separate score), full summary, key_points, risks,\n  price_at_generation, generated_at, headline (one-sentence plain-language take), near_term\n  (stance/confidence over <4 weeks - technicals/momentum-weighted), longer_term\n  (stance/confidence over a multi-month horizon - fundamentals/analyst/institutional-flow-weighted).\n  headline/near_term/longer_term are null on summaries generated before this schema shipped -\n  until that symbol's next regeneration, fall back to verdict/ai_score.\n- news: last 3 high-relevance articles (title, published_at, ai_sentiment,\n  ai_summary, signal_score [0-100]/signal_score_band - this symbol's LIVE\n  news-sourced signal score if one exists in the last 90 days [same number\n  as the `signals` list below and get_signals()/get_stock_news(), kept in\n  sync as it's re-scored], else a per-article magnitude computed from that\n  article's own classification. One name, no separate \"news_score\" field.\n  The 3 are distinct events: an article carries collapsed_count when\n  several articles about the same event were merged into it.)\n- sentiment: signal, signal_score (0-100)/signal_score_band - one name, no\n  separate \"insider_score\" field, same as the news block above - insider_trend\n  (buying/selling/neutral, or null with no transactions in the window), institutional_pct\n- signals[]: up to the 5 most recent trade signals for this symbol in the last\n  90 days (direction, rationale, signal_score [0-100], signal_score_band\n  [human-readable label - \"Weak\"/\"Moderate\"/\"Strong\"/\"Very Strong\" - or null\n  alongside a null signal_score], source, expires, flagged_at). Empty if\n  nothing in that window. Signals stay listed for the full window even\n  after they expire.\n- forensic_scores: {altman_z, piotroski_f, beneish_m, computed_at} - three classic\n  forensic-accounting formulas (Z-Score bankruptcy risk / F-Score fundamental\n  quality / M-Score earnings-manipulation risk), computed from `stocks.financials`\n  (GH #107). Omitted entirely if this symbol has no forensic_scores doc yet - not\n  every symbol qualifies (financial-sector companies mostly return null on all\n  three by construction, see the field's own note text). A withheld individual\n  score always surfaces as {\"score\": null, \"note\": \"<plain-English reason>\"} -\n  never a bare 0, never silently dropped from its own sub-block. Same shape\n  get_stock()/get_stocks() already return.\n\nAll data is pre-computed by the Stocklake AI pipeline - no live AI calls on request.\nPro tier only. For informational purposes only. Not financial advice.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_stock",
+            "get_stock_history"
+          ],
+          "hypothesis": "Read tools share resource terms (stock), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_stock_news",
+            "get_stock_history"
+          ],
+          "hypothesis": "Read tools share resource terms (stock), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_stock_news",
+            "get_stocks"
+          ],
+          "hypothesis": "Read tools share resource terms (stock), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_stock_news",
+            "get_stock_financials"
+          ],
+          "hypothesis": "Read tools share resource terms (stock), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_stock_history",
+            "get_stocks"
+          ],
+          "hypothesis": "Read tools share resource terms (stock), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_stock_history",
+            "get_indicator_history"
+          ],
+          "hypothesis": "Read tools share resource terms (history), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_stock_history",
+            "get_stock_financials"
+          ],
+          "hypothesis": "Read tools share resource terms (stock), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_stock_history",
+            "get_stock_research"
+          ],
+          "hypothesis": "Read tools share resource terms (stock), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_earnings_calendar",
+            "get_economic_calendar"
+          ],
+          "hypothesis": "Read tools share resource terms (calendar), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_earnings_calendar",
+            "get_earnings_intelligence"
+          ],
+          "hypothesis": "Read tools share resource terms (earning), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_market_assessment",
+            "get_market_movers"
+          ],
+          "hypothesis": "Read tools share resource terms (market), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_sector_intelligence",
+            "get_earnings_intelligence"
+          ],
+          "hypothesis": "Read tools share resource terms (intelligence), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_stocks",
+            "get_stock_financials"
+          ],
+          "hypothesis": "Read tools share resource terms (stock), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_market_pulse",
+            "get_market_movers"
+          ],
+          "hypothesis": "Read tools share resource terms (market), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_stock_financials",
+            "get_stock_research"
+          ],
+          "hypothesis": "Read tools share resource terms (stock), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "get_stock",
+      "get_stock_news",
+      "get_stock_history",
+      "get_earnings_calendar",
+      "get_market_assessment",
+      "get_sector_intelligence",
+      "get_insider_activity",
+      "get_stocks",
+      "get_market_pulse",
+      "get_signals",
+      "get_watchlist",
+      "get_news_feed",
+      "get_screener",
+      "get_market_movers",
+      "get_indicator_history",
+      "get_stock_financials",
+      "get_analyst_trend",
+      "get_economic_calendar",
+      "get_stock_research",
+      "get_earnings_intelligence"
+    ]
+  }
+}

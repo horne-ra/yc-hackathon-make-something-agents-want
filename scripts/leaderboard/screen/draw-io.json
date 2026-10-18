@@ -1,0 +1,483 @@
+{
+  "slug": "draw-io",
+  "source_url": "https://manufact.com/mcp-catalog/draw-io",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:26:29.007Z",
+    "endpoint": "https://mcp.draw.io/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "drawio-mcp-app",
+      "version": "1.2.0"
+    },
+    "capabilities": {
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "create_diagram",
+            "title": "Create Diagram",
+            "description": "Creates and displays an interactive draw.io diagram from Mermaid.js syntax or draw.io XML — provide exactly one.\n\n**Choose the format first.** Use `xml` for diagrams of boxes and lines up to about 30 shapes: flowcharts, pipelines, decision trees, org charts, ER schemas, UML class, state and use case diagrams, mind maps, timelines, architecture, cloud and network diagrams, swimlanes, UI mockups, floor plans and anything with stencils. You place every shape yourself, laid out for the chat view (see the XML reference). Use `mermaid` for sequenceDiagram, gantt, gitGraph, pie, journey, quadrantChart, xychart-beta, sankey-beta, requirementDiagram, C4Context/C4Container/C4Component, block-beta, packet-beta, kanban, radar-beta, treemap-beta, treeView-beta, venn-beta, ishikawa-beta, zenuml, wardley-beta, eventmodeling, and for flowcharts, class and state diagrams of more than about 30 shapes (flowcharts with postLayout elk). Whenever the user asks for draw.io XML or no Mermaid, use XML for the rest of the conversation.\n\n**Call `get_drawio_reference` before your first diagram in a conversation**, once per format, with the format you chose: \"mermaid\" has the syntax for every type (a misspelled header renders blank), \"xml\" the styles, layout grid, edges, containers, layers and dark mode. Call `search_shapes` first for industry icons (AWS, Azure, GCP, Cisco, Kubernetes, P&ID, electrical) or logos.\n\nXML essentials: <mxGraphModel adaptiveColors=\"auto\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>…</root></mxGraphModel>. Every cell has a unique id. Vertices: vertex=\"1\" with <mxGeometry x y width height as=\"geometry\"/>. Edges: edge=\"1\" with source and target, always with a child <mxGeometry relative=\"1\" as=\"geometry\"/>. Put html=1 in every style and XML-escape HTML in values (&lt; &gt; &amp; &quot;). No XML comments. Don't add waypoints. Place the shapes yourself (no postLayout) and set `routing: \"libavoid\"` only when an edge would otherwise cross a shape.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "xml": {
+                  "type": "string",
+                  "description": "draw.io XML content in mxGraphModel format. Must be well-formed XML: no XML comments (<!-- -->), no unescaped special characters in attribute values. Mutually exclusive with 'mermaid'."
+                },
+                "mermaid": {
+                  "type": "string",
+                  "description": "Mermaid.js diagram definition (e.g. 'graph TD\\n  A-->B'). Supports 28 diagram types — see the tool description for the full list. The diagram is parsed and laid out natively (no upstream mermaid runtime) and converted to draw.io format. Mutually exclusive with 'xml'."
+                },
+                "postLayout": {
+                  "type": "string",
+                  "enum": [
+                    "elk"
+                  ],
+                  "description": "Optional client-side ELK (Eclipse Layout Kernel) layered-flow pass applied after the diagram renders. The only value is `\"elk\"`. Vertices animate (morph) from the positions you supplied to the layered layout — they are **replaced**, so only your edge topology survives. Set it for large Mermaid flowcharts (see below) and for directional XML flows of more than about 30 shapes that you don't lay out yourself; XML you place on the grid (see the XML reference) omits it. Flow direction (top-down vs left-to-right): for **Mermaid** it is taken from the flowchart code (`flowchart TD/TB` → top-down, `LR/RL` → left-to-right) — do not try to set it here; for **XML** set the optional `direction` field (defaults to top-down).\n**Omit** for diagrams whose layout carries meaning you hand-crafted: swimlanes/pools, containers, architecture / deployment / network topology with grouped regions, P&ID or circuit schematics, floor plans, UML diagrams with deliberate placement.\n\n**For Mermaid flowcharts**, the native parser does its own layout, but it produces cramped or unbalanced output once the diagram has any structural complexity. Request `postLayout: \"elk\"` whenever ANY of the following holds: ≥ ~20 nodes, OR ≥ 3 decision diamonds (`{...}` shapes), OR any feedback/back-edges (an edge that points to an earlier node, e.g. an error path looping back to a retry), OR ≥ 3 distinct endpoints — the flow direction follows the flowchart code, so you never pass `direction` for Mermaid. Skip for simple flowcharts (linear chains, < 20 nodes, no branching/back-edges) and for non-flowchart Mermaid types (sequence, class, ER, sankey, etc. — postLayout doesn't apply)."
+                },
+                "direction": {
+                  "type": "string",
+                  "enum": [
+                    "vertical",
+                    "horizontal"
+                  ],
+                  "description": "**XML only** — the flow direction for `postLayout: \"elk\"` on XML diagrams: `vertical` (top-down) or `horizontal` (left-to-right). Defaults to `vertical`. **Ignored for Mermaid**, where direction is read from the flowchart code (`flowchart TD/TB` vs `LR/RL`). Only meaningful together with `postLayout: \"elk\"`."
+                },
+                "routing": {
+                  "type": "string",
+                  "enum": [
+                    "libavoid"
+                  ],
+                  "description": "**XML only** — optional obstacle-avoiding orthogonal **edge-routing** pass (libavoid). The only value is `\"libavoid\"`. Unlike `postLayout`, this does **not** move any vertices — it keeps your hand-placed coordinates and only recomputes the path of each right-angle edge (`edgeStyle=orthogonalEdgeStyle` or `entityRelationEdgeStyle`) so wires run in clean right-angle segments that route *around* the boxes instead of cutting through them; straight and curved lines stay as drawn. Set it for XML diagrams where you have placed nodes deliberately (architecture, deployment, swimlanes, UML class, floor plans) and want tidy connectors without overlaps — exactly the diagrams where you'd OMIT `postLayout`.\ndraw.io's default router is basic (straight or simple right-angle lines with **no obstacle avoidance** — wires cut straight through any box between the endpoints), so reach for `\"libavoid\"` whenever edges would otherwise cross shapes or you want uniformly clean orthogonal wiring on a layout you placed yourself. Think of `routing` and `postLayout` as **alternatives**: use `routing: \"libavoid\"` to keep your positions and only fix the wires, or `postLayout: \"elk\"` to re-lay-out the vertices — and note ELK already routes its edges decently, so when you use `postLayout` you normally should **not** also set `routing` (the combination is redundant in almost all cases). Do not add `<Array as=\"points\">` waypoints yourself when routing is set; libavoid computes them. **Ignored for Mermaid** (its native/ELK layout already routes)."
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://drawio/mcp-app.html"
+              },
+              "openai/toolInvocation/invoking": "Creating diagram...",
+              "openai/toolInvocation/invoked": "Diagram ready.",
+              "ui/resourceUri": "ui://drawio/mcp-app.html"
+            }
+          },
+          {
+            "name": "search_shapes",
+            "title": "Search Shapes",
+            "description": "Search the draw.io shape library by keywords. Returns matching shapes with their exact style strings, dimensions, and titles. Covers ~10,000 built-in stencils (cloud architecture, network topology, P&ID, electrical, Cisco, Kubernetes, BPMN) and, when those are sparse, supplements results with the draw.io icon service (brand/product logos and general-purpose concept icons, e.g. 'react', 'slack', 'shopping cart', 'solar panel'). Use ONLY for diagrams that need industry-specific, branded, or pictorial icons. Do NOT use for standard diagram types like flowcharts, UML, ERD, org charts, or mind maps — these use basic geometric shapes (rectangles, diamonds, circles, cylinders) that are already covered in the XML reference. Also skip if the user asks to use basic/simple shapes or says not to search. The style string from the results can be used directly in mxCell style attributes.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "Space-separated search keywords (e.g. 'pid globe valve', 'aws lambda', 'cisco router', 'kubernetes pod')"
+                },
+                "limit": {
+                  "type": "number",
+                  "description": "Maximum number of results to return (default: 10, max: 50)"
+                }
+              },
+              "required": [
+                "query"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/toolInvocation/invoking": "Searching shapes...",
+              "openai/toolInvocation/invoked": "Shape search complete."
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "shapes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "style": {
+                        "type": "string",
+                        "description": "mxCell style string, usable verbatim in a style attribute"
+                      },
+                      "w": {
+                        "type": "number",
+                        "description": "Default width in pixels"
+                      },
+                      "h": {
+                        "type": "number",
+                        "description": "Default height in pixels"
+                      },
+                      "title": {
+                        "type": "string",
+                        "description": "Shape name"
+                      }
+                    },
+                    "required": [
+                      "style",
+                      "w",
+                      "h",
+                      "title"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "Matching shapes, best match first — empty when nothing matched the query."
+                }
+              },
+              "required": [
+                "shapes"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "get_drawio_reference",
+            "title": "Get draw.io Reference",
+            "description": "Returns the draw.io diagram generation reference as Markdown. Format \"xml\": styles, the layout grid, edges, containers, swimlanes, layers, tags, metadata, dark mode, the layout and routing passes, and the well-formedness rules for create_diagram's xml. Format \"mermaid\": the header keyword and syntax hints for every Mermaid type draw.io supports, flowchart styling and the ELK layout. Call it once per format and conversation, before the first diagram in that format; the reference stays valid for the rest of the conversation.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "format": {
+                  "type": "string",
+                  "enum": [
+                    "xml",
+                    "mermaid"
+                  ],
+                  "description": "Which reference to return: \"xml\" or \"mermaid\", matching the create_diagram parameter you will use."
+                }
+              },
+              "required": [
+                "format"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "openai/toolInvocation/invoking": "Reading the draw.io reference...",
+              "openai/toolInvocation/invoked": "Reference loaded."
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "create_diagram",
+        "title": "Create Diagram",
+        "description": "Creates and displays an interactive draw.io diagram from Mermaid.js syntax or draw.io XML — provide exactly one.\n\n**Choose the format first.** Use `xml` for diagrams of boxes and lines up to about 30 shapes: flowcharts, pipelines, decision trees, org charts, ER schemas, UML class, state and use case diagrams, mind maps, timelines, architecture, cloud and network diagrams, swimlanes, UI mockups, floor plans and anything with stencils. You place every shape yourself, laid out for the chat view (see the XML reference). Use `mermaid` for sequenceDiagram, gantt, gitGraph, pie, journey, quadrantChart, xychart-beta, sankey-beta, requirementDiagram, C4Context/C4Container/C4Component, block-beta, packet-beta, kanban, radar-beta, treemap-beta, treeView-beta, venn-beta, ishikawa-beta, zenuml, wardley-beta, eventmodeling, and for flowcharts, class and state diagrams of more than about 30 shapes (flowcharts with postLayout elk). Whenever the user asks for draw.io XML or no Mermaid, use XML for the rest of the conversation.\n\n**Call `get_drawio_reference` before your first diagram in a conversation**, once per format, with the format you chose: \"mermaid\" has the syntax for every type (a misspelled header renders blank), \"xml\" the styles, layout grid, edges, containers, layers and dark mode. Call `search_shapes` first for industry icons (AWS, Azure, GCP, Cisco, Kubernetes, P&ID, electrical) or logos.\n\nXML essentials: <mxGraphModel adaptiveColors=\"auto\"><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>…</root></mxGraphModel>. Every cell has a unique id. Vertices: vertex=\"1\" with <mxGeometry x y width height as=\"geometry\"/>. Edges: edge=\"1\" with source and target, always with a child <mxGeometry relative=\"1\" as=\"geometry\"/>. Put html=1 in every style and XML-escape HTML in values (&lt; &gt; &amp; &quot;). No XML comments. Don't add waypoints. Place the shapes yourself (no postLayout) and set `routing: \"libavoid\"` only when an edge would otherwise cross a shape.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "xml": {
+              "type": "string",
+              "description": "draw.io XML content in mxGraphModel format. Must be well-formed XML: no XML comments (<!-- -->), no unescaped special characters in attribute values. Mutually exclusive with 'mermaid'."
+            },
+            "mermaid": {
+              "type": "string",
+              "description": "Mermaid.js diagram definition (e.g. 'graph TD\\n  A-->B'). Supports 28 diagram types — see the tool description for the full list. The diagram is parsed and laid out natively (no upstream mermaid runtime) and converted to draw.io format. Mutually exclusive with 'xml'."
+            },
+            "postLayout": {
+              "type": "string",
+              "enum": [
+                "elk"
+              ],
+              "description": "Optional client-side ELK (Eclipse Layout Kernel) layered-flow pass applied after the diagram renders. The only value is `\"elk\"`. Vertices animate (morph) from the positions you supplied to the layered layout — they are **replaced**, so only your edge topology survives. Set it for large Mermaid flowcharts (see below) and for directional XML flows of more than about 30 shapes that you don't lay out yourself; XML you place on the grid (see the XML reference) omits it. Flow direction (top-down vs left-to-right): for **Mermaid** it is taken from the flowchart code (`flowchart TD/TB` → top-down, `LR/RL` → left-to-right) — do not try to set it here; for **XML** set the optional `direction` field (defaults to top-down).\n**Omit** for diagrams whose layout carries meaning you hand-crafted: swimlanes/pools, containers, architecture / deployment / network topology with grouped regions, P&ID or circuit schematics, floor plans, UML diagrams with deliberate placement.\n\n**For Mermaid flowcharts**, the native parser does its own layout, but it produces cramped or unbalanced output once the diagram has any structural complexity. Request `postLayout: \"elk\"` whenever ANY of the following holds: ≥ ~20 nodes, OR ≥ 3 decision diamonds (`{...}` shapes), OR any feedback/back-edges (an edge that points to an earlier node, e.g. an error path looping back to a retry), OR ≥ 3 distinct endpoints — the flow direction follows the flowchart code, so you never pass `direction` for Mermaid. Skip for simple flowcharts (linear chains, < 20 nodes, no branching/back-edges) and for non-flowchart Mermaid types (sequence, class, ER, sankey, etc. — postLayout doesn't apply)."
+            },
+            "direction": {
+              "type": "string",
+              "enum": [
+                "vertical",
+                "horizontal"
+              ],
+              "description": "**XML only** — the flow direction for `postLayout: \"elk\"` on XML diagrams: `vertical` (top-down) or `horizontal` (left-to-right). Defaults to `vertical`. **Ignored for Mermaid**, where direction is read from the flowchart code (`flowchart TD/TB` vs `LR/RL`). Only meaningful together with `postLayout: \"elk\"`."
+            },
+            "routing": {
+              "type": "string",
+              "enum": [
+                "libavoid"
+              ],
+              "description": "**XML only** — optional obstacle-avoiding orthogonal **edge-routing** pass (libavoid). The only value is `\"libavoid\"`. Unlike `postLayout`, this does **not** move any vertices — it keeps your hand-placed coordinates and only recomputes the path of each right-angle edge (`edgeStyle=orthogonalEdgeStyle` or `entityRelationEdgeStyle`) so wires run in clean right-angle segments that route *around* the boxes instead of cutting through them; straight and curved lines stay as drawn. Set it for XML diagrams where you have placed nodes deliberately (architecture, deployment, swimlanes, UML class, floor plans) and want tidy connectors without overlaps — exactly the diagrams where you'd OMIT `postLayout`.\ndraw.io's default router is basic (straight or simple right-angle lines with **no obstacle avoidance** — wires cut straight through any box between the endpoints), so reach for `\"libavoid\"` whenever edges would otherwise cross shapes or you want uniformly clean orthogonal wiring on a layout you placed yourself. Think of `routing` and `postLayout` as **alternatives**: use `routing: \"libavoid\"` to keep your positions and only fix the wires, or `postLayout: \"elk\"` to re-lay-out the vertices — and note ELK already routes its edges decently, so when you use `postLayout` you normally should **not** also set `routing` (the combination is redundant in almost all cases). Do not add `<Array as=\"points\">` waypoints yourself when routing is set; libavoid computes them. **Ignored for Mermaid** (its native/ELK layout already routes)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://drawio/mcp-app.html"
+          },
+          "openai/toolInvocation/invoking": "Creating diagram...",
+          "openai/toolInvocation/invoked": "Diagram ready.",
+          "ui/resourceUri": "ui://drawio/mcp-app.html"
+        }
+      },
+      {
+        "name": "search_shapes",
+        "title": "Search Shapes",
+        "description": "Search the draw.io shape library by keywords. Returns matching shapes with their exact style strings, dimensions, and titles. Covers ~10,000 built-in stencils (cloud architecture, network topology, P&ID, electrical, Cisco, Kubernetes, BPMN) and, when those are sparse, supplements results with the draw.io icon service (brand/product logos and general-purpose concept icons, e.g. 'react', 'slack', 'shopping cart', 'solar panel'). Use ONLY for diagrams that need industry-specific, branded, or pictorial icons. Do NOT use for standard diagram types like flowcharts, UML, ERD, org charts, or mind maps — these use basic geometric shapes (rectangles, diamonds, circles, cylinders) that are already covered in the XML reference. Also skip if the user asks to use basic/simple shapes or says not to search. The style string from the results can be used directly in mxCell style attributes.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Space-separated search keywords (e.g. 'pid globe valve', 'aws lambda', 'cisco router', 'kubernetes pod')"
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum number of results to return (default: 10, max: 50)"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/toolInvocation/invoking": "Searching shapes...",
+          "openai/toolInvocation/invoked": "Shape search complete."
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "shapes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "style": {
+                    "type": "string",
+                    "description": "mxCell style string, usable verbatim in a style attribute"
+                  },
+                  "w": {
+                    "type": "number",
+                    "description": "Default width in pixels"
+                  },
+                  "h": {
+                    "type": "number",
+                    "description": "Default height in pixels"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "Shape name"
+                  }
+                },
+                "required": [
+                  "style",
+                  "w",
+                  "h",
+                  "title"
+                ],
+                "additionalProperties": false
+              },
+              "description": "Matching shapes, best match first — empty when nothing matched the query."
+            }
+          },
+          "required": [
+            "shapes"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get_drawio_reference",
+        "title": "Get draw.io Reference",
+        "description": "Returns the draw.io diagram generation reference as Markdown. Format \"xml\": styles, the layout grid, edges, containers, swimlanes, layers, tags, metadata, dark mode, the layout and routing passes, and the well-formedness rules for create_diagram's xml. Format \"mermaid\": the header keyword and syntax hints for every Mermaid type draw.io supports, flowchart styling and the ELK layout. Call it once per format and conversation, before the first diagram in that format; the reference stays valid for the rest of the conversation.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "format": {
+              "type": "string",
+              "enum": [
+                "xml",
+                "mermaid"
+              ],
+              "description": "Which reference to return: \"xml\" or \"mermaid\", matching the create_diagram parameter you will use."
+            }
+          },
+          "required": [
+            "format"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "openai/toolInvocation/invoking": "Reading the draw.io reference...",
+          "openai/toolInvocation/invoked": "Reference loaded."
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:26:25.719Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:26:26.770Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:26:27.822Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:26:28.873Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 3,
+    "tools_hash": "sha256:270d5333671f5a126fcf2118778b361114581c9d9a08afad47a11cd55e407875",
+    "static_tool_tokens": 3705,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "create_diagram",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "create_diagram",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_drawio_reference",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_drawio_reference",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 3,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_shapes",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Maximum number of results to return (default: 10, max: 50)",
+          "mentions_size_or_cost": true,
+          "described_default": 10
+        },
+        {
+          "tool": "get_drawio_reference",
+          "path": "inputSchema.properties.format",
+          "name": "format",
+          "description": "Which reference to return: \"xml\" or \"mermaid\", matching the create_diagram parameter you will use.",
+          "mentions_size_or_cost": false
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get_drawio_reference"
+          ],
+          "path": "inputSchema.properties.format",
+          "description": "Which reference to return: \"xml\" or \"mermaid\", matching the create_diagram parameter you will use.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "create_diagram",
+      "search_shapes",
+      "get_drawio_reference"
+    ]
+  }
+}

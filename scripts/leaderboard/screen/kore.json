@@ -1,0 +1,312 @@
+{
+  "slug": "kore",
+  "source_url": "https://manufact.com/mcp-catalog/kore",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:54:56.152Z",
+    "endpoint": "https://mcp.gravl.io/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "kore-mcp",
+      "version": "0.2.0"
+    },
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "search_kore",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "Natural-language query. Filters by instrument, protocol, organism, sample type, and/or QC status. Omit to see a diverse sample."
+                }
+              },
+              "required": []
+            },
+            "description": "Search KORE's structured archive of laboratory dark data: sequencing runs, protocols, QC reports, and experimental records that scientists have extracted from previously unqueryable sources such as CSVs, spreadsheets, scanned reports, and lab documents.\n\nWhen authenticated, returns real records from the user's own KORE workspace. When unauthenticated, returns synthetic demo records from the public KORE demo corpus (dark95_v4) so the connector demonstrates value before sign-in.\n\nSupports natural-language queries across instrument (for example \"Illumina NovaSeq\", \"Oxford Nanopore\"), protocol (for example \"RNA-seq\", \"WGS\"), organism and sample type (for example \"human FFPE\", \"mouse blood\"), and QC status (for example \"failed runs\", \"low Q30\"). Returns up to 10 matching records with their key fields.\n\nUse this tool when the user wants to understand patterns in their experimental data: identifying QC failure modes across batches, comparing protocols within or across facilities, finding candidate runs for follow-up analysis, surfacing data quality anomalies, or building hypotheses about experimental design.\n\nDemo responses begin with a \"⚠️ SYNTHETIC DEMO DATA\" line and each demo record is tagged \"[SYNTHETIC DEMO: dark95_v4]\". Records returned without those tags are the user's real workspace data.",
+            "annotations": {
+              "title": "Search KORE records",
+              "readOnlyHint": true
+            }
+          },
+          {
+            "name": "get_record",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "record_id": {
+                  "type": "string",
+                  "description": "The record id to fetch. For authenticated workspace records, this is the row uuid or file uuid returned by search_kore. For synthetic demo records, this can be either the run_id (e.g. 'RUN-DARK95-00042') or the row uuid."
+                },
+                "include_neighbors": {
+                  "type": "boolean",
+                  "description": "If true, also return up to 5 sibling records for context (same file for tabular rows; same facility for synthetic runs). Defaults to false."
+                },
+                "query": {
+                  "type": "string",
+                  "description": "Optional surrounding question. If it mentions 'demo', 'synthetic', 'example', 'dark95', or 'fixture', the record id is resolved against the synthetic corpus regardless of auth."
+                }
+              },
+              "required": [
+                "record_id"
+              ]
+            },
+            "description": "Fetch a single KORE record in full field-level detail by its id, optionally with up to 5 sibling records from the same project for context. Used after search_kore identifies a record worth drilling into.\n\nAuthenticated users get RLS-scoped resolution against their own workspace records. Unauthenticated users, or queries with synthetic intent (\"demo\", \"synthetic\", \"example\", \"dark95\", \"fixture\"), get resolution against the dark95 demo corpus by run_id or uuid.\n\nTwo record kinds:\n\n- Tabular rows: returns the full field set plus up to 5 neighbor rows from the same source file, ordered by row index. Enables reasoning about whether a record is an outlier or part of a pattern across a batch.\n\n- Prose files: returns aggregated canonical fields. No neighbors, since prose sources represent single documents.\n\nUse this tool when the user wants to understand a specific record deeply: investigating why a particular run failed QC, comparing one sample's extracted fields against its batch neighbors, or surfacing data quality issues such as mislabeled vendors, mismatched protocols, or inconsistent fields that only become visible at the record level.\n\nDemo records carry the same tags as search_kore: a \"⚠️ SYNTHETIC DEMO DATA\" header and \"[SYNTHETIC DEMO: dark95_v4]\" / \"⚠️ NOT a real run\" markers. Records returned without those tags are the user's real workspace data.",
+            "annotations": {
+              "title": "Get KORE record detail",
+              "readOnlyHint": true
+            }
+          },
+          {
+            "name": "aggregate_kore",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "group_by": {
+                  "type": "string",
+                  "enum": [
+                    "facility",
+                    "instrument",
+                    "protocol",
+                    "organism"
+                  ],
+                  "description": "Dimension to group by."
+                },
+                "metric": {
+                  "type": "string",
+                  "enum": [
+                    "count",
+                    "qc-fail-rate",
+                    "mean-q30"
+                  ],
+                  "description": "Aggregate metric to compute per group."
+                },
+                "query": {
+                  "type": "string",
+                  "description": "Optional surrounding question. If it mentions 'demo', 'synthetic', 'example', 'dark95', or 'fixture', the aggregate runs against the synthetic demo corpus regardless of auth."
+                }
+              },
+              "required": [
+                "group_by",
+                "metric"
+              ]
+            },
+            "description": "Aggregate KORE's structured archive of laboratory dark data into grouped counts and rates, answering cross-record questions that span an entire dataset, such as \"which facility has the highest QC fail rate?\" or \"mean Q30 by instrument\".\n\nUnlike search_kore (which returns up to 10 individual records), this tool returns one summary row per group across ALL matching records, so it is the correct tool for any aggregate, ranking, or cross-facility comparison.\n\nWhen authenticated, aggregates real records from the user's own KORE workspace. When unauthenticated, or when the query mentions \"demo\", \"synthetic\", \"example\", \"dark95\", or \"fixture\", aggregates the synthetic dark95_v4 demo corpus. Demo responses begin with a \"⚠️ SYNTHETIC DEMO DATA\" line and demo groups are tagged \"[SYNTHETIC DEMO: dark95_v4]\". Results returned without those tags are the user's real workspace data.\n\ngroup_by must be one of: facility, instrument, protocol, organism. metric must be one of: count, qc-fail-rate, mean-q30 (count = number of records per group; qc-fail-rate = fraction of QC-graded records that failed; mean-q30 = average Q30 fraction).",
+            "annotations": {
+              "title": "Aggregate KORE records",
+              "readOnlyHint": true
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "search_kore",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Natural-language query. Filters by instrument, protocol, organism, sample type, and/or QC status. Omit to see a diverse sample."
+            }
+          },
+          "required": []
+        },
+        "description": "Search KORE's structured archive of laboratory dark data: sequencing runs, protocols, QC reports, and experimental records that scientists have extracted from previously unqueryable sources such as CSVs, spreadsheets, scanned reports, and lab documents.\n\nWhen authenticated, returns real records from the user's own KORE workspace. When unauthenticated, returns synthetic demo records from the public KORE demo corpus (dark95_v4) so the connector demonstrates value before sign-in.\n\nSupports natural-language queries across instrument (for example \"Illumina NovaSeq\", \"Oxford Nanopore\"), protocol (for example \"RNA-seq\", \"WGS\"), organism and sample type (for example \"human FFPE\", \"mouse blood\"), and QC status (for example \"failed runs\", \"low Q30\"). Returns up to 10 matching records with their key fields.\n\nUse this tool when the user wants to understand patterns in their experimental data: identifying QC failure modes across batches, comparing protocols within or across facilities, finding candidate runs for follow-up analysis, surfacing data quality anomalies, or building hypotheses about experimental design.\n\nDemo responses begin with a \"⚠️ SYNTHETIC DEMO DATA\" line and each demo record is tagged \"[SYNTHETIC DEMO: dark95_v4]\". Records returned without those tags are the user's real workspace data.",
+        "annotations": {
+          "title": "Search KORE records",
+          "readOnlyHint": true
+        }
+      },
+      {
+        "name": "get_record",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "record_id": {
+              "type": "string",
+              "description": "The record id to fetch. For authenticated workspace records, this is the row uuid or file uuid returned by search_kore. For synthetic demo records, this can be either the run_id (e.g. 'RUN-DARK95-00042') or the row uuid."
+            },
+            "include_neighbors": {
+              "type": "boolean",
+              "description": "If true, also return up to 5 sibling records for context (same file for tabular rows; same facility for synthetic runs). Defaults to false."
+            },
+            "query": {
+              "type": "string",
+              "description": "Optional surrounding question. If it mentions 'demo', 'synthetic', 'example', 'dark95', or 'fixture', the record id is resolved against the synthetic corpus regardless of auth."
+            }
+          },
+          "required": [
+            "record_id"
+          ]
+        },
+        "description": "Fetch a single KORE record in full field-level detail by its id, optionally with up to 5 sibling records from the same project for context. Used after search_kore identifies a record worth drilling into.\n\nAuthenticated users get RLS-scoped resolution against their own workspace records. Unauthenticated users, or queries with synthetic intent (\"demo\", \"synthetic\", \"example\", \"dark95\", \"fixture\"), get resolution against the dark95 demo corpus by run_id or uuid.\n\nTwo record kinds:\n\n- Tabular rows: returns the full field set plus up to 5 neighbor rows from the same source file, ordered by row index. Enables reasoning about whether a record is an outlier or part of a pattern across a batch.\n\n- Prose files: returns aggregated canonical fields. No neighbors, since prose sources represent single documents.\n\nUse this tool when the user wants to understand a specific record deeply: investigating why a particular run failed QC, comparing one sample's extracted fields against its batch neighbors, or surfacing data quality issues such as mislabeled vendors, mismatched protocols, or inconsistent fields that only become visible at the record level.\n\nDemo records carry the same tags as search_kore: a \"⚠️ SYNTHETIC DEMO DATA\" header and \"[SYNTHETIC DEMO: dark95_v4]\" / \"⚠️ NOT a real run\" markers. Records returned without those tags are the user's real workspace data.",
+        "annotations": {
+          "title": "Get KORE record detail",
+          "readOnlyHint": true
+        }
+      },
+      {
+        "name": "aggregate_kore",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "group_by": {
+              "type": "string",
+              "enum": [
+                "facility",
+                "instrument",
+                "protocol",
+                "organism"
+              ],
+              "description": "Dimension to group by."
+            },
+            "metric": {
+              "type": "string",
+              "enum": [
+                "count",
+                "qc-fail-rate",
+                "mean-q30"
+              ],
+              "description": "Aggregate metric to compute per group."
+            },
+            "query": {
+              "type": "string",
+              "description": "Optional surrounding question. If it mentions 'demo', 'synthetic', 'example', 'dark95', or 'fixture', the aggregate runs against the synthetic demo corpus regardless of auth."
+            }
+          },
+          "required": [
+            "group_by",
+            "metric"
+          ]
+        },
+        "description": "Aggregate KORE's structured archive of laboratory dark data into grouped counts and rates, answering cross-record questions that span an entire dataset, such as \"which facility has the highest QC fail rate?\" or \"mean Q30 by instrument\".\n\nUnlike search_kore (which returns up to 10 individual records), this tool returns one summary row per group across ALL matching records, so it is the correct tool for any aggregate, ranking, or cross-facility comparison.\n\nWhen authenticated, aggregates real records from the user's own KORE workspace. When unauthenticated, or when the query mentions \"demo\", \"synthetic\", \"example\", \"dark95\", or \"fixture\", aggregates the synthetic dark95_v4 demo corpus. Demo responses begin with a \"⚠️ SYNTHETIC DEMO DATA\" line and demo groups are tagged \"[SYNTHETIC DEMO: dark95_v4]\". Results returned without those tags are the user's real workspace data.\n\ngroup_by must be one of: facility, instrument, protocol, organism. metric must be one of: count, qc-fail-rate, mean-q30 (count = number of records per group; qc-fail-rate = fraction of QC-graded records that failed; mean-q30 = average Q30 fraction).",
+        "annotations": {
+          "title": "Aggregate KORE records",
+          "readOnlyHint": true
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:54:52.776Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:54:53.826Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:54:54.876Z",
+        "status": 400
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:54:55.927Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 3,
+    "tools_hash": "sha256:fd525ca9daf3acd72aa9d78d067c5e0a41415c23385915b223d6d31d08967b84",
+    "static_tool_tokens": 2388,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "search_kore",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_kore",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "get_record",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_record",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F8",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "aggregate_kore",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "aggregate_kore",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 3,
+      "warning": 3
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "get_record",
+          "path": "inputSchema.properties.include_neighbors",
+          "name": "include_neighbors",
+          "description": "If true, also return up to 5 sibling records for context (same file for tabular rows; same facility for synthetic runs). Defaults to false.",
+          "mentions_size_or_cost": true
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "aggregate_kore"
+          ],
+          "description": "Aggregate KORE's structured archive of laboratory dark data into grouped counts and rates, answering cross-record questions that span an entire dataset, such as \"which facility has the highest QC fail rate?\" or \"mean Q30 by instrument\".\n\nUnlike search_kore (which returns up to 10 individual records), this tool returns one summary row per group across ALL matching records, so it is the correct tool for any aggregate, ranking, or cross-facility comparison.\n\nWhen authenticated, aggregates real records from the user's own KORE workspace. When unauthenticated, or when the query mentions \"demo\", \"synthetic\", \"example\", \"dark95\", or \"fixture\", aggregates the synthetic dark95_v4 demo corpus. Demo responses begin with a \"⚠️ SYNTHETIC DEMO DATA\" line and demo groups are tagged \"[SYNTHETIC DEMO: dark95_v4]\". Results returned without those tags are the user's real workspace data.\n\ngroup_by must be one of: facility, instrument, protocol, organism. metric must be one of: count, qc-fail-rate, mean-q30 (count = number of records per group; qc-fail-rate = fraction of QC-graded records that failed; mean-q30 = average Q30 fraction).",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "search_kore",
+      "get_record",
+      "aggregate_kore"
+    ]
+  }
+}

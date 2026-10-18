@@ -1,0 +1,3916 @@
+{
+  "slug": "onx-offroad",
+  "source_url": "https://manufact.com/mcp-catalog/onx-offroad",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-18T00:00:58.672Z",
+    "endpoint": "https://www.onxmaps.com/claude/offroad/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "offroad-claude",
+      "version": "0.1.0"
+    },
+    "capabilities": {
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "get_offroad_trail_list",
+            "title": "Show Offroad Trail List",
+            "description": "Searches onX Offroad for a list of offroad trails, routes, or roads matching the provided filters and renders an inline results widget with trail names, technical ratings, length, elevation, and photos. Use when the user asks for a list of offroad trails, routes, or roads. Do NOT use for hiking trails, ski trails, campgrounds, points of interest, or other entity types. If the user says \"near me\" or similar, send the approximate location you already know for the user as location.near (city level is fine) and put their city in searchedPlace. Ask the user where to search only if you genuinely have no location for them. Difficulty requests (\"easy\", \"moderate\", \"difficult\", \"extreme\") go in technicalRating as integer bounds, never in q. For follow-up requests that refine an earlier search in this conversation (\"show me only the easy ones\", \"shorter ones\", \"show more\") you MUST re-send the SAME location object and searchedPlace you used in the previous call - do not drop them.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "q": {
+                  "type": "string",
+                  "maxLength": 256,
+                  "description": "OPTIONAL text search over trail names, descriptions, and features. Use for a trail name (\"Hell's Revenge\") or a distinctive feature (\"scenic\", \"rock crawling\", \"water crossing\"). Do NOT put difficulty words here (easy, beginner, moderate, intermediate, difficult, hard, extreme) - those MUST go in technicalRating. Do NOT include generic terms like \"offroad trails\" or \"4x4 trails\" - omit this parameter entirely for general location searches."
+                },
+                "location": {
+                  "type": "object",
+                  "properties": {
+                    "near": {
+                      "type": "object",
+                      "properties": {
+                        "distance": {
+                          "type": "number",
+                          "maximum": 500000,
+                          "description": "CRITICAL: Distance MUST be in METERS, NOT miles or kilometers! DO NOT pass the raw number from the user query - you MUST convert it first!\n\nCONVERSION FORMULAS:\n- Miles to meters: multiply by 1609 (e.g., 50 miles = 50 × 1609 = 80450 meters)\n- Kilometers to meters: multiply by 1000 (e.g., 50 km = 50 × 1000 = 50000 meters)\n\nCOMMON CONVERSIONS:\n- 10 miles = 16090 meters\n- 25 miles = 40225 meters\n- 50 miles = 80450 meters (RECOMMENDED DEFAULT)\n- 100 miles = 160900 meters\n- 50 km = 50000 meters\n- 100 km = 100000 meters\n\nEXAMPLES:\n✅ CORRECT: User says \"within 50 miles\" → distance: 80450\n❌ WRONG: User says \"within 50 miles\" → distance: 50\n\nMINIMUM: 80000 meters (approximately 50 miles) - smaller values will be rejected."
+                        },
+                        "lat": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90,
+                          "description": "Latitude in decimal degrees"
+                        },
+                        "lon": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180,
+                          "description": "Longitude in decimal degrees"
+                        }
+                      },
+                      "required": [
+                        "distance",
+                        "lat",
+                        "lon"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "withinBounds": {
+                      "type": "object",
+                      "properties": {
+                        "bottom": {
+                          "type": "number"
+                        },
+                        "left": {
+                          "type": "number"
+                        },
+                        "right": {
+                          "type": "number"
+                        },
+                        "top": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "bottom",
+                        "left",
+                        "right",
+                        "top"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Where to search. REQUIRED for every search except a pure name lookup via q - never call with filters and no location. Geocode named places to lat/lon (e.g. \"near Moab\" → lat 38.5733, lon -109.5498) and send the name in searchedPlace; if you know the place but not its coordinates, send searchedPlace alone and the tool resolves it. Distance MUST be in meters (50 miles = 80450m). For follow-up requests that refine an earlier search in this conversation (\"show me only the easy ones\", \"shorter ones\", \"show more\") you MUST re-send the SAME location object and searchedPlace you used in the previous call - do not drop them."
+                },
+                "searchedPlace": {
+                  "type": "string",
+                  "maxLength": 120,
+                  "description": "The place the search is for, as the user named it (e.g. \"Moab, Utah\", \"Moab\", \"near Sedona\"). ALWAYS include this whenever you send location. When location is omitted, the tool resolves this name to coordinates itself, so include the state for ambiguous names (\"Springfield, MO\"). Echoed back so follow-up calls can carry the same place; re-send it together with location on refinements."
+                },
+                "technicalRating": {
+                  "type": "object",
+                  "properties": {
+                    "eq": {
+                      "type": "integer",
+                      "description": "Equals filter"
+                    },
+                    "gt": {
+                      "type": "integer",
+                      "description": "Greater than filter"
+                    },
+                    "lt": {
+                      "type": "integer",
+                      "description": "Less than filter"
+                    },
+                    "gte": {
+                      "type": "integer",
+                      "description": "Greater than or equal filter"
+                    },
+                    "lte": {
+                      "type": "integer",
+                      "description": "Less than or equal filter"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Filter by technical difficulty rating, an INTEGER from 1 (easiest) to 10 (most extreme). ALWAYS use this (never q) when the user mentions difficulty. Map words to ranges: \"easy\"/\"beginner\" → { lte: 3 }; \"moderate\"/\"intermediate\" → { gte: 4, lte: 6 }; \"difficult\"/\"hard\" → { gte: 7, lte: 8 }; \"extreme\" → { gte: 9 }; \"rated under 5\" → { lt: 5 }; \"rated 6\" → { eq: 6 }."
+                },
+                "allowedWidths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "FIFTY_INCH",
+                      "SIXTY_INCH",
+                      "SINGLE_TRACK",
+                      "HIGH_CLEARANCE",
+                      "FULL_WIDTH",
+                      "SNOWMOBILE"
+                    ]
+                  },
+                  "description": "Filter trails by the vehicle width class they allow. Send an array of class names. Map the user's vehicle to a class: FIFTY_INCH = vehicles no wider than 50 inches - ATVs, quads, smaller UTVs and side-by-sides; SIXTY_INCH = vehicles no wider than 60 inches - larger UTVs and side-by-sides (SxS); common in newer trail systems; SINGLE_TRACK = narrow trails usually no wider than 24 inches - off-highway motorcycles and dirt bikes; HIGH_CLEARANCE = at least 72 inches wide but needing 8-10 inches of ground clearance - high-clearance 4x4s and trucks, not standard passenger cars; FULL_WIDTH = at least 72 inches wide (often 80-96) - standard passenger vehicles including sedans and low-clearance 2WD/AWD; forest service roads, BLM improved roads, county roads; SNOWMOBILE = trails that accommodate snowmobiles."
+                },
+                "length": {
+                  "type": "object",
+                  "properties": {
+                    "gt": {
+                      "type": "number",
+                      "description": "Greater than filter"
+                    },
+                    "lt": {
+                      "type": "number",
+                      "description": "Less than filter"
+                    },
+                    "between": {
+                      "type": "object",
+                      "properties": {
+                        "min": {
+                          "type": "number"
+                        },
+                        "max": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "Range filter with min and max"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Filter trails by length. Values MUST be in METERS. Convert from miles: multiply by 1609.34. Examples: \"under 10 miles\" → lt: 16093, \"over 20 miles\" → gt: 32187, \"5 to 15 miles\" → between: { min: 8047, max: 24140 }."
+                },
+                "bestSeasons": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "SPRING",
+                      "SUMMER",
+                      "FALL",
+                      "WINTER"
+                    ]
+                  },
+                  "description": "Filter trails by best seasons to ride. Use when a user asks for trails good in a specific season or time of year. Values: SPRING, SUMMER, FALL, WINTER. Examples: \"best winter trails\" → [\"WINTER\"], \"spring and fall trails\" → [\"SPRING\", \"FALL\"]."
+                },
+                "maxItems": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 20,
+                  "description": "Maximum number of trails to display (default: 10, max: 20)"
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "openWorldHint": false,
+              "destructiveHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://widget/get_offroad_trail_list.html"
+              },
+              "ui/resourceUri": "ui://widget/get_offroad_trail_list.html"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "toolName": {
+                  "type": "string",
+                  "const": "get_offroad_trail_list"
+                },
+                "routes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "Unique trail identifier"
+                      },
+                      "name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Trail name"
+                      },
+                      "description": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Trail overview/description"
+                      },
+                      "elevationGain": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "description": "Total elevation gain in METERS"
+                      },
+                      "technicalRating": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Technical difficulty rating as an integer from 1 (easiest) to 10 (most extreme)"
+                      },
+                      "technicalRatingDetails": {
+                        "anyOf": [
+                          {},
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Formatted explanation of the technical rating"
+                      },
+                      "location": {
+                        "anyOf": [
+                          {},
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "GeoJSON Point for the trail location"
+                      },
+                      "length": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "description": "Trail length in METERS (divide by 1609.34 for miles)"
+                      },
+                      "extent": {
+                        "anyOf": [
+                          {},
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Bounding box of the trail geometry"
+                      },
+                      "near": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "state": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "name": {
+                                          "type": [
+                                            "string",
+                                            "null"
+                                          ]
+                                        }
+                                      },
+                                      "additionalProperties": true
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "country": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "abbreviation": {
+                                          "type": [
+                                            "string",
+                                            "null"
+                                          ]
+                                        }
+                                      },
+                                      "additionalProperties": true
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "additionalProperties": true
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Nearby named places (state/country) the trail is in"
+                      },
+                      "amenities": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "slug": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "additionalProperties": true
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Amenities available at or near the trail"
+                      },
+                      "photos": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "contentUrl": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ],
+                                  "description": "Photo URL"
+                                }
+                              },
+                              "additionalProperties": true
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Trail photos"
+                      },
+                      "accessInformation": {
+                        "anyOf": [
+                          {},
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Formatted access/permit information"
+                      },
+                      "bestSeasons": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "not": {}
+                                },
+                                {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Best seasons to ride: SPRING, SUMMER, FALL, WINTER"
+                      },
+                      "allowedWidths": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "not": {}
+                                },
+                                {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Allowed vehicle width classes: SINGLE_TRACK, FIFTY_INCH, SIXTY_INCH, HIGH_CLEARANCE, FULL_WIDTH, SNOWMOBILE"
+                      },
+                      "activityTypes": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "description": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "additionalProperties": true
+                            }
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Activity types supported on the trail"
+                      },
+                      "reportsConnection": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "edges": {
+                                "anyOf": [
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "node": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "details": {
+                                                  "type": [
+                                                    "string",
+                                                    "null"
+                                                  ],
+                                                  "description": "Free-text report details from the rider"
+                                                },
+                                                "observedAt": {
+                                                  "type": [
+                                                    "string",
+                                                    "null"
+                                                  ],
+                                                  "description": "ISO 8601 timestamp of when the conditions were observed"
+                                                },
+                                                "technicalRating": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "integer"
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ],
+                                                  "description": "Difficulty rating (1-10) observed by the reporter"
+                                                },
+                                                "inModeration": {
+                                                  "type": [
+                                                    "boolean",
+                                                    "null"
+                                                  ]
+                                                },
+                                                "reporterProfile": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "name": {
+                                                          "type": [
+                                                            "string",
+                                                            "null"
+                                                          ]
+                                                        }
+                                                      },
+                                                      "additionalProperties": true
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ]
+                                                },
+                                                "access": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "open": {
+                                                          "type": [
+                                                            "boolean",
+                                                            "null"
+                                                          ],
+                                                          "description": "Whether the trail was open"
+                                                        },
+                                                        "scheduleType": {
+                                                          "type": [
+                                                            "string",
+                                                            "null"
+                                                          ]
+                                                        },
+                                                        "accessConditions": {
+                                                          "anyOf": [
+                                                            {
+                                                              "type": "array",
+                                                              "items": {
+                                                                "anyOf": [
+                                                                  {
+                                                                    "not": {}
+                                                                  },
+                                                                  {
+                                                                    "type": [
+                                                                      "string",
+                                                                      "null"
+                                                                    ]
+                                                                  }
+                                                                ]
+                                                              }
+                                                            },
+                                                            {
+                                                              "type": "null"
+                                                            }
+                                                          ]
+                                                        },
+                                                        "expectedOpenDate": {
+                                                          "type": [
+                                                            "string",
+                                                            "null"
+                                                          ]
+                                                        }
+                                                      },
+                                                      "additionalProperties": true
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ]
+                                                },
+                                                "ride": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "make": {
+                                                          "type": [
+                                                            "string",
+                                                            "null"
+                                                          ]
+                                                        },
+                                                        "model": {
+                                                          "type": [
+                                                            "string",
+                                                            "null"
+                                                          ]
+                                                        },
+                                                        "year": {
+                                                          "anyOf": [
+                                                            {
+                                                              "type": "integer"
+                                                            },
+                                                            {
+                                                              "type": "null"
+                                                            }
+                                                          ]
+                                                        },
+                                                        "offroadVehicleLegalClass": {
+                                                          "type": [
+                                                            "string",
+                                                            "null"
+                                                          ]
+                                                        }
+                                                      },
+                                                      "additionalProperties": true
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ],
+                                                  "description": "Vehicle the reporter rode"
+                                                }
+                                              },
+                                              "additionalProperties": true
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "additionalProperties": true
+                                    }
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "additionalProperties": true
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Recent rider-submitted trail condition reports"
+                      }
+                    },
+                    "required": [
+                      "id"
+                    ],
+                    "additionalProperties": true
+                  },
+                  "description": "Matching offroad trails, best match first"
+                },
+                "maxItems": {
+                  "type": "integer",
+                  "description": "Maximum number of trails the widget should display"
+                },
+                "searchLocation": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "placeName": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Human-readable place the search was for, as the user named it (e.g. \"Moab, Utah\"), or \"your current location\" when the host supplied it"
+                        },
+                        "near": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "lat": {
+                                  "type": "number",
+                                  "description": "Latitude the search was centred on"
+                                },
+                                "lon": {
+                                  "type": "number",
+                                  "description": "Longitude the search was centred on"
+                                },
+                                "distanceMeters": {
+                                  "type": "number",
+                                  "description": "Search radius actually used, in meters"
+                                }
+                              },
+                              "required": [
+                                "lat",
+                                "lon",
+                                "distanceMeters"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Set when the search used location.near. Re-send as location.near { lat, lon, distance: distanceMeters }."
+                        },
+                        "withinBounds": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "bottom": {
+                                  "type": "number"
+                                },
+                                "left": {
+                                  "type": "number"
+                                },
+                                "right": {
+                                  "type": "number"
+                                },
+                                "top": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "bottom",
+                                "left",
+                                "right",
+                                "top"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Set when the search used location.withinBounds. Re-send as location.withinBounds."
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Location the search was actually run with (null for a name-only search that had no location). For follow-up requests that refine an earlier search in this conversation (\"show me only the easy ones\", \"shorter ones\", \"show more\") you MUST re-send the SAME location object and searchedPlace you used in the previous call - do not drop them."
+                },
+                "needsLocation": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ],
+                  "description": "True when the search did not run because no location was supplied and no place name could be resolved. Re-send the earlier location, or ask the user where to search."
+                }
+              },
+              "required": [
+                "toolName",
+                "routes",
+                "maxItems"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "get_offroad_trail",
+            "title": "Show Offroad Route Card",
+            "description": "Searches onX Offroad for a single trail by name and renders an inline detail card with photos, length, elevation gain, difficulty, activity types, amenities, access information, and best seasons. Use when the user asks for detail or more info about a specific offroad trail by name (e.g. \"Hell's Revenge\", \"Moab Rim\", \"Fins and Things\"). Do NOT use for hiking trails, ski trails, campgrounds, points of interest, or other entity types.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "q": {
+                  "type": "string",
+                  "maxLength": 256,
+                  "description": "Name or search query for the offroad trail (e.g., \"Hell's Revenge\", \"Moab Rim\")"
+                }
+              },
+              "required": [
+                "q"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "openWorldHint": false,
+              "destructiveHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://widget/get_offroad_trail.html"
+              },
+              "ui/resourceUri": "ui://widget/get_offroad_trail.html"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "entityId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Unique identifier of the matched trail; null when no trail matched"
+                },
+                "entityDetails": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "description": "Unique trail identifier"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Trail name"
+                        },
+                        "description": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Trail overview/description"
+                        },
+                        "elevationGain": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "description": "Total elevation gain in METERS"
+                        },
+                        "technicalRating": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Technical difficulty rating as an integer from 1 (easiest) to 10 (most extreme)"
+                        },
+                        "technicalRatingDetails": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Formatted explanation of the technical rating"
+                        },
+                        "location": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "GeoJSON Point for the trail location"
+                        },
+                        "length": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "description": "Trail length in METERS (divide by 1609.34 for miles)"
+                        },
+                        "extent": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Bounding box of the trail geometry"
+                        },
+                        "near": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "state": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "name": {
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          }
+                                        },
+                                        "additionalProperties": true
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "country": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "abbreviation": {
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          }
+                                        },
+                                        "additionalProperties": true
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": true
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Nearby named places (state/country) the trail is in"
+                        },
+                        "amenities": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "slug": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": true
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Amenities available at or near the trail"
+                        },
+                        "photos": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "contentUrl": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "description": "Photo URL"
+                                  }
+                                },
+                                "additionalProperties": true
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Trail photos"
+                        },
+                        "accessInformation": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Formatted access/permit information"
+                        },
+                        "bestSeasons": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "not": {}
+                                  },
+                                  {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Best seasons to ride: SPRING, SUMMER, FALL, WINTER"
+                        },
+                        "allowedWidths": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "not": {}
+                                  },
+                                  {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Allowed vehicle width classes: SINGLE_TRACK, FIFTY_INCH, SIXTY_INCH, HIGH_CLEARANCE, FULL_WIDTH, SNOWMOBILE"
+                        },
+                        "activityTypes": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "description": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": true
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Activity types supported on the trail"
+                        },
+                        "reportsConnection": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "edges": {
+                                  "anyOf": [
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "node": {
+                                            "anyOf": [
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "details": {
+                                                    "type": [
+                                                      "string",
+                                                      "null"
+                                                    ],
+                                                    "description": "Free-text report details from the rider"
+                                                  },
+                                                  "observedAt": {
+                                                    "type": [
+                                                      "string",
+                                                      "null"
+                                                    ],
+                                                    "description": "ISO 8601 timestamp of when the conditions were observed"
+                                                  },
+                                                  "technicalRating": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "integer"
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ],
+                                                    "description": "Difficulty rating (1-10) observed by the reporter"
+                                                  },
+                                                  "inModeration": {
+                                                    "type": [
+                                                      "boolean",
+                                                      "null"
+                                                    ]
+                                                  },
+                                                  "reporterProfile": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "name": {
+                                                            "type": [
+                                                              "string",
+                                                              "null"
+                                                            ]
+                                                          }
+                                                        },
+                                                        "additionalProperties": true
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ]
+                                                  },
+                                                  "access": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "open": {
+                                                            "type": [
+                                                              "boolean",
+                                                              "null"
+                                                            ],
+                                                            "description": "Whether the trail was open"
+                                                          },
+                                                          "scheduleType": {
+                                                            "type": [
+                                                              "string",
+                                                              "null"
+                                                            ]
+                                                          },
+                                                          "accessConditions": {
+                                                            "anyOf": [
+                                                              {
+                                                                "type": "array",
+                                                                "items": {
+                                                                  "anyOf": [
+                                                                    {
+                                                                      "not": {}
+                                                                    },
+                                                                    {
+                                                                      "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                }
+                                                              },
+                                                              {
+                                                                "type": "null"
+                                                              }
+                                                            ]
+                                                          },
+                                                          "expectedOpenDate": {
+                                                            "type": [
+                                                              "string",
+                                                              "null"
+                                                            ]
+                                                          }
+                                                        },
+                                                        "additionalProperties": true
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ]
+                                                  },
+                                                  "ride": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "make": {
+                                                            "type": [
+                                                              "string",
+                                                              "null"
+                                                            ]
+                                                          },
+                                                          "model": {
+                                                            "type": [
+                                                              "string",
+                                                              "null"
+                                                            ]
+                                                          },
+                                                          "year": {
+                                                            "anyOf": [
+                                                              {
+                                                                "type": "integer"
+                                                              },
+                                                              {
+                                                                "type": "null"
+                                                              }
+                                                            ]
+                                                          },
+                                                          "offroadVehicleLegalClass": {
+                                                            "type": [
+                                                              "string",
+                                                              "null"
+                                                            ]
+                                                          }
+                                                        },
+                                                        "additionalProperties": true
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ],
+                                                    "description": "Vehicle the reporter rode"
+                                                  }
+                                                },
+                                                "additionalProperties": true
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "additionalProperties": true
+                                      }
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "additionalProperties": true
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Recent rider-submitted trail condition reports"
+                        }
+                      },
+                      "required": [
+                        "id"
+                      ],
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Full details of the matched trail; null when no trail matched"
+                },
+                "found": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ],
+                  "description": "False when no trail matched the query"
+                }
+              },
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "get_trail_details_by_id",
+            "title": "Get Trail Details by ID",
+            "description": "Fetches full trail details by trail ID. Used internally to retrieve complete trail information when a user views trail details from a list.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "description": "The unique identifier for the offroad trail"
+                }
+              },
+              "required": [
+                "id"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "openWorldHint": false,
+              "destructiveHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://widget/get_offroad_trail.html",
+                "visibility": [
+                  "app"
+                ]
+              },
+              "ui/resourceUri": "ui://widget/get_offroad_trail.html"
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "toolName": {
+                  "type": "string",
+                  "const": "get_trail_details_by_id"
+                },
+                "entityId": {
+                  "type": "string",
+                  "description": "Unique identifier of the requested trail"
+                },
+                "entityDetails": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "description": "Unique trail identifier"
+                        },
+                        "name": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Trail name"
+                        },
+                        "description": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Trail overview/description"
+                        },
+                        "elevationGain": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "description": "Total elevation gain in METERS"
+                        },
+                        "technicalRating": {
+                          "anyOf": [
+                            {
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Technical difficulty rating as an integer from 1 (easiest) to 10 (most extreme)"
+                        },
+                        "technicalRatingDetails": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Formatted explanation of the technical rating"
+                        },
+                        "location": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "GeoJSON Point for the trail location"
+                        },
+                        "length": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "description": "Trail length in METERS (divide by 1609.34 for miles)"
+                        },
+                        "extent": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Bounding box of the trail geometry"
+                        },
+                        "near": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "state": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "name": {
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          }
+                                        },
+                                        "additionalProperties": true
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "country": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "abbreviation": {
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          }
+                                        },
+                                        "additionalProperties": true
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": true
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Nearby named places (state/country) the trail is in"
+                        },
+                        "amenities": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "slug": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": true
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Amenities available at or near the trail"
+                        },
+                        "photos": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "contentUrl": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ],
+                                    "description": "Photo URL"
+                                  }
+                                },
+                                "additionalProperties": true
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Trail photos"
+                        },
+                        "accessInformation": {
+                          "anyOf": [
+                            {},
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Formatted access/permit information"
+                        },
+                        "bestSeasons": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "not": {}
+                                  },
+                                  {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Best seasons to ride: SPRING, SUMMER, FALL, WINTER"
+                        },
+                        "allowedWidths": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "not": {}
+                                  },
+                                  {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                ]
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Allowed vehicle width classes: SINGLE_TRACK, FIFTY_INCH, SIXTY_INCH, HIGH_CLEARANCE, FULL_WIDTH, SNOWMOBILE"
+                        },
+                        "activityTypes": {
+                          "anyOf": [
+                            {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "description": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "additionalProperties": true
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Activity types supported on the trail"
+                        },
+                        "reportsConnection": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "edges": {
+                                  "anyOf": [
+                                    {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "node": {
+                                            "anyOf": [
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "details": {
+                                                    "type": [
+                                                      "string",
+                                                      "null"
+                                                    ],
+                                                    "description": "Free-text report details from the rider"
+                                                  },
+                                                  "observedAt": {
+                                                    "type": [
+                                                      "string",
+                                                      "null"
+                                                    ],
+                                                    "description": "ISO 8601 timestamp of when the conditions were observed"
+                                                  },
+                                                  "technicalRating": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "integer"
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ],
+                                                    "description": "Difficulty rating (1-10) observed by the reporter"
+                                                  },
+                                                  "inModeration": {
+                                                    "type": [
+                                                      "boolean",
+                                                      "null"
+                                                    ]
+                                                  },
+                                                  "reporterProfile": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "name": {
+                                                            "type": [
+                                                              "string",
+                                                              "null"
+                                                            ]
+                                                          }
+                                                        },
+                                                        "additionalProperties": true
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ]
+                                                  },
+                                                  "access": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "open": {
+                                                            "type": [
+                                                              "boolean",
+                                                              "null"
+                                                            ],
+                                                            "description": "Whether the trail was open"
+                                                          },
+                                                          "scheduleType": {
+                                                            "type": [
+                                                              "string",
+                                                              "null"
+                                                            ]
+                                                          },
+                                                          "accessConditions": {
+                                                            "anyOf": [
+                                                              {
+                                                                "type": "array",
+                                                                "items": {
+                                                                  "anyOf": [
+                                                                    {
+                                                                      "not": {}
+                                                                    },
+                                                                    {
+                                                                      "type": [
+                                                                        "string",
+                                                                        "null"
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                }
+                                                              },
+                                                              {
+                                                                "type": "null"
+                                                              }
+                                                            ]
+                                                          },
+                                                          "expectedOpenDate": {
+                                                            "type": [
+                                                              "string",
+                                                              "null"
+                                                            ]
+                                                          }
+                                                        },
+                                                        "additionalProperties": true
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ]
+                                                  },
+                                                  "ride": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "make": {
+                                                            "type": [
+                                                              "string",
+                                                              "null"
+                                                            ]
+                                                          },
+                                                          "model": {
+                                                            "type": [
+                                                              "string",
+                                                              "null"
+                                                            ]
+                                                          },
+                                                          "year": {
+                                                            "anyOf": [
+                                                              {
+                                                                "type": "integer"
+                                                              },
+                                                              {
+                                                                "type": "null"
+                                                              }
+                                                            ]
+                                                          },
+                                                          "offroadVehicleLegalClass": {
+                                                            "type": [
+                                                              "string",
+                                                              "null"
+                                                            ]
+                                                          }
+                                                        },
+                                                        "additionalProperties": true
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ],
+                                                    "description": "Vehicle the reporter rode"
+                                                  }
+                                                },
+                                                "additionalProperties": true
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "additionalProperties": true
+                                      }
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "additionalProperties": true
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "Recent rider-submitted trail condition reports"
+                        }
+                      },
+                      "required": [
+                        "id"
+                      ],
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Full details of the requested trail; null when no trail has that id"
+                },
+                "found": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ],
+                  "description": "False when no trail has the requested id"
+                }
+              },
+              "required": [
+                "toolName",
+                "entityId"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          },
+          {
+            "name": "track_widget_event",
+            "title": "Track Widget Event",
+            "description": "Tracks a widget analytics event. Used internally by widgets to report user interactions.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "event": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "description": "Analytics event name (e.g. widget_rendered, cta_clicked)"
+                },
+                "params": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": [
+                      "string",
+                      "number",
+                      "boolean"
+                    ]
+                  },
+                  "description": "Event parameters"
+                }
+              },
+              "required": [
+                "event"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            },
+            "annotations": {
+              "readOnlyHint": false,
+              "openWorldHint": false,
+              "destructiveHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            },
+            "_meta": {
+              "ui": {
+                "visibility": [
+                  "app"
+                ]
+              }
+            },
+            "outputSchema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "const": "ok",
+                  "description": "Event was accepted for tracking"
+                }
+              },
+              "required": [
+                "status"
+              ],
+              "additionalProperties": false,
+              "$schema": "http://json-schema.org/draft-07/schema#"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_offroad_trail_list",
+        "title": "Show Offroad Trail List",
+        "description": "Searches onX Offroad for a list of offroad trails, routes, or roads matching the provided filters and renders an inline results widget with trail names, technical ratings, length, elevation, and photos. Use when the user asks for a list of offroad trails, routes, or roads. Do NOT use for hiking trails, ski trails, campgrounds, points of interest, or other entity types. If the user says \"near me\" or similar, send the approximate location you already know for the user as location.near (city level is fine) and put their city in searchedPlace. Ask the user where to search only if you genuinely have no location for them. Difficulty requests (\"easy\", \"moderate\", \"difficult\", \"extreme\") go in technicalRating as integer bounds, never in q. For follow-up requests that refine an earlier search in this conversation (\"show me only the easy ones\", \"shorter ones\", \"show more\") you MUST re-send the SAME location object and searchedPlace you used in the previous call - do not drop them.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string",
+              "maxLength": 256,
+              "description": "OPTIONAL text search over trail names, descriptions, and features. Use for a trail name (\"Hell's Revenge\") or a distinctive feature (\"scenic\", \"rock crawling\", \"water crossing\"). Do NOT put difficulty words here (easy, beginner, moderate, intermediate, difficult, hard, extreme) - those MUST go in technicalRating. Do NOT include generic terms like \"offroad trails\" or \"4x4 trails\" - omit this parameter entirely for general location searches."
+            },
+            "location": {
+              "type": "object",
+              "properties": {
+                "near": {
+                  "type": "object",
+                  "properties": {
+                    "distance": {
+                      "type": "number",
+                      "maximum": 500000,
+                      "description": "CRITICAL: Distance MUST be in METERS, NOT miles or kilometers! DO NOT pass the raw number from the user query - you MUST convert it first!\n\nCONVERSION FORMULAS:\n- Miles to meters: multiply by 1609 (e.g., 50 miles = 50 × 1609 = 80450 meters)\n- Kilometers to meters: multiply by 1000 (e.g., 50 km = 50 × 1000 = 50000 meters)\n\nCOMMON CONVERSIONS:\n- 10 miles = 16090 meters\n- 25 miles = 40225 meters\n- 50 miles = 80450 meters (RECOMMENDED DEFAULT)\n- 100 miles = 160900 meters\n- 50 km = 50000 meters\n- 100 km = 100000 meters\n\nEXAMPLES:\n✅ CORRECT: User says \"within 50 miles\" → distance: 80450\n❌ WRONG: User says \"within 50 miles\" → distance: 50\n\nMINIMUM: 80000 meters (approximately 50 miles) - smaller values will be rejected."
+                    },
+                    "lat": {
+                      "type": "number",
+                      "minimum": -90,
+                      "maximum": 90,
+                      "description": "Latitude in decimal degrees"
+                    },
+                    "lon": {
+                      "type": "number",
+                      "minimum": -180,
+                      "maximum": 180,
+                      "description": "Longitude in decimal degrees"
+                    }
+                  },
+                  "required": [
+                    "distance",
+                    "lat",
+                    "lon"
+                  ],
+                  "additionalProperties": false
+                },
+                "withinBounds": {
+                  "type": "object",
+                  "properties": {
+                    "bottom": {
+                      "type": "number"
+                    },
+                    "left": {
+                      "type": "number"
+                    },
+                    "right": {
+                      "type": "number"
+                    },
+                    "top": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "bottom",
+                    "left",
+                    "right",
+                    "top"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false,
+              "description": "Where to search. REQUIRED for every search except a pure name lookup via q - never call with filters and no location. Geocode named places to lat/lon (e.g. \"near Moab\" → lat 38.5733, lon -109.5498) and send the name in searchedPlace; if you know the place but not its coordinates, send searchedPlace alone and the tool resolves it. Distance MUST be in meters (50 miles = 80450m). For follow-up requests that refine an earlier search in this conversation (\"show me only the easy ones\", \"shorter ones\", \"show more\") you MUST re-send the SAME location object and searchedPlace you used in the previous call - do not drop them."
+            },
+            "searchedPlace": {
+              "type": "string",
+              "maxLength": 120,
+              "description": "The place the search is for, as the user named it (e.g. \"Moab, Utah\", \"Moab\", \"near Sedona\"). ALWAYS include this whenever you send location. When location is omitted, the tool resolves this name to coordinates itself, so include the state for ambiguous names (\"Springfield, MO\"). Echoed back so follow-up calls can carry the same place; re-send it together with location on refinements."
+            },
+            "technicalRating": {
+              "type": "object",
+              "properties": {
+                "eq": {
+                  "type": "integer",
+                  "description": "Equals filter"
+                },
+                "gt": {
+                  "type": "integer",
+                  "description": "Greater than filter"
+                },
+                "lt": {
+                  "type": "integer",
+                  "description": "Less than filter"
+                },
+                "gte": {
+                  "type": "integer",
+                  "description": "Greater than or equal filter"
+                },
+                "lte": {
+                  "type": "integer",
+                  "description": "Less than or equal filter"
+                }
+              },
+              "additionalProperties": false,
+              "description": "Filter by technical difficulty rating, an INTEGER from 1 (easiest) to 10 (most extreme). ALWAYS use this (never q) when the user mentions difficulty. Map words to ranges: \"easy\"/\"beginner\" → { lte: 3 }; \"moderate\"/\"intermediate\" → { gte: 4, lte: 6 }; \"difficult\"/\"hard\" → { gte: 7, lte: 8 }; \"extreme\" → { gte: 9 }; \"rated under 5\" → { lt: 5 }; \"rated 6\" → { eq: 6 }."
+            },
+            "allowedWidths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "FIFTY_INCH",
+                  "SIXTY_INCH",
+                  "SINGLE_TRACK",
+                  "HIGH_CLEARANCE",
+                  "FULL_WIDTH",
+                  "SNOWMOBILE"
+                ]
+              },
+              "description": "Filter trails by the vehicle width class they allow. Send an array of class names. Map the user's vehicle to a class: FIFTY_INCH = vehicles no wider than 50 inches - ATVs, quads, smaller UTVs and side-by-sides; SIXTY_INCH = vehicles no wider than 60 inches - larger UTVs and side-by-sides (SxS); common in newer trail systems; SINGLE_TRACK = narrow trails usually no wider than 24 inches - off-highway motorcycles and dirt bikes; HIGH_CLEARANCE = at least 72 inches wide but needing 8-10 inches of ground clearance - high-clearance 4x4s and trucks, not standard passenger cars; FULL_WIDTH = at least 72 inches wide (often 80-96) - standard passenger vehicles including sedans and low-clearance 2WD/AWD; forest service roads, BLM improved roads, county roads; SNOWMOBILE = trails that accommodate snowmobiles."
+            },
+            "length": {
+              "type": "object",
+              "properties": {
+                "gt": {
+                  "type": "number",
+                  "description": "Greater than filter"
+                },
+                "lt": {
+                  "type": "number",
+                  "description": "Less than filter"
+                },
+                "between": {
+                  "type": "object",
+                  "properties": {
+                    "min": {
+                      "type": "number"
+                    },
+                    "max": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "Range filter with min and max"
+                }
+              },
+              "additionalProperties": false,
+              "description": "Filter trails by length. Values MUST be in METERS. Convert from miles: multiply by 1609.34. Examples: \"under 10 miles\" → lt: 16093, \"over 20 miles\" → gt: 32187, \"5 to 15 miles\" → between: { min: 8047, max: 24140 }."
+            },
+            "bestSeasons": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "SPRING",
+                  "SUMMER",
+                  "FALL",
+                  "WINTER"
+                ]
+              },
+              "description": "Filter trails by best seasons to ride. Use when a user asks for trails good in a specific season or time of year. Values: SPRING, SUMMER, FALL, WINTER. Examples: \"best winter trails\" → [\"WINTER\"], \"spring and fall trails\" → [\"SPRING\", \"FALL\"]."
+            },
+            "maxItems": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20,
+              "description": "Maximum number of trails to display (default: 10, max: 20)"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false,
+          "destructiveHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://widget/get_offroad_trail_list.html"
+          },
+          "ui/resourceUri": "ui://widget/get_offroad_trail_list.html"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "toolName": {
+              "type": "string",
+              "const": "get_offroad_trail_list"
+            },
+            "routes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Unique trail identifier"
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Trail name"
+                  },
+                  "description": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "Trail overview/description"
+                  },
+                  "elevationGain": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "description": "Total elevation gain in METERS"
+                  },
+                  "technicalRating": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Technical difficulty rating as an integer from 1 (easiest) to 10 (most extreme)"
+                  },
+                  "technicalRatingDetails": {
+                    "anyOf": [
+                      {},
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Formatted explanation of the technical rating"
+                  },
+                  "location": {
+                    "anyOf": [
+                      {},
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "GeoJSON Point for the trail location"
+                  },
+                  "length": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "description": "Trail length in METERS (divide by 1609.34 for miles)"
+                  },
+                  "extent": {
+                    "anyOf": [
+                      {},
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Bounding box of the trail geometry"
+                  },
+                  "near": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "name": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": true
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "country": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "abbreviation": {
+                                      "type": [
+                                        "string",
+                                        "null"
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": true
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "additionalProperties": true
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Nearby named places (state/country) the trail is in"
+                  },
+                  "amenities": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "slug": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "additionalProperties": true
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Amenities available at or near the trail"
+                  },
+                  "photos": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "contentUrl": {
+                              "type": [
+                                "string",
+                                "null"
+                              ],
+                              "description": "Photo URL"
+                            }
+                          },
+                          "additionalProperties": true
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Trail photos"
+                  },
+                  "accessInformation": {
+                    "anyOf": [
+                      {},
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Formatted access/permit information"
+                  },
+                  "bestSeasons": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "not": {}
+                            },
+                            {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Best seasons to ride: SPRING, SUMMER, FALL, WINTER"
+                  },
+                  "allowedWidths": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "not": {}
+                            },
+                            {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Allowed vehicle width classes: SINGLE_TRACK, FIFTY_INCH, SIXTY_INCH, HIGH_CLEARANCE, FULL_WIDTH, SNOWMOBILE"
+                  },
+                  "activityTypes": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "description": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "additionalProperties": true
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Activity types supported on the trail"
+                  },
+                  "reportsConnection": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "edges": {
+                            "anyOf": [
+                              {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "node": {
+                                      "anyOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "details": {
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ],
+                                              "description": "Free-text report details from the rider"
+                                            },
+                                            "observedAt": {
+                                              "type": [
+                                                "string",
+                                                "null"
+                                              ],
+                                              "description": "ISO 8601 timestamp of when the conditions were observed"
+                                            },
+                                            "technicalRating": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "integer"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ],
+                                              "description": "Difficulty rating (1-10) observed by the reporter"
+                                            },
+                                            "inModeration": {
+                                              "type": [
+                                                "boolean",
+                                                "null"
+                                              ]
+                                            },
+                                            "reporterProfile": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "name": {
+                                                      "type": [
+                                                        "string",
+                                                        "null"
+                                                      ]
+                                                    }
+                                                  },
+                                                  "additionalProperties": true
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "access": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "open": {
+                                                      "type": [
+                                                        "boolean",
+                                                        "null"
+                                                      ],
+                                                      "description": "Whether the trail was open"
+                                                    },
+                                                    "scheduleType": {
+                                                      "type": [
+                                                        "string",
+                                                        "null"
+                                                      ]
+                                                    },
+                                                    "accessConditions": {
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "anyOf": [
+                                                              {
+                                                                "not": {}
+                                                              },
+                                                              {
+                                                                "type": [
+                                                                  "string",
+                                                                  "null"
+                                                                ]
+                                                              }
+                                                            ]
+                                                          }
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    },
+                                                    "expectedOpenDate": {
+                                                      "type": [
+                                                        "string",
+                                                        "null"
+                                                      ]
+                                                    }
+                                                  },
+                                                  "additionalProperties": true
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "ride": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "make": {
+                                                      "type": [
+                                                        "string",
+                                                        "null"
+                                                      ]
+                                                    },
+                                                    "model": {
+                                                      "type": [
+                                                        "string",
+                                                        "null"
+                                                      ]
+                                                    },
+                                                    "year": {
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "integer"
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    },
+                                                    "offroadVehicleLegalClass": {
+                                                      "type": [
+                                                        "string",
+                                                        "null"
+                                                      ]
+                                                    }
+                                                  },
+                                                  "additionalProperties": true
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ],
+                                              "description": "Vehicle the reporter rode"
+                                            }
+                                          },
+                                          "additionalProperties": true
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "additionalProperties": true
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Recent rider-submitted trail condition reports"
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": true
+              },
+              "description": "Matching offroad trails, best match first"
+            },
+            "maxItems": {
+              "type": "integer",
+              "description": "Maximum number of trails the widget should display"
+            },
+            "searchLocation": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "placeName": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Human-readable place the search was for, as the user named it (e.g. \"Moab, Utah\"), or \"your current location\" when the host supplied it"
+                    },
+                    "near": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "lat": {
+                              "type": "number",
+                              "description": "Latitude the search was centred on"
+                            },
+                            "lon": {
+                              "type": "number",
+                              "description": "Longitude the search was centred on"
+                            },
+                            "distanceMeters": {
+                              "type": "number",
+                              "description": "Search radius actually used, in meters"
+                            }
+                          },
+                          "required": [
+                            "lat",
+                            "lon",
+                            "distanceMeters"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Set when the search used location.near. Re-send as location.near { lat, lon, distance: distanceMeters }."
+                    },
+                    "withinBounds": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "bottom": {
+                              "type": "number"
+                            },
+                            "left": {
+                              "type": "number"
+                            },
+                            "right": {
+                              "type": "number"
+                            },
+                            "top": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "bottom",
+                            "left",
+                            "right",
+                            "top"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Set when the search used location.withinBounds. Re-send as location.withinBounds."
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Location the search was actually run with (null for a name-only search that had no location). For follow-up requests that refine an earlier search in this conversation (\"show me only the easy ones\", \"shorter ones\", \"show more\") you MUST re-send the SAME location object and searchedPlace you used in the previous call - do not drop them."
+            },
+            "needsLocation": {
+              "type": [
+                "boolean",
+                "null"
+              ],
+              "description": "True when the search did not run because no location was supplied and no place name could be resolved. Re-send the earlier location, or ask the user where to search."
+            }
+          },
+          "required": [
+            "toolName",
+            "routes",
+            "maxItems"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get_offroad_trail",
+        "title": "Show Offroad Route Card",
+        "description": "Searches onX Offroad for a single trail by name and renders an inline detail card with photos, length, elevation gain, difficulty, activity types, amenities, access information, and best seasons. Use when the user asks for detail or more info about a specific offroad trail by name (e.g. \"Hell's Revenge\", \"Moab Rim\", \"Fins and Things\"). Do NOT use for hiking trails, ski trails, campgrounds, points of interest, or other entity types.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string",
+              "maxLength": 256,
+              "description": "Name or search query for the offroad trail (e.g., \"Hell's Revenge\", \"Moab Rim\")"
+            }
+          },
+          "required": [
+            "q"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false,
+          "destructiveHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://widget/get_offroad_trail.html"
+          },
+          "ui/resourceUri": "ui://widget/get_offroad_trail.html"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "entityId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Unique identifier of the matched trail; null when no trail matched"
+            },
+            "entityDetails": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Unique trail identifier"
+                    },
+                    "name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Trail name"
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Trail overview/description"
+                    },
+                    "elevationGain": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "description": "Total elevation gain in METERS"
+                    },
+                    "technicalRating": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Technical difficulty rating as an integer from 1 (easiest) to 10 (most extreme)"
+                    },
+                    "technicalRatingDetails": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Formatted explanation of the technical rating"
+                    },
+                    "location": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "GeoJSON Point for the trail location"
+                    },
+                    "length": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "description": "Trail length in METERS (divide by 1609.34 for miles)"
+                    },
+                    "extent": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Bounding box of the trail geometry"
+                    },
+                    "near": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "name": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      }
+                                    },
+                                    "additionalProperties": true
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "country": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "abbreviation": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      }
+                                    },
+                                    "additionalProperties": true
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "additionalProperties": true
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Nearby named places (state/country) the trail is in"
+                    },
+                    "amenities": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "slug": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "additionalProperties": true
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Amenities available at or near the trail"
+                    },
+                    "photos": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "contentUrl": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "description": "Photo URL"
+                              }
+                            },
+                            "additionalProperties": true
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Trail photos"
+                    },
+                    "accessInformation": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Formatted access/permit information"
+                    },
+                    "bestSeasons": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "not": {}
+                              },
+                              {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Best seasons to ride: SPRING, SUMMER, FALL, WINTER"
+                    },
+                    "allowedWidths": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "not": {}
+                              },
+                              {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Allowed vehicle width classes: SINGLE_TRACK, FIFTY_INCH, SIXTY_INCH, HIGH_CLEARANCE, FULL_WIDTH, SNOWMOBILE"
+                    },
+                    "activityTypes": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "description": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "additionalProperties": true
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Activity types supported on the trail"
+                    },
+                    "reportsConnection": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "edges": {
+                              "anyOf": [
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "node": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "details": {
+                                                "type": [
+                                                  "string",
+                                                  "null"
+                                                ],
+                                                "description": "Free-text report details from the rider"
+                                              },
+                                              "observedAt": {
+                                                "type": [
+                                                  "string",
+                                                  "null"
+                                                ],
+                                                "description": "ISO 8601 timestamp of when the conditions were observed"
+                                              },
+                                              "technicalRating": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "integer"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ],
+                                                "description": "Difficulty rating (1-10) observed by the reporter"
+                                              },
+                                              "inModeration": {
+                                                "type": [
+                                                  "boolean",
+                                                  "null"
+                                                ]
+                                              },
+                                              "reporterProfile": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "name": {
+                                                        "type": [
+                                                          "string",
+                                                          "null"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "additionalProperties": true
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "access": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "open": {
+                                                        "type": [
+                                                          "boolean",
+                                                          "null"
+                                                        ],
+                                                        "description": "Whether the trail was open"
+                                                      },
+                                                      "scheduleType": {
+                                                        "type": [
+                                                          "string",
+                                                          "null"
+                                                        ]
+                                                      },
+                                                      "accessConditions": {
+                                                        "anyOf": [
+                                                          {
+                                                            "type": "array",
+                                                            "items": {
+                                                              "anyOf": [
+                                                                {
+                                                                  "not": {}
+                                                                },
+                                                                {
+                                                                  "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                  ]
+                                                                }
+                                                              ]
+                                                            }
+                                                          },
+                                                          {
+                                                            "type": "null"
+                                                          }
+                                                        ]
+                                                      },
+                                                      "expectedOpenDate": {
+                                                        "type": [
+                                                          "string",
+                                                          "null"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "additionalProperties": true
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "ride": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "make": {
+                                                        "type": [
+                                                          "string",
+                                                          "null"
+                                                        ]
+                                                      },
+                                                      "model": {
+                                                        "type": [
+                                                          "string",
+                                                          "null"
+                                                        ]
+                                                      },
+                                                      "year": {
+                                                        "anyOf": [
+                                                          {
+                                                            "type": "integer"
+                                                          },
+                                                          {
+                                                            "type": "null"
+                                                          }
+                                                        ]
+                                                      },
+                                                      "offroadVehicleLegalClass": {
+                                                        "type": [
+                                                          "string",
+                                                          "null"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "additionalProperties": true
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ],
+                                                "description": "Vehicle the reporter rode"
+                                              }
+                                            },
+                                            "additionalProperties": true
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "additionalProperties": true
+                                  }
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "additionalProperties": true
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Recent rider-submitted trail condition reports"
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ],
+                  "additionalProperties": true
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Full details of the matched trail; null when no trail matched"
+            },
+            "found": {
+              "type": [
+                "boolean",
+                "null"
+              ],
+              "description": "False when no trail matched the query"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "get_trail_details_by_id",
+        "title": "Get Trail Details by ID",
+        "description": "Fetches full trail details by trail ID. Used internally to retrieve complete trail information when a user views trail details from a list.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "The unique identifier for the offroad trail"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": false,
+          "destructiveHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://widget/get_offroad_trail.html",
+            "visibility": [
+              "app"
+            ]
+          },
+          "ui/resourceUri": "ui://widget/get_offroad_trail.html"
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "toolName": {
+              "type": "string",
+              "const": "get_trail_details_by_id"
+            },
+            "entityId": {
+              "type": "string",
+              "description": "Unique identifier of the requested trail"
+            },
+            "entityDetails": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Unique trail identifier"
+                    },
+                    "name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Trail name"
+                    },
+                    "description": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Trail overview/description"
+                    },
+                    "elevationGain": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "description": "Total elevation gain in METERS"
+                    },
+                    "technicalRating": {
+                      "anyOf": [
+                        {
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Technical difficulty rating as an integer from 1 (easiest) to 10 (most extreme)"
+                    },
+                    "technicalRatingDetails": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Formatted explanation of the technical rating"
+                    },
+                    "location": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "GeoJSON Point for the trail location"
+                    },
+                    "length": {
+                      "type": [
+                        "number",
+                        "null"
+                      ],
+                      "description": "Trail length in METERS (divide by 1609.34 for miles)"
+                    },
+                    "extent": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Bounding box of the trail geometry"
+                    },
+                    "near": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "name": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      }
+                                    },
+                                    "additionalProperties": true
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "country": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "abbreviation": {
+                                        "type": [
+                                          "string",
+                                          "null"
+                                        ]
+                                      }
+                                    },
+                                    "additionalProperties": true
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "additionalProperties": true
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Nearby named places (state/country) the trail is in"
+                    },
+                    "amenities": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "slug": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "additionalProperties": true
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Amenities available at or near the trail"
+                    },
+                    "photos": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "contentUrl": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "description": "Photo URL"
+                              }
+                            },
+                            "additionalProperties": true
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Trail photos"
+                    },
+                    "accessInformation": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Formatted access/permit information"
+                    },
+                    "bestSeasons": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "not": {}
+                              },
+                              {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Best seasons to ride: SPRING, SUMMER, FALL, WINTER"
+                    },
+                    "allowedWidths": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "not": {}
+                              },
+                              {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Allowed vehicle width classes: SINGLE_TRACK, FIFTY_INCH, SIXTY_INCH, HIGH_CLEARANCE, FULL_WIDTH, SNOWMOBILE"
+                    },
+                    "activityTypes": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "description": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "additionalProperties": true
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Activity types supported on the trail"
+                    },
+                    "reportsConnection": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "edges": {
+                              "anyOf": [
+                                {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "node": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "details": {
+                                                "type": [
+                                                  "string",
+                                                  "null"
+                                                ],
+                                                "description": "Free-text report details from the rider"
+                                              },
+                                              "observedAt": {
+                                                "type": [
+                                                  "string",
+                                                  "null"
+                                                ],
+                                                "description": "ISO 8601 timestamp of when the conditions were observed"
+                                              },
+                                              "technicalRating": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "integer"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ],
+                                                "description": "Difficulty rating (1-10) observed by the reporter"
+                                              },
+                                              "inModeration": {
+                                                "type": [
+                                                  "boolean",
+                                                  "null"
+                                                ]
+                                              },
+                                              "reporterProfile": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "name": {
+                                                        "type": [
+                                                          "string",
+                                                          "null"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "additionalProperties": true
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "access": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "open": {
+                                                        "type": [
+                                                          "boolean",
+                                                          "null"
+                                                        ],
+                                                        "description": "Whether the trail was open"
+                                                      },
+                                                      "scheduleType": {
+                                                        "type": [
+                                                          "string",
+                                                          "null"
+                                                        ]
+                                                      },
+                                                      "accessConditions": {
+                                                        "anyOf": [
+                                                          {
+                                                            "type": "array",
+                                                            "items": {
+                                                              "anyOf": [
+                                                                {
+                                                                  "not": {}
+                                                                },
+                                                                {
+                                                                  "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                  ]
+                                                                }
+                                                              ]
+                                                            }
+                                                          },
+                                                          {
+                                                            "type": "null"
+                                                          }
+                                                        ]
+                                                      },
+                                                      "expectedOpenDate": {
+                                                        "type": [
+                                                          "string",
+                                                          "null"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "additionalProperties": true
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "ride": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "make": {
+                                                        "type": [
+                                                          "string",
+                                                          "null"
+                                                        ]
+                                                      },
+                                                      "model": {
+                                                        "type": [
+                                                          "string",
+                                                          "null"
+                                                        ]
+                                                      },
+                                                      "year": {
+                                                        "anyOf": [
+                                                          {
+                                                            "type": "integer"
+                                                          },
+                                                          {
+                                                            "type": "null"
+                                                          }
+                                                        ]
+                                                      },
+                                                      "offroadVehicleLegalClass": {
+                                                        "type": [
+                                                          "string",
+                                                          "null"
+                                                        ]
+                                                      }
+                                                    },
+                                                    "additionalProperties": true
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ],
+                                                "description": "Vehicle the reporter rode"
+                                              }
+                                            },
+                                            "additionalProperties": true
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "additionalProperties": true
+                                  }
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "additionalProperties": true
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "Recent rider-submitted trail condition reports"
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ],
+                  "additionalProperties": true
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Full details of the requested trail; null when no trail has that id"
+            },
+            "found": {
+              "type": [
+                "boolean",
+                "null"
+              ],
+              "description": "False when no trail has the requested id"
+            }
+          },
+          "required": [
+            "toolName",
+            "entityId"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "track_widget_event",
+        "title": "Track Widget Event",
+        "description": "Tracks a widget analytics event. Used internally by widgets to report user interactions.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "event": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "Analytics event name (e.g. widget_rendered, cta_clicked)"
+            },
+            "params": {
+              "type": "object",
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean"
+                ]
+              },
+              "description": "Event parameters"
+            }
+          },
+          "required": [
+            "event"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "openWorldHint": false,
+          "destructiveHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "_meta": {
+          "ui": {
+            "visibility": [
+              "app"
+            ]
+          }
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "const": "ok",
+              "description": "Event was accepted for tracking"
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-18T00:00:55.452Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-18T00:00:56.501Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-18T00:00:57.551Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-18T00:00:58.602Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 4,
+    "tools_hash": "sha256:b90fbcacbe83a45c3b3c1380b1cf1ce00967af5721572bae1243333203239d4f",
+    "static_tool_tokens": 3975,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "track_widget_event",
+        "message": "Description does not say when to use this tool."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 1,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "get_offroad_trail_list",
+          "path": "inputSchema.properties.length.properties.between.properties.max",
+          "name": "max",
+          "description": "",
+          "mentions_size_or_cost": false
+        },
+        {
+          "tool": "get_offroad_trail_list",
+          "path": "inputSchema.properties.maxItems",
+          "name": "maxItems",
+          "description": "Maximum number of trails to display (default: 10, max: 20)",
+          "mentions_size_or_cost": true,
+          "described_default": 10,
+          "maximum": 20
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get_offroad_trail_list"
+          ],
+          "path": "inputSchema.properties.length.properties.between.properties.max",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_trail_details_by_id"
+          ],
+          "description": "Fetches full trail details by trail ID. Used internally to retrieve complete trail information when a user views trail details from a list.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_offroad_trail_list",
+            "get_offroad_trail"
+          ],
+          "hypothesis": "Read tools share resource terms (offroad, trail), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_offroad_trail_list",
+            "get_trail_details_by_id"
+          ],
+          "hypothesis": "Read tools share resource terms (trail), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_offroad_trail",
+            "get_trail_details_by_id"
+          ],
+          "hypothesis": "Read tools share resource terms (trail), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "get_offroad_trail_list",
+      "get_offroad_trail",
+      "get_trail_details_by_id"
+    ]
+  }
+}

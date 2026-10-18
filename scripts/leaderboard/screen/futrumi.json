@@ -1,0 +1,841 @@
+{
+  "slug": "futrumi",
+  "source_url": "https://manufact.com/mcp-catalog/futrumi",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:41:42.915Z",
+    "endpoint": "https://mcp.futrumi.cz/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "futrumi",
+      "title": "Futrumi — Czech restaurant recommendations",
+      "version": "0.1.1"
+    },
+    "capabilities": {
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "instructions": "Futrumi serves Czech-language expert recommendations for restaurants, cafes, bars, and similar venues. Recommendations come from named food critics and other experts. When presenting results, keep expert quotes in the original Czech to preserve the expert's voice.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "search_recommendations",
+            "title": "Search expert recommendations",
+            "description": "Search and rank expert-recommended restaurants/cafes/bars/etc around a location. Use this when the user asks for a specific cuisine, meal, occasion, vibe, or category (\"good ramen in Vinohrady\", \"brunch in Brno\", \"vinný bar na rande\"). Pass the user intent in `query`; the server ranks candidates by semantic-ish food/occasion relevance before returning markdown. The data is Czech-only and includes only PUBLISHED recommendations.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "query": {
+                  "description": "Natural-language intent to rank results by, e.g. \"ramen\", \"vietnamská\", \"brunch\", \"na rande\", \"levný oběd\", \"vinný bar\".",
+                  "type": "string"
+                },
+                "locationQuery": {
+                  "description": "Place name to search around, e.g. \"Praha 7\", \"Holešovice\", \"Brno-střed\". Use this if you don't have explicit coordinates.",
+                  "type": "string"
+                },
+                "latitude": {
+                  "description": "Latitude in WGS84.",
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "longitude": {
+                  "description": "Longitude in WGS84.",
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                "radiusMeters": {
+                  "description": "Search radius in meters. If omitted, the server uses 2000 m for points/neighborhoods and a larger city-aware radius for city names like Praha or Brno.",
+                  "type": "integer",
+                  "minimum": 100,
+                  "maximum": 50000
+                },
+                "expert_id": {
+                  "description": "Optional. Restrict to recommendations from a specific expert (by id).",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 30,
+                  "description": "Maximum number of recommendations to return. Default 30. Increase only if you really need more candidates.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "find_recommendations_near",
+            "title": "Find recommended places near a location",
+            "description": "Geo-only lookup: return expert-recommended businesses near a point, sorted by distance. Use this when the user just wants to know \"what good places are around X\" without a specific cuisine/category. For category- or vibe-specific queries use search_recommendations instead. Returns markdown.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "locationQuery": {
+                  "description": "Place name, e.g. \"Náměstí Míru\", \"Brno-Královo Pole\".",
+                  "type": "string"
+                },
+                "latitude": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "longitude": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                "radiusMeters": {
+                  "description": "Search radius in meters. If omitted, the server uses 1500 m for points/neighborhoods and a larger city-aware radius for city names like Praha or Brno.",
+                  "type": "integer",
+                  "minimum": 100,
+                  "maximum": 50000
+                },
+                "openNow": {
+                  "default": false,
+                  "description": "If true, only return businesses currently open.",
+                  "type": "boolean"
+                },
+                "limit": {
+                  "default": 25,
+                  "description": "Max businesses to return. Bump to 40-50 for dense areas like Holešovice or Brno center.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "top_businesses",
+            "title": "Top recommended businesses in an area",
+            "description": "Leaderboard: the businesses in an area with the most Futrumi experts recommending them, ranked by that count. Use for \"which places are most recommended in X\", \"best rated restaurants in X\", \"top cafes around X\". For a cuisine, vibe or occasion use search_recommendations; for nearest places use find_recommendations_near; for how many recommendations an expert wrote use list_experts. Returns markdown.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "locationQuery": {
+                  "description": "Place, city or region to rank within, e.g. \"Brno\", \"Jihomoravský kraj\".",
+                  "type": "string"
+                },
+                "latitude": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "longitude": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                "radiusMeters": {
+                  "description": "Search radius in meters. If omitted, the server uses 5000 m for points and a larger place-aware radius for cities and regions. The radius is a circle around the resolved centre, so results are the surrounding area, not an exact municipal boundary.",
+                  "type": "integer",
+                  "minimum": 100,
+                  "maximum": 50000
+                },
+                "businessType": {
+                  "description": "Keep only this primary business type, e.g. \"kavárna\", \"restaurace\", \"bar\".",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 10,
+                  "description": "How many businesses the leaderboard returns.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 25
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_recommendation",
+            "title": "Get full recommendation detail",
+            "description": "Return the full text of a single expert recommendation including the strong quote, the long description, meals with their descriptions and photos, any other photos, publish date, and business basics. Use after search_recommendations when the user wants more depth on one specific tip.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "recommendation_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Recommendation id (the `rec` value returned by search_recommendations)."
+                }
+              },
+              "required": [
+                "recommendation_id"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_business",
+            "title": "Get full business detail",
+            "description": "Return full details for a single business: address, opening hours, web/menu/phone/social links, featured quotes, photos (venue, per-dish, and other expert photos), and every expert recommendation about it. Use when the user is zeroing in on one place or wants to see its photos.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "business_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Business id (the `id` value returned by search/find tools)."
+                },
+                "latitude": {
+                  "description": "Optional. User location — populates the distance field on the response.",
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "longitude": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                }
+              },
+              "required": [
+                "business_id"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "get_expert",
+            "title": "Get expert profile",
+            "description": "Return an expert's bio plus a list of their recommendations (business name, address, quote, meals). Use when the user asks about a specific expert.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "expert_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Expert id (the `expert id` value returned by list_experts)."
+                },
+                "limit": {
+                  "default": 30,
+                  "description": "Maximum recommendations to fetch for this expert.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50
+                }
+              },
+              "required": [
+                "expert_id"
+              ]
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          },
+          {
+            "name": "list_experts",
+            "title": "List Futrumi experts",
+            "description": "Paginated directory of all Futrumi experts with their bio and recommendation count. Use this when the user asks who's behind the recommendations, or wants to browse by expert.",
+            "inputSchema": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "pageNumber": {
+                  "default": 0,
+                  "description": "0-based page number.",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "pageSize": {
+                  "default": 20,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50
+                }
+              }
+            },
+            "annotations": {
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "execution": {
+              "taskSupport": "forbidden"
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "search_recommendations",
+        "title": "Search expert recommendations",
+        "description": "Search and rank expert-recommended restaurants/cafes/bars/etc around a location. Use this when the user asks for a specific cuisine, meal, occasion, vibe, or category (\"good ramen in Vinohrady\", \"brunch in Brno\", \"vinný bar na rande\"). Pass the user intent in `query`; the server ranks candidates by semantic-ish food/occasion relevance before returning markdown. The data is Czech-only and includes only PUBLISHED recommendations.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "query": {
+              "description": "Natural-language intent to rank results by, e.g. \"ramen\", \"vietnamská\", \"brunch\", \"na rande\", \"levný oběd\", \"vinný bar\".",
+              "type": "string"
+            },
+            "locationQuery": {
+              "description": "Place name to search around, e.g. \"Praha 7\", \"Holešovice\", \"Brno-střed\". Use this if you don't have explicit coordinates.",
+              "type": "string"
+            },
+            "latitude": {
+              "description": "Latitude in WGS84.",
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "longitude": {
+              "description": "Longitude in WGS84.",
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "radiusMeters": {
+              "description": "Search radius in meters. If omitted, the server uses 2000 m for points/neighborhoods and a larger city-aware radius for city names like Praha or Brno.",
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 50000
+            },
+            "expert_id": {
+              "description": "Optional. Restrict to recommendations from a specific expert (by id).",
+              "type": "string"
+            },
+            "limit": {
+              "default": 30,
+              "description": "Maximum number of recommendations to return. Default 30. Increase only if you really need more candidates.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "find_recommendations_near",
+        "title": "Find recommended places near a location",
+        "description": "Geo-only lookup: return expert-recommended businesses near a point, sorted by distance. Use this when the user just wants to know \"what good places are around X\" without a specific cuisine/category. For category- or vibe-specific queries use search_recommendations instead. Returns markdown.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "locationQuery": {
+              "description": "Place name, e.g. \"Náměstí Míru\", \"Brno-Královo Pole\".",
+              "type": "string"
+            },
+            "latitude": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "longitude": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "radiusMeters": {
+              "description": "Search radius in meters. If omitted, the server uses 1500 m for points/neighborhoods and a larger city-aware radius for city names like Praha or Brno.",
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 50000
+            },
+            "openNow": {
+              "default": false,
+              "description": "If true, only return businesses currently open.",
+              "type": "boolean"
+            },
+            "limit": {
+              "default": 25,
+              "description": "Max businesses to return. Bump to 40-50 for dense areas like Holešovice or Brno center.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "top_businesses",
+        "title": "Top recommended businesses in an area",
+        "description": "Leaderboard: the businesses in an area with the most Futrumi experts recommending them, ranked by that count. Use for \"which places are most recommended in X\", \"best rated restaurants in X\", \"top cafes around X\". For a cuisine, vibe or occasion use search_recommendations; for nearest places use find_recommendations_near; for how many recommendations an expert wrote use list_experts. Returns markdown.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "locationQuery": {
+              "description": "Place, city or region to rank within, e.g. \"Brno\", \"Jihomoravský kraj\".",
+              "type": "string"
+            },
+            "latitude": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "longitude": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "radiusMeters": {
+              "description": "Search radius in meters. If omitted, the server uses 5000 m for points and a larger place-aware radius for cities and regions. The radius is a circle around the resolved centre, so results are the surrounding area, not an exact municipal boundary.",
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 50000
+            },
+            "businessType": {
+              "description": "Keep only this primary business type, e.g. \"kavárna\", \"restaurace\", \"bar\".",
+              "type": "string"
+            },
+            "limit": {
+              "default": 10,
+              "description": "How many businesses the leaderboard returns.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 25
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_recommendation",
+        "title": "Get full recommendation detail",
+        "description": "Return the full text of a single expert recommendation including the strong quote, the long description, meals with their descriptions and photos, any other photos, publish date, and business basics. Use after search_recommendations when the user wants more depth on one specific tip.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "recommendation_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Recommendation id (the `rec` value returned by search_recommendations)."
+            }
+          },
+          "required": [
+            "recommendation_id"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_business",
+        "title": "Get full business detail",
+        "description": "Return full details for a single business: address, opening hours, web/menu/phone/social links, featured quotes, photos (venue, per-dish, and other expert photos), and every expert recommendation about it. Use when the user is zeroing in on one place or wants to see its photos.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "business_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Business id (the `id` value returned by search/find tools)."
+            },
+            "latitude": {
+              "description": "Optional. User location — populates the distance field on the response.",
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "longitude": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            }
+          },
+          "required": [
+            "business_id"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "get_expert",
+        "title": "Get expert profile",
+        "description": "Return an expert's bio plus a list of their recommendations (business name, address, quote, meals). Use when the user asks about a specific expert.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "expert_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Expert id (the `expert id` value returned by list_experts)."
+            },
+            "limit": {
+              "default": 30,
+              "description": "Maximum recommendations to fetch for this expert.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          "required": [
+            "expert_id"
+          ]
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      },
+      {
+        "name": "list_experts",
+        "title": "List Futrumi experts",
+        "description": "Paginated directory of all Futrumi experts with their bio and recommendation count. Use this when the user asks who's behind the recommendations, or wants to browse by expert.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "pageNumber": {
+              "default": 0,
+              "description": "0-based page number.",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "pageSize": {
+              "default": 20,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "execution": {
+          "taskSupport": "forbidden"
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:41:39.564Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:41:40.616Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:41:41.668Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:41:42.718Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 7,
+    "tools_hash": "sha256:9efa4929f4d8dbbf3b6b7f0eac77ebfbd67dcb7125e9a0609cc3227e78bc479a",
+    "static_tool_tokens": 2942,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "search_recommendations",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "find_recommendations_near",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "find_recommendations_near",
+        "message": "Parameter has no description.",
+        "param": "latitude"
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "find_recommendations_near",
+        "message": "Parameter has no description.",
+        "param": "longitude"
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "top_businesses",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "top_businesses",
+        "message": "Parameter has no description.",
+        "param": "latitude"
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "top_businesses",
+        "message": "Parameter has no description.",
+        "param": "longitude"
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_recommendation",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_business",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_business",
+        "message": "Parameter has no description.",
+        "param": "longitude"
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_expert",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_experts",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "list_experts",
+        "message": "Parameter has no description.",
+        "param": "pageSize"
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 13,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "search_recommendations",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Maximum number of recommendations to return. Default 30. Increase only if you really need more candidates.",
+          "mentions_size_or_cost": true,
+          "default": 30,
+          "described_default": 30,
+          "maximum": 50
+        },
+        {
+          "tool": "find_recommendations_near",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max businesses to return. Bump to 40-50 for dense areas like Holešovice or Brno center.",
+          "mentions_size_or_cost": true,
+          "default": 25,
+          "maximum": 50
+        },
+        {
+          "tool": "top_businesses",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "How many businesses the leaderboard returns.",
+          "mentions_size_or_cost": true,
+          "default": 10,
+          "maximum": 25
+        },
+        {
+          "tool": "get_expert",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Maximum recommendations to fetch for this expert.",
+          "mentions_size_or_cost": true,
+          "default": 30,
+          "maximum": 50
+        },
+        {
+          "tool": "list_experts",
+          "path": "inputSchema.properties.pageSize",
+          "name": "pageSize",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": 20,
+          "maximum": 50
+        }
+      ],
+      "flags": [
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "list_experts"
+          ],
+          "path": "inputSchema.properties.pageSize",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "list_experts"
+          ],
+          "description": "Paginated directory of all Futrumi experts with their bio and recommendation count. Use this when the user asks who's behind the recommendations, or wants to browse by expert.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "find_recommendations_near",
+            "get_recommendation"
+          ],
+          "hypothesis": "Read tools share resource terms (recommendation), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_expert",
+            "list_experts"
+          ],
+          "hypothesis": "Read tools share resource terms (expert), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "search_recommendations",
+      "find_recommendations_near",
+      "top_businesses",
+      "get_recommendation",
+      "get_business",
+      "get_expert",
+      "list_experts"
+    ]
+  }
+}

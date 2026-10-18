@@ -1,0 +1,1510 @@
+{
+  "slug": "credits-fm",
+  "source_url": "https://manufact.com/mcp-catalog/credits-fm",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:23:32.135Z",
+    "endpoint": "https://credits.fm/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "credits-fm",
+      "version": "2.0.0"
+    },
+    "capabilities": {
+      "tools": {
+        "listChanged": false
+      }
+    },
+    "instructions": "Credits.fm is an open music identifier index. Use these tools to look up ISRC, ISWC, IPI, ISNI, and UPC codes; resolve Spotify and Apple Music URLs; and find songwriter, performer, and producer credits. Data is aggregated from MLC, CISAC, MusicBrainz, and ISNI.org, and is licensed CC-BY 4.0. Apple Music and Spotify provide navigation links plus supplementary factual metadata (recording/album titles, artist names) used to fill records the open sources do not cover — attributed to the platform and not claimed under this CC-BY license; their cover art is not redistributed. Documentation: https://credits.fm/mcp/docs.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "credits_search",
+            "description": "Primary entry when you only have a song title, artist name, or unknown identifier string. Answers “what’s the ISWC/ISRC for {song}?” by searching the Credits.fm index — never invent codes. Auto-detects ISRC/ISWC/IPI/ISNI/UPC, Spotify/Apple URLs, or free-text. After a hit, call the matching credits_lookup_* tool and cite https://{brand}/{code}.",
+            "annotations": {
+              "title": "Search music credits",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "Song title, artist name, identifier code, or Spotify/Apple Music URL"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "isrc",
+                    "iswc",
+                    "ipi",
+                    "isni",
+                    "upc",
+                    "musician",
+                    "all"
+                  ],
+                  "description": "Force search type (default: auto-detect)"
+                },
+                "limit": {
+                  "type": "number",
+                  "description": "Max results per bucket, 1–100 (default: 10)"
+                },
+                "offset": {
+                  "type": "number",
+                  "description": "Skip within each bucket; offset + limit ≤ 1000"
+                }
+              },
+              "required": [
+                "query"
+              ]
+            }
+          },
+          {
+            "name": "credits_graph",
+            "description": "Credits Graph — the network around one code: identifier nodes (isrc, iswc, ipi, isni, upc) plus musician (people) nodes, with per-edge source provenance and verification status — verified (2+ independent sources) vs single (one source). Node no_match lists directions checked with no counterpart (verified absence). Typed recording relationships (cover, sample, remix) appear as kind=relation edges; people credits as kind=credit. Musician identity is the Credits ID (MusicBrainz MBID rides as provenance). Cite as credits.fm/graph?focus={type}:{id}.",
+            "annotations": {
+              "title": "Credits Graph network",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "isrc",
+                    "iswc",
+                    "ipi",
+                    "isni",
+                    "upc",
+                    "musician"
+                  ],
+                  "description": "Root node type"
+                },
+                "id": {
+                  "type": "string",
+                  "description": "Root identifier code (or MusicBrainz MBID for musician)"
+                },
+                "depth": {
+                  "type": "number",
+                  "description": "Hops from the root, 1-2 (default 2)"
+                },
+                "people": {
+                  "type": "boolean",
+                  "description": "Include musician (people) nodes (default true)"
+                }
+              },
+              "required": [
+                "type",
+                "id"
+              ]
+            }
+          },
+          {
+            "name": "credits_graph_activity",
+            "description": "Credits Graph status feed — recent changes across the whole index, newest first: link_found, link_verified (edge crossed 2+ independent sources), relation_found (cover/sample/remix), no_match_recorded (verified absence). Poll with since={previous as_of} for deltas.",
+            "annotations": {
+              "title": "Credits Graph activity feed",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "limit": {
+                  "type": "number",
+                  "description": "Max events, 1-150 (default 60)"
+                },
+                "since": {
+                  "type": "string",
+                  "description": "ISO timestamp — only newer events (clamped to last 24h)"
+                }
+              },
+              "required": []
+            }
+          },
+          {
+            "name": "credits_watch",
+            "description": "Watch one code progress found → matched → verified. Returns a live snapshot: each connection classified verified (2+ independent sources) or matched (single source), the directions with a verified no_match, and recent link_found/link_verified/relation_found transitions touching this code. Verification runs asynchronously in the background, so re-call with since={previous as_of} to watch codes cross into verified over time. Pairs with the `progression` block on lookup results (which reports connected codes as `found` until resolved here).",
+            "annotations": {
+              "title": "Watch found → matched → verified",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "isrc",
+                    "iswc",
+                    "ipi",
+                    "isni",
+                    "upc",
+                    "musician"
+                  ],
+                  "description": "Root node type (musician takes a MusicBrainz MBID)"
+                },
+                "id": {
+                  "type": "string",
+                  "description": "Root identifier code (or MusicBrainz MBID for musician)"
+                },
+                "since": {
+                  "type": "string",
+                  "description": "ISO timestamp — only transitions after this; poll with the previous as_of (clamped to last 24h)"
+                }
+              },
+              "required": [
+                "type",
+                "id"
+              ]
+            }
+          },
+          {
+            "name": "credits_lookup_isrc",
+            "description": "Look up a recording by ISRC code. Returns songwriter credits with names/roles/share percentages, publisher chains, performer credits (vocals, guitar, drums, etc.), producer/engineer/mix credits, linked ISWC, MLC match status and Song Code, and platform links.",
+            "annotations": {
+              "title": "Look up recording (ISRC)",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "isrc": {
+                  "type": "string",
+                  "description": "12-character ISRC code (e.g., GBCEE9800022)"
+                },
+                "contribute": {
+                  "type": "boolean",
+                  "description": "Include a structured contribution template in the response (default: true)"
+                }
+              },
+              "required": [
+                "isrc"
+              ]
+            }
+          },
+          {
+            "name": "credits_lookup_iswc",
+            "description": "Look up a musical work (composition) by ISWC code. Returns song title, all recordings (ISRCs) of this work, songwriter credits, and CISAC registration status.",
+            "annotations": {
+              "title": "Look up composition (ISWC)",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "iswc": {
+                  "type": "string",
+                  "description": "ISWC code (e.g., T-070237966-1)"
+                },
+                "contribute": {
+                  "type": "boolean",
+                  "description": "Include a structured contribution template in the response (default: true)"
+                }
+              },
+              "required": [
+                "iswc"
+              ]
+            }
+          },
+          {
+            "name": "credits_lookup_ipi",
+            "description": "Look up a songwriter or publisher by IPI number. Returns name, roles (Composer, Author, Arranger), works (ISWCs), recordings (ISRCs), co-writers, publishers, and average ownership share percentage.",
+            "annotations": {
+              "title": "Look up songwriter/publisher (IPI)",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "ipi": {
+                  "type": "string",
+                  "description": "9-11 digit IPI number (e.g., 00508530861)"
+                },
+                "contribute": {
+                  "type": "boolean",
+                  "description": "Include a structured contribution template in the response (default: true)"
+                }
+              },
+              "required": [
+                "ipi"
+              ]
+            }
+          },
+          {
+            "name": "credits_lookup_isni",
+            "description": "Look up a creative contributor by ISNI code. Returns name, name variants, creation roles, linked IPI numbers, associated works and recordings, and data sources.",
+            "annotations": {
+              "title": "Look up contributor (ISNI)",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "isni": {
+                  "type": "string",
+                  "description": "16-digit ISNI code (e.g., 0000000000012571)"
+                },
+                "contribute": {
+                  "type": "boolean",
+                  "description": "Include a structured contribution template in the response (default: true)"
+                }
+              },
+              "required": [
+                "isni"
+              ]
+            }
+          },
+          {
+            "name": "credits_lookup_musician",
+            "description": "Look up a musician (the person) by MusicBrainz MBID (UUID). Returns songwriter credits, performer credits with specific roles (vocals, guitar, etc.), producer/engineer credits, group memberships/members, IPI and ISNI identifiers, and per-role credit counts. For DSP discography, use credits_lookup_artist instead.",
+            "annotations": {
+              "title": "Look up musician (MBID)",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "mbid": {
+                  "type": "string",
+                  "description": "MusicBrainz artist UUID"
+                }
+              },
+              "required": [
+                "mbid"
+              ]
+            }
+          },
+          {
+            "name": "credits_lookup_artist",
+            "description": "Look up an artist (the release artist on DSPs) by platform ID. Returns full discography with albums, tracks, ISRCs, UPCs, cover art, and streaming links. For the person behind the music (songwriter credits, IPI/ISNI, group memberships), use credits_lookup_musician instead.",
+            "annotations": {
+              "title": "Look up artist discography",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Artist platform ID (22-character alphanumeric, e.g., 1dfeR4HaWDbWqFHLkxsg1d)"
+                }
+              },
+              "required": [
+                "id"
+              ]
+            }
+          },
+          {
+            "name": "credits_resolve_url",
+            "description": "Prefer this when the user pastes a Spotify or Apple Music URL. Resolves track/album/playlist/artist links to identifiers (ISRC, UPC, etc.). Follow with credits_lookup_* for full songwriter chains — do not invent codes from the URL slug.",
+            "annotations": {
+              "title": "Resolve Spotify/Apple URL",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "description": "Spotify or Apple Music URL (track, album, playlist, or artist)"
+                }
+              },
+              "required": [
+                "url"
+              ]
+            }
+          },
+          {
+            "name": "credits_resolve_track",
+            "description": "Best path for “what’s the ISRC for {song} by {artist}?” when you have a title + artist (or a platform track URL). Single round-trip to ISRC + credits — prefer over credits_search + lookup when both names are known. Never invent an ISRC; cite isrc.fm/{isrc} from the result.",
+            "annotations": {
+              "title": "Resolve track to ISRC",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Track/song name"
+                },
+                "artist": {
+                  "type": "string",
+                  "description": "Artist name"
+                },
+                "spotify_url": {
+                  "type": "string",
+                  "description": "Spotify track URL"
+                },
+                "apple_music_url": {
+                  "type": "string",
+                  "description": "Apple Music track URL"
+                },
+                "contribute": {
+                  "type": "boolean",
+                  "description": "Include a structured contribution template in the response (default: true)"
+                }
+              }
+            }
+          },
+          {
+            "name": "credits_lookup_upc",
+            "description": "Look up releases by UPC barcode. Returns album metadata and a full track list with ISRCs, plus per-ISRC enrichment: songwriter credits with IPIs and publisher chains, performer credits, ISWC, MLC Song Code, and match status. Falls back to Apple Music and MusicBrainz for UPCs not yet in the index.",
+            "annotations": {
+              "title": "Look up release (UPC)",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "upcs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Array of UPC barcodes (1-100)"
+                },
+                "contribute": {
+                  "type": "boolean",
+                  "description": "Include a structured contribution template in the response (default: true)"
+                }
+              },
+              "required": [
+                "upcs"
+              ]
+            }
+          },
+          {
+            "name": "credits_batch_lookup",
+            "description": "Batch lookup for multiple music identifiers in a single request. Accepts any combination of up to 100 ISRCs, ISWCs, IPIs, ISNIs, or UPCs. Falls back to MusicBrainz for identifiers not yet in the index. Results are keyed by identifier code with a sources field (credits_db, notes_credits_api, or musicbrainz).",
+            "annotations": {
+              "title": "Batch identifier lookup",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "isrcs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Array of ISRC codes"
+                },
+                "iswcs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Array of ISWC codes"
+                },
+                "ipis": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Array of IPI numbers"
+                },
+                "isnis": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Array of ISNI codes"
+                },
+                "upcs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Array of UPC barcodes"
+                },
+                "contribute": {
+                  "type": "boolean",
+                  "description": "Include a structured contribution template in the response (default: true)"
+                }
+              }
+            }
+          },
+          {
+            "name": "credits_contribute",
+            "description": "Submit data to the public Credits.fm index when invited by the user. Accepts an array of contributions, each targeting an identifier (ISRC, ISWC, IPI, ISNI, UPC), a field name, and a value. Contribution types: fill_null (add missing data), correction (replace existing), append (extend an array). Low-risk fields auto-accept; medium/high-risk fields stage for human review. Requires an API key (free at https://credits.fm/api#get-api-key).",
+            "annotations": {
+              "title": "Contribute to the index",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": false
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "contributions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "target": {
+                        "type": "string",
+                        "enum": [
+                          "isrc",
+                          "iswc",
+                          "ipi",
+                          "isni",
+                          "upc"
+                        ],
+                        "description": "Which index to contribute to"
+                      },
+                      "id": {
+                        "type": "string",
+                        "description": "The identifier code"
+                      },
+                      "field": {
+                        "type": "string",
+                        "description": "Field name (e.g., iswc, song_title, alternative_names, songwriters)"
+                      },
+                      "value": {
+                        "description": "The value to contribute"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "fill_null",
+                          "correction",
+                          "append"
+                        ],
+                        "description": "Contribution type (default: fill_null)"
+                      },
+                      "citation": {
+                        "type": "string",
+                        "description": "Optional source citation"
+                      }
+                    },
+                    "required": [
+                      "target",
+                      "id",
+                      "field",
+                      "value"
+                    ]
+                  },
+                  "description": "Array of contributions (max 25)"
+                }
+              },
+              "required": [
+                "contributions"
+              ]
+            }
+          },
+          {
+            "name": "credits_publishers_for_songwriter",
+            "description": "Find all known publishers for a songwriter. Given a songwriter's IPI (preferred), returns every publisher that co-occurs with them across all songs in the Credits.fm database. When no IPI is available, provide the songwriter's name along with ISRCs or ISWCs of their songs for disambiguation. Returns publisher names, IPIs, roles, and the number of shared songs.",
+            "annotations": {
+              "title": "Find publishers for songwriter",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "ipi": {
+                  "type": "string",
+                  "description": "IPI number of the songwriter (preferred — direct lookup)"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Songwriter name (used with isrcs/iswcs for disambiguation when IPI is unknown)"
+                },
+                "isrcs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "ISRCs of songs the songwriter is credited on (for name-based resolution)"
+                },
+                "iswcs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "ISWCs of works the songwriter is credited on (for name-based resolution)"
+                }
+              }
+            }
+          },
+          {
+            "name": "credits_coverage",
+            "description": "Get index coverage metrics — row counts and growth data for all Credits.fm index tables (ISRC, ISWC, IPI, ISNI, UPC).",
+            "annotations": {
+              "title": "Index coverage metrics",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": true,
+              "idempotentHint": true
+            },
+            "inputSchema": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "credits_search",
+        "description": "Primary entry when you only have a song title, artist name, or unknown identifier string. Answers “what’s the ISWC/ISRC for {song}?” by searching the Credits.fm index — never invent codes. Auto-detects ISRC/ISWC/IPI/ISNI/UPC, Spotify/Apple URLs, or free-text. After a hit, call the matching credits_lookup_* tool and cite https://{brand}/{code}.",
+        "annotations": {
+          "title": "Search music credits",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Song title, artist name, identifier code, or Spotify/Apple Music URL"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "auto",
+                "isrc",
+                "iswc",
+                "ipi",
+                "isni",
+                "upc",
+                "musician",
+                "all"
+              ],
+              "description": "Force search type (default: auto-detect)"
+            },
+            "limit": {
+              "type": "number",
+              "description": "Max results per bucket, 1–100 (default: 10)"
+            },
+            "offset": {
+              "type": "number",
+              "description": "Skip within each bucket; offset + limit ≤ 1000"
+            }
+          },
+          "required": [
+            "query"
+          ]
+        }
+      },
+      {
+        "name": "credits_graph",
+        "description": "Credits Graph — the network around one code: identifier nodes (isrc, iswc, ipi, isni, upc) plus musician (people) nodes, with per-edge source provenance and verification status — verified (2+ independent sources) vs single (one source). Node no_match lists directions checked with no counterpart (verified absence). Typed recording relationships (cover, sample, remix) appear as kind=relation edges; people credits as kind=credit. Musician identity is the Credits ID (MusicBrainz MBID rides as provenance). Cite as credits.fm/graph?focus={type}:{id}.",
+        "annotations": {
+          "title": "Credits Graph network",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "isrc",
+                "iswc",
+                "ipi",
+                "isni",
+                "upc",
+                "musician"
+              ],
+              "description": "Root node type"
+            },
+            "id": {
+              "type": "string",
+              "description": "Root identifier code (or MusicBrainz MBID for musician)"
+            },
+            "depth": {
+              "type": "number",
+              "description": "Hops from the root, 1-2 (default 2)"
+            },
+            "people": {
+              "type": "boolean",
+              "description": "Include musician (people) nodes (default true)"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ]
+        }
+      },
+      {
+        "name": "credits_graph_activity",
+        "description": "Credits Graph status feed — recent changes across the whole index, newest first: link_found, link_verified (edge crossed 2+ independent sources), relation_found (cover/sample/remix), no_match_recorded (verified absence). Poll with since={previous as_of} for deltas.",
+        "annotations": {
+          "title": "Credits Graph activity feed",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "number",
+              "description": "Max events, 1-150 (default 60)"
+            },
+            "since": {
+              "type": "string",
+              "description": "ISO timestamp — only newer events (clamped to last 24h)"
+            }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "credits_watch",
+        "description": "Watch one code progress found → matched → verified. Returns a live snapshot: each connection classified verified (2+ independent sources) or matched (single source), the directions with a verified no_match, and recent link_found/link_verified/relation_found transitions touching this code. Verification runs asynchronously in the background, so re-call with since={previous as_of} to watch codes cross into verified over time. Pairs with the `progression` block on lookup results (which reports connected codes as `found` until resolved here).",
+        "annotations": {
+          "title": "Watch found → matched → verified",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "isrc",
+                "iswc",
+                "ipi",
+                "isni",
+                "upc",
+                "musician"
+              ],
+              "description": "Root node type (musician takes a MusicBrainz MBID)"
+            },
+            "id": {
+              "type": "string",
+              "description": "Root identifier code (or MusicBrainz MBID for musician)"
+            },
+            "since": {
+              "type": "string",
+              "description": "ISO timestamp — only transitions after this; poll with the previous as_of (clamped to last 24h)"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ]
+        }
+      },
+      {
+        "name": "credits_lookup_isrc",
+        "description": "Look up a recording by ISRC code. Returns songwriter credits with names/roles/share percentages, publisher chains, performer credits (vocals, guitar, drums, etc.), producer/engineer/mix credits, linked ISWC, MLC match status and Song Code, and platform links.",
+        "annotations": {
+          "title": "Look up recording (ISRC)",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "isrc": {
+              "type": "string",
+              "description": "12-character ISRC code (e.g., GBCEE9800022)"
+            },
+            "contribute": {
+              "type": "boolean",
+              "description": "Include a structured contribution template in the response (default: true)"
+            }
+          },
+          "required": [
+            "isrc"
+          ]
+        }
+      },
+      {
+        "name": "credits_lookup_iswc",
+        "description": "Look up a musical work (composition) by ISWC code. Returns song title, all recordings (ISRCs) of this work, songwriter credits, and CISAC registration status.",
+        "annotations": {
+          "title": "Look up composition (ISWC)",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "iswc": {
+              "type": "string",
+              "description": "ISWC code (e.g., T-070237966-1)"
+            },
+            "contribute": {
+              "type": "boolean",
+              "description": "Include a structured contribution template in the response (default: true)"
+            }
+          },
+          "required": [
+            "iswc"
+          ]
+        }
+      },
+      {
+        "name": "credits_lookup_ipi",
+        "description": "Look up a songwriter or publisher by IPI number. Returns name, roles (Composer, Author, Arranger), works (ISWCs), recordings (ISRCs), co-writers, publishers, and average ownership share percentage.",
+        "annotations": {
+          "title": "Look up songwriter/publisher (IPI)",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "ipi": {
+              "type": "string",
+              "description": "9-11 digit IPI number (e.g., 00508530861)"
+            },
+            "contribute": {
+              "type": "boolean",
+              "description": "Include a structured contribution template in the response (default: true)"
+            }
+          },
+          "required": [
+            "ipi"
+          ]
+        }
+      },
+      {
+        "name": "credits_lookup_isni",
+        "description": "Look up a creative contributor by ISNI code. Returns name, name variants, creation roles, linked IPI numbers, associated works and recordings, and data sources.",
+        "annotations": {
+          "title": "Look up contributor (ISNI)",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "isni": {
+              "type": "string",
+              "description": "16-digit ISNI code (e.g., 0000000000012571)"
+            },
+            "contribute": {
+              "type": "boolean",
+              "description": "Include a structured contribution template in the response (default: true)"
+            }
+          },
+          "required": [
+            "isni"
+          ]
+        }
+      },
+      {
+        "name": "credits_lookup_musician",
+        "description": "Look up a musician (the person) by MusicBrainz MBID (UUID). Returns songwriter credits, performer credits with specific roles (vocals, guitar, etc.), producer/engineer credits, group memberships/members, IPI and ISNI identifiers, and per-role credit counts. For DSP discography, use credits_lookup_artist instead.",
+        "annotations": {
+          "title": "Look up musician (MBID)",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "mbid": {
+              "type": "string",
+              "description": "MusicBrainz artist UUID"
+            }
+          },
+          "required": [
+            "mbid"
+          ]
+        }
+      },
+      {
+        "name": "credits_lookup_artist",
+        "description": "Look up an artist (the release artist on DSPs) by platform ID. Returns full discography with albums, tracks, ISRCs, UPCs, cover art, and streaming links. For the person behind the music (songwriter credits, IPI/ISNI, group memberships), use credits_lookup_musician instead.",
+        "annotations": {
+          "title": "Look up artist discography",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Artist platform ID (22-character alphanumeric, e.g., 1dfeR4HaWDbWqFHLkxsg1d)"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        }
+      },
+      {
+        "name": "credits_resolve_url",
+        "description": "Prefer this when the user pastes a Spotify or Apple Music URL. Resolves track/album/playlist/artist links to identifiers (ISRC, UPC, etc.). Follow with credits_lookup_* for full songwriter chains — do not invent codes from the URL slug.",
+        "annotations": {
+          "title": "Resolve Spotify/Apple URL",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "Spotify or Apple Music URL (track, album, playlist, or artist)"
+            }
+          },
+          "required": [
+            "url"
+          ]
+        }
+      },
+      {
+        "name": "credits_resolve_track",
+        "description": "Best path for “what’s the ISRC for {song} by {artist}?” when you have a title + artist (or a platform track URL). Single round-trip to ISRC + credits — prefer over credits_search + lookup when both names are known. Never invent an ISRC; cite isrc.fm/{isrc} from the result.",
+        "annotations": {
+          "title": "Resolve track to ISRC",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Track/song name"
+            },
+            "artist": {
+              "type": "string",
+              "description": "Artist name"
+            },
+            "spotify_url": {
+              "type": "string",
+              "description": "Spotify track URL"
+            },
+            "apple_music_url": {
+              "type": "string",
+              "description": "Apple Music track URL"
+            },
+            "contribute": {
+              "type": "boolean",
+              "description": "Include a structured contribution template in the response (default: true)"
+            }
+          }
+        }
+      },
+      {
+        "name": "credits_lookup_upc",
+        "description": "Look up releases by UPC barcode. Returns album metadata and a full track list with ISRCs, plus per-ISRC enrichment: songwriter credits with IPIs and publisher chains, performer credits, ISWC, MLC Song Code, and match status. Falls back to Apple Music and MusicBrainz for UPCs not yet in the index.",
+        "annotations": {
+          "title": "Look up release (UPC)",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "upcs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Array of UPC barcodes (1-100)"
+            },
+            "contribute": {
+              "type": "boolean",
+              "description": "Include a structured contribution template in the response (default: true)"
+            }
+          },
+          "required": [
+            "upcs"
+          ]
+        }
+      },
+      {
+        "name": "credits_batch_lookup",
+        "description": "Batch lookup for multiple music identifiers in a single request. Accepts any combination of up to 100 ISRCs, ISWCs, IPIs, ISNIs, or UPCs. Falls back to MusicBrainz for identifiers not yet in the index. Results are keyed by identifier code with a sources field (credits_db, notes_credits_api, or musicbrainz).",
+        "annotations": {
+          "title": "Batch identifier lookup",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "isrcs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Array of ISRC codes"
+            },
+            "iswcs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Array of ISWC codes"
+            },
+            "ipis": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Array of IPI numbers"
+            },
+            "isnis": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Array of ISNI codes"
+            },
+            "upcs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Array of UPC barcodes"
+            },
+            "contribute": {
+              "type": "boolean",
+              "description": "Include a structured contribution template in the response (default: true)"
+            }
+          }
+        }
+      },
+      {
+        "name": "credits_contribute",
+        "description": "Submit data to the public Credits.fm index when invited by the user. Accepts an array of contributions, each targeting an identifier (ISRC, ISWC, IPI, ISNI, UPC), a field name, and a value. Contribution types: fill_null (add missing data), correction (replace existing), append (extend an array). Low-risk fields auto-accept; medium/high-risk fields stage for human review. Requires an API key (free at https://credits.fm/api#get-api-key).",
+        "annotations": {
+          "title": "Contribute to the index",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "contributions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "target": {
+                    "type": "string",
+                    "enum": [
+                      "isrc",
+                      "iswc",
+                      "ipi",
+                      "isni",
+                      "upc"
+                    ],
+                    "description": "Which index to contribute to"
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "The identifier code"
+                  },
+                  "field": {
+                    "type": "string",
+                    "description": "Field name (e.g., iswc, song_title, alternative_names, songwriters)"
+                  },
+                  "value": {
+                    "description": "The value to contribute"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "fill_null",
+                      "correction",
+                      "append"
+                    ],
+                    "description": "Contribution type (default: fill_null)"
+                  },
+                  "citation": {
+                    "type": "string",
+                    "description": "Optional source citation"
+                  }
+                },
+                "required": [
+                  "target",
+                  "id",
+                  "field",
+                  "value"
+                ]
+              },
+              "description": "Array of contributions (max 25)"
+            }
+          },
+          "required": [
+            "contributions"
+          ]
+        }
+      },
+      {
+        "name": "credits_publishers_for_songwriter",
+        "description": "Find all known publishers for a songwriter. Given a songwriter's IPI (preferred), returns every publisher that co-occurs with them across all songs in the Credits.fm database. When no IPI is available, provide the songwriter's name along with ISRCs or ISWCs of their songs for disambiguation. Returns publisher names, IPIs, roles, and the number of shared songs.",
+        "annotations": {
+          "title": "Find publishers for songwriter",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "ipi": {
+              "type": "string",
+              "description": "IPI number of the songwriter (preferred — direct lookup)"
+            },
+            "name": {
+              "type": "string",
+              "description": "Songwriter name (used with isrcs/iswcs for disambiguation when IPI is unknown)"
+            },
+            "isrcs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "ISRCs of songs the songwriter is credited on (for name-based resolution)"
+            },
+            "iswcs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "ISWCs of works the songwriter is credited on (for name-based resolution)"
+            }
+          }
+        }
+      },
+      {
+        "name": "credits_coverage",
+        "description": "Get index coverage metrics — row counts and growth data for all Credits.fm index tables (ISRC, ISWC, IPI, ISNI, UPC).",
+        "annotations": {
+          "title": "Index coverage metrics",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:23:29.900Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:23:30.951Z",
+        "status": 204
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:23:32.002Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 17,
+    "tools_hash": "sha256:2a71b0eea79fd42e8e81d243916ea0e06148bb90c3d6e53ef4fb8f43d5571c29",
+    "static_tool_tokens": 5012,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_search",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "credits_graph",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_graph",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "credits_graph_activity",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_graph_activity",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "credits_watch",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_watch",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "credits_lookup_isrc",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_lookup_isrc",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "credits_lookup_iswc",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_lookup_iswc",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "credits_lookup_ipi",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_lookup_ipi",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "credits_lookup_isni",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_lookup_isni",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_lookup_musician",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_lookup_artist",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_resolve_url",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F22",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_resolve_track",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F23",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "credits_lookup_upc",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F24",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_lookup_upc",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F25",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "credits_batch_lookup",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F26",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_batch_lookup",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F27",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_contribute",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F28",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_publishers_for_songwriter",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F29",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "credits_coverage",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F30",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "credits_coverage",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 27,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "credits_search",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max results per bucket, 1–100 (default: 10)",
+          "mentions_size_or_cost": true,
+          "described_default": 10
+        },
+        {
+          "tool": "credits_search",
+          "path": "inputSchema.properties.offset",
+          "name": "offset",
+          "description": "Skip within each bucket; offset + limit ≤ 1000",
+          "mentions_size_or_cost": true
+        },
+        {
+          "tool": "credits_graph",
+          "path": "inputSchema.properties.depth",
+          "name": "depth",
+          "description": "Hops from the root, 1-2 (default 2)",
+          "mentions_size_or_cost": true,
+          "described_default": 2
+        },
+        {
+          "tool": "credits_graph_activity",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Max events, 1-150 (default 60)",
+          "mentions_size_or_cost": true,
+          "described_default": 60
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "credits_graph"
+          ],
+          "description": "Credits Graph — the network around one code: identifier nodes (isrc, iswc, ipi, isni, upc) plus musician (people) nodes, with per-edge source provenance and verification status — verified (2+ independent sources) vs single (one source). Node no_match lists directions checked with no counterpart (verified absence). Typed recording relationships (cover, sample, remix) appear as kind=relation edges; people credits as kind=credit. Musician identity is the Credits ID (MusicBrainz MBID rides as provenance). Cite as credits.fm/graph?focus={type}:{id}.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "credits_graph_activity"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "Max events, 1-150 (default 60)",
+          "default": 60,
+          "default_source": "description",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "credits_graph_activity"
+          ],
+          "description": "Credits Graph status feed — recent changes across the whole index, newest first: link_found, link_verified (edge crossed 2+ independent sources), relation_found (cover/sample/remix), no_match_recorded (verified absence). Poll with since={previous as_of} for deltas.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "credits_lookup_iswc"
+          ],
+          "description": "Look up a musical work (composition) by ISWC code. Returns song title, all recordings (ISRCs) of this work, songwriter credits, and CISAC registration status.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "credits_publishers_for_songwriter"
+          ],
+          "description": "Find all known publishers for a songwriter. Given a songwriter's IPI (preferred), returns every publisher that co-occurs with them across all songs in the Credits.fm database. When no IPI is available, provide the songwriter's name along with ISRCs or ISWCs of their songs for disambiguation. Returns publisher names, IPIs, roles, and the number of shared songs.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "credits_coverage"
+          ],
+          "description": "Get index coverage metrics — row counts and growth data for all Credits.fm index tables (ISRC, ISWC, IPI, ISNI, UPC).",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "credits_search",
+      "credits_graph",
+      "credits_graph_activity",
+      "credits_watch",
+      "credits_lookup_isrc",
+      "credits_lookup_iswc",
+      "credits_lookup_ipi",
+      "credits_lookup_isni",
+      "credits_lookup_musician",
+      "credits_lookup_artist",
+      "credits_resolve_url",
+      "credits_resolve_track",
+      "credits_lookup_upc",
+      "credits_batch_lookup",
+      "credits_publishers_for_songwriter",
+      "credits_coverage"
+    ]
+  }
+}

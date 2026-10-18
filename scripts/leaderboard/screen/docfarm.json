@@ -1,0 +1,2063 @@
+{
+  "slug": "docfarm",
+  "source_url": "https://manufact.com/mcp-catalog/docfarm",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:38:13.366Z",
+    "endpoint": "https://mcp.doc.farm/",
+    "transport": "streamable",
+    "server": {
+      "name": "docfarm",
+      "version": "1.0.0"
+    },
+    "capabilities": {
+      "resources": {},
+      "tools": {}
+    },
+    "instructions": "Docfarm is the user's document-sharing farm. You can read, edit, share and track any doc they own or have been added to as a collaborator. What you can do for them:\n\nWhich farm\n  • list_accounts: the farms this connection reaches. One person can hold two, a work account and a personal one, connected in docfarm but kept entirely separate (docs, links, viewers and analytics never mix).\n  • Every other tool takes an optional `account` naming the farm to act on. Omit it for the signed-in farm. Call list_accounts first whenever a request could concern either farm, or when the user says \"my personal\", \"my work\" or names an address that is not the signed-in one. Do not guess which farm a doc belongs in; if it is ambiguous and the answer matters, ask.\n\nMake a page\n  • get_build_brief: call once per conversation before writing any HTML. Returns the house standard plus this person's brand, their colours, fonts and logo tokens.\n  • suggest_link: before you publish a NEW doc, the link it would get. Show it to the person and ask whether they want a different ending, the part after the last slash, then pass their pick to host_html_content as slug. Naming the link before anyone has it costs nothing; changing it later breaks the copies already sent.\n  • host_html_content: publish HTML and get a share link. Only the exact same name updates an existing doc in place and keeps its link. A similar name makes a new doc.\n  • get_upload_url + finalize_upload: two-step upload for a large file already on disk, so the bytes skip the model's context. Needs an outbound HTTP PUT; host_html_content works everywhere.\n  • duplicate_doc: server-side copy of any readable doc into the user's farm, the fast path for 'a version of X for Y' (copy, then patch the differences).\n  • rebuild_doc + check_rebuild: rebuild a PDF or PowerPoint the user already has on docfarm into a live page built to the house standard.\n\nRead and edit\n  • list_docs: the docs the user owns, then the docs shared with them and how an edit to each behaves.\n  • get_doc_html: the current HTML of any doc they can reach, owned or shared. Read it before you patch.\n  • get_doc_url: a time-limited download URL for the raw file, PDFs included.\n  • patch_doc: the default for ANY edit. Replace one snippet with before_snippet and after_snippet, or several at once with a `patches` array, which lands atomically. About 50 tokens instead of 7,000 for a re-host. Never re-host to make a change.\n  • show_doc: open a doc inside the chat as a live view. In Claude the page renders in the conversation and the person can switch on Edit text, click any heading or paragraph, retype it and save. Call it when they ask to see, preview, check or hand-edit a doc, and whenever they paste a doc.farm link: open the doc with show_doc first, then answer. host_html_content, patch_doc and duplicate_doc show the same view on their own, so do not call show_doc right after them; do still give the share link in words, because text-only hosts see nothing else.\n  • Editing a doc the user does not own: if the owner allowed direct overwrite the patch lands on their doc; otherwise patch_doc forks it into a copy the user owns. The owner is not notified.\n\nShare, protect and track\n  • get_doc_status: the share link, total and unique views, average time, when it was last opened, and the most recent viewers with their time and pages. Use it for 'who saw it', 'how is it doing', and to draft a follow-up that refers to what each person actually read. Owner only.\n  • update_doc_settings: password, ask viewers for their email before they see the doc, downloads, owner notifications, and `title` to rename, which keeps the link. `new_slug` changes the link itself and breaks the old one, so the first call only returns a warning to pass on, and the change needs a second call with confirm_new_link true after the person says yes.\n  • invite_collaborator: share a doc by email so it lands in their farm. Needs the email AND allow_overwrite (edit directly, or copy on edit); ask for either if missing, never guess.\n  • delete_doc: permanent and irreversible. Confirm first when in doubt.\n\nMeta\n  • whats_possible: this overview again.\n  • get_skills: load a Docfarm skill, written instructions for a task. docfarm/onboarding is the short tour for someone who has just connected. When the person asks to use a Docfarm skill by name, load it and follow it.\n\nFuzzy-match doc names; people rarely type the exact title. Live editing tip: the docfarm viewer refreshes itself when a doc changes, so before a round of patches suggest the user keep the share URL open in a tab and watch each edit land. The URL is in every get_doc_html and get_doc_status answer.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "whats_possible",
+            "description": "Show a grouped overview of everything docfarm can do for the user — reading, editing, sharing, tracking, drafting follow-ups, and collaborating. Call this when the user asks 'what can you do?', 'what does docfarm do?', 'show me what's possible', 'help', or similar capability questions. Cheap and self-contained — no doc lookup needed.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            },
+            "title": "What docfarm can do",
+            "annotations": {
+              "title": "What docfarm can do",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_skills",
+            "description": "Load a Docfarm skill, written instructions for a task that you then follow. docfarm/onboarding is the short tour for someone who has just connected Docfarm. Pass `id` (one id, or an array) for the full skill, `query` to search by keyword, or nothing to list every skill by name and description. When the person asks to use a Docfarm skill by name, call this with that id first.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ],
+                  "description": "One skill id such as \"docfarm/onboarding\", or several. Returns the full skill."
+                },
+                "query": {
+                  "type": "string",
+                  "description": "What the task is about, in plain words. Ignored when id is set."
+                }
+              },
+              "additionalProperties": false
+            },
+            "title": "Loading skills...",
+            "annotations": {
+              "title": "Loading skills...",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_build_brief",
+            "description": "READ THIS FIRST, before writing a single line of HTML for this user. Returns the docfarm house standard (how to pick the page archetype, type scale, spacing, logo rules, motion, budgets and language rules) plus this user's own brand: their colours, their typefaces, and asset tokens for their real logo and any font file they own. About 3,000 tokens and it is the difference between a page that looks like their company and a generic template. Write any asset token verbatim where the file goes (e.g. <img src=\"DF_ASSET_LOGO_1\">), then pass the same doc name as `brand_from` on host_html_content and docfarm swaps in the real bytes. Never paste base64 yourself: the token is smaller, exact and free. Every page published to docfarm is scored against this standard on the way in, so reading it first is how you score well the first time instead of fixing afterwards.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "doc_name": {
+                  "type": "string",
+                  "description": "Optional. The doc to read the brand from (fuzzy-matched). Omit and docfarm picks the most recent doc in the farm that carries a logo."
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "additionalProperties": false
+            },
+            "title": "House standard and this farm's brand",
+            "annotations": {
+              "title": "House standard and this farm's brand",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "list_docs",
+            "description": "List the user's docs: first the ones they own, each with its share link, then the ones other people shared with them and how an edit to each behaves (overwrites the original, or makes the user's own copy).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "additionalProperties": false
+            },
+            "title": "List your docs",
+            "annotations": {
+              "title": "List your docs",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_doc_status",
+            "description": "Who read a doc and how. Returns the share link, total and unique views, average reading time, when it was last opened, and the ten most recent viewers with their time, pages and whether they read to the end. Use it for 'who saw it', 'how is it doing', 'what is the link', and as the material for a follow-up email that refers to what each person actually read. Owner only; viewer data stays with the doc's owner. Identify the doc via doc_name (fuzzy-matched) or slug.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "doc_name": {
+                  "type": "string",
+                  "description": "Name of the doc (fuzzy-matched). Pass this or slug."
+                },
+                "slug": {
+                  "type": "string",
+                  "description": "The doc's slug or share URL."
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "additionalProperties": false
+            },
+            "title": "View doc stats",
+            "annotations": {
+              "title": "View doc stats",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "update_doc_settings",
+            "description": "Change a doc the user OWNS: password protection (password_on / password_value), ask viewers for their email before viewing (ask_name), allow file downloads (allow_downloads), view notifications for the owner (notify), and the doc's title (title). Only the fields you pass are changed. Renaming changes the display title only and keeps the link. To change the link itself, the part after the last slash, pass new_slug. That breaks the old link for everyone who has it, so the first call changes nothing and returns a warning with both links. Pass it on, and only after the person says yes, call again with the same new_slug and confirm_new_link true. Identify the doc via doc_name (fuzzy-matched) or slug.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "doc_name": {
+                  "type": "string",
+                  "description": "Name of the doc (fuzzy-matched). Pass this or slug."
+                },
+                "slug": {
+                  "type": "string",
+                  "description": "The doc's slug or share URL."
+                },
+                "title": {
+                  "type": "string",
+                  "description": "A new title for the doc (max 500 chars). The link stays the same."
+                },
+                "new_slug": {
+                  "type": "string",
+                  "description": "A new ending for the share link, the part after the last slash. The old link stops working. Without confirm_new_link nothing changes and you get the warning to pass on."
+                },
+                "confirm_new_link": {
+                  "type": "boolean",
+                  "description": "Set true only after the person has seen the warning about the old link and said yes."
+                },
+                "password_on": {
+                  "type": "boolean",
+                  "description": "Require a password to view."
+                },
+                "password_value": {
+                  "type": "string",
+                  "description": "The password. Setting this also turns password_on on."
+                },
+                "ask_name": {
+                  "type": "boolean",
+                  "description": "Ask each viewer for their email before showing the doc. Despite the field name it asks for an email, not a name."
+                },
+                "allow_downloads": {
+                  "type": "boolean",
+                  "description": "Let viewers download the original file."
+                },
+                "notify": {
+                  "type": "boolean",
+                  "description": "Notify the owner on views."
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "additionalProperties": false
+            },
+            "title": "Update doc settings",
+            "annotations": {
+              "title": "Update doc settings",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "delete_doc",
+            "description": "Permanently delete a doc the user OWNS — removes the document, its share link(s), all view/analytics data, chat, comments, suggestions, collaborators, and the stored file. IRREVERSIBLE. Only the owner can delete. Confirm with the user before calling if there's any ambiguity. Identify the doc via `doc_name` (fuzzy-matched) or `slug`.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "doc_name": {
+                  "type": "string",
+                  "description": "Name of the doc to delete."
+                },
+                "slug": {
+                  "type": "string",
+                  "description": "Share-link slug or full URL. Alternative to doc_name."
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "additionalProperties": false
+            },
+            "title": "Delete a doc",
+            "annotations": {
+              "title": "Delete a doc",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "invite_collaborator",
+            "description": "Invite someone to collaborate on a doc the user OWNS, by email, so it lands in their docfarm. If they're already a docfarm user the doc appears in their farm immediately; if not, it waits until they sign up with that address, and the result says whether an invite email went out. REQUIRES the collaborator's `email` AND `allow_overwrite` (true = their edits overwrite the original; false = their edits fork into a copy they own, auto-shared back to the inviter). If you don't have the email, ask for it. If the user hasn't said whether the person should edit directly or only make a copy, ask before calling, don't guess. Identify the doc via `doc_name` (fuzzy-matched) or `slug`.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "doc_name": {
+                  "type": "string",
+                  "description": "Name of the doc to share."
+                },
+                "slug": {
+                  "type": "string",
+                  "description": "Share-link slug or full URL. Alternative to doc_name."
+                },
+                "email": {
+                  "type": "string",
+                  "description": "Email address of the person to invite."
+                },
+                "allow_overwrite": {
+                  "type": "boolean",
+                  "description": "true = collaborator's edits overwrite the original; false = edits fork into a copy they own (auto-shared back to the inviter)."
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "required": [
+                "email",
+                "allow_overwrite"
+              ],
+              "additionalProperties": false
+            },
+            "title": "Invite a collaborator",
+            "annotations": {
+              "title": "Invite a collaborator",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": true
+            }
+          },
+          {
+            "name": "suggest_link",
+            "description": "The share link a NEW doc would get, before you publish it. People want to see and name their link before it exists, because changing it later breaks the copies already sent. So before host_html_content or finalize_upload creates a new doc, call this with the name you will publish under, show the person the full link, and ask whether they want a different ending, the part after the last slash. Pass the ending they settle on to the publish call as `slug`. Skip the question when they already chose the link or asked you to just publish. To check an ending they suggest, pass it as `slug` here. The answer says whether it is free and offers one that is if not. A name that matches one of their docs returns that doc's current link instead, because publishing under it updates that doc and keeps its link.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "The page name you will publish under."
+                },
+                "slug": {
+                  "type": "string",
+                  "description": "Optional. An ending the person suggested, to check. A whole link works too; only the part after the last slash counts. Defaults to one made from the name."
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "title": "Suggest a link",
+            "annotations": {
+              "title": "Suggest a link",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "host_html_content",
+            "description": "Host an HTML doc on docfarm and return its share link. A name that exactly matches an existing doc's title, ignoring case and surrounding spaces, overwrites that doc in place, keeping its share link, password, and view stats, so anyone holding the URL sees the new version. Any other name creates a new doc. A similar but different name, such as \"Pricing\" next to \"Pricing final\", also creates a new doc and leaves the other one untouched, and the response names that doc so you can offer to update it instead. To update a doc, reuse its exact title. Takes the HTML inline, so it works in any environment. For a small change to an existing doc, `get_doc_html` + `patch_doc` sends far less content. Every page is scored against the docfarm house standard on the way in and the score comes back in the response; call `get_build_brief` BEFORE you write the HTML so you meet the standard first time rather than fixing afterwards. Before you publish a NEW doc, call `suggest_link`, show the person the link it returns and ask whether they want a different ending, then pass the ending they settle on as `slug`.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "html": {
+                  "type": "string",
+                  "description": "Full HTML body"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Page name. To update a doc, reuse its exact title, which keeps the share link. A new or merely similar name creates a new doc."
+                },
+                "slug": {
+                  "type": "string",
+                  "description": "Optional. The link ending the person approved through suggest_link, the part after the last slash. Only used when this creates a new doc; an update keeps the doc's link. Omit it to make one from the name."
+                },
+                "replace": {
+                  "type": "boolean",
+                  "description": "Omit normally. Set false to publish a new doc even when the name exactly matches an existing one, which gets a new share link. Set true only when the person asked to replace a doc and you do not have its exact title. It then also overwrites the one doc with a similar name, such as \"Pricing v2\" for \"Pricing\", and publishes nothing when no doc or several docs match."
+                },
+                "brand_from": {
+                  "type": "string",
+                  "description": "Optional. Name of an existing HTML doc in this farm whose brand assets this page uses. Required for any DF_ASSET_ token you wrote to resolve to real bytes. Get the tokens from get_build_brief first, then pass the same doc name here."
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "required": [
+                "html",
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "title": "Host an HTML doc",
+            "annotations": {
+              "title": "Host an HTML doc",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://docfarm/doc-view.html"
+              },
+              "ui/resourceUri": "ui://docfarm/doc-view.html"
+            }
+          },
+          {
+            "name": "duplicate_doc",
+            "description": "Server-side copy of any HTML doc the user can read (their own OR shared with them) into their own farm under a new name. THE fast path for building a modified version of an existing doc: content never passes through your context — duplicate in ~1s, then use patch_doc for the differences. Vastly faster than get_doc_html + re-hosting.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "doc_name": {
+                  "type": "string",
+                  "description": "Source doc name (fuzzy-matched)."
+                },
+                "slug": {
+                  "type": "string",
+                  "description": "Source share-link slug or full URL. Alternative to doc_name."
+                },
+                "new_name": {
+                  "type": "string",
+                  "description": "Name for the copy in the user's farm."
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "required": [
+                "new_name"
+              ],
+              "additionalProperties": false
+            },
+            "title": "Duplicate a doc server-side",
+            "annotations": {
+              "title": "Duplicate a doc server-side",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://docfarm/doc-view.html"
+              },
+              "ui/resourceUri": "ui://docfarm/doc-view.html"
+            }
+          },
+          {
+            "name": "get_upload_url",
+            "description": "Step 1 of 2 for hosting a large HTML file that is already on disk, without sending its bytes through the model's context. Returns a short-lived signed upload URL; upload the file to it with a direct HTTP PUT (Content-Type: text/html), then call `finalize_upload` with the returned upload_path and a doc name. Requires a shell and unrestricted outbound HTTP, so the PUT will not succeed where outbound network access is restricted; `host_html_content` accepts the HTML inline and works in any environment.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            },
+            "title": "Get direct-upload URL",
+            "annotations": {
+              "title": "Get direct-upload URL",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "finalize_upload",
+            "description": "FAST PATH step 2/2: after PUTting the file to the signed URL from `get_upload_url`, call this to publish. NEW name → new doc + share link. Name matching an EXISTING HTML doc → updated in place, same share link. Verifies the uploaded object exists before publishing.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Doc name — same rules as host_html_content (existing name = in-place update)."
+                },
+                "upload_path": {
+                  "type": "string",
+                  "description": "The upload_path value returned by get_upload_url."
+                },
+                "slug": {
+                  "type": "string",
+                  "description": "Optional. The link ending the person approved through suggest_link. Same rules as host_html_content."
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "required": [
+                "name",
+                "upload_path"
+              ],
+              "additionalProperties": false
+            },
+            "title": "Publish an uploaded doc",
+            "annotations": {
+              "title": "Publish an uploaded doc",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://docfarm/doc-view.html"
+              },
+              "ui/resourceUri": "ui://docfarm/doc-view.html"
+            }
+          },
+          {
+            "name": "get_doc_html",
+            "description": "Read the current HTML body of any docfarm HTML doc the user has access to — their own docs OR docs other people have shared with them (as collaborator or via share link). Returns title, share URL, the caller's role (owner / collaborator / reader), and the full HTML. ESSENTIAL precursor to `patch_doc`: call this first whenever the user asks for any change to a doc you don't have in context, so you can see what's there and construct accurate before/after snippets. Pass `doc_name` (easiest, fuzzy-matched) or `slug`. Embedded base64 images are stripped to placeholders by default (huge docs become readable in one call), so hosting a stripped copy back would drop those images from the doc; edit via patch_doc, or re-fetch with strip_data_uris: false for the byte-exact original. Large docs page via offset/max_chars — the response tells you the offset for the next slice.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "doc_name": {
+                  "type": "string",
+                  "description": "Doc name. Fuzzy-matched against the caller's own docs first, then docs they collaborate on."
+                },
+                "slug": {
+                  "type": "string",
+                  "description": "Share-link slug or full URL. Alternative to doc_name."
+                },
+                "offset": {
+                  "type": "number",
+                  "description": "Character offset to start reading from (default 0). Use the value from the previous response's continuation note."
+                },
+                "max_chars": {
+                  "type": "number",
+                  "description": "Max characters to return per call (default 200000, max 500000)."
+                },
+                "strip_data_uris": {
+                  "type": "boolean",
+                  "description": "Default true: base64 data URIs ≥1KB are replaced with short placeholders so content isn't crowded out by embedded images. Pass false for the byte-exact original."
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "additionalProperties": false
+            },
+            "title": "Read a doc's HTML",
+            "annotations": {
+              "title": "Read a doc's HTML",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_doc_url",
+            "description": "Get a time-limited signed URL that downloads the raw file of any doc the user has access to — HTML, PDF, Markdown, anything stored on docfarm. Use this when you need to hand the file off to another tool or LLM, when the user asks for a download link, or when the doc isn't HTML (where get_doc_html doesn't apply). URL expires after `ttl_seconds` (default 3600, max 86400).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "doc_name": {
+                  "type": "string"
+                },
+                "slug": {
+                  "type": "string"
+                },
+                "ttl_seconds": {
+                  "type": "number",
+                  "description": "Lifetime of the signed URL in seconds. Default 3600 (1h), max 86400 (24h)."
+                },
+                "download_filename": {
+                  "type": "string",
+                  "description": "If set, the URL forces a file download with this filename (Content-Disposition: attachment)."
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "additionalProperties": false
+            },
+            "title": "Get download URL",
+            "annotations": {
+              "title": "Get download URL",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "patch_doc",
+            "description": "Edit an existing hosted doc by replacing a snippet of its HTML. DEFAULT TOOL for ANY edit to a doc the user already has — typo, copy change, restyle, new section, anything. ~50 tokens instead of ~7000 for re-hosting. Workflow: (1) if you don't have the current HTML in context, call `get_doc_html` first to read it. (2) construct `before_snippet` as a unique chunk of the existing HTML and `after_snippet` as its replacement. Pass EITHER `doc_name` (easiest) OR `slug`. Ambiguous match → fails with context for each candidate. Preserves share link, password, view counts, comments. Patching sends only the changed snippet, so it costs far less than re-sending a whole doc. For several edits at once (\"fix the typo AND change the CTA AND update the date\") pass a `patches` array instead of before/after: all of them land atomically or none do, each validated after the previous one applied.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "doc_name": {
+                  "type": "string",
+                  "description": "Name of the doc to edit (same name you passed to host_html_content). Use this if you don't have the slug."
+                },
+                "slug": {
+                  "type": "string",
+                  "description": "Share-link slug or full URL. Alternative to doc_name."
+                },
+                "before_snippet": {
+                  "type": "string",
+                  "description": "Exact text to find (must be unique unless occurrence_index given). For a single edit."
+                },
+                "after_snippet": {
+                  "type": "string",
+                  "description": "Replacement text. For a single edit."
+                },
+                "occurrence_index": {
+                  "type": "number",
+                  "description": "0-based index of which match to replace when before_snippet isn't unique"
+                },
+                "patches": {
+                  "type": "array",
+                  "description": "Several edits applied atomically. Use this OR before_snippet/after_snippet.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "before_snippet": {
+                        "type": "string"
+                      },
+                      "after_snippet": {
+                        "type": "string"
+                      },
+                      "occurrence_index": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "before_snippet",
+                      "after_snippet"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "additionalProperties": false
+            },
+            "title": "Edit a doc (snippet patch)",
+            "annotations": {
+              "title": "Edit a doc (snippet patch)",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://docfarm/doc-view.html"
+              },
+              "ui/resourceUri": "ui://docfarm/doc-view.html"
+            }
+          },
+          {
+            "name": "rebuild_doc",
+            "description": "Rebuild a PDF or PowerPoint the user already has on docfarm into a live HTML page built to the house standard, keeping every fact and reorganising the layout so it reads on a phone. This is the retrofit: it does NOT reproduce the original layout, it rewrites the document into one of four archetypes. Takes about three minutes, so this tool STARTS the rebuild and returns immediately with a rebuild_id. Tell the user it is building, then call `check_rebuild` to collect it. PDF and PowerPoint only today. Before you start, ask the user whether they have another doc in their farm whose brand this should match, and pass it as `brand_from`. It is one question and it is the difference between their brand and a generic page, because an HTML doc in their farm usually carries the real logo file and sometimes the real typeface. Do not ask them how it should look: the shape of the page is decided from what the document is for.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "doc_name": {
+                  "type": "string",
+                  "description": "Name of the PDF or PowerPoint doc to rebuild (fuzzy-matched)."
+                },
+                "slug": {
+                  "type": "string",
+                  "description": "Share-link slug or full URL. Alternative to doc_name."
+                },
+                "brand_from": {
+                  "type": "string",
+                  "description": "Optional. Name of another HTML doc in the same farm to take brand assets from: its colours, its logo, and any typeface it embeds. Ask the user whether they have one before rebuilding, because it is the difference between a page that looks like their brand and a page that looks generic. Assets ONLY. It never copies the reference doc's layout, orientation or how interactive it is, which are decided from what this document is for."
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "additionalProperties": false
+            },
+            "title": "Rebuild a deck as a live page",
+            "annotations": {
+              "title": "Rebuild a deck as a live page",
+              "readOnlyHint": false,
+              "destructiveHint": false,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "check_rebuild",
+            "description": "Check a rebuild started by `rebuild_doc` and publish it when it is done. Returns the current stage while it is still building, so call it again after a pause. When the rebuild has finished this publishes it as a new HTML doc in the user's farm and returns the share link and the quality scores. Safe to call repeatedly: publishing twice returns the same doc.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "rebuild_id": {
+                  "type": "string",
+                  "description": "The rebuild_id returned by rebuild_doc."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Name for the rebuilt doc. Defaults to the original's name."
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "required": [
+                "rebuild_id"
+              ],
+              "additionalProperties": false
+            },
+            "title": "Collect a finished rebuild",
+            "annotations": {
+              "title": "Collect a finished rebuild",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "show_doc",
+            "description": "Open a doc inside the chat as a live view of the page. In hosts that render MCP Apps (claude.ai, Claude Desktop, Claude mobile) the doc appears in the conversation; the person can read it, switch on Edit text, click any heading or paragraph, retype it and save, and the share link shows the change at once. Call it when they ask to see, preview, check or hand-edit a doc, and whenever they paste a doc.farm link into the conversation: open it with show_doc first, then answer. host_html_content, patch_doc and duplicate_doc already show this view after they run, so do not call show_doc straight after them. Text-only hosts get the share link.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "doc_name": {
+                  "type": "string",
+                  "description": "Name of the doc (fuzzy-matched). Pass this or slug."
+                },
+                "slug": {
+                  "type": "string",
+                  "description": "The doc's slug or share URL."
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "additionalProperties": false
+            },
+            "title": "Show a doc in the chat",
+            "annotations": {
+              "title": "Show a doc in the chat",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://docfarm/doc-view.html"
+              },
+              "ui/resourceUri": "ui://docfarm/doc-view.html"
+            }
+          },
+          {
+            "name": "app_read_doc",
+            "description": "Used by the docfarm doc view inside the chat, not by the assistant. Returns a doc's HTML annotated for in-place text editing plus a content revision. Assistants read docs with get_doc_html instead.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string",
+                  "description": "The doc's slug."
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "required": [
+                "slug"
+              ],
+              "additionalProperties": false
+            },
+            "title": "Doc view, read",
+            "annotations": {
+              "title": "Doc view, read",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "visibility": [
+                  "app"
+                ]
+              }
+            }
+          },
+          {
+            "name": "app_apply_edits",
+            "description": "Used by the docfarm doc view inside the chat, not by the assistant. Saves text the person retyped in the view as exact edits of the stored HTML, guarded by the revision app_read_doc returned. Assistants edit docs with patch_doc instead.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string",
+                  "description": "The doc's slug."
+                },
+                "rev": {
+                  "type": "string",
+                  "description": "The rev app_read_doc returned for the bytes being edited."
+                },
+                "edits": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "loc": {
+                        "type": "string"
+                      },
+                      "html": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "loc",
+                      "html"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "account": {
+                  "type": "string",
+                  "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+                }
+              },
+              "required": [
+                "slug",
+                "rev",
+                "edits"
+              ],
+              "additionalProperties": false
+            },
+            "title": "Doc view, save text edits",
+            "annotations": {
+              "title": "Doc view, save text edits",
+              "readOnlyHint": false,
+              "destructiveHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "ui": {
+                "resourceUri": "ui://docfarm/doc-view.html",
+                "visibility": [
+                  "app"
+                ]
+              },
+              "ui/resourceUri": "ui://docfarm/doc-view.html"
+            }
+          },
+          {
+            "name": "list_accounts",
+            "description": "List the farms this connection can reach: the signed-in account, plus the connected account when the person has one (docfarm's work/personal split, two separate farms held by one person). Call this FIRST whenever a request could concern either farm, or when the person says \"my personal\", \"my work\", \"my other account\", or names an address that is not the signed-in one. Then pass `account` on the tool you actually want. Docs, links, viewers and analytics never mix between the two.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            },
+            "title": "List connected farms",
+            "annotations": {
+              "title": "List connected farms",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "openWorldHint": false
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "whats_possible",
+        "description": "Show a grouped overview of everything docfarm can do for the user — reading, editing, sharing, tracking, drafting follow-ups, and collaborating. Call this when the user asks 'what can you do?', 'what does docfarm do?', 'show me what's possible', 'help', or similar capability questions. Cheap and self-contained — no doc lookup needed.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "title": "What docfarm can do",
+        "annotations": {
+          "title": "What docfarm can do",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_skills",
+        "description": "Load a Docfarm skill, written instructions for a task that you then follow. docfarm/onboarding is the short tour for someone who has just connected Docfarm. Pass `id` (one id, or an array) for the full skill, `query` to search by keyword, or nothing to list every skill by name and description. When the person asks to use a Docfarm skill by name, call this with that id first.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "One skill id such as \"docfarm/onboarding\", or several. Returns the full skill."
+            },
+            "query": {
+              "type": "string",
+              "description": "What the task is about, in plain words. Ignored when id is set."
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "Loading skills...",
+        "annotations": {
+          "title": "Loading skills...",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_build_brief",
+        "description": "READ THIS FIRST, before writing a single line of HTML for this user. Returns the docfarm house standard (how to pick the page archetype, type scale, spacing, logo rules, motion, budgets and language rules) plus this user's own brand: their colours, their typefaces, and asset tokens for their real logo and any font file they own. About 3,000 tokens and it is the difference between a page that looks like their company and a generic template. Write any asset token verbatim where the file goes (e.g. <img src=\"DF_ASSET_LOGO_1\">), then pass the same doc name as `brand_from` on host_html_content and docfarm swaps in the real bytes. Never paste base64 yourself: the token is smaller, exact and free. Every page published to docfarm is scored against this standard on the way in, so reading it first is how you score well the first time instead of fixing afterwards.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "doc_name": {
+              "type": "string",
+              "description": "Optional. The doc to read the brand from (fuzzy-matched). Omit and docfarm picks the most recent doc in the farm that carries a logo."
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "House standard and this farm's brand",
+        "annotations": {
+          "title": "House standard and this farm's brand",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "list_docs",
+        "description": "List the user's docs: first the ones they own, each with its share link, then the ones other people shared with them and how an edit to each behaves (overwrites the original, or makes the user's own copy).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "List your docs",
+        "annotations": {
+          "title": "List your docs",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_doc_status",
+        "description": "Who read a doc and how. Returns the share link, total and unique views, average reading time, when it was last opened, and the ten most recent viewers with their time, pages and whether they read to the end. Use it for 'who saw it', 'how is it doing', 'what is the link', and as the material for a follow-up email that refers to what each person actually read. Owner only; viewer data stays with the doc's owner. Identify the doc via doc_name (fuzzy-matched) or slug.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "doc_name": {
+              "type": "string",
+              "description": "Name of the doc (fuzzy-matched). Pass this or slug."
+            },
+            "slug": {
+              "type": "string",
+              "description": "The doc's slug or share URL."
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "View doc stats",
+        "annotations": {
+          "title": "View doc stats",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "update_doc_settings",
+        "description": "Change a doc the user OWNS: password protection (password_on / password_value), ask viewers for their email before viewing (ask_name), allow file downloads (allow_downloads), view notifications for the owner (notify), and the doc's title (title). Only the fields you pass are changed. Renaming changes the display title only and keeps the link. To change the link itself, the part after the last slash, pass new_slug. That breaks the old link for everyone who has it, so the first call changes nothing and returns a warning with both links. Pass it on, and only after the person says yes, call again with the same new_slug and confirm_new_link true. Identify the doc via doc_name (fuzzy-matched) or slug.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "doc_name": {
+              "type": "string",
+              "description": "Name of the doc (fuzzy-matched). Pass this or slug."
+            },
+            "slug": {
+              "type": "string",
+              "description": "The doc's slug or share URL."
+            },
+            "title": {
+              "type": "string",
+              "description": "A new title for the doc (max 500 chars). The link stays the same."
+            },
+            "new_slug": {
+              "type": "string",
+              "description": "A new ending for the share link, the part after the last slash. The old link stops working. Without confirm_new_link nothing changes and you get the warning to pass on."
+            },
+            "confirm_new_link": {
+              "type": "boolean",
+              "description": "Set true only after the person has seen the warning about the old link and said yes."
+            },
+            "password_on": {
+              "type": "boolean",
+              "description": "Require a password to view."
+            },
+            "password_value": {
+              "type": "string",
+              "description": "The password. Setting this also turns password_on on."
+            },
+            "ask_name": {
+              "type": "boolean",
+              "description": "Ask each viewer for their email before showing the doc. Despite the field name it asks for an email, not a name."
+            },
+            "allow_downloads": {
+              "type": "boolean",
+              "description": "Let viewers download the original file."
+            },
+            "notify": {
+              "type": "boolean",
+              "description": "Notify the owner on views."
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "Update doc settings",
+        "annotations": {
+          "title": "Update doc settings",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "delete_doc",
+        "description": "Permanently delete a doc the user OWNS — removes the document, its share link(s), all view/analytics data, chat, comments, suggestions, collaborators, and the stored file. IRREVERSIBLE. Only the owner can delete. Confirm with the user before calling if there's any ambiguity. Identify the doc via `doc_name` (fuzzy-matched) or `slug`.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "doc_name": {
+              "type": "string",
+              "description": "Name of the doc to delete."
+            },
+            "slug": {
+              "type": "string",
+              "description": "Share-link slug or full URL. Alternative to doc_name."
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "Delete a doc",
+        "annotations": {
+          "title": "Delete a doc",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "invite_collaborator",
+        "description": "Invite someone to collaborate on a doc the user OWNS, by email, so it lands in their docfarm. If they're already a docfarm user the doc appears in their farm immediately; if not, it waits until they sign up with that address, and the result says whether an invite email went out. REQUIRES the collaborator's `email` AND `allow_overwrite` (true = their edits overwrite the original; false = their edits fork into a copy they own, auto-shared back to the inviter). If you don't have the email, ask for it. If the user hasn't said whether the person should edit directly or only make a copy, ask before calling, don't guess. Identify the doc via `doc_name` (fuzzy-matched) or `slug`.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "doc_name": {
+              "type": "string",
+              "description": "Name of the doc to share."
+            },
+            "slug": {
+              "type": "string",
+              "description": "Share-link slug or full URL. Alternative to doc_name."
+            },
+            "email": {
+              "type": "string",
+              "description": "Email address of the person to invite."
+            },
+            "allow_overwrite": {
+              "type": "boolean",
+              "description": "true = collaborator's edits overwrite the original; false = edits fork into a copy they own (auto-shared back to the inviter)."
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "required": [
+            "email",
+            "allow_overwrite"
+          ],
+          "additionalProperties": false
+        },
+        "title": "Invite a collaborator",
+        "annotations": {
+          "title": "Invite a collaborator",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": true
+        }
+      },
+      {
+        "name": "suggest_link",
+        "description": "The share link a NEW doc would get, before you publish it. People want to see and name their link before it exists, because changing it later breaks the copies already sent. So before host_html_content or finalize_upload creates a new doc, call this with the name you will publish under, show the person the full link, and ask whether they want a different ending, the part after the last slash. Pass the ending they settle on to the publish call as `slug`. Skip the question when they already chose the link or asked you to just publish. To check an ending they suggest, pass it as `slug` here. The answer says whether it is free and offers one that is if not. A name that matches one of their docs returns that doc's current link instead, because publishing under it updates that doc and keeps its link.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The page name you will publish under."
+            },
+            "slug": {
+              "type": "string",
+              "description": "Optional. An ending the person suggested, to check. A whole link works too; only the part after the last slash counts. Defaults to one made from the name."
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        "title": "Suggest a link",
+        "annotations": {
+          "title": "Suggest a link",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "host_html_content",
+        "description": "Host an HTML doc on docfarm and return its share link. A name that exactly matches an existing doc's title, ignoring case and surrounding spaces, overwrites that doc in place, keeping its share link, password, and view stats, so anyone holding the URL sees the new version. Any other name creates a new doc. A similar but different name, such as \"Pricing\" next to \"Pricing final\", also creates a new doc and leaves the other one untouched, and the response names that doc so you can offer to update it instead. To update a doc, reuse its exact title. Takes the HTML inline, so it works in any environment. For a small change to an existing doc, `get_doc_html` + `patch_doc` sends far less content. Every page is scored against the docfarm house standard on the way in and the score comes back in the response; call `get_build_brief` BEFORE you write the HTML so you meet the standard first time rather than fixing afterwards. Before you publish a NEW doc, call `suggest_link`, show the person the link it returns and ask whether they want a different ending, then pass the ending they settle on as `slug`.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "html": {
+              "type": "string",
+              "description": "Full HTML body"
+            },
+            "name": {
+              "type": "string",
+              "description": "Page name. To update a doc, reuse its exact title, which keeps the share link. A new or merely similar name creates a new doc."
+            },
+            "slug": {
+              "type": "string",
+              "description": "Optional. The link ending the person approved through suggest_link, the part after the last slash. Only used when this creates a new doc; an update keeps the doc's link. Omit it to make one from the name."
+            },
+            "replace": {
+              "type": "boolean",
+              "description": "Omit normally. Set false to publish a new doc even when the name exactly matches an existing one, which gets a new share link. Set true only when the person asked to replace a doc and you do not have its exact title. It then also overwrites the one doc with a similar name, such as \"Pricing v2\" for \"Pricing\", and publishes nothing when no doc or several docs match."
+            },
+            "brand_from": {
+              "type": "string",
+              "description": "Optional. Name of an existing HTML doc in this farm whose brand assets this page uses. Required for any DF_ASSET_ token you wrote to resolve to real bytes. Get the tokens from get_build_brief first, then pass the same doc name here."
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "required": [
+            "html",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        "title": "Host an HTML doc",
+        "annotations": {
+          "title": "Host an HTML doc",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://docfarm/doc-view.html"
+          },
+          "ui/resourceUri": "ui://docfarm/doc-view.html"
+        }
+      },
+      {
+        "name": "duplicate_doc",
+        "description": "Server-side copy of any HTML doc the user can read (their own OR shared with them) into their own farm under a new name. THE fast path for building a modified version of an existing doc: content never passes through your context — duplicate in ~1s, then use patch_doc for the differences. Vastly faster than get_doc_html + re-hosting.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "doc_name": {
+              "type": "string",
+              "description": "Source doc name (fuzzy-matched)."
+            },
+            "slug": {
+              "type": "string",
+              "description": "Source share-link slug or full URL. Alternative to doc_name."
+            },
+            "new_name": {
+              "type": "string",
+              "description": "Name for the copy in the user's farm."
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "required": [
+            "new_name"
+          ],
+          "additionalProperties": false
+        },
+        "title": "Duplicate a doc server-side",
+        "annotations": {
+          "title": "Duplicate a doc server-side",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://docfarm/doc-view.html"
+          },
+          "ui/resourceUri": "ui://docfarm/doc-view.html"
+        }
+      },
+      {
+        "name": "get_upload_url",
+        "description": "Step 1 of 2 for hosting a large HTML file that is already on disk, without sending its bytes through the model's context. Returns a short-lived signed upload URL; upload the file to it with a direct HTTP PUT (Content-Type: text/html), then call `finalize_upload` with the returned upload_path and a doc name. Requires a shell and unrestricted outbound HTTP, so the PUT will not succeed where outbound network access is restricted; `host_html_content` accepts the HTML inline and works in any environment.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "title": "Get direct-upload URL",
+        "annotations": {
+          "title": "Get direct-upload URL",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "finalize_upload",
+        "description": "FAST PATH step 2/2: after PUTting the file to the signed URL from `get_upload_url`, call this to publish. NEW name → new doc + share link. Name matching an EXISTING HTML doc → updated in place, same share link. Verifies the uploaded object exists before publishing.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Doc name — same rules as host_html_content (existing name = in-place update)."
+            },
+            "upload_path": {
+              "type": "string",
+              "description": "The upload_path value returned by get_upload_url."
+            },
+            "slug": {
+              "type": "string",
+              "description": "Optional. The link ending the person approved through suggest_link. Same rules as host_html_content."
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "required": [
+            "name",
+            "upload_path"
+          ],
+          "additionalProperties": false
+        },
+        "title": "Publish an uploaded doc",
+        "annotations": {
+          "title": "Publish an uploaded doc",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://docfarm/doc-view.html"
+          },
+          "ui/resourceUri": "ui://docfarm/doc-view.html"
+        }
+      },
+      {
+        "name": "get_doc_html",
+        "description": "Read the current HTML body of any docfarm HTML doc the user has access to — their own docs OR docs other people have shared with them (as collaborator or via share link). Returns title, share URL, the caller's role (owner / collaborator / reader), and the full HTML. ESSENTIAL precursor to `patch_doc`: call this first whenever the user asks for any change to a doc you don't have in context, so you can see what's there and construct accurate before/after snippets. Pass `doc_name` (easiest, fuzzy-matched) or `slug`. Embedded base64 images are stripped to placeholders by default (huge docs become readable in one call), so hosting a stripped copy back would drop those images from the doc; edit via patch_doc, or re-fetch with strip_data_uris: false for the byte-exact original. Large docs page via offset/max_chars — the response tells you the offset for the next slice.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "doc_name": {
+              "type": "string",
+              "description": "Doc name. Fuzzy-matched against the caller's own docs first, then docs they collaborate on."
+            },
+            "slug": {
+              "type": "string",
+              "description": "Share-link slug or full URL. Alternative to doc_name."
+            },
+            "offset": {
+              "type": "number",
+              "description": "Character offset to start reading from (default 0). Use the value from the previous response's continuation note."
+            },
+            "max_chars": {
+              "type": "number",
+              "description": "Max characters to return per call (default 200000, max 500000)."
+            },
+            "strip_data_uris": {
+              "type": "boolean",
+              "description": "Default true: base64 data URIs ≥1KB are replaced with short placeholders so content isn't crowded out by embedded images. Pass false for the byte-exact original."
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "Read a doc's HTML",
+        "annotations": {
+          "title": "Read a doc's HTML",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_doc_url",
+        "description": "Get a time-limited signed URL that downloads the raw file of any doc the user has access to — HTML, PDF, Markdown, anything stored on docfarm. Use this when you need to hand the file off to another tool or LLM, when the user asks for a download link, or when the doc isn't HTML (where get_doc_html doesn't apply). URL expires after `ttl_seconds` (default 3600, max 86400).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "doc_name": {
+              "type": "string"
+            },
+            "slug": {
+              "type": "string"
+            },
+            "ttl_seconds": {
+              "type": "number",
+              "description": "Lifetime of the signed URL in seconds. Default 3600 (1h), max 86400 (24h)."
+            },
+            "download_filename": {
+              "type": "string",
+              "description": "If set, the URL forces a file download with this filename (Content-Disposition: attachment)."
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "Get download URL",
+        "annotations": {
+          "title": "Get download URL",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "patch_doc",
+        "description": "Edit an existing hosted doc by replacing a snippet of its HTML. DEFAULT TOOL for ANY edit to a doc the user already has — typo, copy change, restyle, new section, anything. ~50 tokens instead of ~7000 for re-hosting. Workflow: (1) if you don't have the current HTML in context, call `get_doc_html` first to read it. (2) construct `before_snippet` as a unique chunk of the existing HTML and `after_snippet` as its replacement. Pass EITHER `doc_name` (easiest) OR `slug`. Ambiguous match → fails with context for each candidate. Preserves share link, password, view counts, comments. Patching sends only the changed snippet, so it costs far less than re-sending a whole doc. For several edits at once (\"fix the typo AND change the CTA AND update the date\") pass a `patches` array instead of before/after: all of them land atomically or none do, each validated after the previous one applied.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "doc_name": {
+              "type": "string",
+              "description": "Name of the doc to edit (same name you passed to host_html_content). Use this if you don't have the slug."
+            },
+            "slug": {
+              "type": "string",
+              "description": "Share-link slug or full URL. Alternative to doc_name."
+            },
+            "before_snippet": {
+              "type": "string",
+              "description": "Exact text to find (must be unique unless occurrence_index given). For a single edit."
+            },
+            "after_snippet": {
+              "type": "string",
+              "description": "Replacement text. For a single edit."
+            },
+            "occurrence_index": {
+              "type": "number",
+              "description": "0-based index of which match to replace when before_snippet isn't unique"
+            },
+            "patches": {
+              "type": "array",
+              "description": "Several edits applied atomically. Use this OR before_snippet/after_snippet.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "before_snippet": {
+                    "type": "string"
+                  },
+                  "after_snippet": {
+                    "type": "string"
+                  },
+                  "occurrence_index": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "before_snippet",
+                  "after_snippet"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "Edit a doc (snippet patch)",
+        "annotations": {
+          "title": "Edit a doc (snippet patch)",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://docfarm/doc-view.html"
+          },
+          "ui/resourceUri": "ui://docfarm/doc-view.html"
+        }
+      },
+      {
+        "name": "rebuild_doc",
+        "description": "Rebuild a PDF or PowerPoint the user already has on docfarm into a live HTML page built to the house standard, keeping every fact and reorganising the layout so it reads on a phone. This is the retrofit: it does NOT reproduce the original layout, it rewrites the document into one of four archetypes. Takes about three minutes, so this tool STARTS the rebuild and returns immediately with a rebuild_id. Tell the user it is building, then call `check_rebuild` to collect it. PDF and PowerPoint only today. Before you start, ask the user whether they have another doc in their farm whose brand this should match, and pass it as `brand_from`. It is one question and it is the difference between their brand and a generic page, because an HTML doc in their farm usually carries the real logo file and sometimes the real typeface. Do not ask them how it should look: the shape of the page is decided from what the document is for.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "doc_name": {
+              "type": "string",
+              "description": "Name of the PDF or PowerPoint doc to rebuild (fuzzy-matched)."
+            },
+            "slug": {
+              "type": "string",
+              "description": "Share-link slug or full URL. Alternative to doc_name."
+            },
+            "brand_from": {
+              "type": "string",
+              "description": "Optional. Name of another HTML doc in the same farm to take brand assets from: its colours, its logo, and any typeface it embeds. Ask the user whether they have one before rebuilding, because it is the difference between a page that looks like their brand and a page that looks generic. Assets ONLY. It never copies the reference doc's layout, orientation or how interactive it is, which are decided from what this document is for."
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "Rebuild a deck as a live page",
+        "annotations": {
+          "title": "Rebuild a deck as a live page",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "check_rebuild",
+        "description": "Check a rebuild started by `rebuild_doc` and publish it when it is done. Returns the current stage while it is still building, so call it again after a pause. When the rebuild has finished this publishes it as a new HTML doc in the user's farm and returns the share link and the quality scores. Safe to call repeatedly: publishing twice returns the same doc.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "rebuild_id": {
+              "type": "string",
+              "description": "The rebuild_id returned by rebuild_doc."
+            },
+            "name": {
+              "type": "string",
+              "description": "Name for the rebuilt doc. Defaults to the original's name."
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "required": [
+            "rebuild_id"
+          ],
+          "additionalProperties": false
+        },
+        "title": "Collect a finished rebuild",
+        "annotations": {
+          "title": "Collect a finished rebuild",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "show_doc",
+        "description": "Open a doc inside the chat as a live view of the page. In hosts that render MCP Apps (claude.ai, Claude Desktop, Claude mobile) the doc appears in the conversation; the person can read it, switch on Edit text, click any heading or paragraph, retype it and save, and the share link shows the change at once. Call it when they ask to see, preview, check or hand-edit a doc, and whenever they paste a doc.farm link into the conversation: open it with show_doc first, then answer. host_html_content, patch_doc and duplicate_doc already show this view after they run, so do not call show_doc straight after them. Text-only hosts get the share link.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "doc_name": {
+              "type": "string",
+              "description": "Name of the doc (fuzzy-matched). Pass this or slug."
+            },
+            "slug": {
+              "type": "string",
+              "description": "The doc's slug or share URL."
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "additionalProperties": false
+        },
+        "title": "Show a doc in the chat",
+        "annotations": {
+          "title": "Show a doc in the chat",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://docfarm/doc-view.html"
+          },
+          "ui/resourceUri": "ui://docfarm/doc-view.html"
+        }
+      },
+      {
+        "name": "app_read_doc",
+        "description": "Used by the docfarm doc view inside the chat, not by the assistant. Returns a doc's HTML annotated for in-place text editing plus a content revision. Assistants read docs with get_doc_html instead.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string",
+              "description": "The doc's slug."
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "required": [
+            "slug"
+          ],
+          "additionalProperties": false
+        },
+        "title": "Doc view, read",
+        "annotations": {
+          "title": "Doc view, read",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "visibility": [
+              "app"
+            ]
+          }
+        }
+      },
+      {
+        "name": "app_apply_edits",
+        "description": "Used by the docfarm doc view inside the chat, not by the assistant. Saves text the person retyped in the view as exact edits of the stored HTML, guarded by the revision app_read_doc returned. Assistants edit docs with patch_doc instead.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string",
+              "description": "The doc's slug."
+            },
+            "rev": {
+              "type": "string",
+              "description": "The rev app_read_doc returned for the bytes being edited."
+            },
+            "edits": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "loc": {
+                    "type": "string"
+                  },
+                  "html": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "loc",
+                  "html"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "account": {
+              "type": "string",
+              "description": "Email address of the farm to act on. Omit for the signed-in farm. Only a connected account is accepted; call list_accounts to see which."
+            }
+          },
+          "required": [
+            "slug",
+            "rev",
+            "edits"
+          ],
+          "additionalProperties": false
+        },
+        "title": "Doc view, save text edits",
+        "annotations": {
+          "title": "Doc view, save text edits",
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://docfarm/doc-view.html",
+            "visibility": [
+              "app"
+            ]
+          },
+          "ui/resourceUri": "ui://docfarm/doc-view.html"
+        }
+      },
+      {
+        "name": "list_accounts",
+        "description": "List the farms this connection can reach: the signed-in account, plus the connected account when the person has one (docfarm's work/personal split, two separate farms held by one person). Call this FIRST whenever a request could concern either farm, or when the person says \"my personal\", \"my work\", \"my other account\", or names an address that is not the signed-in one. Then pass `account` on the tool you actually want. Docs, links, viewers and analytics never mix between the two.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "title": "List connected farms",
+        "annotations": {
+          "title": "List connected farms",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": false
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:38:10.011Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:38:11.062Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:38:12.113Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:38:13.164Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 22,
+    "tools_hash": "sha256:8967d4e30253ee3845da60b03267f3cfd1bb8f187f2aee2cb402b3210b24223e",
+    "static_tool_tokens": 9568,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F2",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_doc_url",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "doc_name"
+      },
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "whats_possible",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_skills",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_build_brief",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_docs",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_docs",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_doc_status",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "update_doc_settings",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "update_doc_settings",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "delete_doc",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "delete_doc",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "invite_collaborator",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "invite_collaborator",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "suggest_link",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F17",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "host_html_content",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "host_html_content",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "duplicate_doc",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_upload_url",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_upload_url",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F22",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "finalize_upload",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F23",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "finalize_upload",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F24",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_doc_html",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F25",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_doc_html",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F26",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_doc_url",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F27",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_doc_url",
+        "message": "Parameter has no description.",
+        "param": "doc_name"
+      },
+      {
+        "id": "F28",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_doc_url",
+        "message": "Parameter has no description.",
+        "param": "slug"
+      },
+      {
+        "id": "F29",
+        "severity": "high",
+        "kind": "unconstrained_string",
+        "tool": "get_doc_url",
+        "message": "Free-form string with no description or allowed values.",
+        "param": "slug"
+      },
+      {
+        "id": "F30",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "patch_doc",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F31",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "rebuild_doc",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F32",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "rebuild_doc",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F33",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "check_rebuild",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F34",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "show_doc",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F35",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "app_read_doc",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F36",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "app_apply_edits",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F37",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "app_apply_edits",
+        "message": "Parameter has no description.",
+        "param": "edits"
+      },
+      {
+        "id": "F38",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_accounts",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 2,
+      "medium": 33,
+      "warning": 1
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "get_doc_html",
+          "path": "inputSchema.properties.offset",
+          "name": "offset",
+          "description": "Character offset to start reading from (default 0). Use the value from the previous response's continuation note.",
+          "mentions_size_or_cost": true,
+          "described_default": 0
+        },
+        {
+          "tool": "get_doc_html",
+          "path": "inputSchema.properties.max_chars",
+          "name": "max_chars",
+          "description": "Max characters to return per call (default 200000, max 500000).",
+          "mentions_size_or_cost": true,
+          "described_default": 200000
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "whats_possible"
+          ],
+          "description": "Show a grouped overview of everything docfarm can do for the user — reading, editing, sharing, tracking, drafting follow-ups, and collaborating. Call this when the user asks 'what can you do?', 'what does docfarm do?', 'show me what's possible', 'help', or similar capability questions. Cheap and self-contained — no doc lookup needed.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "delete_doc"
+          ],
+          "description": "Permanently delete a doc the user OWNS — removes the document, its share link(s), all view/analytics data, chat, comments, suggestions, collaborators, and the stored file. IRREVERSIBLE. Only the owner can delete. Confirm with the user before calling if there's any ambiguity. Identify the doc via `doc_name` (fuzzy-matched) or `slug`.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "potentially_expensive_default",
+          "tools": [
+            "get_doc_html"
+          ],
+          "path": "inputSchema.properties.max_chars",
+          "description": "Max characters to return per call (default 200000, max 500000).",
+          "default": 200000,
+          "default_source": "description",
+          "hypothesis": "Default may exceed a narrow task’s context needs. Numeric threshold >=50 is a screening heuristic, not a measured response size."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "patch_doc"
+          ],
+          "description": "Edit an existing hosted doc by replacing a snippet of its HTML. DEFAULT TOOL for ANY edit to a doc the user already has — typo, copy change, restyle, new section, anything. ~50 tokens instead of ~7000 for re-hosting. Workflow: (1) if you don't have the current HTML in context, call `get_doc_html` first to read it. (2) construct `before_snippet` as a unique chunk of the existing HTML and `after_snippet` as its replacement. Pass EITHER `doc_name` (easiest) OR `slug`. Ambiguous match → fails with context for each candidate. Preserves share link, password, view counts, comments. Patching sends only the changed snippet, so it costs far less than re-sending a whole doc. For several edits at once (\"fix the typo AND change the CTA AND update the date\") pass a `patches` array instead of before/after: all of them land atomically or none do, each validated after the previous one applied.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_docs",
+            "get_doc_status"
+          ],
+          "hypothesis": "Read tools share resource terms (doc), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_docs",
+            "get_doc_html"
+          ],
+          "hypothesis": "Read tools share resource terms (doc), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_docs",
+            "get_doc_url"
+          ],
+          "hypothesis": "Read tools share resource terms (doc), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_doc_status",
+            "get_doc_html"
+          ],
+          "hypothesis": "Read tools share resource terms (doc), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_doc_status",
+            "get_doc_url"
+          ],
+          "hypothesis": "Read tools share resource terms (doc), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_upload_url",
+            "get_doc_url"
+          ],
+          "hypothesis": "Read tools share resource terms (url), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "whats_possible",
+      "get_skills",
+      "get_build_brief",
+      "list_docs",
+      "get_doc_status",
+      "suggest_link",
+      "get_doc_html",
+      "get_doc_url",
+      "show_doc",
+      "app_read_doc",
+      "list_accounts"
+    ]
+  }
+}

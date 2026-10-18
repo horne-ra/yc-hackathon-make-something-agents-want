@@ -1,0 +1,1505 @@
+{
+  "slug": "npi-registry",
+  "source_url": "https://manufact.com/mcp-catalog/npi-registry",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:24:24.334Z",
+    "endpoint": "https://hcls.mcp.claude.com/npi_registry/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "npi_registry",
+      "version": "3.2.0"
+    },
+    "capabilities": {
+      "experimental": {},
+      "logging": {},
+      "prompts": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      },
+      "extensions": {
+        "io.modelcontextprotocol/ui": {}
+      }
+    },
+    "instructions": "An MCP server for accessing the CMS NPPES NPI Registry API v2.1.\n\nThis server provides tools to validate, lookup, and search healthcare providers in the\nUnited States National Plan and Provider Enumeration System (NPPES).\n\nABOUT THE NPI:\nThe National Provider Identifier (NPI) is a unique 10-digit identifier assigned to healthcare\nproviders in the United States. There are two types:\n- NPI-1 (Individual): Physicians, nurses, dentists, pharmacists, therapists, etc.\n- NPI-2 (Organization): Hospitals, clinics, pharmacies, laboratories, nursing homes, etc.\n\nIMPORTANT LIMITATIONS:\n- This registry only contains US healthcare providers\n- Issuance of an NPI does NOT ensure the provider is licensed or credentialed\n- International providers will NOT appear in this database\n- API returns maximum 200 results per request, up to 1,200 total across paginated requests\n- Data is updated daily from NPPES but may lag behind real-time changes\n\nTOOL SELECTION GUIDE:\n• npi_validate: Check NPI format + Luhn check digit (instant, no API call). Use FIRST before any lookup to catch typos.\n• npi_lookup: Get full provider details by NPI number. Returns credentials, practice address, specialty, license.\n• npi_search: Find providers by name, location, specialty, organization. Returns compact list with pagination support.\n\nCOMMON TAXONOMY CODES (for specialty searches):\n\nPhysicians:\n• 'Internal Medicine'\n• 'Family Practice' / 'Family Med*'\n• 'Cardiology' / 'Cardiovascular*'\n• 'Oncology' / 'Hematology*'\n• 'Neurology'\n• 'Orthopedic Surgery'\n• 'Psychiatry'\n• 'Dermatology'\n• 'Radiology'\n• 'Emergency Medicine'\n\nHospitals & Facilities:\n• 'General Acute Care Hospital'\n• 'Pharmacy'\n• 'Clinical Laboratory'\n• 'Skilled Nursing Facility'\n• 'Home Health Agency'\n• 'Ambulatory Surgical Center'\n• 'Urgent Care'\n• 'Rehabilitation Hospital'\n• 'Dialysis Center'\n• 'Hospice'\n\nTYPICAL WORKFLOWS:\n\n1. Provider Verification (have NPI):\n   npi_validate -> npi_lookup -> verify credentials/location\n\n2. Provider Discovery (searching):\n   npi_search (by name/specialty/location) -> npi_lookup (for details on matches)\n\n3. Researcher/Investigator Verification:\n   Extract person name -> npi_search (first_name + last_name) -> npi_lookup\n   Note: Only works for US-based healthcare providers\n\n4. Organization Analysis:\n   npi_search (organization_name) -> review locations and affiliated providers\n\n5. Specialty Network Building:\n   npi_search (taxonomy_description + state) -> paginate through results\n\nSEARCH TIPS:\n- Wildcards: Use trailing '*' (min 2 chars) - e.g., \"Smi*\" matches Smith, Smithson\n- Name aliases: use_first_name_alias=true expands Robert -> Bob, Rob, Bobby (default ON)\n- Specialties: Use taxonomy_description with common terms or wildcards\n- Pagination: Use limit (1-200) and skip (0-1000) for large result sets\n- Organizations: Search by Legal Business Name, DBA, or Former names\n",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "npi_validate",
+            "title": "Validate NPI",
+            "description": "Validate NPI format and Luhn check digit. Instant local validation - no API call.\n\nWHEN TO USE:\n- ALWAYS use before npi_lookup to catch typos and save API calls\n- Validating NPI numbers from external sources (documents, forms, databases)\n- Quick format check without network dependency\n- Pre-filtering lists of NPIs before bulk lookups\n\nWHAT THIS CHECKS:\n1. Format: Exactly 10 digits, numeric characters only (0-9)\n2. Check digit: Valid Luhn algorithm calculation with healthcare prefix (80840)\n\nWHAT THIS DOES NOT CHECK:\n- Whether the NPI is actually assigned to a provider in NPPES\n- Whether the provider is active or deactivated\n- Whether the provider is licensed or credentialed\n- Whether the NPI has ever been issued\n\nVALIDATION RESULTS:\n✓ VALID: NPI has correct format AND valid check digit\n  -> Proceed to npi_lookup to verify assignment\n✗ INVALID FORMAT: Not 10 digits or contains non-numeric characters\n  -> Cannot be a real NPI, check for typos\n✗ INVALID CHECK DIGIT: 10 digits but check digit doesn't match\n  -> Likely a typo in one of the digits\n\nIMPORTANT: A valid check digit does NOT guarantee the NPI exists!\nMany mathematically valid NPIs have never been assigned.\nUse npi_lookup after validation to confirm the NPI is in NPPES.\n\nEXAMPLES:\n- '1234567893' -> VALID (correct format + valid check digit)\n- '123456789' -> INVALID (only 9 digits)\n- '1234567890' -> INVALID (wrong check digit, expected 3)\n- '123456789X' -> INVALID (contains non-digit character)\n- ' 1234567893 ' -> VALID (whitespace is stripped automatically)",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "npi": {
+                  "description": "10-digit National Provider Identifier to validate. May include leading/trailing whitespace (will be stripped). Must contain only digits.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "npi"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "description": "Response from NPI format validation. Note: Valid format does NOT mean the NPI is assigned to a provider.",
+              "properties": {
+                "npi": {
+                  "description": "The NPI that was validated (whitespace stripped).",
+                  "type": "string"
+                },
+                "is_valid": {
+                  "description": "True if NPI is exactly 10 digits with valid Luhn check digit. Does NOT verify NPI is assigned - use npi_lookup for that.",
+                  "type": "boolean"
+                },
+                "reason": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Failure reason when is_valid=False. Examples: 'NPI must be exactly 10 digits', 'Invalid check digit: expected X, got Y'."
+                }
+              },
+              "required": [
+                "npi",
+                "is_valid"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Validate NPI",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            },
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "npi_lookup",
+            "title": "Lookup by NPI",
+            "description": "Get comprehensive provider details by NPI number from the CMS NPPES Registry.\n\nWHEN TO USE:\n- You have a specific NPI and need full provider information\n- Verifying provider credentials, specialty, or practice location\n- Following up on results from npi_search to get complete details\n- Cross-referencing clinical trial investigators with US credentials\n- Getting raw API response for advanced data extraction\n\nUSE npi_search INSTEAD FOR:\n- Finding providers by name, location, or specialty\n- When you don't have a specific NPI number\n- Browsing providers in a geographic area\n\nWHAT THIS RETURNS:\nBasic Information:\n- Provider type: Individual (NPI-1) or Organization (NPI-2)\n- Name: Full name (individuals) or Legal Business Name (organizations)\n- Credentials: MD, DO, RN, PA-C, NP, etc. (for individuals)\n- Status: 'A' (Active) or 'D' (Deactivated)\n- Enumeration date: When the NPI was first assigned\n- Last updated: When the record was last modified\n\nSpecialty/Taxonomy:\n- Primary taxonomy code: NUCC healthcare provider taxonomy code\n- Primary taxonomy description: Human-readable specialty name\n- License state and number: From primary taxonomy\n\nLocation:\n- Practice address: Primary practice location with full address\n- Phone number: Practice telephone (if available)\n\nAdvanced:\n- Raw API response: Complete NPPES data including:\n  - All taxonomies (up to 15)\n  - Other identifiers (state license, DEA, etc.)\n  - Other practice locations\n  - Authorized officials (for organizations)\n  - Endpoints (health information exchange)\n\nNOTE: Automatically validates NPI format before API call.\nReturns found=false if NPI is valid but not assigned to any provider.\n\nIMPORTANT CAVEATS:\n- Having an NPI does NOT guarantee the provider is currently licensed\n- Provider self-reports data; NPPES does not verify accuracy\n- Deactivated providers remain in database but should not be used for billing\n- Verify credentials through state licensing boards for official confirmation",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "npi": {
+                  "description": "10-digit National Provider Identifier. Format validated before API call. Example: '1234567893'",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "npi"
+              ],
+              "type": "object"
+            },
+            "outputSchema": {
+              "description": "Response from NPI lookup. Contains full provider details if found.",
+              "properties": {
+                "found": {
+                  "description": "True if the NPI is assigned to a provider in NPPES. False if valid NPI format but not assigned, or NPI was deactivated.",
+                  "type": "boolean"
+                },
+                "record": {
+                  "anyOf": [
+                    {
+                      "description": "Normalized provider record combining key fields from the NPPES API response. Use this for common operations; access 'raw' for complete data.",
+                      "properties": {
+                        "npi": {
+                          "description": "10-digit National Provider Identifier. Unique identifier assigned by CMS. Example: '1234567893'.",
+                          "type": "string"
+                        },
+                        "enumeration_type": {
+                          "description": "Provider type: 'Individual' (NPI-1: physicians, nurses, etc.) or 'Organization' (NPI-2: hospitals, clinics, etc.).",
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Display name: 'FirstName LastName' for individuals (may include prefix/suffix), or Legal Business Name for organizations.",
+                          "type": "string"
+                        },
+                        "basic": {
+                          "description": "Core provider information: status, credentials, enumeration date, last update.",
+                          "properties": {
+                            "status": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "Provider enumeration status. Values: 'A' (Active), 'D' (Deactivated). Deactivated NPIs should not be used for billing."
+                            },
+                            "credential": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "Professional credentials/suffix for individuals (e.g., 'MD', 'DO', 'RN', 'PA-C', 'NP', 'DDS', 'PharmD'). Not applicable to organizations."
+                            },
+                            "sex": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "Provider sex for individuals. Values: 'M' (Male), 'F' (Female). Not applicable to organizations."
+                            },
+                            "enumeration_date": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "Date the NPI was first assigned (ISO format YYYY-MM-DD). This is the provider's NPI 'birthday'."
+                            },
+                            "last_updated": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "Date the NPPES record was last modified (ISO format YYYY-MM-DD). Check this to verify data currency."
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "primary_taxonomy": {
+                          "anyOf": [
+                            {
+                              "description": "Primary taxonomy (specialty) information for a provider. Providers may have up to 15 taxonomies but only one is designated as primary.",
+                              "properties": {
+                                "code": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "default": null,
+                                  "description": "Healthcare Provider Taxonomy Code (10 chars). E.g., '207R00000X' (Internal Medicine), '208600000X' (Surgery). See NUCC taxonomy codes: https://taxonomy.nucc.org/"
+                                },
+                                "desc": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "default": null,
+                                  "description": "Human-readable taxonomy description. E.g., 'Internal Medicine', 'Cardiovascular Disease', 'Family Practice', 'General Acute Care Hospital'."
+                                },
+                                "state": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "default": null,
+                                  "description": "Two-letter state abbreviation where provider license is held for this taxonomy (e.g., 'CA', 'NY', 'TX')."
+                                },
+                                "license": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "default": null,
+                                  "description": "State license number associated with this taxonomy. Format varies by state and license type."
+                                }
+                              },
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Primary specialty/taxonomy. Providers may have multiple taxonomies but one is designated as primary."
+                        },
+                        "primary_practice_address": {
+                          "anyOf": [
+                            {
+                              "description": "Practice location address for a provider. This is the PRIMARY practice location. Additional locations available in raw API response.",
+                              "properties": {
+                                "address_1": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "default": null,
+                                  "description": "Primary street address line (e.g., '123 Main Street', '456 Medical Center Drive')."
+                                },
+                                "address_2": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "default": null,
+                                  "description": "Secondary address line for suite, floor, building, etc. (e.g., 'Suite 200', 'Floor 3', 'Building A')."
+                                },
+                                "city": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "default": null,
+                                  "description": "City name. For military addresses: 'APO' (Army Post Office) or 'FPO' (Fleet Post Office)."
+                                },
+                                "state": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "default": null,
+                                  "description": "Two-letter US state/territory abbreviation (e.g., 'CA', 'NY', 'PR', 'GU'). For military: 'AA', 'AE', 'AP'."
+                                },
+                                "postal_code": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "default": null,
+                                  "description": "9-digit ZIP code in format 'XXXXX-XXXX' or 5-digit 'XXXXX'. US territories use standard ZIP format."
+                                },
+                                "country_code": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "default": null,
+                                  "description": "Two-letter ISO country code. 'US' for United States and territories."
+                                },
+                                "telephone_number": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "default": null,
+                                  "description": "Practice phone number including area code. Format: 'XXX-XXX-XXXX' or '(XXX) XXX-XXXX'."
+                                }
+                              },
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Primary practice location (first address in API response). Additional locations available in 'raw' field."
+                        },
+                        "license_info": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Formatted license info from primary taxonomy: 'State: XX, License: YYYY'. Verify with state licensing board."
+                        },
+                        "raw": {
+                          "additionalProperties": true,
+                          "description": "Complete raw NPPES API response. Contains all taxonomies, other identifiers, endpoints, other names, practice locations, authorized officials (for orgs).",
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "npi",
+                        "enumeration_type",
+                        "name",
+                        "basic",
+                        "raw"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Full normalized provider record when found=True. Includes credentials, specialty, address, license info, and raw API response."
+                }
+              },
+              "required": [
+                "found"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Lookup by NPI",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          },
+          {
+            "name": "npi_search",
+            "title": "Search Providers",
+            "description": "Search the CMS NPPES Registry for healthcare providers by name, location, specialty, or organization.\n\nWHEN TO USE:\n- Finding providers by name (e.g., 'Find Dr. John Smith')\n- Finding providers by specialty (e.g., 'Cardiologists in Boston')\n- Finding organizations (e.g., 'Mayo Clinic locations')\n- Verifying clinical trial investigators have US credentials\n- Building provider networks by location or specialty\n- Finding all providers at a specific facility\n\nUSE npi_lookup INSTEAD FOR:\n- When you already have a specific NPI number\n- Getting full details including raw API response\n\nSEARCH REQUIREMENTS:\n- At least one search parameter required (besides enumeration_type/country_code)\n- State cannot be the only criterion - must combine with name, specialty, or city\n- Country code alone only works for non-US countries\n\nWILDCARD SUPPORT (min 2 characters before *):\n- first_name: 'Jo*' matches John, Joseph, Jonathan\n- last_name: 'Smi*' matches Smith, Smithson, Smitty\n- organization_name: 'Mayo*' matches Mayo Clinic, Mayo Foundation\n- taxonomy_description: 'Cardio*' matches Cardiology, Cardiovascular Disease\n- postal_code: '212*' matches all ZIP codes starting with 212\n\nNAME ALIAS FEATURE (DEFAULT: ON):\nAutomatically expands first name searches to include common nicknames:\n- Robert -> also finds Bob, Rob, Robbie, Bobby\n- William -> also finds Bill, Will, Billy, Willy\n- Elizabeth -> also finds Beth, Liz, Betty, Eliza\n- Michael -> also finds Mike, Mick, Mickey\nSet use_first_name_alias=false for exact match only.\n\nPAGINATION:\n- Maximum 200 results per request (limit parameter)\n- Skip up to 1000 records (skip parameter)\n- Maximum 1,200 total results accessible (6 requests × 200)\n- Use next_skip from response to get next page\n- Set limit=200 for comprehensive searches\n\nCOMMON SPECIALTY SEARCHES (taxonomy_description):\n- Physicians: 'Internal Medicine', 'Family Practice', 'Cardiology', 'Oncology'\n- Surgeons: 'Orthopedic Surgery', 'General Surgery', 'Neurosurgery'\n- Mental Health: 'Psychiatry', 'Psychology', 'Clinical Social Worker'\n- Allied Health: 'Physical Therapist', 'Nurse Practitioner', 'Physician Assistant'\n- Organizations: 'General Acute Care Hospital', 'Pharmacy', 'Clinical Laboratory'\n\nEXAMPLES:\n- Find cardiologists in Boston: taxonomy_description='Cardiology', city='Boston', state='MA'\n- Find Dr. Smith (individual): first_name='John', last_name='Smith', enumeration_type='NPI-1'\n- Find Mayo Clinic (organization): organization_name='Mayo Clinic', enumeration_type='NPI-2'\n- Find oncologists in California: taxonomy_description='Oncology', state='CA', limit=100\n- Find all pharmacies in NYC: taxonomy_description='Pharmacy', city='New York', state='NY'\n- Find nurse practitioners in Texas: taxonomy_description='Nurse Practitioner', state='TX'\n- Exact name match: first_name='Robert', use_first_name_alias=false",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "number": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "10-digit NPI number. Rarely used in search - use npi_lookup for direct NPI queries."
+                },
+                "first_name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Provider first name (Individual NPI-1 only). Supports trailing wildcard with min 2 chars (e.g., 'Jo*'). Special chars allowed: & ' : , / - ( ) . # \" ;"
+                },
+                "last_name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Provider last name (Individual NPI-1 only). Supports trailing wildcard with min 2 chars (e.g., 'Smi*'). Special chars allowed: & ' : , / - ( ) . # \" ;"
+                },
+                "use_first_name_alias": {
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Expand first name to include common aliases/nicknames. Default: true. E.g., Robert also finds Bob, Rob, Bobby. Set false for exact match only."
+                },
+                "organization_name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Organization name (Organizational NPI-2 only). Searches Legal Business Name, DBA, Former LBN, Other Names. Trailing wildcard supported (min 2 chars). Special chars allowed: & ' @ : , / - ( ) . # \" ;"
+                },
+                "taxonomy_description": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Provider specialty or taxonomy description. E.g., 'Internal Medicine', 'Cardiology', 'Oncology', 'Family Practice'. Wildcard supported (min 2 chars)."
+                },
+                "enumeration_type": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "NPI-1",
+                        "NPI-2"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Filter by provider type: 'NPI-1' = Individual providers (physicians, nurses, etc.), 'NPI-2' = Organizations (hospitals, clinics, etc.). Cannot be sole search criterion."
+                },
+                "address_purpose": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "LOCATION",
+                        "MAILING",
+                        "PRIMARY",
+                        "SECONDARY"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Which address to search: LOCATION=any practice location, MAILING=mailing address, PRIMARY=primary practice location, SECONDARY=secondary practice locations. Default searches both mailing and practice addresses."
+                },
+                "city": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "City name. For military addresses use 'APO' or 'FPO'. Special chars allowed: & ' : , / - ( ) . # \" ;"
+                },
+                "state": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Two-letter US state abbreviation (e.g., 'CA', 'NY', 'TX'). Cannot be sole search criterion - must include another parameter."
+                },
+                "postal_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "5 or 9 digit ZIP code. 5-digit codes match all 9-digit variants. Trailing wildcard supported (e.g., '212*' for all NYC ZIPs starting with 212)."
+                },
+                "country_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Two-letter country code. 'US' for United States. Can be sole criterion only for non-US countries."
+                },
+                "limit": {
+                  "default": 10,
+                  "description": "Results per request. Default: 10, Maximum: 200. Use with skip for pagination.",
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "skip": {
+                  "default": 0,
+                  "description": "Number of records to skip for pagination. Maximum: 1000. Combined with limit, allows accessing up to 1,200 total results.",
+                  "maximum": 1000,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "outputSchema": {
+              "description": "Response from provider search. Use pagination (limit/skip) for large result sets.",
+              "properties": {
+                "count": {
+                  "description": "Number of results in THIS response (up to 'limit' parameter, max 200).",
+                  "type": "integer"
+                },
+                "total": {
+                  "description": "Total matching records in NPPES. Note: Only up to 1,200 accessible via API pagination.",
+                  "type": "integer"
+                },
+                "next_skip": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Value to pass as 'skip' parameter for next page. None when no more results or skip would exceed 1000 limit."
+                },
+                "items": {
+                  "description": "Compact provider summaries. Use npi_lookup on specific NPIs for full details.",
+                  "items": {
+                    "description": "Compact provider summary for search results. Use npi_lookup for full details on specific providers.",
+                    "properties": {
+                      "npi": {
+                        "description": "10-digit National Provider Identifier. Use with npi_lookup to get full details.",
+                        "type": "string"
+                      },
+                      "name": {
+                        "description": "Display name: 'FirstName LastName' for individuals, Legal Business Name for organizations.",
+                        "type": "string"
+                      },
+                      "enumeration_type": {
+                        "description": "Provider type: 'Individual' (NPI-1) or 'Organization' (NPI-2).",
+                        "type": "string"
+                      },
+                      "primary_taxonomy_code": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Primary NUCC taxonomy code (10 chars). E.g., '207R00000X' = Internal Medicine."
+                      },
+                      "primary_taxonomy_desc": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Human-readable primary specialty. E.g., 'Internal Medicine', 'Family Practice', 'General Acute Care Hospital'."
+                      },
+                      "primary_practice_address": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Formatted primary practice address as single string: 'Street, City, State ZIP'."
+                      },
+                      "phone": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null,
+                        "description": "Primary practice phone number with area code."
+                      }
+                    },
+                    "required": [
+                      "npi",
+                      "name",
+                      "enumeration_type"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "count",
+                "total",
+                "items"
+              ],
+              "type": "object"
+            },
+            "annotations": {
+              "title": "Search Providers",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": true
+            },
+            "_meta": {
+              "fastmcp": {
+                "tags": []
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "npi_validate",
+        "title": "Validate NPI",
+        "description": "Validate NPI format and Luhn check digit. Instant local validation - no API call.\n\nWHEN TO USE:\n- ALWAYS use before npi_lookup to catch typos and save API calls\n- Validating NPI numbers from external sources (documents, forms, databases)\n- Quick format check without network dependency\n- Pre-filtering lists of NPIs before bulk lookups\n\nWHAT THIS CHECKS:\n1. Format: Exactly 10 digits, numeric characters only (0-9)\n2. Check digit: Valid Luhn algorithm calculation with healthcare prefix (80840)\n\nWHAT THIS DOES NOT CHECK:\n- Whether the NPI is actually assigned to a provider in NPPES\n- Whether the provider is active or deactivated\n- Whether the provider is licensed or credentialed\n- Whether the NPI has ever been issued\n\nVALIDATION RESULTS:\n✓ VALID: NPI has correct format AND valid check digit\n  -> Proceed to npi_lookup to verify assignment\n✗ INVALID FORMAT: Not 10 digits or contains non-numeric characters\n  -> Cannot be a real NPI, check for typos\n✗ INVALID CHECK DIGIT: 10 digits but check digit doesn't match\n  -> Likely a typo in one of the digits\n\nIMPORTANT: A valid check digit does NOT guarantee the NPI exists!\nMany mathematically valid NPIs have never been assigned.\nUse npi_lookup after validation to confirm the NPI is in NPPES.\n\nEXAMPLES:\n- '1234567893' -> VALID (correct format + valid check digit)\n- '123456789' -> INVALID (only 9 digits)\n- '1234567890' -> INVALID (wrong check digit, expected 3)\n- '123456789X' -> INVALID (contains non-digit character)\n- ' 1234567893 ' -> VALID (whitespace is stripped automatically)",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "npi": {
+              "description": "10-digit National Provider Identifier to validate. May include leading/trailing whitespace (will be stripped). Must contain only digits.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "npi"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "description": "Response from NPI format validation. Note: Valid format does NOT mean the NPI is assigned to a provider.",
+          "properties": {
+            "npi": {
+              "description": "The NPI that was validated (whitespace stripped).",
+              "type": "string"
+            },
+            "is_valid": {
+              "description": "True if NPI is exactly 10 digits with valid Luhn check digit. Does NOT verify NPI is assigned - use npi_lookup for that.",
+              "type": "boolean"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Failure reason when is_valid=False. Examples: 'NPI must be exactly 10 digits', 'Invalid check digit: expected X, got Y'."
+            }
+          },
+          "required": [
+            "npi",
+            "is_valid"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Validate NPI",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "npi_lookup",
+        "title": "Lookup by NPI",
+        "description": "Get comprehensive provider details by NPI number from the CMS NPPES Registry.\n\nWHEN TO USE:\n- You have a specific NPI and need full provider information\n- Verifying provider credentials, specialty, or practice location\n- Following up on results from npi_search to get complete details\n- Cross-referencing clinical trial investigators with US credentials\n- Getting raw API response for advanced data extraction\n\nUSE npi_search INSTEAD FOR:\n- Finding providers by name, location, or specialty\n- When you don't have a specific NPI number\n- Browsing providers in a geographic area\n\nWHAT THIS RETURNS:\nBasic Information:\n- Provider type: Individual (NPI-1) or Organization (NPI-2)\n- Name: Full name (individuals) or Legal Business Name (organizations)\n- Credentials: MD, DO, RN, PA-C, NP, etc. (for individuals)\n- Status: 'A' (Active) or 'D' (Deactivated)\n- Enumeration date: When the NPI was first assigned\n- Last updated: When the record was last modified\n\nSpecialty/Taxonomy:\n- Primary taxonomy code: NUCC healthcare provider taxonomy code\n- Primary taxonomy description: Human-readable specialty name\n- License state and number: From primary taxonomy\n\nLocation:\n- Practice address: Primary practice location with full address\n- Phone number: Practice telephone (if available)\n\nAdvanced:\n- Raw API response: Complete NPPES data including:\n  - All taxonomies (up to 15)\n  - Other identifiers (state license, DEA, etc.)\n  - Other practice locations\n  - Authorized officials (for organizations)\n  - Endpoints (health information exchange)\n\nNOTE: Automatically validates NPI format before API call.\nReturns found=false if NPI is valid but not assigned to any provider.\n\nIMPORTANT CAVEATS:\n- Having an NPI does NOT guarantee the provider is currently licensed\n- Provider self-reports data; NPPES does not verify accuracy\n- Deactivated providers remain in database but should not be used for billing\n- Verify credentials through state licensing boards for official confirmation",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "npi": {
+              "description": "10-digit National Provider Identifier. Format validated before API call. Example: '1234567893'",
+              "type": "string"
+            }
+          },
+          "required": [
+            "npi"
+          ],
+          "type": "object"
+        },
+        "outputSchema": {
+          "description": "Response from NPI lookup. Contains full provider details if found.",
+          "properties": {
+            "found": {
+              "description": "True if the NPI is assigned to a provider in NPPES. False if valid NPI format but not assigned, or NPI was deactivated.",
+              "type": "boolean"
+            },
+            "record": {
+              "anyOf": [
+                {
+                  "description": "Normalized provider record combining key fields from the NPPES API response. Use this for common operations; access 'raw' for complete data.",
+                  "properties": {
+                    "npi": {
+                      "description": "10-digit National Provider Identifier. Unique identifier assigned by CMS. Example: '1234567893'.",
+                      "type": "string"
+                    },
+                    "enumeration_type": {
+                      "description": "Provider type: 'Individual' (NPI-1: physicians, nurses, etc.) or 'Organization' (NPI-2: hospitals, clinics, etc.).",
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "Display name: 'FirstName LastName' for individuals (may include prefix/suffix), or Legal Business Name for organizations.",
+                      "type": "string"
+                    },
+                    "basic": {
+                      "description": "Core provider information: status, credentials, enumeration date, last update.",
+                      "properties": {
+                        "status": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Provider enumeration status. Values: 'A' (Active), 'D' (Deactivated). Deactivated NPIs should not be used for billing."
+                        },
+                        "credential": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Professional credentials/suffix for individuals (e.g., 'MD', 'DO', 'RN', 'PA-C', 'NP', 'DDS', 'PharmD'). Not applicable to organizations."
+                        },
+                        "sex": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Provider sex for individuals. Values: 'M' (Male), 'F' (Female). Not applicable to organizations."
+                        },
+                        "enumeration_date": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Date the NPI was first assigned (ISO format YYYY-MM-DD). This is the provider's NPI 'birthday'."
+                        },
+                        "last_updated": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "default": null,
+                          "description": "Date the NPPES record was last modified (ISO format YYYY-MM-DD). Check this to verify data currency."
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "primary_taxonomy": {
+                      "anyOf": [
+                        {
+                          "description": "Primary taxonomy (specialty) information for a provider. Providers may have up to 15 taxonomies but only one is designated as primary.",
+                          "properties": {
+                            "code": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "Healthcare Provider Taxonomy Code (10 chars). E.g., '207R00000X' (Internal Medicine), '208600000X' (Surgery). See NUCC taxonomy codes: https://taxonomy.nucc.org/"
+                            },
+                            "desc": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "Human-readable taxonomy description. E.g., 'Internal Medicine', 'Cardiovascular Disease', 'Family Practice', 'General Acute Care Hospital'."
+                            },
+                            "state": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "Two-letter state abbreviation where provider license is held for this taxonomy (e.g., 'CA', 'NY', 'TX')."
+                            },
+                            "license": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "State license number associated with this taxonomy. Format varies by state and license type."
+                            }
+                          },
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Primary specialty/taxonomy. Providers may have multiple taxonomies but one is designated as primary."
+                    },
+                    "primary_practice_address": {
+                      "anyOf": [
+                        {
+                          "description": "Practice location address for a provider. This is the PRIMARY practice location. Additional locations available in raw API response.",
+                          "properties": {
+                            "address_1": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "Primary street address line (e.g., '123 Main Street', '456 Medical Center Drive')."
+                            },
+                            "address_2": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "Secondary address line for suite, floor, building, etc. (e.g., 'Suite 200', 'Floor 3', 'Building A')."
+                            },
+                            "city": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "City name. For military addresses: 'APO' (Army Post Office) or 'FPO' (Fleet Post Office)."
+                            },
+                            "state": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "Two-letter US state/territory abbreviation (e.g., 'CA', 'NY', 'PR', 'GU'). For military: 'AA', 'AE', 'AP'."
+                            },
+                            "postal_code": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "9-digit ZIP code in format 'XXXXX-XXXX' or 5-digit 'XXXXX'. US territories use standard ZIP format."
+                            },
+                            "country_code": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "Two-letter ISO country code. 'US' for United States and territories."
+                            },
+                            "telephone_number": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null,
+                              "description": "Practice phone number including area code. Format: 'XXX-XXX-XXXX' or '(XXX) XXX-XXXX'."
+                            }
+                          },
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Primary practice location (first address in API response). Additional locations available in 'raw' field."
+                    },
+                    "license_info": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null,
+                      "description": "Formatted license info from primary taxonomy: 'State: XX, License: YYYY'. Verify with state licensing board."
+                    },
+                    "raw": {
+                      "additionalProperties": true,
+                      "description": "Complete raw NPPES API response. Contains all taxonomies, other identifiers, endpoints, other names, practice locations, authorized officials (for orgs).",
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "npi",
+                    "enumeration_type",
+                    "name",
+                    "basic",
+                    "raw"
+                  ],
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Full normalized provider record when found=True. Includes credentials, specialty, address, license info, and raw API response."
+            }
+          },
+          "required": [
+            "found"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Lookup by NPI",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      },
+      {
+        "name": "npi_search",
+        "title": "Search Providers",
+        "description": "Search the CMS NPPES Registry for healthcare providers by name, location, specialty, or organization.\n\nWHEN TO USE:\n- Finding providers by name (e.g., 'Find Dr. John Smith')\n- Finding providers by specialty (e.g., 'Cardiologists in Boston')\n- Finding organizations (e.g., 'Mayo Clinic locations')\n- Verifying clinical trial investigators have US credentials\n- Building provider networks by location or specialty\n- Finding all providers at a specific facility\n\nUSE npi_lookup INSTEAD FOR:\n- When you already have a specific NPI number\n- Getting full details including raw API response\n\nSEARCH REQUIREMENTS:\n- At least one search parameter required (besides enumeration_type/country_code)\n- State cannot be the only criterion - must combine with name, specialty, or city\n- Country code alone only works for non-US countries\n\nWILDCARD SUPPORT (min 2 characters before *):\n- first_name: 'Jo*' matches John, Joseph, Jonathan\n- last_name: 'Smi*' matches Smith, Smithson, Smitty\n- organization_name: 'Mayo*' matches Mayo Clinic, Mayo Foundation\n- taxonomy_description: 'Cardio*' matches Cardiology, Cardiovascular Disease\n- postal_code: '212*' matches all ZIP codes starting with 212\n\nNAME ALIAS FEATURE (DEFAULT: ON):\nAutomatically expands first name searches to include common nicknames:\n- Robert -> also finds Bob, Rob, Robbie, Bobby\n- William -> also finds Bill, Will, Billy, Willy\n- Elizabeth -> also finds Beth, Liz, Betty, Eliza\n- Michael -> also finds Mike, Mick, Mickey\nSet use_first_name_alias=false for exact match only.\n\nPAGINATION:\n- Maximum 200 results per request (limit parameter)\n- Skip up to 1000 records (skip parameter)\n- Maximum 1,200 total results accessible (6 requests × 200)\n- Use next_skip from response to get next page\n- Set limit=200 for comprehensive searches\n\nCOMMON SPECIALTY SEARCHES (taxonomy_description):\n- Physicians: 'Internal Medicine', 'Family Practice', 'Cardiology', 'Oncology'\n- Surgeons: 'Orthopedic Surgery', 'General Surgery', 'Neurosurgery'\n- Mental Health: 'Psychiatry', 'Psychology', 'Clinical Social Worker'\n- Allied Health: 'Physical Therapist', 'Nurse Practitioner', 'Physician Assistant'\n- Organizations: 'General Acute Care Hospital', 'Pharmacy', 'Clinical Laboratory'\n\nEXAMPLES:\n- Find cardiologists in Boston: taxonomy_description='Cardiology', city='Boston', state='MA'\n- Find Dr. Smith (individual): first_name='John', last_name='Smith', enumeration_type='NPI-1'\n- Find Mayo Clinic (organization): organization_name='Mayo Clinic', enumeration_type='NPI-2'\n- Find oncologists in California: taxonomy_description='Oncology', state='CA', limit=100\n- Find all pharmacies in NYC: taxonomy_description='Pharmacy', city='New York', state='NY'\n- Find nurse practitioners in Texas: taxonomy_description='Nurse Practitioner', state='TX'\n- Exact name match: first_name='Robert', use_first_name_alias=false",
+        "inputSchema": {
+          "additionalProperties": false,
+          "properties": {
+            "number": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "10-digit NPI number. Rarely used in search - use npi_lookup for direct NPI queries."
+            },
+            "first_name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Provider first name (Individual NPI-1 only). Supports trailing wildcard with min 2 chars (e.g., 'Jo*'). Special chars allowed: & ' : , / - ( ) . # \" ;"
+            },
+            "last_name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Provider last name (Individual NPI-1 only). Supports trailing wildcard with min 2 chars (e.g., 'Smi*'). Special chars allowed: & ' : , / - ( ) . # \" ;"
+            },
+            "use_first_name_alias": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Expand first name to include common aliases/nicknames. Default: true. E.g., Robert also finds Bob, Rob, Bobby. Set false for exact match only."
+            },
+            "organization_name": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Organization name (Organizational NPI-2 only). Searches Legal Business Name, DBA, Former LBN, Other Names. Trailing wildcard supported (min 2 chars). Special chars allowed: & ' @ : , / - ( ) . # \" ;"
+            },
+            "taxonomy_description": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Provider specialty or taxonomy description. E.g., 'Internal Medicine', 'Cardiology', 'Oncology', 'Family Practice'. Wildcard supported (min 2 chars)."
+            },
+            "enumeration_type": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "NPI-1",
+                    "NPI-2"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Filter by provider type: 'NPI-1' = Individual providers (physicians, nurses, etc.), 'NPI-2' = Organizations (hospitals, clinics, etc.). Cannot be sole search criterion."
+            },
+            "address_purpose": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "LOCATION",
+                    "MAILING",
+                    "PRIMARY",
+                    "SECONDARY"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Which address to search: LOCATION=any practice location, MAILING=mailing address, PRIMARY=primary practice location, SECONDARY=secondary practice locations. Default searches both mailing and practice addresses."
+            },
+            "city": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "City name. For military addresses use 'APO' or 'FPO'. Special chars allowed: & ' : , / - ( ) . # \" ;"
+            },
+            "state": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Two-letter US state abbreviation (e.g., 'CA', 'NY', 'TX'). Cannot be sole search criterion - must include another parameter."
+            },
+            "postal_code": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "5 or 9 digit ZIP code. 5-digit codes match all 9-digit variants. Trailing wildcard supported (e.g., '212*' for all NYC ZIPs starting with 212)."
+            },
+            "country_code": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Two-letter country code. 'US' for United States. Can be sole criterion only for non-US countries."
+            },
+            "limit": {
+              "default": 10,
+              "description": "Results per request. Default: 10, Maximum: 200. Use with skip for pagination.",
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "skip": {
+              "default": 0,
+              "description": "Number of records to skip for pagination. Maximum: 1000. Combined with limit, allows accessing up to 1,200 total results.",
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "outputSchema": {
+          "description": "Response from provider search. Use pagination (limit/skip) for large result sets.",
+          "properties": {
+            "count": {
+              "description": "Number of results in THIS response (up to 'limit' parameter, max 200).",
+              "type": "integer"
+            },
+            "total": {
+              "description": "Total matching records in NPPES. Note: Only up to 1,200 accessible via API pagination.",
+              "type": "integer"
+            },
+            "next_skip": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Value to pass as 'skip' parameter for next page. None when no more results or skip would exceed 1000 limit."
+            },
+            "items": {
+              "description": "Compact provider summaries. Use npi_lookup on specific NPIs for full details.",
+              "items": {
+                "description": "Compact provider summary for search results. Use npi_lookup for full details on specific providers.",
+                "properties": {
+                  "npi": {
+                    "description": "10-digit National Provider Identifier. Use with npi_lookup to get full details.",
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "Display name: 'FirstName LastName' for individuals, Legal Business Name for organizations.",
+                    "type": "string"
+                  },
+                  "enumeration_type": {
+                    "description": "Provider type: 'Individual' (NPI-1) or 'Organization' (NPI-2).",
+                    "type": "string"
+                  },
+                  "primary_taxonomy_code": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Primary NUCC taxonomy code (10 chars). E.g., '207R00000X' = Internal Medicine."
+                  },
+                  "primary_taxonomy_desc": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Human-readable primary specialty. E.g., 'Internal Medicine', 'Family Practice', 'General Acute Care Hospital'."
+                  },
+                  "primary_practice_address": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Formatted primary practice address as single string: 'Street, City, State ZIP'."
+                  },
+                  "phone": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "description": "Primary practice phone number with area code."
+                  }
+                },
+                "required": [
+                  "npi",
+                  "name",
+                  "enumeration_type"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "count",
+            "total",
+            "items"
+          ],
+          "type": "object"
+        },
+        "annotations": {
+          "title": "Search Providers",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "_meta": {
+          "fastmcp": {
+            "tags": []
+          }
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:24:21.092Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:24:22.145Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:24:23.196Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:24:24.247Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 3,
+    "tools_hash": "sha256:f7821e31a3dd9c33e585b3752f6195b23f12cb17be0e3f3016fc6285a876ff48",
+    "static_tool_tokens": 4797,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "npi_validate",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F5",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "npi_lookup",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F6",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "npi_search",
+        "message": "Description exceeds 1,000 characters."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 0,
+      "warning": 3
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "npi_search",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "Results per request. Default: 10, Maximum: 200. Use with skip for pagination.",
+          "mentions_size_or_cost": true,
+          "default": 10,
+          "described_default": 10,
+          "maximum": 200
+        },
+        {
+          "tool": "npi_search",
+          "path": "inputSchema.properties.skip",
+          "name": "skip",
+          "description": "Number of records to skip for pagination. Maximum: 1000. Combined with limit, allows accessing up to 1,200 total results.",
+          "mentions_size_or_cost": true,
+          "default": 0,
+          "maximum": 1000
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "npi_lookup"
+          ],
+          "description": "Get comprehensive provider details by NPI number from the CMS NPPES Registry.\n\nWHEN TO USE:\n- You have a specific NPI and need full provider information\n- Verifying provider credentials, specialty, or practice location\n- Following up on results from npi_search to get complete details\n- Cross-referencing clinical trial investigators with US credentials\n- Getting raw API response for advanced data extraction\n\nUSE npi_search INSTEAD FOR:\n- Finding providers by name, location, or specialty\n- When you don't have a specific NPI number\n- Browsing providers in a geographic area\n\nWHAT THIS RETURNS:\nBasic Information:\n- Provider type: Individual (NPI-1) or Organization (NPI-2)\n- Name: Full name (individuals) or Legal Business Name (organizations)\n- Credentials: MD, DO, RN, PA-C, NP, etc. (for individuals)\n- Status: 'A' (Active) or 'D' (Deactivated)\n- Enumeration date: When the NPI was first assigned\n- Last updated: When the record was last modified\n\nSpecialty/Taxonomy:\n- Primary taxonomy code: NUCC healthcare provider taxonomy code\n- Primary taxonomy description: Human-readable specialty name\n- License state and number: From primary taxonomy\n\nLocation:\n- Practice address: Primary practice location with full address\n- Phone number: Practice telephone (if available)\n\nAdvanced:\n- Raw API response: Complete NPPES data including:\n  - All taxonomies (up to 15)\n  - Other identifiers (state license, DEA, etc.)\n  - Other practice locations\n  - Authorized officials (for organizations)\n  - Endpoints (health information exchange)\n\nNOTE: Automatically validates NPI format before API call.\nReturns found=false if NPI is valid but not assigned to any provider.\n\nIMPORTANT CAVEATS:\n- Having an NPI does NOT guarantee the provider is currently licensed\n- Provider self-reports data; NPPES does not verify accuracy\n- Deactivated providers remain in database but should not be used for billing\n- Verify credentials through state licensing boards for official confirmation",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "npi_search"
+          ],
+          "description": "Search the CMS NPPES Registry for healthcare providers by name, location, specialty, or organization.\n\nWHEN TO USE:\n- Finding providers by name (e.g., 'Find Dr. John Smith')\n- Finding providers by specialty (e.g., 'Cardiologists in Boston')\n- Finding organizations (e.g., 'Mayo Clinic locations')\n- Verifying clinical trial investigators have US credentials\n- Building provider networks by location or specialty\n- Finding all providers at a specific facility\n\nUSE npi_lookup INSTEAD FOR:\n- When you already have a specific NPI number\n- Getting full details including raw API response\n\nSEARCH REQUIREMENTS:\n- At least one search parameter required (besides enumeration_type/country_code)\n- State cannot be the only criterion - must combine with name, specialty, or city\n- Country code alone only works for non-US countries\n\nWILDCARD SUPPORT (min 2 characters before *):\n- first_name: 'Jo*' matches John, Joseph, Jonathan\n- last_name: 'Smi*' matches Smith, Smithson, Smitty\n- organization_name: 'Mayo*' matches Mayo Clinic, Mayo Foundation\n- taxonomy_description: 'Cardio*' matches Cardiology, Cardiovascular Disease\n- postal_code: '212*' matches all ZIP codes starting with 212\n\nNAME ALIAS FEATURE (DEFAULT: ON):\nAutomatically expands first name searches to include common nicknames:\n- Robert -> also finds Bob, Rob, Robbie, Bobby\n- William -> also finds Bill, Will, Billy, Willy\n- Elizabeth -> also finds Beth, Liz, Betty, Eliza\n- Michael -> also finds Mike, Mick, Mickey\nSet use_first_name_alias=false for exact match only.\n\nPAGINATION:\n- Maximum 200 results per request (limit parameter)\n- Skip up to 1000 records (skip parameter)\n- Maximum 1,200 total results accessible (6 requests × 200)\n- Use next_skip from response to get next page\n- Set limit=200 for comprehensive searches\n\nCOMMON SPECIALTY SEARCHES (taxonomy_description):\n- Physicians: 'Internal Medicine', 'Family Practice', 'Cardiology', 'Oncology'\n- Surgeons: 'Orthopedic Surgery', 'General Surgery', 'Neurosurgery'\n- Mental Health: 'Psychiatry', 'Psychology', 'Clinical Social Worker'\n- Allied Health: 'Physical Therapist', 'Nurse Practitioner', 'Physician Assistant'\n- Organizations: 'General Acute Care Hospital', 'Pharmacy', 'Clinical Laboratory'\n\nEXAMPLES:\n- Find cardiologists in Boston: taxonomy_description='Cardiology', city='Boston', state='MA'\n- Find Dr. Smith (individual): first_name='John', last_name='Smith', enumeration_type='NPI-1'\n- Find Mayo Clinic (organization): organization_name='Mayo Clinic', enumeration_type='NPI-2'\n- Find oncologists in California: taxonomy_description='Oncology', state='CA', limit=100\n- Find all pharmacies in NYC: taxonomy_description='Pharmacy', city='New York', state='NY'\n- Find nurse practitioners in Texas: taxonomy_description='Nurse Practitioner', state='TX'\n- Exact name match: first_name='Robert', use_first_name_alias=false",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "npi_validate",
+      "npi_lookup",
+      "npi_search"
+    ]
+  }
+}

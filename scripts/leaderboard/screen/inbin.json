@@ -1,0 +1,406 @@
+{
+  "slug": "inbin",
+  "source_url": "https://manufact.com/mcp-catalog/inbin",
+  "metadata_only": true,
+  "catalog_review_used_auth": false,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:52:53.525Z",
+    "endpoint": "https://api.inbin.dev/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "inbin",
+      "version": "0.8.1"
+    },
+    "capabilities": {
+      "tools": {
+        "listChanged": false
+      }
+    },
+    "instructions": "This Inbin app exposes its inboxes and parsed events as MCP tools. Start with list_inboxes and describe_schema to learn the shape of your data.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "create_trial_inbox",
+            "annotations": {
+              "title": "Create a no-signup trial inbox",
+              "readOnlyHint": false,
+              "idempotentHint": false
+            },
+            "description": "Create a temporary inbox with NO Inbin account required at all -- usable before the human has signed up for anything. Returns the inbox address IMMEDIATELY; it does not wait for anything. Use the address to sign up wherever you need a confirmation sent, THEN call await_trial_inbox with that same address to block for the confirmation -- calling this alone does not get you a confirmation. This inbox is NOT tied to any account yet and expires automatically within about two weeks regardless of use. If the human wants to keep using this SAME address permanently, call claim_trial_inbox: no dashboard visit, no key to copy, and more than one agent can independently connect to the same address over time this way.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "purpose_label": {
+                  "type": "string",
+                  "description": "Optional human-readable label for what this inbox is for."
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "await_trial_inbox",
+            "annotations": {
+              "title": "Wait for a trial inbox's confirmation",
+              "readOnlyHint": true
+            },
+            "description": "Block (up to ttl_seconds, max 60) for the one confirmation email on a trial inbox created by create_trial_inbox. Pass the exact inbox_address that call returned. The inbox does NOT self-delete or become unusable after a match: it keeps receiving mail and can still be claimed afterward (call claim_trial_inbox any time before it expires) if the human wants to keep using the same address. Call this AFTER you have actually used the address somewhere (signed up, requested a code) -- calling it before that will just expire, since there is nothing to wait for yet. 60 seconds is a hard per-call ceiling, not the inbox's total lifetime: a sender that takes longer than that is not a failure, just call this again with the same inbox_address to keep waiting (the inbox stays valid for its full ~2-week expiry, and you can call this again later too, e.g. to catch a second, later email on the same address). Only treat expired as final once you've retried a few times.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "inbox_address": {
+                  "type": "string",
+                  "description": "The exact address create_trial_inbox returned, e.g. abc123@in.inbin.dev."
+                },
+                "expected_sender": {
+                  "type": "string",
+                  "description": "Glob on the sender address, e.g. *@vercel.com."
+                },
+                "ttl_seconds": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 60,
+                  "default": 45,
+                  "description": "How long to block waiting for the confirmation, in seconds (max 60). Returns expired if nothing arrives in time."
+                }
+              },
+              "required": [
+                "inbox_address"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "claim_trial_inbox",
+            "annotations": {
+              "title": "Connect an agent to this inbox, permanently",
+              "readOnlyHint": false,
+              "idempotentHint": false
+            },
+            "description": "Start connecting an agent to this inbox address, permanently -- the SAME address. Works whether this is a brand-new trial inbox OR one that's already been claimed by a different agent before: more than one agent can independently connect to the same inbox, each getting its own separate, revocable connection. Returns a claim_url immediately -- share it in chat right away. The human clicks it, enters their email, enters the one-time code Inbin sends there, and a credential is ISSUED. That is NOT the same as the connection working yet -- the human still has to install that credential into an MCP client's config before anything can actually use it, and you will never see the credential itself, by design. Call await_trial_inbox_claim afterward to see the human finish the email+code step, then claim_connection_status (repeatedly, possibly much later -- installing a client is not instant) to see whether a client has actually started using it. The inbox must still exist (not yet expired) for this to work; it does not need to still be a TRIAL inbox specifically.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "inbox_address": {
+                  "type": "string",
+                  "description": "The exact inbox address to connect to, e.g. abc123@in.inbin.dev."
+                },
+                "connector_label": {
+                  "type": "string",
+                  "description": "Optional label identifying which agent/client is connecting, e.g. 'Muse'. Shown to the human as the name of this specific connection so they can tell multiple connections apart later."
+                }
+              },
+              "required": [
+                "inbox_address"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "await_trial_inbox_claim",
+            "annotations": {
+              "title": "Wait for the claim page to be finished",
+              "readOnlyHint": true
+            },
+            "description": "Block (up to ttl_seconds, max 60) for a human to finish the EMAIL+CODE step on the claim_url page from claim_trial_inbox. This NEVER returns a credential, at any status. It returns one of three honest states, not a single 'connected': \"claim_pending\" (nobody has entered the code yet -- keep waiting or call again), \"claimed\" (the human proved ownership and a credential was ISSUED, but nothing has used it yet -- a client still needs to be installed with the config from the claim page's 'Advanced' section before anything works), or \"client_installed\" (some client has actually authenticated with the connection at least once -- a real, observed signal, not an assumption). Each response includes a next_action field telling you exactly what to say or do -- follow it literally rather than guessing. \"claimed\" is NOT success: do not tell the human it's working until you see \"client_installed\", and even then, verify it yourself (call list_inboxes or similar through the new connection and read the actual result) before claiming it works for you specifically -- call claim_connection_status later if you need to check again after this chat session, since installing a client can take arbitrarily long and this tool only blocks up to 60s.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "claim_token": {
+                  "type": "string",
+                  "description": "The token from claim_trial_inbox's claim_url (the part after /claim/)."
+                },
+                "ttl_seconds": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 60,
+                  "default": 45,
+                  "description": "How long to block waiting, in seconds (max 60). Returns pending if the human hasn't finished yet."
+                }
+              },
+              "required": [
+                "claim_token"
+              ],
+              "additionalProperties": false
+            }
+          },
+          {
+            "name": "claim_connection_status",
+            "annotations": {
+              "title": "Check a connection's real status",
+              "readOnlyHint": true
+            },
+            "description": "Read-only, non-blocking check of exactly which state a claim_trial_inbox connection is in RIGHT NOW: \"claim_pending\", \"claimed\" (credential issued, unused), or \"client_installed\" (a client has actually authenticated with it at least once -- real, observed). Never returns a credential. Use this instead of await_trial_inbox_claim when you want to check progress WITHOUT blocking, especially much later than the original chat session -- installing a client into its own config is a human action with no fixed timeline, so polling this occasionally (not in a tight loop) is the right way to check back. Each response includes a next_action field telling you exactly what to say or do.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "claim_token": {
+                  "type": "string",
+                  "description": "The token from claim_trial_inbox's claim_url (the part after /claim/)."
+                }
+              },
+              "required": [
+                "claim_token"
+              ],
+              "additionalProperties": false
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "create_trial_inbox",
+        "annotations": {
+          "title": "Create a no-signup trial inbox",
+          "readOnlyHint": false,
+          "idempotentHint": false
+        },
+        "description": "Create a temporary inbox with NO Inbin account required at all -- usable before the human has signed up for anything. Returns the inbox address IMMEDIATELY; it does not wait for anything. Use the address to sign up wherever you need a confirmation sent, THEN call await_trial_inbox with that same address to block for the confirmation -- calling this alone does not get you a confirmation. This inbox is NOT tied to any account yet and expires automatically within about two weeks regardless of use. If the human wants to keep using this SAME address permanently, call claim_trial_inbox: no dashboard visit, no key to copy, and more than one agent can independently connect to the same address over time this way.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "purpose_label": {
+              "type": "string",
+              "description": "Optional human-readable label for what this inbox is for."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "await_trial_inbox",
+        "annotations": {
+          "title": "Wait for a trial inbox's confirmation",
+          "readOnlyHint": true
+        },
+        "description": "Block (up to ttl_seconds, max 60) for the one confirmation email on a trial inbox created by create_trial_inbox. Pass the exact inbox_address that call returned. The inbox does NOT self-delete or become unusable after a match: it keeps receiving mail and can still be claimed afterward (call claim_trial_inbox any time before it expires) if the human wants to keep using the same address. Call this AFTER you have actually used the address somewhere (signed up, requested a code) -- calling it before that will just expire, since there is nothing to wait for yet. 60 seconds is a hard per-call ceiling, not the inbox's total lifetime: a sender that takes longer than that is not a failure, just call this again with the same inbox_address to keep waiting (the inbox stays valid for its full ~2-week expiry, and you can call this again later too, e.g. to catch a second, later email on the same address). Only treat expired as final once you've retried a few times.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "inbox_address": {
+              "type": "string",
+              "description": "The exact address create_trial_inbox returned, e.g. abc123@in.inbin.dev."
+            },
+            "expected_sender": {
+              "type": "string",
+              "description": "Glob on the sender address, e.g. *@vercel.com."
+            },
+            "ttl_seconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60,
+              "default": 45,
+              "description": "How long to block waiting for the confirmation, in seconds (max 60). Returns expired if nothing arrives in time."
+            }
+          },
+          "required": [
+            "inbox_address"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "claim_trial_inbox",
+        "annotations": {
+          "title": "Connect an agent to this inbox, permanently",
+          "readOnlyHint": false,
+          "idempotentHint": false
+        },
+        "description": "Start connecting an agent to this inbox address, permanently -- the SAME address. Works whether this is a brand-new trial inbox OR one that's already been claimed by a different agent before: more than one agent can independently connect to the same inbox, each getting its own separate, revocable connection. Returns a claim_url immediately -- share it in chat right away. The human clicks it, enters their email, enters the one-time code Inbin sends there, and a credential is ISSUED. That is NOT the same as the connection working yet -- the human still has to install that credential into an MCP client's config before anything can actually use it, and you will never see the credential itself, by design. Call await_trial_inbox_claim afterward to see the human finish the email+code step, then claim_connection_status (repeatedly, possibly much later -- installing a client is not instant) to see whether a client has actually started using it. The inbox must still exist (not yet expired) for this to work; it does not need to still be a TRIAL inbox specifically.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "inbox_address": {
+              "type": "string",
+              "description": "The exact inbox address to connect to, e.g. abc123@in.inbin.dev."
+            },
+            "connector_label": {
+              "type": "string",
+              "description": "Optional label identifying which agent/client is connecting, e.g. 'Muse'. Shown to the human as the name of this specific connection so they can tell multiple connections apart later."
+            }
+          },
+          "required": [
+            "inbox_address"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "await_trial_inbox_claim",
+        "annotations": {
+          "title": "Wait for the claim page to be finished",
+          "readOnlyHint": true
+        },
+        "description": "Block (up to ttl_seconds, max 60) for a human to finish the EMAIL+CODE step on the claim_url page from claim_trial_inbox. This NEVER returns a credential, at any status. It returns one of three honest states, not a single 'connected': \"claim_pending\" (nobody has entered the code yet -- keep waiting or call again), \"claimed\" (the human proved ownership and a credential was ISSUED, but nothing has used it yet -- a client still needs to be installed with the config from the claim page's 'Advanced' section before anything works), or \"client_installed\" (some client has actually authenticated with the connection at least once -- a real, observed signal, not an assumption). Each response includes a next_action field telling you exactly what to say or do -- follow it literally rather than guessing. \"claimed\" is NOT success: do not tell the human it's working until you see \"client_installed\", and even then, verify it yourself (call list_inboxes or similar through the new connection and read the actual result) before claiming it works for you specifically -- call claim_connection_status later if you need to check again after this chat session, since installing a client can take arbitrarily long and this tool only blocks up to 60s.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "claim_token": {
+              "type": "string",
+              "description": "The token from claim_trial_inbox's claim_url (the part after /claim/)."
+            },
+            "ttl_seconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60,
+              "default": 45,
+              "description": "How long to block waiting, in seconds (max 60). Returns pending if the human hasn't finished yet."
+            }
+          },
+          "required": [
+            "claim_token"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "claim_connection_status",
+        "annotations": {
+          "title": "Check a connection's real status",
+          "readOnlyHint": true
+        },
+        "description": "Read-only, non-blocking check of exactly which state a claim_trial_inbox connection is in RIGHT NOW: \"claim_pending\", \"claimed\" (credential issued, unused), or \"client_installed\" (a client has actually authenticated with it at least once -- real, observed). Never returns a credential. Use this instead of await_trial_inbox_claim when you want to check progress WITHOUT blocking, especially much later than the original chat session -- installing a client into its own config is a human action with no fixed timeline, so polling this occasionally (not in a tight loop) is the right way to check back. Each response includes a next_action field telling you exactly what to say or do.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "claim_token": {
+              "type": "string",
+              "description": "The token from claim_trial_inbox's claim_url (the part after /claim/)."
+            }
+          },
+          "required": [
+            "claim_token"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:52:50.226Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:52:51.281Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:52:52.332Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:52:53.383Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 5,
+    "tools_hash": "sha256:ecdaf79117d052d2128b84b9ad9e9529811cb6761350952dff95f03bca756ea7",
+    "static_tool_tokens": 2586,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "create_trial_inbox",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "await_trial_inbox",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "await_trial_inbox",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F7",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "claim_trial_inbox",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "claim_trial_inbox",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "await_trial_inbox_claim",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F10",
+        "severity": "warning",
+        "kind": "description_too_long",
+        "tool": "await_trial_inbox_claim",
+        "message": "Description exceeds 1,000 characters."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "await_trial_inbox_claim",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "claim_connection_status",
+        "message": "Tool has no output schema."
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 7,
+      "warning": 2
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "create_trial_inbox"
+          ],
+          "description": "Create a temporary inbox with NO Inbin account required at all -- usable before the human has signed up for anything. Returns the inbox address IMMEDIATELY; it does not wait for anything. Use the address to sign up wherever you need a confirmation sent, THEN call await_trial_inbox with that same address to block for the confirmation -- calling this alone does not get you a confirmation. This inbox is NOT tied to any account yet and expires automatically within about two weeks regardless of use. If the human wants to keep using this SAME address permanently, call claim_trial_inbox: no dashboard visit, no key to copy, and more than one agent can independently connect to the same address over time this way.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "await_trial_inbox",
+      "await_trial_inbox_claim",
+      "claim_connection_status"
+    ]
+  }
+}

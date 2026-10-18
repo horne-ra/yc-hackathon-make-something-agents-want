@@ -1,0 +1,3093 @@
+{
+  "slug": "jeroen-nl-onafhankelijk-energieplatform",
+  "source_url": "https://manufact.com/mcp-catalog/jeroen-nl-onafhankelijk-energieplatform",
+  "metadata_only": true,
+  "live": {
+    "source": "live_tools_list",
+    "fetched_at": "2026-10-17T23:24:07.526Z",
+    "endpoint": "https://jeroen.nl/mcp",
+    "transport": "streamable",
+    "server": {
+      "name": "jeroen.nl",
+      "title": "jeroen.nl energiedata",
+      "version": "1.2.0",
+      "websiteUrl": "https://jeroen.nl"
+    },
+    "capabilities": {
+      "prompts": {
+        "listChanged": false
+      },
+      "tools": {
+        "listChanged": false
+      }
+    },
+    "instructions": "Energy data for the Netherlands from jeroen.nl: day-ahead electricity prices (full history since 2013, quarter-hourly), gas prices, electricity price forecasts with uncertainty bands, solar yield forecasts per location per kWp with a p10-p90 band, Dutch dynamic energy suppliers with their fees and solar bonuses, comparisons of plug-in batteries, P1 meters, ERE providers and electric cars, energy saving tips with yearly savings, knowledge quizzes, grid congestion per postcode, the payback time of a home battery and historical weather per postcode (temperature, heating degree days, sunshine, radiation) since 2000.\nRules:\n- Times are Europe/Amsterdam unless a field ends in _utc. Prices are EUR, excluding VAT unless a field says incl_vat.\n- When you mention or compare a supplier, always show its signup_url from the tool result as a clickable link. Do not replace or shorten it.\n- Forecasts are estimates. Mention the band (p10-p90) when giving a forecast.\n- Credit the source as \"jeroen.nl\" when you present these numbers. Terms: https://jeroen.nl/api-voorwaarden\n- Answer in the language of the user; the data labels are in English.\n- Weather explains energy: compare gas or heat pump use with (weighted) degree days and solar production with sunshine and radiation (get_historical_weather) before drawing conclusions about a house or a roof.\n- When you mention a product, provider, tip or quiz, show its jeroen.nl link from the tool result as a clickable link.\n- Quizzes: ask the questions one by one and only fetch the answers (get_quiz with include_answers) after the user answered. Energy points are only earned by doing the quiz on jeroen.nl.\nAdvice about a dynamic energy contract (dynamic versus fixed or variable, or which supplier fits). Follow these rules:\n- Do not recommend a dynamic contract or a specific supplier until the situation is clear. Ask what is missing in a few short questions; with a linked jeroen.nl account, look it up first.\n- Basics: electricity only or also gas, yearly electricity use in kWh and gas use in m3, flexible loads (electric car, home battery, heat pump) and whether use can be shifted to hours with low prices, when electricity is mostly used, tolerance for varying monthly costs, the current contract (type, end date, termination fee) and preferences (price per hour or per quarter hour, payment method, what matters most).\n- Split 1, solar panels: ask whether the household has solar panels.\n- No solar panels: compare suppliers mainly on the purchase fee per kWh (electricity_purchase_fee), plus the gas fee per m3 when gas is needed.\n- Solar panels, but no or hardly any feed-in (for example because of a home battery or high own use): still compare mainly on the purchase fee per kWh.\n- Solar panels with feed-in: ask how many kWh per year are fed back. The more is fed back compared to what is taken from the grid, the more the feed-in fee per kWh and the solar bonus matter. Always include the current solar bonuses from get_solar_bonus, and use get_solar_bonus_analysis to see which bonus pays most for the orientation of the panels.\n- The feed-in fee (terugleververgoeding) is always seen from the consumer: positive means it is added on top of the market price, negative means it is deducted from the market price. So per kWh fed back the consumer receives market price + feed-in fee (+ solar bonus), which can be less than the market price.\n- Always calculate per supplier: yearly purchase costs = grid use kWh x (market price + purchase fee + energy tax), yearly feed-in revenue = feed-in kWh x (market price + feed-in fee) plus the expected solar bonus, and 12 x the monthly costs for electricity (and gas). The market price is the same for every supplier, so differences between suppliers come from the fees, solar bonus and monthly costs. Always show the monthly costs.\n- Never forget VAT (btw, 21%). Consumers pay prices including VAT, so do every calculation with amounts including VAT: use the *_incl_vat fields for fees and monthly costs, add VAT to market prices and energy tax (or use the all-in prices of get_electricity_prices and get_gas_prices), and use the InclBtw amounts of solar bonuses. Never mix amounts with and without VAT, and say in the answer that the amounts include VAT.\n- Grid operator costs (get_grid_operator_costs) are the same for every supplier: include them in the total monthly costs, but not in the choice of supplier.\n- Mention that the Dutch net metering scheme (salderingsregeling) ends on 1 January 2027, which makes feed-in fees and solar bonuses more important from then on.\n- Refer to the jeroen.nl article on solar bonuses for background: https://jeroen.nl/blog/zonnebonus-vergelijken-voor-terugleveren-stroom\n- Present the outcome as an estimate, not personal financial advice, and show the signup_url of the suppliers you mention.\n- With every supplier advice, always point to: the overview of all dynamic suppliers (https://jeroen.nl/dynamische-energie/aanbieders), the personal comparison tool (https://jeroen.nl/dynamische-energie/aanbieders/vergelijken), and as the most accurate option a power analysis with the own quarter-hour meter data (https://jeroen.nl/energie/stroomanalyse).\n- Users can also start this with the prompt advies_dynamisch_contract.\n- Personal data (own power analyses, solar production, home, contract, ERE earnings of the charger, quiz results, P1 meters, savings overview) is available through https://jeroen.nl/mcp/account after signing in.",
+    "pages": [
+      {
+        "tools": [
+          {
+            "name": "get_electricity_prices",
+            "title": "Dutch day-ahead electricity prices",
+            "description": "Day-ahead electricity prices for the Netherlands (EPEX/ENTSO-E bidding zone NL) from 2013 until tomorrow once published (around 13:00). Market price in EUR/kWh excluding VAT, per quarter hour, hour, day, month or year. Optionally an indicative all-in consumer price including energy tax, average supplier fee and 21% VAT (only for dates from 2023). Maximum period per call: 31 days per quarter hour, 92 days per hour, 10 years per day. Per quarter hour and hour each row also has time_utc, so the doubled hour when daylight saving time ends is two separate rows.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "date_from": {
+                  "type": "string",
+                  "description": "Date in Europe/Amsterdam, YYYY-MM-DD.",
+                  "format": "date"
+                },
+                "date_to": {
+                  "type": "string",
+                  "description": "Date in Europe/Amsterdam, YYYY-MM-DD. Inclusive.",
+                  "format": "date"
+                },
+                "resolution": {
+                  "type": "string",
+                  "description": "Aggregation level. Averages for hour and longer.",
+                  "enum": [
+                    "quarter",
+                    "hour",
+                    "day",
+                    "month",
+                    "year"
+                  ],
+                  "default": "hour"
+                },
+                "include_all_in": {
+                  "type": "boolean",
+                  "description": "Add an indicative all-in consumer price incl. VAT.",
+                  "default": false
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "date_from",
+                "date_to"
+              ]
+            },
+            "annotations": {
+              "title": "Dutch day-ahead electricity prices",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_gas_prices",
+            "title": "Dutch gas prices",
+            "description": "Daily dynamic gas prices for the Netherlands from 2018, in EUR/m3 excluding VAT, per day, month or year. Optionally an indicative all-in consumer price including energy tax, average supplier fee and 21% VAT (only for dates from 2023).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "date_from": {
+                  "type": "string",
+                  "description": "Date in Europe/Amsterdam, YYYY-MM-DD.",
+                  "format": "date"
+                },
+                "date_to": {
+                  "type": "string",
+                  "description": "Date in Europe/Amsterdam, YYYY-MM-DD. Inclusive.",
+                  "format": "date"
+                },
+                "resolution": {
+                  "type": "string",
+                  "enum": [
+                    "day",
+                    "month",
+                    "year"
+                  ],
+                  "default": "day"
+                },
+                "include_all_in": {
+                  "type": "boolean",
+                  "default": false
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "date_from",
+                "date_to"
+              ]
+            },
+            "annotations": {
+              "title": "Dutch gas prices",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_electricity_price_forecast",
+            "title": "Electricity price forecast (next days)",
+            "description": "Forecast of Dutch day-ahead electricity prices for today and the coming days (up to 7), made by jeroen.nl with a weather-driven model. Per quarter hour, hour or day: the known market price where the auction already happened, otherwise p10, p50 and p90 in EUR/kWh excluding VAT. Also per day the average, the cheapest and most expensive quarter, the cheapest and most expensive consecutive block and the number of quarters below zero. Optionally the consumption or feed-in price of a household, with the purchase fee, energy tax and VAT or the feed-in fee of a chosen supplier. Per quarter hour and hour each row also has time_utc.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "days": {
+                  "type": "integer",
+                  "description": "Number of days including today.",
+                  "minimum": 1,
+                  "maximum": 7,
+                  "default": 3
+                },
+                "resolution": {
+                  "type": "string",
+                  "enum": [
+                    "quarter",
+                    "hour",
+                    "day"
+                  ],
+                  "default": "hour"
+                },
+                "type": {
+                  "type": "string",
+                  "description": "consumption is the price for electricity taken from the grid, feed_in the price for electricity fed back.",
+                  "enum": [
+                    "consumption",
+                    "feed_in"
+                  ],
+                  "default": "consumption"
+                },
+                "include_consumer_price": {
+                  "type": "boolean",
+                  "description": "Add the price a household pays or receives: market price plus purchase fee, energy tax and VAT, or for feed_in the market price plus the feed-in fee.",
+                  "default": false
+                },
+                "supplier": {
+                  "type": "string",
+                  "description": "Supplier slug from list_dynamic_energy_suppliers, to calculate the consumer price with the fees of that supplier instead of the average.",
+                  "pattern": "^[a-z0-9-]{2,60}$",
+                  "maxLength": 60
+                },
+                "block_hours": {
+                  "type": "integer",
+                  "description": "Length in hours of the cheapest and most expensive block per day.",
+                  "minimum": 1,
+                  "maximum": 6,
+                  "default": 2
+                }
+              },
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Electricity price forecast (next days)",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_expected_average_prices",
+            "title": "Expected average energy prices (12 months)",
+            "description": "Expected average market prices for the coming 12 months that Dutch suppliers of dynamic contracts must use in their cost estimates: electricity without solar panels, electricity with solar panels, solar feed-in and gas. Excluding VAT, taxes and supplier fees. Useful when comparing fixed and dynamic contracts. Without dates it returns the latest values; with date_from it also returns one snapshot per day (history from 2026-07-09).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "date_from": {
+                  "type": "string",
+                  "description": "Date in Europe/Amsterdam, YYYY-MM-DD. Optional: add the daily history from this date.",
+                  "format": "date"
+                },
+                "date_to": {
+                  "type": "string",
+                  "description": "Date in Europe/Amsterdam, YYYY-MM-DD. Inclusive. Default today. Only with date_from.",
+                  "format": "date"
+                }
+              },
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Expected average energy prices (12 months)",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "list_dynamic_energy_suppliers",
+            "title": "Dutch dynamic energy suppliers",
+            "description": "Dynamic (hourly or quarter-hourly priced) electricity and gas suppliers in the Netherlands with their fees: purchase fee per kWh, feed-in fee per kWh, fee per m3 gas and monthly costs, excluding and including VAT, plus whether they offer a solar bonus. Each supplier has an information link and a signup link on jeroen.nl. The order is alphabetical or by the chosen sort, not a ranking.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "requires_gas": {
+                  "type": "boolean",
+                  "description": "Only suppliers that also deliver gas.",
+                  "default": false
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": [
+                    "name",
+                    "electricity_purchase_fee",
+                    "monthly_costs"
+                  ],
+                  "default": "name"
+                }
+              },
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Dutch dynamic energy suppliers",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_grid_operator_costs",
+            "title": "Grid operator costs per connection",
+            "description": "Monthly grid operator costs (netbeheerkosten) in the Netherlands per grid operator and connection size, for electricity and gas, for 2026 and 2027 when published. Amounts include VAT. Grid operator costs are identical for every energy supplier.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "grid_operator": {
+                  "type": "string",
+                  "description": "Omit for all grid operators. The grid operator follows from the address.",
+                  "enum": [
+                    "Stedin",
+                    "Enexis",
+                    "Liander",
+                    "Coteq",
+                    "Rendo",
+                    "Westland Infra"
+                  ]
+                },
+                "include_business": {
+                  "type": "boolean",
+                  "description": "Also include connections that are not for households.",
+                  "default": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Grid operator costs per connection",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_solar_bonus",
+            "title": "Solar bonus per supplier",
+            "description": "Solar feed-in bonuses of Dutch dynamic suppliers: the rules, when the bonus applies and what it pays right now, or for a given market price. Amounts in EUR/kWh, excluding and including VAT.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "supplier": {
+                  "type": "string",
+                  "description": "Supplier slug, for example frank-energie. Omit for all.",
+                  "pattern": "^[a-z0-9-]{2,60}$",
+                  "maxLength": 60
+                },
+                "date": {
+                  "type": "string",
+                  "description": "Date in Europe/Amsterdam, YYYY-MM-DD. Default today.",
+                  "format": "date"
+                },
+                "market_price": {
+                  "type": "number",
+                  "description": "Optional market price in EUR/kWh to calculate the payout at noon.",
+                  "minimum": -5,
+                  "maximum": 5
+                }
+              },
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Solar bonus per supplier",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_solar_bonus_analysis",
+            "title": "Solar bonus analysis: which bonus pays most per hour",
+            "description": "Background data behind the jeroen.nl article on solar bonuses: the average market price per hour over the last 12 months (April to September, 07:00-21:00, positive prices), what each supplier with a solar bonus pays per kWh at that price, the best paying supplier per hour, averages for south, east and west facing panels, and a month by hour grid. Refreshed daily.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Solar bonus analysis: which bonus pays most per hour",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_solar_forecast",
+            "title": "Solar yield forecast per location",
+            "description": "Solar panel yield forecast for a location in the Netherlands for today and the coming days, per kWp and for a given system size, with an uncertainty band (p10, p50, p90) from a weather ensemble. Azimuth: 0 = south, -90 = east, 90 = west. Tilt in degrees from horizontal. Model: irradiance on the panel plane, temperature derating and a performance ratio of 0.85.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "latitude": {
+                  "type": "number",
+                  "minimum": 50.7,
+                  "maximum": 53.6
+                },
+                "longitude": {
+                  "type": "number",
+                  "minimum": 3.3,
+                  "maximum": 7.25
+                },
+                "tilt": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 90,
+                  "default": 35
+                },
+                "azimuth": {
+                  "type": "integer",
+                  "minimum": -180,
+                  "maximum": 180,
+                  "default": 0
+                },
+                "kwp": {
+                  "type": "number",
+                  "description": "System size in kWp (1 kWp = 1000 Wp).",
+                  "minimum": 0.1,
+                  "maximum": 1000,
+                  "default": 1
+                },
+                "inverter_kw": {
+                  "type": "number",
+                  "description": "Optional inverter power; hourly yield is capped at this.",
+                  "minimum": 0.1,
+                  "maximum": 1000
+                },
+                "days": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 7,
+                  "default": 3
+                },
+                "include_hourly": {
+                  "type": "boolean",
+                  "default": false
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "latitude",
+                "longitude"
+              ]
+            },
+            "annotations": {
+              "title": "Solar yield forecast per location",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "compare_plug_in_batteries",
+            "title": "Compare plug-in and home batteries",
+            "description": "The home battery comparison of jeroen.nl: active batteries that are sold in at least one shop, with the lowest current shop price, price per kWh of gross capacity, gross and usable capacity, charge and discharge power (for plug-in batteries the power allowed back through the socket), round-trip efficiency, depth of discharge, warranty, cycle life, chemistry, purposes and how many jeroen.nl profiles have that model. Prices are consumer prices in EUR including VAT. A shop price counts for the lowest price when it was updated in the last 45 days; only when no shop has a recent price, an older one is used and price_date shows its date. Default order is the same as on the site: most profiles first, then lowest price per kWh. The profile count only includes batteries whose model could be identified with certainty.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "installation_type": {
+                  "type": "string",
+                  "description": "plug_in: batteries with a plug for a wall socket. fixed: batteries installed by an installer. both: all.",
+                  "enum": [
+                    "plug_in",
+                    "fixed",
+                    "both"
+                  ],
+                  "default": "plug_in"
+                },
+                "min_capacity_kwh": {
+                  "type": "number",
+                  "description": "Minimum gross capacity in kWh.",
+                  "minimum": 0,
+                  "maximum": 1000
+                },
+                "max_capacity_kwh": {
+                  "type": "number",
+                  "description": "Maximum gross capacity in kWh.",
+                  "minimum": 0,
+                  "maximum": 1000
+                },
+                "max_price_eur": {
+                  "type": "number",
+                  "description": "Maximum lowest shop price in EUR incl. VAT.",
+                  "minimum": 0,
+                  "maximum": 100000
+                },
+                "max_price_per_kwh_eur": {
+                  "type": "number",
+                  "description": "Maximum price per kWh of gross capacity in EUR incl. VAT.",
+                  "minimum": 0,
+                  "maximum": 10000
+                },
+                "brand": {
+                  "type": "string",
+                  "description": "Brand name, for example Marstek, Zendure or HomeWizard. Case insensitive.",
+                  "maxLength": 60
+                },
+                "purpose": {
+                  "type": "string",
+                  "description": "Only batteries that support this purpose according to jeroen.nl.",
+                  "enum": [
+                    "self_consumption",
+                    "trading_day_ahead",
+                    "peak_shaving",
+                    "backup_power",
+                    "trading_imbalance",
+                    "zero_on_the_meter"
+                  ]
+                },
+                "sort": {
+                  "type": "string",
+                  "description": "popular: most jeroen.nl profiles first, as on the site. capacity: largest first.",
+                  "enum": [
+                    "popular",
+                    "price_per_kwh",
+                    "price",
+                    "capacity",
+                    "rating",
+                    "name"
+                  ],
+                  "default": "popular"
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50,
+                  "default": 10
+                }
+              },
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Compare plug-in and home batteries",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "compare_p1_meters",
+            "title": "Compare P1 meters",
+            "description": "The P1 meter (smart meter dongle) comparison of jeroen.nl: every active P1 meter with its rating out of 10 and the five components behind it (local control 2.25, app 2.25, subscription 2.0, update rate 1.5, community 2.0; unknown data scores 0), the lowest current shop price in EUR incl. VAT, the monthly subscription cost, update interval, local API, support for Home Assistant, Homey and Domoticz, connection types and how many jeroen.nl profiles have that meter. A shop price counts when it was updated in the last 45 days; otherwise the oldest known price is shown with price_date. Default order is the same as on the site: highest rating first. Filters only keep meters where the property is known.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "local_api": {
+                  "type": "boolean",
+                  "description": "true: only meters that can be read locally without the cloud of the maker. false: only meters without a local API."
+                },
+                "no_subscription": {
+                  "type": "boolean",
+                  "description": "true: only meters that work without a paid subscription. false: only meters that need one."
+                },
+                "smart_home": {
+                  "type": "string",
+                  "description": "Only meters with a known integration for this system.",
+                  "enum": [
+                    "home_assistant",
+                    "homey",
+                    "domoticz"
+                  ]
+                },
+                "connection": {
+                  "type": "string",
+                  "description": "Only meters with this connection type.",
+                  "enum": [
+                    "wifi",
+                    "ethernet",
+                    "bluetooth",
+                    "mobile"
+                  ]
+                },
+                "max_update_interval_seconds": {
+                  "type": "integer",
+                  "description": "Only meters that give a new reading at least this often (1 = every second).",
+                  "minimum": 1,
+                  "maximum": 3600
+                },
+                "max_price_eur": {
+                  "type": "number",
+                  "description": "Maximum lowest shop price in EUR incl. VAT. Meters without a shop price are left out.",
+                  "minimum": 0,
+                  "maximum": 10000
+                },
+                "sort": {
+                  "type": "string",
+                  "enum": [
+                    "rating",
+                    "price",
+                    "update_interval",
+                    "popular",
+                    "name"
+                  ],
+                  "default": "rating"
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50,
+                  "default": 20
+                }
+              },
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Compare P1 meters",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "compare_ere_providers",
+            "title": "Compare ERE certificate providers",
+            "description": "Dutch ERE booking service providers (inboekdienstverleners) for home charging of an electric car, as compared on jeroen.nl: commission and how it works, all fixed costs, payout frequency, contract terms, confirmed charger brands, benefits, the jeroen.nl score (1 to 10) and the expected net revenue per year in EUR for a given number of kWh charged at home, at the current ERE market price. Give kwh_per_year (kWh charged at home) or km_per_year (converted like the site: 18 kWh per 100 km, 80% charged at home, so 14.4 kWh per 100 km). Without either, 10,000 km per year is used. The net revenue uses the commission of the first contract year and all yearly costs; it is an estimate, the real payout follows the market price.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "kwh_per_year": {
+                  "type": "number",
+                  "description": "kWh per year charged at home with the own charger. Do not combine with km_per_year.",
+                  "minimum": 0,
+                  "maximum": 50000
+                },
+                "km_per_year": {
+                  "type": "integer",
+                  "description": "Kilometres driven per year. Converted to 14.4 kWh charged at home per 100 km.",
+                  "minimum": 0,
+                  "maximum": 200000
+                },
+                "charger_brand": {
+                  "type": "string",
+                  "description": "Only providers that confirmed support for this charger brand, for example Alfen or Zaptec.",
+                  "maxLength": 60
+                },
+                "customer_type": {
+                  "type": "string",
+                  "description": "Leaves out providers that say they do not serve this type of customer. Unknown stays in the list.",
+                  "enum": [
+                    "private",
+                    "business",
+                    "homeowners_association"
+                  ],
+                  "default": "private"
+                },
+                "sort": {
+                  "type": "string",
+                  "description": "score is the default order on jeroen.nl, net_revenue is highest first, commission lowest first.",
+                  "enum": [
+                    "score",
+                    "net_revenue",
+                    "commission",
+                    "name"
+                  ],
+                  "default": "score"
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50,
+                  "default": 20
+                }
+              },
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Compare ERE certificate providers",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_ere_market_price",
+            "title": "ERE market price",
+            "description": "Current market price of an ERE (emissiereductie-eenheid, the Dutch renewable energy unit for charging an electric car) in EUR per ERE, and the weekly history with bid, ask and mid price on the LRE-E spot market. Also the gross revenue per kWh charged at home. One quote per week at most, history from 2026. Source Joulo (CC BY 4.0).",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "date_from": {
+                  "type": "string",
+                  "description": "Date in Europe/Amsterdam, YYYY-MM-DD. Weeks starting on or after this date. Default: the last 26 weeks.",
+                  "format": "date"
+                },
+                "date_to": {
+                  "type": "string",
+                  "description": "Date in Europe/Amsterdam, YYYY-MM-DD. Inclusive. Default today.",
+                  "format": "date"
+                }
+              },
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "ERE market price",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "list_electric_cars",
+            "title": "Electric cars and bidirectional charging",
+            "description": "Electric cars (source EV Database) or plug-in hybrids (source Autoweek) sold in the Netherlands, as listed on jeroen.nl: brand, model, list price in EUR incl. VAT, usable battery kWh, real-world and WLTP range, consumption, AC and DC charging power, and bidirectional charging: V2L (to appliances), V2H (to the home), V2G (to the grid), each with status yes, announced, no or unknown, whether it works via AC (the car converts) or DC (the charger converts) and the power in kW. Announced is not yes: it only counts in the bidirectional filter with include_announced. Also how many jeroen.nl profiles have the model.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "brand": {
+                  "type": "string",
+                  "description": "Car brand, for example Kia or Tesla.",
+                  "maxLength": 60
+                },
+                "search": {
+                  "type": "string",
+                  "description": "Part of the model name, for example EV9 or Model Y.",
+                  "maxLength": 60
+                },
+                "bidirectional": {
+                  "type": "string",
+                  "description": "Only cars that can do this. discharge_ac: the car converts and a charger that passes power back is enough (V2H or V2G via AC). discharge_dc: the charger converts (V2H or V2G via DC).",
+                  "enum": [
+                    "v2l",
+                    "v2h",
+                    "v2g",
+                    "discharge_ac",
+                    "discharge_dc"
+                  ]
+                },
+                "include_announced": {
+                  "type": "boolean",
+                  "description": "Let announced functions count as yes in the bidirectional filter.",
+                  "default": false
+                },
+                "max_price_eur": {
+                  "type": "integer",
+                  "description": "Maximum list price in EUR incl. VAT.",
+                  "minimum": 0,
+                  "maximum": 1000000
+                },
+                "min_range_km": {
+                  "type": "integer",
+                  "description": "Minimum real-world range in km (the range shown on jeroen.nl).",
+                  "minimum": 0,
+                  "maximum": 1500
+                },
+                "powertrain": {
+                  "type": "string",
+                  "enum": [
+                    "electric",
+                    "plugin_hybrid"
+                  ],
+                  "default": "electric"
+                },
+                "include_no_longer_sold": {
+                  "type": "boolean",
+                  "description": "Also models that are no longer sold new.",
+                  "default": false
+                },
+                "sort": {
+                  "type": "string",
+                  "description": "popular (most jeroen.nl profiles, the default on the site), bidirectional (most functions that work now first), price low first, range far first, efficiency lowest consumption first.",
+                  "enum": [
+                    "popular",
+                    "bidirectional",
+                    "price",
+                    "price_desc",
+                    "range",
+                    "range_asc",
+                    "battery",
+                    "battery_asc",
+                    "efficiency",
+                    "top_speed",
+                    "newest",
+                    "name"
+                  ],
+                  "default": "popular"
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50,
+                  "default": 10
+                }
+              },
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Electric cars and bidirectional charging",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_energy_saving_tips",
+            "title": "Energy saving tips",
+            "description": "Energy saving tips for Dutch households from jeroen.nl, as published on https://jeroen.nl/energie/besparen: per tip the topic, its number within the topic, title, explanation, the personal example of Jeroen, the saving as a quantity (kWh electricity and/or m3 gas per year, only when a source gives one), effort, cost, source and a link to the tip on the page. savings_eur_per_year_incl_vat is calculated by jeroen.nl with the average price of the last 12 months: day-ahead market price plus average supplier fee plus energy tax of the current year plus 21% VAT (the prices used are in the answer). Tips without a quantity have no amount, because the saving depends too much on the house. Amounts are rounded estimates for an average household.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "category": {
+                  "type": "string",
+                  "description": "Only tips in this topic: meten (measure first), verwarming (heating), warmwater (hot water), apparaten (appliances and standby), slim (smart use), isolatie (insulation and ventilation), opwek (own generation and storage). Omit for all.",
+                  "enum": [
+                    "meten",
+                    "verwarming",
+                    "warmwater",
+                    "apparaten",
+                    "slim",
+                    "isolatie",
+                    "opwek"
+                  ]
+                },
+                "sort": {
+                  "type": "string",
+                  "description": "savings_eur: highest yearly amount first. effort: least effort first. cost: cheapest first. Ties are sorted by amount.",
+                  "enum": [
+                    "savings_eur",
+                    "effort",
+                    "cost"
+                  ],
+                  "default": "savings_eur"
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 60,
+                  "default": 15
+                }
+              },
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Energy saving tips",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "list_quizzes",
+            "title": "jeroen.nl knowledge quizzes",
+            "description": "Lists the open knowledge quizzes on jeroen.nl about energy (electricity prices, solar panels, home batteries, heat pumps and more): title, level, categories, number of questions, the maximum energy points a first attempt earns on jeroen.nl, how many people completed it and the share of answers given on the site that were correct. Use get_quiz with the slug to go through a quiz with the user. Energy points are only earned by doing the quiz on jeroen.nl itself.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "level": {
+                  "type": "string",
+                  "description": "Optional level slug, as returned in level_slug.",
+                  "pattern": "^[a-z0-9-]+$",
+                  "maxLength": 40
+                },
+                "category": {
+                  "type": "string",
+                  "description": "Optional category slug, as returned in categories[].slug.",
+                  "pattern": "^[a-z0-9-]+$",
+                  "maxLength": 80
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50,
+                  "default": 30
+                }
+              },
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "jeroen.nl knowledge quizzes",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_quiz",
+            "title": "One jeroen.nl knowledge quiz",
+            "description": "One open knowledge quiz from jeroen.nl with all questions and answer options, plus the sources the quiz is based on. By default the correct answers and explanations are left out, so the questions can be asked first. With include_answers=true every question also gets the correct option, the explanation and how often it is answered correctly on jeroen.nl. Ask the questions one by one and only fetch the answers after the user has answered. This tool cannot submit answers or award energy points.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "quiz": {
+                  "type": "string",
+                  "description": "Slug of the quiz (from list_quizzes), or its numeric id.",
+                  "pattern": "^[a-zA-Z0-9_-]+$",
+                  "maxLength": 120
+                },
+                "include_answers": {
+                  "type": "boolean",
+                  "description": "Include the correct answer, explanation and success rate per question.",
+                  "default": false
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "quiz"
+              ]
+            },
+            "annotations": {
+              "title": "One jeroen.nl knowledge quiz",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "check_grid_congestion",
+            "title": "Grid congestion by postcode or area",
+            "description": "Grid congestion in the Netherlands for a postcode (4 digits, or 4 digits plus 2 letters), a place, a municipality or a province. Two sources: (1) voltage problems in the neighbourhood that Stedin, Enexis and Liander reported per postcode when every postcode was checked between January and May 2024 (other grid operators had no check, so their postcodes are \"not checked\"); (2) the transport capacity map of the Dutch grid operators (Partners in Energie) for the supply area: whether there is a queue for withdrawal (consumption) and for injection (feed-in), on the regional grid and on the TenneT high-voltage grid, in MW, and when it is expected to be solved. For a place or municipality the supply area of its most populated postcode is used. Includes what it means for a household with a heat pump, home charger, solar panels or home battery.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "description": "Postcode like 1934 AA or 1934, or the name of a place, municipality or province.",
+                  "maxLength": 80
+                },
+                "area_type": {
+                  "type": "string",
+                  "description": "How to read a name. Auto tries place, then municipality, then province. Ignored for a postcode.",
+                  "enum": [
+                    "auto",
+                    "place",
+                    "municipality",
+                    "province"
+                  ],
+                  "default": "auto"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "query"
+              ]
+            },
+            "annotations": {
+              "title": "Grid congestion by postcode or area",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "calculate_home_battery_payback",
+            "title": "Home battery payback time",
+            "description": "Payback time of a home battery with the calculator of jeroen.nl, for five ways of using it: self-consumption of solar surplus at night, self-consumption plus charging from the grid at low prices, trading only on days with a large enough price spread, trading at fixed times, and trading every day at the best hours. Trading uses the real Dutch day-ahead prices of the last 12, 24 or 36 months; self-consumption uses how full a battery of this size gets per day in real measured households with about the same yearly solar production. Savings in EUR per year incl. 21% VAT, energy tax and supplier fees. With a fixed or variable contract only self-consumption applies. Battery wear is in the cycle budget; the full nominal capacity is used.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "capacity_kwh": {
+                  "type": "number",
+                  "description": "Usable battery capacity in kWh.",
+                  "minimum": 1,
+                  "maximum": 100,
+                  "default": 5
+                },
+                "price_eur": {
+                  "type": "number",
+                  "description": "Purchase price including installation, EUR incl. VAT.",
+                  "minimum": 0,
+                  "maximum": 100000,
+                  "default": 1000
+                },
+                "has_solar": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "solar_kwh_per_year": {
+                  "type": "number",
+                  "description": "Yearly solar production in kWh. Default 4000, or solar_kwp x 900 when only solar_kwp is given.",
+                  "minimum": 0,
+                  "maximum": 100000
+                },
+                "solar_kwp": {
+                  "type": "number",
+                  "description": "Alternative to solar_kwh_per_year: installed solar power in kWp, converted at 900 kWh per kWp.",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "night_consumption_kwh": {
+                  "type": "number",
+                  "description": "Electricity use per night in kWh, the part the battery can cover.",
+                  "minimum": 0,
+                  "maximum": 50,
+                  "default": 3
+                },
+                "night_from_hour": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 23,
+                  "default": 21
+                },
+                "night_to_hour": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 23,
+                  "default": 7
+                },
+                "contract": {
+                  "type": "string",
+                  "enum": [
+                    "dynamic",
+                    "variable",
+                    "fixed"
+                  ],
+                  "default": "dynamic"
+                },
+                "tariff_eur_per_kwh_incl_vat": {
+                  "type": "number",
+                  "description": "All-in electricity tariff, only used for a fixed or variable contract.",
+                  "minimum": 0,
+                  "maximum": 2,
+                  "default": 0.27
+                },
+                "supplier": {
+                  "type": "string",
+                  "description": "Dynamic supplier name or slug (see list_dynamic_energy_suppliers); sets the purchase and sale fee.",
+                  "maxLength": 60
+                },
+                "purchase_fee_eur_per_kwh_incl_vat": {
+                  "type": "number",
+                  "description": "Supplier fee on consumption. Default from the supplier, else 0.02.",
+                  "minimum": -1,
+                  "maximum": 1
+                },
+                "sale_fee_eur_per_kwh_incl_vat": {
+                  "type": "number",
+                  "description": "Supplier cost on feed-in (positive is a cost). Default from the supplier, else 0.02.",
+                  "minimum": -1,
+                  "maximum": 1
+                },
+                "energy_tax_eur_per_kwh_incl_vat": {
+                  "type": "number",
+                  "description": "Default: the current Dutch energy tax.",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "price_period_months": {
+                  "type": "integer",
+                  "description": "Months of day-ahead prices for the trading strategies.",
+                  "enum": [
+                    12,
+                    24,
+                    36
+                  ],
+                  "default": 12
+                },
+                "inverter_w": {
+                  "type": "integer",
+                  "description": "Battery inverter power in W.",
+                  "minimum": 100,
+                  "maximum": 20000,
+                  "default": 800
+                },
+                "round_trip_efficiency_pct": {
+                  "type": "integer",
+                  "minimum": 50,
+                  "maximum": 100,
+                  "default": 75
+                },
+                "cycle_budget": {
+                  "type": "integer",
+                  "description": "Full cycles the battery lasts.",
+                  "minimum": 500,
+                  "maximum": 20000,
+                  "default": 6000
+                }
+              },
+              "additionalProperties": false
+            },
+            "annotations": {
+              "title": "Home battery payback time",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          },
+          {
+            "name": "get_historical_weather",
+            "title": "Historical weather by postcode or location",
+            "description": "Measured weather in the past for a place in the Netherlands, per day or per hour: mean, minimum and maximum temperature, heating degree days (base 18 °C, plain and weighted the way Dutch energy suppliers do), sunshine hours, solar radiation, precipitation and wind. Give a Dutch postcode (1934AA or 1934) or a latitude and longitude. On https://jeroen.nl/mcp/account, use_my_home uses the location of the signed-in account's house instead (needs the woning permission). Use it to explain energy use: gas and heat pump consumption follow degree days, solar production follows radiation and sunshine. Available from 2000-01-01 up to yesterday. Maximum 1100 days per call per day, 31 days per hour. Source: Open-Meteo archive (ERA5 reanalysis), on a grid of about 10 km.",
+            "inputSchema": {
+              "type": "object",
+              "properties": {
+                "postcode": {
+                  "type": "string",
+                  "description": "Dutch postcode, 4 digits with or without the 2 letters.",
+                  "pattern": "^\\s*[1-9][0-9]{3}\\s*([A-Za-z]{2})?\\s*$",
+                  "maxLength": 8
+                },
+                "latitude": {
+                  "type": "number",
+                  "minimum": 50.7,
+                  "maximum": 53.6
+                },
+                "longitude": {
+                  "type": "number",
+                  "minimum": 3.3,
+                  "maximum": 7.25
+                },
+                "use_my_home": {
+                  "type": "boolean",
+                  "description": "Only on /mcp/account: use the location of your own house.",
+                  "default": false
+                },
+                "date_from": {
+                  "type": "string",
+                  "description": "Europe/Amsterdam date.",
+                  "format": "date"
+                },
+                "date_to": {
+                  "type": "string",
+                  "description": "Europe/Amsterdam date, inclusive.",
+                  "format": "date"
+                },
+                "resolution": {
+                  "type": "string",
+                  "enum": [
+                    "day",
+                    "hour"
+                  ],
+                  "default": "day"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "date_from",
+                "date_to"
+              ]
+            },
+            "annotations": {
+              "title": "Historical weather by postcode or location",
+              "readOnlyHint": true,
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false
+            }
+          }
+        ]
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_electricity_prices",
+        "title": "Dutch day-ahead electricity prices",
+        "description": "Day-ahead electricity prices for the Netherlands (EPEX/ENTSO-E bidding zone NL) from 2013 until tomorrow once published (around 13:00). Market price in EUR/kWh excluding VAT, per quarter hour, hour, day, month or year. Optionally an indicative all-in consumer price including energy tax, average supplier fee and 21% VAT (only for dates from 2023). Maximum period per call: 31 days per quarter hour, 92 days per hour, 10 years per day. Per quarter hour and hour each row also has time_utc, so the doubled hour when daylight saving time ends is two separate rows.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "date_from": {
+              "type": "string",
+              "description": "Date in Europe/Amsterdam, YYYY-MM-DD.",
+              "format": "date"
+            },
+            "date_to": {
+              "type": "string",
+              "description": "Date in Europe/Amsterdam, YYYY-MM-DD. Inclusive.",
+              "format": "date"
+            },
+            "resolution": {
+              "type": "string",
+              "description": "Aggregation level. Averages for hour and longer.",
+              "enum": [
+                "quarter",
+                "hour",
+                "day",
+                "month",
+                "year"
+              ],
+              "default": "hour"
+            },
+            "include_all_in": {
+              "type": "boolean",
+              "description": "Add an indicative all-in consumer price incl. VAT.",
+              "default": false
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "date_from",
+            "date_to"
+          ]
+        },
+        "annotations": {
+          "title": "Dutch day-ahead electricity prices",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_gas_prices",
+        "title": "Dutch gas prices",
+        "description": "Daily dynamic gas prices for the Netherlands from 2018, in EUR/m3 excluding VAT, per day, month or year. Optionally an indicative all-in consumer price including energy tax, average supplier fee and 21% VAT (only for dates from 2023).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "date_from": {
+              "type": "string",
+              "description": "Date in Europe/Amsterdam, YYYY-MM-DD.",
+              "format": "date"
+            },
+            "date_to": {
+              "type": "string",
+              "description": "Date in Europe/Amsterdam, YYYY-MM-DD. Inclusive.",
+              "format": "date"
+            },
+            "resolution": {
+              "type": "string",
+              "enum": [
+                "day",
+                "month",
+                "year"
+              ],
+              "default": "day"
+            },
+            "include_all_in": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "date_from",
+            "date_to"
+          ]
+        },
+        "annotations": {
+          "title": "Dutch gas prices",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_electricity_price_forecast",
+        "title": "Electricity price forecast (next days)",
+        "description": "Forecast of Dutch day-ahead electricity prices for today and the coming days (up to 7), made by jeroen.nl with a weather-driven model. Per quarter hour, hour or day: the known market price where the auction already happened, otherwise p10, p50 and p90 in EUR/kWh excluding VAT. Also per day the average, the cheapest and most expensive quarter, the cheapest and most expensive consecutive block and the number of quarters below zero. Optionally the consumption or feed-in price of a household, with the purchase fee, energy tax and VAT or the feed-in fee of a chosen supplier. Per quarter hour and hour each row also has time_utc.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "days": {
+              "type": "integer",
+              "description": "Number of days including today.",
+              "minimum": 1,
+              "maximum": 7,
+              "default": 3
+            },
+            "resolution": {
+              "type": "string",
+              "enum": [
+                "quarter",
+                "hour",
+                "day"
+              ],
+              "default": "hour"
+            },
+            "type": {
+              "type": "string",
+              "description": "consumption is the price for electricity taken from the grid, feed_in the price for electricity fed back.",
+              "enum": [
+                "consumption",
+                "feed_in"
+              ],
+              "default": "consumption"
+            },
+            "include_consumer_price": {
+              "type": "boolean",
+              "description": "Add the price a household pays or receives: market price plus purchase fee, energy tax and VAT, or for feed_in the market price plus the feed-in fee.",
+              "default": false
+            },
+            "supplier": {
+              "type": "string",
+              "description": "Supplier slug from list_dynamic_energy_suppliers, to calculate the consumer price with the fees of that supplier instead of the average.",
+              "pattern": "^[a-z0-9-]{2,60}$",
+              "maxLength": 60
+            },
+            "block_hours": {
+              "type": "integer",
+              "description": "Length in hours of the cheapest and most expensive block per day.",
+              "minimum": 1,
+              "maximum": 6,
+              "default": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Electricity price forecast (next days)",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_expected_average_prices",
+        "title": "Expected average energy prices (12 months)",
+        "description": "Expected average market prices for the coming 12 months that Dutch suppliers of dynamic contracts must use in their cost estimates: electricity without solar panels, electricity with solar panels, solar feed-in and gas. Excluding VAT, taxes and supplier fees. Useful when comparing fixed and dynamic contracts. Without dates it returns the latest values; with date_from it also returns one snapshot per day (history from 2026-07-09).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "date_from": {
+              "type": "string",
+              "description": "Date in Europe/Amsterdam, YYYY-MM-DD. Optional: add the daily history from this date.",
+              "format": "date"
+            },
+            "date_to": {
+              "type": "string",
+              "description": "Date in Europe/Amsterdam, YYYY-MM-DD. Inclusive. Default today. Only with date_from.",
+              "format": "date"
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Expected average energy prices (12 months)",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "list_dynamic_energy_suppliers",
+        "title": "Dutch dynamic energy suppliers",
+        "description": "Dynamic (hourly or quarter-hourly priced) electricity and gas suppliers in the Netherlands with their fees: purchase fee per kWh, feed-in fee per kWh, fee per m3 gas and monthly costs, excluding and including VAT, plus whether they offer a solar bonus. Each supplier has an information link and a signup link on jeroen.nl. The order is alphabetical or by the chosen sort, not a ranking.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "requires_gas": {
+              "type": "boolean",
+              "description": "Only suppliers that also deliver gas.",
+              "default": false
+            },
+            "sort": {
+              "type": "string",
+              "enum": [
+                "name",
+                "electricity_purchase_fee",
+                "monthly_costs"
+              ],
+              "default": "name"
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Dutch dynamic energy suppliers",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_grid_operator_costs",
+        "title": "Grid operator costs per connection",
+        "description": "Monthly grid operator costs (netbeheerkosten) in the Netherlands per grid operator and connection size, for electricity and gas, for 2026 and 2027 when published. Amounts include VAT. Grid operator costs are identical for every energy supplier.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "grid_operator": {
+              "type": "string",
+              "description": "Omit for all grid operators. The grid operator follows from the address.",
+              "enum": [
+                "Stedin",
+                "Enexis",
+                "Liander",
+                "Coteq",
+                "Rendo",
+                "Westland Infra"
+              ]
+            },
+            "include_business": {
+              "type": "boolean",
+              "description": "Also include connections that are not for households.",
+              "default": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Grid operator costs per connection",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_solar_bonus",
+        "title": "Solar bonus per supplier",
+        "description": "Solar feed-in bonuses of Dutch dynamic suppliers: the rules, when the bonus applies and what it pays right now, or for a given market price. Amounts in EUR/kWh, excluding and including VAT.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "supplier": {
+              "type": "string",
+              "description": "Supplier slug, for example frank-energie. Omit for all.",
+              "pattern": "^[a-z0-9-]{2,60}$",
+              "maxLength": 60
+            },
+            "date": {
+              "type": "string",
+              "description": "Date in Europe/Amsterdam, YYYY-MM-DD. Default today.",
+              "format": "date"
+            },
+            "market_price": {
+              "type": "number",
+              "description": "Optional market price in EUR/kWh to calculate the payout at noon.",
+              "minimum": -5,
+              "maximum": 5
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Solar bonus per supplier",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_solar_bonus_analysis",
+        "title": "Solar bonus analysis: which bonus pays most per hour",
+        "description": "Background data behind the jeroen.nl article on solar bonuses: the average market price per hour over the last 12 months (April to September, 07:00-21:00, positive prices), what each supplier with a solar bonus pays per kWh at that price, the best paying supplier per hour, averages for south, east and west facing panels, and a month by hour grid. Refreshed daily.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Solar bonus analysis: which bonus pays most per hour",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_solar_forecast",
+        "title": "Solar yield forecast per location",
+        "description": "Solar panel yield forecast for a location in the Netherlands for today and the coming days, per kWp and for a given system size, with an uncertainty band (p10, p50, p90) from a weather ensemble. Azimuth: 0 = south, -90 = east, 90 = west. Tilt in degrees from horizontal. Model: irradiance on the panel plane, temperature derating and a performance ratio of 0.85.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "latitude": {
+              "type": "number",
+              "minimum": 50.7,
+              "maximum": 53.6
+            },
+            "longitude": {
+              "type": "number",
+              "minimum": 3.3,
+              "maximum": 7.25
+            },
+            "tilt": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 90,
+              "default": 35
+            },
+            "azimuth": {
+              "type": "integer",
+              "minimum": -180,
+              "maximum": 180,
+              "default": 0
+            },
+            "kwp": {
+              "type": "number",
+              "description": "System size in kWp (1 kWp = 1000 Wp).",
+              "minimum": 0.1,
+              "maximum": 1000,
+              "default": 1
+            },
+            "inverter_kw": {
+              "type": "number",
+              "description": "Optional inverter power; hourly yield is capped at this.",
+              "minimum": 0.1,
+              "maximum": 1000
+            },
+            "days": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7,
+              "default": 3
+            },
+            "include_hourly": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "latitude",
+            "longitude"
+          ]
+        },
+        "annotations": {
+          "title": "Solar yield forecast per location",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "compare_plug_in_batteries",
+        "title": "Compare plug-in and home batteries",
+        "description": "The home battery comparison of jeroen.nl: active batteries that are sold in at least one shop, with the lowest current shop price, price per kWh of gross capacity, gross and usable capacity, charge and discharge power (for plug-in batteries the power allowed back through the socket), round-trip efficiency, depth of discharge, warranty, cycle life, chemistry, purposes and how many jeroen.nl profiles have that model. Prices are consumer prices in EUR including VAT. A shop price counts for the lowest price when it was updated in the last 45 days; only when no shop has a recent price, an older one is used and price_date shows its date. Default order is the same as on the site: most profiles first, then lowest price per kWh. The profile count only includes batteries whose model could be identified with certainty.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "installation_type": {
+              "type": "string",
+              "description": "plug_in: batteries with a plug for a wall socket. fixed: batteries installed by an installer. both: all.",
+              "enum": [
+                "plug_in",
+                "fixed",
+                "both"
+              ],
+              "default": "plug_in"
+            },
+            "min_capacity_kwh": {
+              "type": "number",
+              "description": "Minimum gross capacity in kWh.",
+              "minimum": 0,
+              "maximum": 1000
+            },
+            "max_capacity_kwh": {
+              "type": "number",
+              "description": "Maximum gross capacity in kWh.",
+              "minimum": 0,
+              "maximum": 1000
+            },
+            "max_price_eur": {
+              "type": "number",
+              "description": "Maximum lowest shop price in EUR incl. VAT.",
+              "minimum": 0,
+              "maximum": 100000
+            },
+            "max_price_per_kwh_eur": {
+              "type": "number",
+              "description": "Maximum price per kWh of gross capacity in EUR incl. VAT.",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "brand": {
+              "type": "string",
+              "description": "Brand name, for example Marstek, Zendure or HomeWizard. Case insensitive.",
+              "maxLength": 60
+            },
+            "purpose": {
+              "type": "string",
+              "description": "Only batteries that support this purpose according to jeroen.nl.",
+              "enum": [
+                "self_consumption",
+                "trading_day_ahead",
+                "peak_shaving",
+                "backup_power",
+                "trading_imbalance",
+                "zero_on_the_meter"
+              ]
+            },
+            "sort": {
+              "type": "string",
+              "description": "popular: most jeroen.nl profiles first, as on the site. capacity: largest first.",
+              "enum": [
+                "popular",
+                "price_per_kwh",
+                "price",
+                "capacity",
+                "rating",
+                "name"
+              ],
+              "default": "popular"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Compare plug-in and home batteries",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "compare_p1_meters",
+        "title": "Compare P1 meters",
+        "description": "The P1 meter (smart meter dongle) comparison of jeroen.nl: every active P1 meter with its rating out of 10 and the five components behind it (local control 2.25, app 2.25, subscription 2.0, update rate 1.5, community 2.0; unknown data scores 0), the lowest current shop price in EUR incl. VAT, the monthly subscription cost, update interval, local API, support for Home Assistant, Homey and Domoticz, connection types and how many jeroen.nl profiles have that meter. A shop price counts when it was updated in the last 45 days; otherwise the oldest known price is shown with price_date. Default order is the same as on the site: highest rating first. Filters only keep meters where the property is known.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "local_api": {
+              "type": "boolean",
+              "description": "true: only meters that can be read locally without the cloud of the maker. false: only meters without a local API."
+            },
+            "no_subscription": {
+              "type": "boolean",
+              "description": "true: only meters that work without a paid subscription. false: only meters that need one."
+            },
+            "smart_home": {
+              "type": "string",
+              "description": "Only meters with a known integration for this system.",
+              "enum": [
+                "home_assistant",
+                "homey",
+                "domoticz"
+              ]
+            },
+            "connection": {
+              "type": "string",
+              "description": "Only meters with this connection type.",
+              "enum": [
+                "wifi",
+                "ethernet",
+                "bluetooth",
+                "mobile"
+              ]
+            },
+            "max_update_interval_seconds": {
+              "type": "integer",
+              "description": "Only meters that give a new reading at least this often (1 = every second).",
+              "minimum": 1,
+              "maximum": 3600
+            },
+            "max_price_eur": {
+              "type": "number",
+              "description": "Maximum lowest shop price in EUR incl. VAT. Meters without a shop price are left out.",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "sort": {
+              "type": "string",
+              "enum": [
+                "rating",
+                "price",
+                "update_interval",
+                "popular",
+                "name"
+              ],
+              "default": "rating"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Compare P1 meters",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "compare_ere_providers",
+        "title": "Compare ERE certificate providers",
+        "description": "Dutch ERE booking service providers (inboekdienstverleners) for home charging of an electric car, as compared on jeroen.nl: commission and how it works, all fixed costs, payout frequency, contract terms, confirmed charger brands, benefits, the jeroen.nl score (1 to 10) and the expected net revenue per year in EUR for a given number of kWh charged at home, at the current ERE market price. Give kwh_per_year (kWh charged at home) or km_per_year (converted like the site: 18 kWh per 100 km, 80% charged at home, so 14.4 kWh per 100 km). Without either, 10,000 km per year is used. The net revenue uses the commission of the first contract year and all yearly costs; it is an estimate, the real payout follows the market price.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "kwh_per_year": {
+              "type": "number",
+              "description": "kWh per year charged at home with the own charger. Do not combine with km_per_year.",
+              "minimum": 0,
+              "maximum": 50000
+            },
+            "km_per_year": {
+              "type": "integer",
+              "description": "Kilometres driven per year. Converted to 14.4 kWh charged at home per 100 km.",
+              "minimum": 0,
+              "maximum": 200000
+            },
+            "charger_brand": {
+              "type": "string",
+              "description": "Only providers that confirmed support for this charger brand, for example Alfen or Zaptec.",
+              "maxLength": 60
+            },
+            "customer_type": {
+              "type": "string",
+              "description": "Leaves out providers that say they do not serve this type of customer. Unknown stays in the list.",
+              "enum": [
+                "private",
+                "business",
+                "homeowners_association"
+              ],
+              "default": "private"
+            },
+            "sort": {
+              "type": "string",
+              "description": "score is the default order on jeroen.nl, net_revenue is highest first, commission lowest first.",
+              "enum": [
+                "score",
+                "net_revenue",
+                "commission",
+                "name"
+              ],
+              "default": "score"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Compare ERE certificate providers",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_ere_market_price",
+        "title": "ERE market price",
+        "description": "Current market price of an ERE (emissiereductie-eenheid, the Dutch renewable energy unit for charging an electric car) in EUR per ERE, and the weekly history with bid, ask and mid price on the LRE-E spot market. Also the gross revenue per kWh charged at home. One quote per week at most, history from 2026. Source Joulo (CC BY 4.0).",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "date_from": {
+              "type": "string",
+              "description": "Date in Europe/Amsterdam, YYYY-MM-DD. Weeks starting on or after this date. Default: the last 26 weeks.",
+              "format": "date"
+            },
+            "date_to": {
+              "type": "string",
+              "description": "Date in Europe/Amsterdam, YYYY-MM-DD. Inclusive. Default today.",
+              "format": "date"
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "ERE market price",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "list_electric_cars",
+        "title": "Electric cars and bidirectional charging",
+        "description": "Electric cars (source EV Database) or plug-in hybrids (source Autoweek) sold in the Netherlands, as listed on jeroen.nl: brand, model, list price in EUR incl. VAT, usable battery kWh, real-world and WLTP range, consumption, AC and DC charging power, and bidirectional charging: V2L (to appliances), V2H (to the home), V2G (to the grid), each with status yes, announced, no or unknown, whether it works via AC (the car converts) or DC (the charger converts) and the power in kW. Announced is not yes: it only counts in the bidirectional filter with include_announced. Also how many jeroen.nl profiles have the model.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "brand": {
+              "type": "string",
+              "description": "Car brand, for example Kia or Tesla.",
+              "maxLength": 60
+            },
+            "search": {
+              "type": "string",
+              "description": "Part of the model name, for example EV9 or Model Y.",
+              "maxLength": 60
+            },
+            "bidirectional": {
+              "type": "string",
+              "description": "Only cars that can do this. discharge_ac: the car converts and a charger that passes power back is enough (V2H or V2G via AC). discharge_dc: the charger converts (V2H or V2G via DC).",
+              "enum": [
+                "v2l",
+                "v2h",
+                "v2g",
+                "discharge_ac",
+                "discharge_dc"
+              ]
+            },
+            "include_announced": {
+              "type": "boolean",
+              "description": "Let announced functions count as yes in the bidirectional filter.",
+              "default": false
+            },
+            "max_price_eur": {
+              "type": "integer",
+              "description": "Maximum list price in EUR incl. VAT.",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "min_range_km": {
+              "type": "integer",
+              "description": "Minimum real-world range in km (the range shown on jeroen.nl).",
+              "minimum": 0,
+              "maximum": 1500
+            },
+            "powertrain": {
+              "type": "string",
+              "enum": [
+                "electric",
+                "plugin_hybrid"
+              ],
+              "default": "electric"
+            },
+            "include_no_longer_sold": {
+              "type": "boolean",
+              "description": "Also models that are no longer sold new.",
+              "default": false
+            },
+            "sort": {
+              "type": "string",
+              "description": "popular (most jeroen.nl profiles, the default on the site), bidirectional (most functions that work now first), price low first, range far first, efficiency lowest consumption first.",
+              "enum": [
+                "popular",
+                "bidirectional",
+                "price",
+                "price_desc",
+                "range",
+                "range_asc",
+                "battery",
+                "battery_asc",
+                "efficiency",
+                "top_speed",
+                "newest",
+                "name"
+              ],
+              "default": "popular"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Electric cars and bidirectional charging",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_energy_saving_tips",
+        "title": "Energy saving tips",
+        "description": "Energy saving tips for Dutch households from jeroen.nl, as published on https://jeroen.nl/energie/besparen: per tip the topic, its number within the topic, title, explanation, the personal example of Jeroen, the saving as a quantity (kWh electricity and/or m3 gas per year, only when a source gives one), effort, cost, source and a link to the tip on the page. savings_eur_per_year_incl_vat is calculated by jeroen.nl with the average price of the last 12 months: day-ahead market price plus average supplier fee plus energy tax of the current year plus 21% VAT (the prices used are in the answer). Tips without a quantity have no amount, because the saving depends too much on the house. Amounts are rounded estimates for an average household.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "category": {
+              "type": "string",
+              "description": "Only tips in this topic: meten (measure first), verwarming (heating), warmwater (hot water), apparaten (appliances and standby), slim (smart use), isolatie (insulation and ventilation), opwek (own generation and storage). Omit for all.",
+              "enum": [
+                "meten",
+                "verwarming",
+                "warmwater",
+                "apparaten",
+                "slim",
+                "isolatie",
+                "opwek"
+              ]
+            },
+            "sort": {
+              "type": "string",
+              "description": "savings_eur: highest yearly amount first. effort: least effort first. cost: cheapest first. Ties are sorted by amount.",
+              "enum": [
+                "savings_eur",
+                "effort",
+                "cost"
+              ],
+              "default": "savings_eur"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60,
+              "default": 15
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Energy saving tips",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "list_quizzes",
+        "title": "jeroen.nl knowledge quizzes",
+        "description": "Lists the open knowledge quizzes on jeroen.nl about energy (electricity prices, solar panels, home batteries, heat pumps and more): title, level, categories, number of questions, the maximum energy points a first attempt earns on jeroen.nl, how many people completed it and the share of answers given on the site that were correct. Use get_quiz with the slug to go through a quiz with the user. Energy points are only earned by doing the quiz on jeroen.nl itself.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": "string",
+              "description": "Optional level slug, as returned in level_slug.",
+              "pattern": "^[a-z0-9-]+$",
+              "maxLength": 40
+            },
+            "category": {
+              "type": "string",
+              "description": "Optional category slug, as returned in categories[].slug.",
+              "pattern": "^[a-z0-9-]+$",
+              "maxLength": 80
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 30
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "jeroen.nl knowledge quizzes",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_quiz",
+        "title": "One jeroen.nl knowledge quiz",
+        "description": "One open knowledge quiz from jeroen.nl with all questions and answer options, plus the sources the quiz is based on. By default the correct answers and explanations are left out, so the questions can be asked first. With include_answers=true every question also gets the correct option, the explanation and how often it is answered correctly on jeroen.nl. Ask the questions one by one and only fetch the answers after the user has answered. This tool cannot submit answers or award energy points.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "quiz": {
+              "type": "string",
+              "description": "Slug of the quiz (from list_quizzes), or its numeric id.",
+              "pattern": "^[a-zA-Z0-9_-]+$",
+              "maxLength": 120
+            },
+            "include_answers": {
+              "type": "boolean",
+              "description": "Include the correct answer, explanation and success rate per question.",
+              "default": false
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "quiz"
+          ]
+        },
+        "annotations": {
+          "title": "One jeroen.nl knowledge quiz",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "check_grid_congestion",
+        "title": "Grid congestion by postcode or area",
+        "description": "Grid congestion in the Netherlands for a postcode (4 digits, or 4 digits plus 2 letters), a place, a municipality or a province. Two sources: (1) voltage problems in the neighbourhood that Stedin, Enexis and Liander reported per postcode when every postcode was checked between January and May 2024 (other grid operators had no check, so their postcodes are \"not checked\"); (2) the transport capacity map of the Dutch grid operators (Partners in Energie) for the supply area: whether there is a queue for withdrawal (consumption) and for injection (feed-in), on the regional grid and on the TenneT high-voltage grid, in MW, and when it is expected to be solved. For a place or municipality the supply area of its most populated postcode is used. Includes what it means for a household with a heat pump, home charger, solar panels or home battery.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Postcode like 1934 AA or 1934, or the name of a place, municipality or province.",
+              "maxLength": 80
+            },
+            "area_type": {
+              "type": "string",
+              "description": "How to read a name. Auto tries place, then municipality, then province. Ignored for a postcode.",
+              "enum": [
+                "auto",
+                "place",
+                "municipality",
+                "province"
+              ],
+              "default": "auto"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "query"
+          ]
+        },
+        "annotations": {
+          "title": "Grid congestion by postcode or area",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "calculate_home_battery_payback",
+        "title": "Home battery payback time",
+        "description": "Payback time of a home battery with the calculator of jeroen.nl, for five ways of using it: self-consumption of solar surplus at night, self-consumption plus charging from the grid at low prices, trading only on days with a large enough price spread, trading at fixed times, and trading every day at the best hours. Trading uses the real Dutch day-ahead prices of the last 12, 24 or 36 months; self-consumption uses how full a battery of this size gets per day in real measured households with about the same yearly solar production. Savings in EUR per year incl. 21% VAT, energy tax and supplier fees. With a fixed or variable contract only self-consumption applies. Battery wear is in the cycle budget; the full nominal capacity is used.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "capacity_kwh": {
+              "type": "number",
+              "description": "Usable battery capacity in kWh.",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 5
+            },
+            "price_eur": {
+              "type": "number",
+              "description": "Purchase price including installation, EUR incl. VAT.",
+              "minimum": 0,
+              "maximum": 100000,
+              "default": 1000
+            },
+            "has_solar": {
+              "type": "boolean",
+              "default": true
+            },
+            "solar_kwh_per_year": {
+              "type": "number",
+              "description": "Yearly solar production in kWh. Default 4000, or solar_kwp x 900 when only solar_kwp is given.",
+              "minimum": 0,
+              "maximum": 100000
+            },
+            "solar_kwp": {
+              "type": "number",
+              "description": "Alternative to solar_kwh_per_year: installed solar power in kWp, converted at 900 kWh per kWp.",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "night_consumption_kwh": {
+              "type": "number",
+              "description": "Electricity use per night in kWh, the part the battery can cover.",
+              "minimum": 0,
+              "maximum": 50,
+              "default": 3
+            },
+            "night_from_hour": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 23,
+              "default": 21
+            },
+            "night_to_hour": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 23,
+              "default": 7
+            },
+            "contract": {
+              "type": "string",
+              "enum": [
+                "dynamic",
+                "variable",
+                "fixed"
+              ],
+              "default": "dynamic"
+            },
+            "tariff_eur_per_kwh_incl_vat": {
+              "type": "number",
+              "description": "All-in electricity tariff, only used for a fixed or variable contract.",
+              "minimum": 0,
+              "maximum": 2,
+              "default": 0.27
+            },
+            "supplier": {
+              "type": "string",
+              "description": "Dynamic supplier name or slug (see list_dynamic_energy_suppliers); sets the purchase and sale fee.",
+              "maxLength": 60
+            },
+            "purchase_fee_eur_per_kwh_incl_vat": {
+              "type": "number",
+              "description": "Supplier fee on consumption. Default from the supplier, else 0.02.",
+              "minimum": -1,
+              "maximum": 1
+            },
+            "sale_fee_eur_per_kwh_incl_vat": {
+              "type": "number",
+              "description": "Supplier cost on feed-in (positive is a cost). Default from the supplier, else 0.02.",
+              "minimum": -1,
+              "maximum": 1
+            },
+            "energy_tax_eur_per_kwh_incl_vat": {
+              "type": "number",
+              "description": "Default: the current Dutch energy tax.",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "price_period_months": {
+              "type": "integer",
+              "description": "Months of day-ahead prices for the trading strategies.",
+              "enum": [
+                12,
+                24,
+                36
+              ],
+              "default": 12
+            },
+            "inverter_w": {
+              "type": "integer",
+              "description": "Battery inverter power in W.",
+              "minimum": 100,
+              "maximum": 20000,
+              "default": 800
+            },
+            "round_trip_efficiency_pct": {
+              "type": "integer",
+              "minimum": 50,
+              "maximum": 100,
+              "default": 75
+            },
+            "cycle_budget": {
+              "type": "integer",
+              "description": "Full cycles the battery lasts.",
+              "minimum": 500,
+              "maximum": 20000,
+              "default": 6000
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "title": "Home battery payback time",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      },
+      {
+        "name": "get_historical_weather",
+        "title": "Historical weather by postcode or location",
+        "description": "Measured weather in the past for a place in the Netherlands, per day or per hour: mean, minimum and maximum temperature, heating degree days (base 18 °C, plain and weighted the way Dutch energy suppliers do), sunshine hours, solar radiation, precipitation and wind. Give a Dutch postcode (1934AA or 1934) or a latitude and longitude. On https://jeroen.nl/mcp/account, use_my_home uses the location of the signed-in account's house instead (needs the woning permission). Use it to explain energy use: gas and heat pump consumption follow degree days, solar production follows radiation and sunshine. Available from 2000-01-01 up to yesterday. Maximum 1100 days per call per day, 31 days per hour. Source: Open-Meteo archive (ERA5 reanalysis), on a grid of about 10 km.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "postcode": {
+              "type": "string",
+              "description": "Dutch postcode, 4 digits with or without the 2 letters.",
+              "pattern": "^\\s*[1-9][0-9]{3}\\s*([A-Za-z]{2})?\\s*$",
+              "maxLength": 8
+            },
+            "latitude": {
+              "type": "number",
+              "minimum": 50.7,
+              "maximum": 53.6
+            },
+            "longitude": {
+              "type": "number",
+              "minimum": 3.3,
+              "maximum": 7.25
+            },
+            "use_my_home": {
+              "type": "boolean",
+              "description": "Only on /mcp/account: use the location of your own house.",
+              "default": false
+            },
+            "date_from": {
+              "type": "string",
+              "description": "Europe/Amsterdam date.",
+              "format": "date"
+            },
+            "date_to": {
+              "type": "string",
+              "description": "Europe/Amsterdam date, inclusive.",
+              "format": "date"
+            },
+            "resolution": {
+              "type": "string",
+              "enum": [
+                "day",
+                "hour"
+              ],
+              "default": "day"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "date_from",
+            "date_to"
+          ]
+        },
+        "annotations": {
+          "title": "Historical weather by postcode or location",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        }
+      }
+    ],
+    "requests": [
+      {
+        "method": "POST",
+        "rpc_method": "initialize",
+        "at": "2026-10-17T23:24:04.119Z",
+        "status": 200
+      },
+      {
+        "method": "POST",
+        "rpc_method": "notifications/initialized",
+        "at": "2026-10-17T23:24:05.169Z",
+        "status": 202
+      },
+      {
+        "method": "GET",
+        "at": "2026-10-17T23:24:06.220Z",
+        "status": 405
+      },
+      {
+        "method": "POST",
+        "rpc_method": "tools/list",
+        "at": "2026-10-17T23:24:07.270Z",
+        "status": 200
+      }
+    ],
+    "attempts": []
+  },
+  "analysis": {
+    "status": "complete",
+    "tool_count": 20,
+    "tools_hash": "sha256:d1da270410d6c6ccf9d5939274cf7072c31ca673972782cb54ec42cb5763c567",
+    "static_tool_tokens": 11125,
+    "token_status": "provider_countTokens",
+    "token_model": "claude-sonnet-5-5",
+    "token_basis": "audit_server countStaticTokens: with-tools minus without-tools input_tokens. No generation.",
+    "findings": [
+      {
+        "id": "F3",
+        "severity": "medium",
+        "kind": "payload_control_undocumented",
+        "tool": "get_gas_prices",
+        "message": "Undocumented boolean or number whose name suggests it controls response size.",
+        "param": "include_all_in"
+      },
+      {
+        "id": "F4",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_electricity_prices",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F5",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_gas_prices",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F6",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_gas_prices",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F7",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_gas_prices",
+        "message": "Parameter has no description.",
+        "param": "resolution"
+      },
+      {
+        "id": "F8",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_gas_prices",
+        "message": "Parameter has no description.",
+        "param": "include_all_in"
+      },
+      {
+        "id": "F9",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_electricity_price_forecast",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F10",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_electricity_price_forecast",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F11",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_electricity_price_forecast",
+        "message": "Parameter has no description.",
+        "param": "resolution"
+      },
+      {
+        "id": "F12",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_expected_average_prices",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F13",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_dynamic_energy_suppliers",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F14",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_dynamic_energy_suppliers",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F15",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "list_dynamic_energy_suppliers",
+        "message": "Parameter has no description.",
+        "param": "sort"
+      },
+      {
+        "id": "F16",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_grid_operator_costs",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F17",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_solar_bonus",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F18",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_solar_bonus_analysis",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F19",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_solar_bonus_analysis",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F20",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_solar_forecast",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F21",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_solar_forecast",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F22",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_solar_forecast",
+        "message": "Parameter has no description.",
+        "param": "latitude"
+      },
+      {
+        "id": "F23",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_solar_forecast",
+        "message": "Parameter has no description.",
+        "param": "longitude"
+      },
+      {
+        "id": "F24",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_solar_forecast",
+        "message": "Parameter has no description.",
+        "param": "tilt"
+      },
+      {
+        "id": "F25",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_solar_forecast",
+        "message": "Parameter has no description.",
+        "param": "azimuth"
+      },
+      {
+        "id": "F26",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_solar_forecast",
+        "message": "Parameter has no description.",
+        "param": "days"
+      },
+      {
+        "id": "F27",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_solar_forecast",
+        "message": "Parameter has no description.",
+        "param": "include_hourly"
+      },
+      {
+        "id": "F28",
+        "severity": "medium",
+        "kind": "payload_control_undocumented",
+        "tool": "get_solar_forecast",
+        "message": "Undocumented boolean or number whose name suggests it controls response size.",
+        "param": "include_hourly"
+      },
+      {
+        "id": "F29",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "compare_plug_in_batteries",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F30",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "compare_plug_in_batteries",
+        "message": "Parameter has no description.",
+        "param": "limit"
+      },
+      {
+        "id": "F31",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "compare_p1_meters",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F32",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "compare_p1_meters",
+        "message": "Parameter has no description.",
+        "param": "sort"
+      },
+      {
+        "id": "F33",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "compare_p1_meters",
+        "message": "Parameter has no description.",
+        "param": "limit"
+      },
+      {
+        "id": "F34",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "compare_ere_providers",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F35",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "compare_ere_providers",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F36",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "compare_ere_providers",
+        "message": "Parameter has no description.",
+        "param": "limit"
+      },
+      {
+        "id": "F37",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_ere_market_price",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F38",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_ere_market_price",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F39",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "list_electric_cars",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F40",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_electric_cars",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F41",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "list_electric_cars",
+        "message": "Parameter has no description.",
+        "param": "powertrain"
+      },
+      {
+        "id": "F42",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "list_electric_cars",
+        "message": "Parameter has no description.",
+        "param": "limit"
+      },
+      {
+        "id": "F43",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_energy_saving_tips",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F44",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_energy_saving_tips",
+        "message": "Parameter has no description.",
+        "param": "limit"
+      },
+      {
+        "id": "F45",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "list_quizzes",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F46",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "list_quizzes",
+        "message": "Parameter has no description.",
+        "param": "limit"
+      },
+      {
+        "id": "F47",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "get_quiz",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F48",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_quiz",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F49",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "check_grid_congestion",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F50",
+        "severity": "medium",
+        "kind": "missing_usage_guidelines",
+        "tool": "calculate_home_battery_payback",
+        "message": "Description does not say when to use this tool."
+      },
+      {
+        "id": "F51",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "calculate_home_battery_payback",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F52",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "calculate_home_battery_payback",
+        "message": "Parameter has no description.",
+        "param": "has_solar"
+      },
+      {
+        "id": "F53",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "calculate_home_battery_payback",
+        "message": "Parameter has no description.",
+        "param": "night_from_hour"
+      },
+      {
+        "id": "F54",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "calculate_home_battery_payback",
+        "message": "Parameter has no description.",
+        "param": "night_to_hour"
+      },
+      {
+        "id": "F55",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "calculate_home_battery_payback",
+        "message": "Parameter has no description.",
+        "param": "contract"
+      },
+      {
+        "id": "F56",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "calculate_home_battery_payback",
+        "message": "Parameter has no description.",
+        "param": "round_trip_efficiency_pct"
+      },
+      {
+        "id": "F57",
+        "severity": "medium",
+        "kind": "missing_output_schema",
+        "tool": "get_historical_weather",
+        "message": "Tool has no output schema."
+      },
+      {
+        "id": "F58",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_historical_weather",
+        "message": "Parameter has no description.",
+        "param": "latitude"
+      },
+      {
+        "id": "F59",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_historical_weather",
+        "message": "Parameter has no description.",
+        "param": "longitude"
+      },
+      {
+        "id": "F60",
+        "severity": "medium",
+        "kind": "opaque_parameter",
+        "tool": "get_historical_weather",
+        "message": "Parameter has no description.",
+        "param": "resolution"
+      }
+    ],
+    "severity_counts": {
+      "high": 0,
+      "medium": 58,
+      "warning": 0
+    },
+    "risk": {
+      "status": "static_hypotheses_only",
+      "controls": [
+        {
+          "tool": "get_electricity_prices",
+          "path": "inputSchema.properties.include_all_in",
+          "name": "include_all_in",
+          "description": "Add an indicative all-in consumer price incl. VAT.",
+          "mentions_size_or_cost": true,
+          "default": false
+        },
+        {
+          "tool": "get_gas_prices",
+          "path": "inputSchema.properties.include_all_in",
+          "name": "include_all_in",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": false
+        },
+        {
+          "tool": "get_electricity_price_forecast",
+          "path": "inputSchema.properties.include_consumer_price",
+          "name": "include_consumer_price",
+          "description": "Add the price a household pays or receives: market price plus purchase fee, energy tax and VAT, or for feed_in the market price plus the feed-in fee.",
+          "mentions_size_or_cost": false,
+          "default": false
+        },
+        {
+          "tool": "get_grid_operator_costs",
+          "path": "inputSchema.properties.include_business",
+          "name": "include_business",
+          "description": "Also include connections that are not for households.",
+          "mentions_size_or_cost": true,
+          "default": false
+        },
+        {
+          "tool": "get_solar_forecast",
+          "path": "inputSchema.properties.include_hourly",
+          "name": "include_hourly",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": false
+        },
+        {
+          "tool": "compare_plug_in_batteries",
+          "path": "inputSchema.properties.max_capacity_kwh",
+          "name": "max_capacity_kwh",
+          "description": "Maximum gross capacity in kWh.",
+          "mentions_size_or_cost": true,
+          "maximum": 1000
+        },
+        {
+          "tool": "compare_plug_in_batteries",
+          "path": "inputSchema.properties.max_price_eur",
+          "name": "max_price_eur",
+          "description": "Maximum lowest shop price in EUR incl. VAT.",
+          "mentions_size_or_cost": true,
+          "maximum": 100000
+        },
+        {
+          "tool": "compare_plug_in_batteries",
+          "path": "inputSchema.properties.max_price_per_kwh_eur",
+          "name": "max_price_per_kwh_eur",
+          "description": "Maximum price per kWh of gross capacity in EUR incl. VAT.",
+          "mentions_size_or_cost": true,
+          "maximum": 10000
+        },
+        {
+          "tool": "compare_plug_in_batteries",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": 10,
+          "maximum": 50
+        },
+        {
+          "tool": "compare_p1_meters",
+          "path": "inputSchema.properties.max_update_interval_seconds",
+          "name": "max_update_interval_seconds",
+          "description": "Only meters that give a new reading at least this often (1 = every second).",
+          "mentions_size_or_cost": false,
+          "maximum": 3600
+        },
+        {
+          "tool": "compare_p1_meters",
+          "path": "inputSchema.properties.max_price_eur",
+          "name": "max_price_eur",
+          "description": "Maximum lowest shop price in EUR incl. VAT. Meters without a shop price are left out.",
+          "mentions_size_or_cost": true,
+          "maximum": 10000
+        },
+        {
+          "tool": "compare_p1_meters",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": 20,
+          "maximum": 50
+        },
+        {
+          "tool": "compare_ere_providers",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": 20,
+          "maximum": 50
+        },
+        {
+          "tool": "list_electric_cars",
+          "path": "inputSchema.properties.include_announced",
+          "name": "include_announced",
+          "description": "Let announced functions count as yes in the bidirectional filter.",
+          "mentions_size_or_cost": false,
+          "default": false
+        },
+        {
+          "tool": "list_electric_cars",
+          "path": "inputSchema.properties.max_price_eur",
+          "name": "max_price_eur",
+          "description": "Maximum list price in EUR incl. VAT.",
+          "mentions_size_or_cost": true,
+          "maximum": 1000000
+        },
+        {
+          "tool": "list_electric_cars",
+          "path": "inputSchema.properties.include_no_longer_sold",
+          "name": "include_no_longer_sold",
+          "description": "Also models that are no longer sold new.",
+          "mentions_size_or_cost": false,
+          "default": false
+        },
+        {
+          "tool": "list_electric_cars",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": 10,
+          "maximum": 50
+        },
+        {
+          "tool": "get_energy_saving_tips",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": 15,
+          "maximum": 60
+        },
+        {
+          "tool": "list_quizzes",
+          "path": "inputSchema.properties.limit",
+          "name": "limit",
+          "description": "",
+          "mentions_size_or_cost": false,
+          "default": 30,
+          "maximum": 50
+        },
+        {
+          "tool": "get_quiz",
+          "path": "inputSchema.properties.include_answers",
+          "name": "include_answers",
+          "description": "Include the correct answer, explanation and success rate per question.",
+          "mentions_size_or_cost": true,
+          "default": false
+        }
+      ],
+      "flags": [
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_electricity_prices"
+          ],
+          "description": "Day-ahead electricity prices for the Netherlands (EPEX/ENTSO-E bidding zone NL) from 2013 until tomorrow once published (around 13:00). Market price in EUR/kWh excluding VAT, per quarter hour, hour, day, month or year. Optionally an indicative all-in consumer price including energy tax, average supplier fee and 21% VAT (only for dates from 2023). Maximum period per call: 31 days per quarter hour, 92 days per hour, 10 years per day. Per quarter hour and hour each row also has time_utc, so the doubled hour when daylight saving time ends is two separate rows.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get_gas_prices"
+          ],
+          "path": "inputSchema.properties.include_all_in",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_gas_prices"
+          ],
+          "description": "Daily dynamic gas prices for the Netherlands from 2018, in EUR/m3 excluding VAT, per day, month or year. Optionally an indicative all-in consumer price including energy tax, average supplier fee and 21% VAT (only for dates from 2023).",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get_electricity_price_forecast"
+          ],
+          "path": "inputSchema.properties.include_consumer_price",
+          "description": "Add the price a household pays or receives: market price plus purchase fee, energy tax and VAT, or for feed_in the market price plus the feed-in fee.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get_solar_forecast"
+          ],
+          "path": "inputSchema.properties.include_hourly",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "compare_plug_in_batteries"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "compare_p1_meters"
+          ],
+          "path": "inputSchema.properties.max_update_interval_seconds",
+          "description": "Only meters that give a new reading at least this often (1 = every second).",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "compare_p1_meters"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "compare_ere_providers"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "compare_ere_providers"
+          ],
+          "description": "Dutch ERE booking service providers (inboekdienstverleners) for home charging of an electric car, as compared on jeroen.nl: commission and how it works, all fixed costs, payout frequency, contract terms, confirmed charger brands, benefits, the jeroen.nl score (1 to 10) and the expected net revenue per year in EUR for a given number of kWh charged at home, at the current ERE market price. Give kwh_per_year (kWh charged at home) or km_per_year (converted like the site: 18 kWh per 100 km, 80% charged at home, so 14.4 kWh per 100 km). Without either, 10,000 km per year is used. The net revenue uses the commission of the first contract year and all yearly costs; it is an estimate, the real payout follows the market price.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "list_electric_cars"
+          ],
+          "path": "inputSchema.properties.include_announced",
+          "description": "Let announced functions count as yes in the bidirectional filter.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "list_electric_cars"
+          ],
+          "path": "inputSchema.properties.include_no_longer_sold",
+          "description": "Also models that are no longer sold new.",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "list_electric_cars"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "get_energy_saving_tips"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "response_control_size_unclear",
+          "tools": [
+            "list_quizzes"
+          ],
+          "path": "inputSchema.properties.limit",
+          "description": "",
+          "hypothesis": "Response-size control may be overlooked because its size/cost effect is unclear."
+        },
+        {
+          "kind": "broad_response_candidate",
+          "tools": [
+            "get_quiz"
+          ],
+          "description": "One open knowledge quiz from jeroen.nl with all questions and answer options, plus the sources the quiz is based on. By default the correct answers and explanations are left out, so the questions can be asked first. With include_answers=true every question also gets the correct option, the explanation and how often it is answered correctly on jeroen.nl. Ask the questions one by one and only fetch the answers after the user has answered. This tool cannot submit answers or award energy points.",
+          "hypothesis": "Broad language may route a narrow task to an unnecessarily large response; bounded semantics may explain this language."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_electricity_prices",
+            "get_gas_prices"
+          ],
+          "hypothesis": "Read tools share resource terms (price), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_electricity_prices",
+            "get_electricity_price_forecast"
+          ],
+          "hypothesis": "Read tools share resource terms (electricity, price), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_electricity_prices",
+            "get_expected_average_prices"
+          ],
+          "hypothesis": "Read tools share resource terms (price), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_electricity_prices",
+            "get_ere_market_price"
+          ],
+          "hypothesis": "Read tools share resource terms (price), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_gas_prices",
+            "get_electricity_price_forecast"
+          ],
+          "hypothesis": "Read tools share resource terms (price), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_gas_prices",
+            "get_expected_average_prices"
+          ],
+          "hypothesis": "Read tools share resource terms (price), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_gas_prices",
+            "get_ere_market_price"
+          ],
+          "hypothesis": "Read tools share resource terms (price), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_electricity_price_forecast",
+            "get_expected_average_prices"
+          ],
+          "hypothesis": "Read tools share resource terms (price), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_electricity_price_forecast",
+            "get_solar_forecast"
+          ],
+          "hypothesis": "Read tools share resource terms (forecast), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_electricity_price_forecast",
+            "get_ere_market_price"
+          ],
+          "hypothesis": "Read tools share resource terms (price), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_expected_average_prices",
+            "get_ere_market_price"
+          ],
+          "hypothesis": "Read tools share resource terms (price), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "list_dynamic_energy_suppliers",
+            "get_energy_saving_tips"
+          ],
+          "hypothesis": "Read tools share resource terms (energy), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_solar_bonus",
+            "get_solar_bonus_analysis"
+          ],
+          "hypothesis": "Read tools share resource terms (solar, bonu), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_solar_bonus",
+            "get_solar_forecast"
+          ],
+          "hypothesis": "Read tools share resource terms (solar), without a cross-reference. Exact semantics may already distinguish them."
+        },
+        {
+          "kind": "overlapping_read_tools",
+          "tools": [
+            "get_solar_bonus_analysis",
+            "get_solar_forecast"
+          ],
+          "hypothesis": "Read tools share resource terms (solar), without a cross-reference. Exact semantics may already distinguish them."
+        }
+      ]
+    },
+    "read_only_allowlist": [
+      "get_electricity_prices",
+      "get_gas_prices",
+      "get_electricity_price_forecast",
+      "get_expected_average_prices",
+      "list_dynamic_energy_suppliers",
+      "get_grid_operator_costs",
+      "get_solar_bonus",
+      "get_solar_bonus_analysis",
+      "get_solar_forecast",
+      "compare_plug_in_batteries",
+      "compare_p1_meters",
+      "compare_ere_providers",
+      "get_ere_market_price",
+      "list_electric_cars",
+      "get_energy_saving_tips",
+      "list_quizzes",
+      "get_quiz",
+      "check_grid_congestion",
+      "calculate_home_battery_payback",
+      "get_historical_weather"
+    ]
+  }
+}
