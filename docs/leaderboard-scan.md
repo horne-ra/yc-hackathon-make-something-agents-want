@@ -2,9 +2,34 @@
 
 Manufact’s servers: reviewed separately; results shared with the Manufact team first.
 
-Snapshot: 2026-10-17T23:17:33.903631+00:00. Collection/report: 2026-10-18T00:17:11.804Z. Status: **complete**. Public dataset: 2672 entries. Every risk flag is a **static hypothesis**. No target tool or model trial was executed. [Dataset](../scripts/leaderboard/servers.json), [view/page coverage](../scripts/leaderboard/views.json), [collection status](../scripts/leaderboard/scrape-progress.json).
+Snapshot: 2026-10-17T23:17:33.903631+00:00. Collection/report: 2026-10-18T00:26:13.431Z. Status: **complete**. Public dataset: 2672 entries. Every risk flag is a **static hypothesis**. No target tool or model trial was executed for this public leaderboard scan. [Dataset](../scripts/leaderboard/servers.json), [view/page coverage](../scripts/leaderboard/views.json), [collection status](../scripts/leaderboard/scrape-progress.json).
 
 Coverage: 2672 public detail pages collected; 446 anonymous tools/list snapshots; 432 provider token counts and 14 unavailable counts. [Summary](../scripts/leaderboard/summary.json) · [Coverage, dispatch, rate and publication checks](../scripts/leaderboard/verification.json).
+
+## Headline numbers — static heuristics
+
+Screened **2,672 public catalog entries**; **446** yielded complete anonymous tool-definition snapshots. Among **432** available provider counts, median static tool-definition cost is **4,018 tokens** and the 90th percentile is **20,431 tokens**. 14 counts are unavailable. These describe static definitions, not runtime responses or measured behavior.
+
+**148 A or A+ entries** carry at least one context-cost heuristic flag, among 195 A/A+ entries with a complete live audit (280 A/A+ entries in the public census). Unscreenable entries have unknown flags, not zero.
+
+Static Spearman correlation of per-tool documentation score with context-cost flag count: **-0.105** (1338 name-matched tools, 126 servers); **-0.252** (410 identical-definition tools, 49 servers). No behavioral, causal, or significance claim.
+
+Ten largest available static tool-definition costs (catalog entries; unavailable counts cannot be ranked):
+
+| Server | Static tool-definition tokens |
+|---|---:|
+| [Well](https://manufact.com/mcp-catalog/well) | 528,309 |
+| [Drry](https://manufact.com/mcp-catalog/drry) | 343,394 |
+| [Spoks](https://manufact.com/mcp-catalog/spoks) | 146,315 |
+| [Gorgias MCP](https://manufact.com/mcp-catalog/gorgias-mcp) | 123,558 |
+| [CivilQuants](https://manufact.com/mcp-catalog/civilquants) | 121,245 |
+| [athenahq](https://manufact.com/mcp-catalog/athenahq) | 107,692 |
+| [Knips](https://manufact.com/mcp-catalog/knips) | 103,358 |
+| [Aisle Wedding](https://manufact.com/mcp-catalog/aisle-wedding) | 85,449 |
+| [Fieldwerk](https://manufact.com/mcp-catalog/fieldwerk) | 84,624 |
+| [Blynk](https://manufact.com/mcp-catalog/blynk) | 78,016 |
+
+Median uses the middle observation(s); p90 uses nearest rank. Statistics include available counts only and retain distinct catalog entries that may share an endpoint. [Exact headline data and method](../scripts/leaderboard/headline-numbers.json).
 
 The HTML supplies the complete leaderboard as initialResult. The public client filters community entries and the 12 categories locally, and Show more reveals 100 more local entries. All 26 views were reconstructed with the site’s exact category aliases and grade thresholds; the source code URLs/hashes are in [site-semantics.json](../scripts/leaderboard/site-semantics.json). Private entries are withheld, leaving their original rank gaps. Unknown legacy categories are retained in All.
 
@@ -27,6 +52,8 @@ A high documentation score can coexist with response-size or routing hypotheses.
 ## Candidate benchmarks — drafts for selection
 
 The five proposals below are hypotheses for user review. They connected anonymously for metadata and advertise read-only tools. Tool execution, usable backend access, and plan limits remain untested. Freeze concrete inputs, expected tool/arguments, complete metadata, model ID, and a description-only candidate before approval; do not run them from this scan. Writes/destructive/unknown tools must be blocked at dispatch and scored wrong_tool. Any empty result or transport/tool error must remain visible.
+
+These draft tasks require revision to natural user phrasing before any future approval. None of these five servers is selected for execution today.
 
 ### Robtex Network Intelligence — 100/A+
 
