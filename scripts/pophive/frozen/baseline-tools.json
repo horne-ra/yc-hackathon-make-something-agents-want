@@ -1,0 +1,560 @@
+[
+  {
+    "name": "get_overview",
+    "description": "Cross-disease situation report for one US state or the nation — what's\nelevated, rising, declining, or stale across every PopHIVE topic. For\nstraightforward single-slice questions only (e.g. \"anything elevated\nin Connecticut?\", \"public health sitrep for Florida?\"). If the answer\nneeds anything beyond reading one precomputed evidence block, use\nget_data.\n\nExamples: \"What's going on health-wise in Texas?\", \"Public health sitrep\nfor Florida\", \"Anything elevated in Connecticut?\"\n\nNot for: a single disease (get_current_status), time series (get_trend),\nranking states by one disease (get_map).\n\nCall example: get_overview(geography='Texas')\n\n    Scope: US-only aggregate surveillance; relay the precomputed evidence, never re-derive numbers.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "geography": {
+          "default": "US",
+          "type": "string",
+          "description": "A US state (\"Connecticut\", \"CT\"), DC, or a territory\n(PR, GU, VI, AS, MP); omit for national. No counties (most\ntopics are state-level)."
+        },
+        "diseases": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional list of topics to scope to; default all.\nget_data() lists topics."
+        },
+        "include_chart": {
+          "default": true,
+          "type": "boolean",
+          "description": "Attach a sparkline grid (one mini chart per topic)."
+        }
+      },
+      "type": "object"
+    },
+    "title": "Disease Overview",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
+    "_meta": {
+      "ui": {
+        "resourceUri": "ui://pophive/chart.html",
+        "permissions": [
+          "clipboardWrite"
+        ]
+      },
+      "fastmcp": {
+        "tags": []
+      }
+    }
+  },
+  {
+    "name": "get_current_status",
+    "description": "Current-status verdict for one disease in one US place — level,\ndirection, and risk right now. For straightforward single-slice\nquestions only (e.g. \"is flu rising in Texas?\", \"how bad is COVID\nnationally?\"). If the answer needs anything beyond reading one\nprecomputed evidence block, use get_data.\n\nExamples: \"Is RSV rising in Connecticut?\", \"How bad is flu nationally?\",\n\"What is the risk of measles in Texas?\", \"Current COVID situation in\nNew York.\"\n\nNot for: trends over time (get_trend), ranking geographies (get_map),\nvaccination coverage (get_coverage).\n\nCall example: get_current_status(disease='rsv', geography='Connecticut')\n\n    Scope: US-only aggregate surveillance; relay the precomputed evidence, never re-derive numbers.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "disease": {
+          "type": "string",
+          "description": "Any PopHIVE topic or alias (e.g. \"flu\", \"covid\", \"measles\").\nget_data() lists all topics."
+        },
+        "geography": {
+          "default": "US",
+          "type": "string",
+          "description": "A state, county, or city — e.g. \"CT\", \"New Haven County,\nCT\", \"Houston\" (same grammar as get_trend); omit for national."
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pin the headline to one source by name — e.g.\n\"hospitalizations\" when the user asks about hospital admissions\nrather than the default ED-visit signal. Omit for the preferred\nsignal; errors list valid names."
+        },
+        "include_query": {
+          "default": false,
+          "type": "boolean",
+          "description": "Include a runnable pandas snippet + column schema."
+        },
+        "include_chart": {
+          "default": true,
+          "type": "boolean",
+          "description": "Attach a PNG of all sources' recent trends."
+        }
+      },
+      "required": [
+        "disease"
+      ],
+      "type": "object"
+    },
+    "title": "Current Disease Status",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
+    "_meta": {
+      "ui": {
+        "resourceUri": "ui://pophive/chart.html",
+        "permissions": [
+          "clipboardWrite"
+        ]
+      },
+      "fastmcp": {
+        "tags": []
+      }
+    }
+  },
+  {
+    "name": "get_trend",
+    "description": "Trend over time for one disease in one US place — direction, peak, and\nchange, optionally stratified or pinned to one source. For\nstraightforward single-slice questions only (e.g. \"how has RSV changed\nsince January?\", \"flu trend in Ohio\"). If the answer needs anything\nbeyond reading one precomputed evidence block, use get_data.\n\nExamples: \"What are the latest trends in COVID?\", \"How has flu changed\nsince January?\", \"Diabetes trend in Ohio over 5 years.\"\n\nseason_over_season evidence compares the current season to the\nimmediately prior season only; for older seasons use get_data.\n\nNot for: a current-status verdict (get_current_status), ranking\ngeographies (get_map), vaccination coverage (get_coverage).\n\nCall example: get_trend(disease='flu', geography='US', period='12w')\n\n    Scope: US-only aggregate surveillance; relay the precomputed evidence, never re-derive numbers.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "disease": {
+          "type": "string",
+          "description": "Any PopHIVE topic or alias (e.g. \"flu\", \"covid\", \"measles\").\nget_data() lists all topics."
+        },
+        "geography": {
+          "default": "US",
+          "type": "string",
+          "description": "a US state (\"Connecticut\", \"CT\"), DC, a US territory (PR, GU, VI, AS, MP), a county (\"New Haven County, CT\", \"09009\"), a major US city (\"Houston\"), or \"US\" for national. Default \"US\"."
+        },
+        "period": {
+          "default": "12w",
+          "type": "string",
+          "description": "\"1w\", \"2w\", \"4w\", \"8w\", \"12w\" (default), \"season\", \"1y\", \"2y\",\n\"3y\", \"5y\", or \"all\". Use \"1w\" for week-over-week change. Periods\nshorter than the dataset's cadence are rejected; periods longer\nthan available history echo the actual span in\n``resolved.period_actual``."
+        },
+        "stratify_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Break out by a stratification dimension (one of\n\"age\", \"alph_type\", \"antibiotic\", \"antimicrobial\", \"cause_of_death\", \"emm_type\", \"ethnicity\", \"forecast_day\", \"genus_species_serotype\", \"insurance\", \"measure\", \"onset\", \"outcome_name\", \"pathogen\", \"pattern\", \"race\", \"race_ethnicity\", \"serotype\", \"sex\", \"syndrome\", \"urban\", \"vaccine\", \"vax\", \"vax_group\" — varies by disease; get_data(disease=X) lists which\napply)."
+        },
+        "stratum": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "With stratify_by, pin the series to ONE value of that\ndimension instead of breaking out all of them — e.g.\nstratify_by=\"age\", stratum=\"0-4 years\" for a pediatric series, or\nstratify_by=\"insurance\", stratum=\"Medicaid\". Case-insensitive;\nwhole-word matches and common aliases (AIAN, Pacific Islander)\naccepted. A value carried by a sibling signal of the same topic\nis routed to it automatically. Errors list the valid values."
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pin to one upstream signal. Friendly names accepted (\"Epic\nCosmos\", \"wastewater\", \"hospitalizations\"). When omitted, uses\nPopHIVE's preferred trend signal for this disease and\ncross-validates against the others — the answer states which\nsignal the series is from and whether the others agree. Never\ndescribe a single signal as \"the\" number for the disease."
+        },
+        "baseline": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Anchor the Change block to an explicit baseline instead of\nthe default recent window — a 4-digit year (\"2020\") or ISO date\n(\"2020-03-01\"). Answers \"how has X changed since 2020?\" with\nfrom_value at the baseline and to_value at the latest observation."
+        },
+        "include_query": {
+          "default": false,
+          "type": "boolean",
+          "description": "Include a runnable pandas snippet + column schema."
+        },
+        "include_chart": {
+          "default": true,
+          "type": "boolean",
+          "description": "Attach a PNG line chart."
+        }
+      },
+      "required": [
+        "disease"
+      ],
+      "type": "object"
+    },
+    "title": "Disease Trend Time Series",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
+    "_meta": {
+      "ui": {
+        "resourceUri": "ui://pophive/chart.html",
+        "permissions": [
+          "clipboardWrite"
+        ]
+      },
+      "fastmcp": {
+        "tags": []
+      }
+    }
+  },
+  {
+    "name": "get_map",
+    "description": "Geographic ranking — which US states or counties are highest or lowest\non one disease, by current level or recent change. For straightforward\nsingle-slice questions only (e.g. \"which counties have the highest\nRSV?\", \"how does Texas rank on flu?\"). If the answer needs anything\nbeyond reading one precomputed evidence block, use get_data.\n\nExamples: \"What parts of the US have the highest rates of flu right\nnow?\", \"How do diabetes rates differ across the US by county?\", \"How\ndoes Texas rank?\", \"Which states are improving fastest on opioid\noverdose?\"\n\nNot for: trends over time (get_trend), one place's status\n(get_current_status).\n\nCall example: get_map(disease='flu', geo_level='state', top_n=10)\n\n    Scope: US-only aggregate surveillance; relay the precomputed evidence, never re-derive numbers.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "disease": {
+          "type": "string",
+          "description": "Any PopHIVE topic or alias (e.g. \"flu\", \"covid\", \"mmr\").\nget_data() lists all topics."
+        },
+        "geo_level": {
+          "default": "state",
+          "type": "string",
+          "description": "\"state\" (default) or \"county\"."
+        },
+        "direction": {
+          "default": "highest",
+          "type": "string",
+          "description": "\"highest\" (default) or \"lowest\"."
+        },
+        "top_n": {
+          "default": 10,
+          "type": "integer",
+          "description": "1–20. Default 10."
+        },
+        "rank_by": {
+          "default": "value",
+          "enum": [
+            "value",
+            "change"
+          ],
+          "type": "string",
+          "description": "\"value\" (default) ranks by current level. \"change\" ranks by\nrecent trend direction/magnitude — direction=\"lowest\" then means\nfastest-declining (most improving for incidence measures),\n\"highest\" means fastest-rising. Each row carries from_value →\nto_value + direction so you can quote \"WV: 51.4→45.5 (declining)\"."
+        },
+        "highlight": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional geography to locate in the ranking. The answer\nstates its exact rank, value, and quartile so you never have to\ninfer it from the top-N alone."
+        },
+        "region": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Scope the ranking to part of the country — a region name\n(\"Northeast\", \"Midwest\", \"South\", \"West\", \"New England\",\n\"Pacific Northwest\", ...) or an explicit list of states\n([\"TX\", \"OK\", \"NM\"]). County rankings keep only counties in\nthose states. Ranks and medians are then within-region."
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pin one source by name; omit for the preferred source.\nErrors list valid names."
+        },
+        "include_query": {
+          "default": false,
+          "type": "boolean",
+          "description": "Include a runnable pandas snippet + column schema."
+        },
+        "include_chart": {
+          "default": true,
+          "type": "boolean",
+          "description": "Attach a PNG bar chart."
+        }
+      },
+      "required": [
+        "disease"
+      ],
+      "type": "object"
+    },
+    "title": "Geographic Disease Ranking",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
+    "_meta": {
+      "ui": {
+        "resourceUri": "ui://pophive/chart.html",
+        "permissions": [
+          "clipboardWrite"
+        ]
+      },
+      "fastmcp": {
+        "tags": []
+      }
+    }
+  },
+  {
+    "name": "compare",
+    "description": "Side-by-side comparison of one disease across 2–5 US places, or\nagreement between surveillance sources in one place. For\nstraightforward single-slice questions only (e.g. \"is RSV worse in CT\nthan NY?\", \"do wastewater and ED visits agree on COVID?\"). If the\nanswer needs anything beyond reading one precomputed evidence block,\nuse get_data.\n\nExamples: \"Is RSV worse in CT than NY?\", \"Compare diabetes in Texas vs\nCalifornia\", \"Do wastewater and ED visits agree on COVID?\"\n\nNot for: one place's status (get_current_status), ranking many places\n(get_map).\n\nCall example: compare(disease='covid', geographies=['Texas', 'Florida'])\n\n    Scope: US-only aggregate surveillance; relay the precomputed evidence, never re-derive numbers.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "disease": {
+          "type": "string",
+          "description": "Any PopHIVE topic or alias (e.g. \"flu\", \"covid\", \"measles\").\nget_data() lists all topics."
+        },
+        "geographies": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of 2–5 geographies to compare side by side. If \"US\"\n(national) is one of them, every other geography gets a precomputed\nvs-national column (% above/below, or percentage-points for percent\nmeasures) so you can quote \"WV is 85% above national\" directly."
+        },
+        "sources": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of 2–5 source names to correlate within one geography."
+        },
+        "geography": {
+          "default": "US",
+          "type": "string",
+          "description": "In sources mode, the place to correlate within — state,\ncounty, or city (same grammar as get_trend); omit for national."
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "In geographies mode, pin one source by name; omit for the\npreferred source. Errors list valid names."
+        },
+        "period": {
+          "default": "12w",
+          "type": "string",
+          "description": "\"4w\", \"8w\", \"12w\" (default), \"season\", \"1y\", \"all\"."
+        },
+        "include_query": {
+          "default": false,
+          "type": "boolean",
+          "description": "Include a runnable pandas snippet + column schema."
+        },
+        "include_chart": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "disease"
+      ],
+      "type": "object"
+    },
+    "title": "Compare Geographies or Sources",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
+    "_meta": {
+      "ui": {
+        "resourceUri": "ui://pophive/chart.html",
+        "permissions": [
+          "clipboardWrite"
+        ]
+      },
+      "fastmcp": {
+        "tags": []
+      }
+    }
+  },
+  {
+    "name": "get_coverage",
+    "description": "US childhood vaccination coverage — the rate for one vaccine in one\nplace and whether it meets targets. For straightforward single-slice\nquestions only (e.g. \"kindergarten MMR rate in Idaho?\", \"is Texas\nbelow 95% MMR?\"). If the answer needs anything beyond reading one\nprecomputed evidence block, use get_data.\n\nExamples: \"Kindergarten MMR rate in Idaho?\", \"Is Texas below 95% MMR?\",\n\"Polio vaccination rate in Connecticut.\"\n\nNot for: disease activity (get_current_status), trends (get_trend),\ncoverage rankings across states (get_map with disease='mmr').\n\nCall example: get_coverage(vaccine='mmr', geography='Idaho')\n\n    Scope: US-only aggregate surveillance; relay the precomputed evidence, never re-derive numbers.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "vaccine": {
+          "default": "mmr",
+          "type": "string",
+          "description": "One of: combined7, dtap, hepa, hepb, hib, mmr, pcv, polio, rotavirus, vaccine_exemptions, varicella. Aliases like \"measles\" or \"chickenpox\"\nalso work. Default \"mmr\"."
+        },
+        "geography": {
+          "default": "US",
+          "type": "string",
+          "description": "A state, county, or city — e.g. \"ID\", \"New Haven County,\nCT\", \"Houston\" (same grammar as get_trend); omit for national."
+        },
+        "geo_level": {
+          "default": "state",
+          "type": "string",
+          "description": "\"state\" (default) or \"county\" (MMR only)."
+        },
+        "include_query": {
+          "default": false,
+          "type": "boolean",
+          "description": "Include a runnable pandas snippet + column schema."
+        },
+        "include_chart": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "title": "US Vaccination Coverage",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
+    "_meta": {
+      "ui": {
+        "resourceUri": "ui://pophive/chart.html",
+        "permissions": [
+          "clipboardWrite"
+        ]
+      },
+      "fastmcp": {
+        "tags": []
+      }
+    }
+  },
+  {
+    "name": "get_data",
+    "description": "Data catalog and raw-data gateway. The six specialized tools answer\nsingle-slice questions — current status, trend, map/ranking, A-vs-B\ncompare, coverage — with server-verified evidence; try them first,\nescalating here costs one call. Use get_data when evidence can't carry\nthe answer: multi-stratum gaps, history beyond the served window,\ncomplete lists, cross-dataset joins, custom math. Flow: (1) catalog,\n(2) disease='about' for the guide, (3) view schema + data_url,\n(4) download and compute — results are yours but carry the caveats and\naren't server-verified. include_query=true returns a runnable pandas\nsnippet.\n\nTopics: annual_wellness_visit, antimicrobial_resistance, babesiosis, breast_cancer_screening, campylobacter, cardiovascular_screening, census, cervical_cancer_screening, chlamydia_screening, colorectal_cancer_screening, combined7, community_health, copd, covid19, dengue, depression_screening, diabetes, diabetes_screening, diarrhea, dtap, ehrlichiosis, enteric_disease, firearm_injury, flu_vaccine_adult, haemophilus_influenzae, healthcare_access, heat_illness, hepa, hepb, hib, infant_mortality, influenza, injury_deaths, low_birth_weight, malaria, maternal_health, maternal_mortality, measles, mmr, obesity, opioid_overdose, opioid_use_disorder, pcv, pelvic_exam, pertussis, pneumococcal_vaccine_adult, polio, prostate_cancer_screening, rotavirus, rsv, salmonella, shigella, stec, strep, teen_births, vaccine_exemptions, varicella, vector_borne, west_nile, youth_wellbeing.\n\nExamples: \"What does PopHIVE track?\", \"Do you have Lyme disease data?\",\n\"Vaccination gaps across insurance types\", \"Raw RSV data for\nConnecticut.\"\n\nNot for: 'is flu rising in Texas?' → get_current_status; 'rank states\nby COVID wastewater' → get_map; 'is RSV worse in CT than NY?' → compare.\n\nCall example: get_data(disease='rsv', view='overall_trend')\n\n    Scope: US-only aggregate surveillance; relay the precomputed evidence, never re-derive numbers.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "disease": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional. If omitted, returns the full catalog inventory.\nPass \"about\" for the long-form reference document, \"archive\" for\nthe index of upstream source files (longer history, unserved\nmeasures; download-and-compute only; add view='<category>' for\none group's files)."
+        },
+        "view": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional. e.g. \"overall_trend\", \"geography_map\", \"trends_by_age\"."
+        },
+        "geography": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional, only with disease+view. A single geography\n(\"CT\"), a list ([\"CT\", \"NY\", \"MA\"]), or \"all states\" for one\nlatest-period row per state."
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional. With no disease, returns the inverse lookup — every\ndisease that source covers (\"What does Epic Cosmos track?\").\nFriendly names accepted (\"wastewater\", \"google\")."
+        },
+        "include_query": {
+          "default": false,
+          "type": "boolean",
+          "description": "Include a runnable pandas snippet + column schema."
+        }
+      },
+      "type": "object"
+    },
+    "title": "Data Catalog and Raw Access",
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true
+    },
+    "_meta": {
+      "fastmcp": {
+        "tags": []
+      }
+    }
+  }
+]

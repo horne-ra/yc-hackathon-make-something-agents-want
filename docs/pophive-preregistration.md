@@ -30,3 +30,13 @@ Consistency flags, per task and condition: selected-tool/argument disagreement, 
 Ordered verdict uses the unchanged `src/core/verdict.ts`: **Regressed** first for any control loss or task loss of at least two passes; otherwise **Inconclusive** for incomplete/insufficient data; otherwise **Improved** only if all task deltas are nonnegative and a non-control task gains at least two passes; otherwise **Inconclusive**. Result-token differences alone cannot make Improved. These N=3 observations are provisional.
 
 The machine registration, exact schedule, setup evidence, frozen patch/metadata/harness hashes, every trial, and final report are saved under `scripts/pophive/`. Final report: `docs/pophive-results.md`. Any metadata/model/hash drift invalidates the freeze and stops execution rather than silently changing it.
+
+## Frozen setup measurement and patch
+
+Setup registration commit: `34d2a65aff0b6df1e35ab6ef50123a7bd376600e`. Both anonymous calls succeeded. The with-chart response has 1 PNG image(s), 4246 text/envelope tokens and 543 incremental image tokens (4789 total). The no-chart response has 3208 text/envelope tokens and zero image tokens. The non-image text difference is 1038 tokens; the full response difference is 1581. These are one setup example, not a chart-cost distribution.
+
+Each of the six parameter descriptions is frozen as:
+
+> Attach a PNG chart image. It adds about 540 image-input tokens in one measured flu/Texas status-chart example; actual cost varies by chart dimensions and content. Defaults to true. Set false when the user only needs a short answer or the numbers.
+
+All task prompts, predicates, model settings, and stop rules above are unchanged. The complete candidate and source hashes are in `scripts/pophive/frozen/hashes.json`; this final freeze must be committed before generation.
